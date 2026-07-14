@@ -30,7 +30,12 @@ The whole game is played with a single finger at a time:
 - **Rotating arenas**: the cover layout changes every 3 waves (scattered cover → pillar court → corridors)
 - Synthesized sound effects (WebAudio, no assets), haptic feedback, kill-word flashes, best-wave tracking (localStorage)
 
-## Run it
+## Play it
+
+**On your phone:** https://onlinestuff4me-sketch.github.io/timeshard/
+(deployed automatically from `main` by GitHub Pages)
+
+## Run it locally
 
 It's a static page — serve the folder and open it on a phone (or a mobile
 emulation viewport in desktop devtools):
