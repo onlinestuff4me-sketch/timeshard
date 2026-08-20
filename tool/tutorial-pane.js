@@ -17,6 +17,7 @@ import {
   CUE_EVENTS, CUE_SHOW, ADVANCE_KINDS, OVERRIDE_KEY, PREVIEW_PARAM,
 } from '../src/tutorial.js';
 import { ELEMENTS } from '../src/protocols.js';
+import { initTutorialMap, setMapLeg, refreshMap, fitMap } from './tutorial-map.js';
 
 const $ = (id) => document.getElementById(id);
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -39,6 +40,7 @@ let open = new Set([spec.STEPS[0] && spec.STEPS[0].id]);
 let dirty = false;
 
 export function tutorialSpec() { return spec; }
+export { fitMap };
 
 // --- persistence -----------------------------------------------------------
 // The preview reads this key, and ONLY under ?tutorpreview=1 — see the note in
@@ -46,7 +48,10 @@ export function tutorialSpec() { return spec; }
 function save() {
   try { localStorage.setItem(OVERRIDE_KEY, JSON.stringify(spec)); } catch { /* private */ }
 }
-function markDirty() { dirty = true; save(); paintApply(); }
+function markDirty(refresh = true) {
+  dirty = true; save(); paintApply();
+  if (refresh) { try { refreshMap(); } catch { /* map not up yet */ } }
+}
 function paintApply() {
   const b = $('tutApply');
   if (b) { b.classList.toggle('on', dirty); b.textContent = dirty ? 'Apply to preview ●' : 'Apply to preview'; }
@@ -91,10 +96,11 @@ function renderLegs() {
     name.type = 'text'; name.value = leg.id;
     name.oninput = () => { leg.id = name.value; markDirty(); };
     const form = sel(leg.form, FORMS.map((f) => [f, f]), (v) => { leg.form = v; markDirty(); reload(); }, 'The space this leg is');
-    const cells = document.createElement('input');
-    cells.type = 'number'; cells.min = 2; cells.max = 24; cells.value = leg.cells;
-    cells.title = 'Straight cells before the leg is allowed to do anything else';
-    cells.oninput = () => { leg.cells = parseInt(cells.value, 10) || 7; markDirty(); };
+    // An authored leg's length is its PATH — edit it on the map, not here.
+    const len = document.createElement('span');
+    len.style.cssText = 'font-size:10.5px;color:var(--dim);white-space:nowrap';
+    // the same number the map's readout gives, in the same units
+    len.textContent = `${(leg.plan && leg.plan.moves || []).reduce((n, [, k]) => n + k, 0) * 4} m`;
     const st = document.createElement('label');
     st.style.cssText = 'font-size:10.5px;color:var(--dim);display:flex;gap:4px;align-items:center';
     const stc = document.createElement('input');
@@ -113,13 +119,11 @@ function renderLegs() {
       if (spec.LEGS.length <= 1) return;
       spec.LEGS.splice(i, 1); markDirty(); renderLegs(); reload();
     }, 'Remove this leg');
+    const pick = btn('▦', () => { setMapLeg(i); renderLegs(); }, 'Show this leg on the map');
     const r1 = document.createElement('div'); r1.className = 'r1';
-    r1.append(name, del);
+    r1.append(pick, name, del);
     const r2 = document.createElement('div'); r2.className = 'r2';
-    const cl = document.createElement('span');
-    cl.style.cssText = 'font-size:10.5px;color:var(--dim)';
-    cl.textContent = 'cells';
-    r2.append(form, cl, cells);
+    r2.append(form, len);
     const r3 = document.createElement('div'); r3.className = 'r2';
     r3.style.marginTop = '5px';
     r3.append(st, ba);
@@ -190,7 +194,7 @@ function renderNums() {
 
 // --- 2 + 3. the steps ------------------------------------------------------
 function renderSteps() {
-  const host = $('tutedit');
+  const host = $('tutsteps');
   if (!host) return;
   host.innerHTML = '';
   const head = document.createElement('div');
@@ -299,11 +303,21 @@ function stepCard(st, i) {
   fh.textContent = 'AND ON ENTERING IT';
   bd.appendChild(fh);
   const furn = document.createElement('div'); furn.className = 'mech';
+  // ALL of them. Five of these used to be missing, and the omission had teeth:
+  // moving `placeEnemy` to another step — which the code specifically invites —
+  // moved the gunner and left `hardFreeze` behind on the old step, silently
+  // killing the freeze that makes the first round survivable. A tool that can
+  // author some of what the game reads is a second source of truth.
   const FURNITURE = [
-    ['placeEnemy', 'Place one gunner', 'One body at enemyAt metres, straight ahead.'],
+    ['buildBarrier', 'Raise the barrier', 'The wall-to-wall block the STAND HERE label hangs over.'],
+    ['placeEnemy', 'Place one gunner', 'One body enemyCells beyond the barrier.'],
     ['placeSquad', 'Place the squad', 'finalEnemies − 1 more, abreast at ±enemyX.'],
-    ['dropBarrier', 'Drop the barrier', 'The wall-to-wall block sinks into the floor.'],
+    ['hardFreeze', 'Stop the world', 'Hold everything mid-telegraph until the time button is pressed.'],
+    ['startMeter', 'Reveal the meter', 'The bar appears full and begins to drain.'],
+    ['raiseGun', 'Raise the weapon', 'The viewmodel swings up on the reload rig.'],
+    ['dropBarrier', 'Drop the barrier', 'It sinks into the floor.'],
     ['openDoor', 'Open the door', 'The red door at the end of the leg.'],
+    ['checkpoint', 'Checkpoint', 'Dying rewinds to here, and the area is rebuilt.'],
     ['divider', 'Dotted divider', 'The centre line that splits move from look.'],
   ];
   for (const [key, label, why] of FURNITURE) {
@@ -440,6 +454,12 @@ addEventListener('message', (ev) => {
 // --- wiring ----------------------------------------------------------------
 export function initTutorialPane() {
   renderLegs(); renderNums(); renderSteps(); renderJump(); paintApply();
+  // The map edits the SAME spec object, so painting a room and typing a cue
+  // are the same edit as far as everything downstream is concerned.
+  initTutorialMap(spec, (legChanged) => {
+    dirty = true; save(); paintApply();
+    if (legChanged) renderLegs();
+  });
   $('legAdd').onclick = addLeg;
   $('pReload').onclick = reload;
   $('tutApply').onclick = reload;
