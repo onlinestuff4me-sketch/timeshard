@@ -17,6 +17,24 @@ Everything runs off holds, drags, and taps — one thumb works, two thumbs sing:
 | **Tap** | Fire at the crosshair — tap repeatedly to work through a whole squad in one freeze |
 | **Tap a dropped gun** | Auto-sprint to it and equip it, one tap |
 
+## Modes
+
+Five, in the order they were built — listed in-game under **SETTINGS → MODES**,
+with the alternates also one tap from the title screen:
+
+| Mode | What you do |
+|---|---|
+| **CITY STREETS** | Endless waves in the white city — the original arena. |
+| **RUSH HOUR** | Freeze the crowd, find the one face that matters, walk out. |
+| **THE TUNNEL** | Door to door, deeper each time. The main game; PLAY starts it. |
+| **CORRIDOR DUEL** | They come to you. Drag to sidestep, tap them to shatter. |
+| **DEAD STOP** | Time only moves while you do. Stand still and the world waits. |
+
+The last two are **simplified-control prototypes**: no look axis and no time
+button, so the whole scheme is *drag to move, tap to shoot* and the table
+above does not apply to them. They own time by two different rules — see
+[`docs/MODES.md`](docs/MODES.md). The list itself is `src/modes.js`.
+
 ## Features
 
 - **First-person 3D** (Three.js, vendored — no CDN, works offline) tuned for a tall portrait viewport
