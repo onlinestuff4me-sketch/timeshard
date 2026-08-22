@@ -67,8 +67,10 @@ him, watch the round leave, step out of it, shatter him — has to be learnable
 once before it is asked for twice. See docs/PILLARS.md section 3.
 
 ```js
-oneBodyDoors     : 4
-soloDoors        : 4
+oneBodyDoors     : 2
+twoBodyDoors     : 4
+soloDoors        : 3
+twoAliveDoors    : 4
 gunnerOnlyDoors  : 5
 oneRoundDoors    : 5
 ```
