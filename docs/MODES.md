@@ -1,21 +1,32 @@
 # Modes
 
-Five, in the order they were built. The list lives in `src/modes.js` — the
-menu's OTHER MODES row and the MODES section in Settings are both rendered
-from it, so a mode cannot exist in one place and not the other, and its
-one-line description cannot say two different things (`docs/PILLARS.md` §7).
+Five. The list lives in `src/modes.js` — the menu's OTHER MODES row and the
+MODES section in Settings are both rendered from it, so a mode cannot exist
+in one place and not the other, and its one-line description cannot say two
+different things (`docs/PILLARS.md` §7).
 
-| # | Mode | What you do |
+**The main game first, then the rest in the order they were built.**
+
+| Mode | Built | What you do |
 |---|---|---|
-| 1 | **CITY STREETS** | Endless waves in the white city — the original arena. |
-| 2 | **RUSH HOUR** | Freeze the crowd, find the one face that matters, walk out. |
-| 3 | **THE TUNNEL** | Door to door, deeper each time. The main game; PLAY starts it. |
-| 4 | **CORRIDOR DUEL** | They come to you. Drag to sidestep, tap them to shatter. |
-| 5 | **DEAD STOP** | Time only moves while you do. Stand still and the world waits. |
+| **THE TUNNEL** | 3rd | Door to door, deeper each time. The main game; PLAY starts it. |
+| **CITY STREETS** | 1st | Endless waves in the white city — the original arena. |
+| **RUSH HOUR** | 2nd | Freeze the crowd, find the one face that matters, walk out. |
+| **CORRIDOR DUEL** | 4th | They come to you. Drag to sidestep, tap them to shatter. |
+| **STAND STILL** | 5th | Time only moves while you do. Stand still and the world waits. |
 
-Build order is the sort order because it is the only ordering that stays true
-on its own. Alphabetical says nothing, "best first" is an opinion that goes
-stale, and newest-first would reshuffle the list every time we prototype.
+Two jobs, and neither ordering alone does both. The top of a list is where a
+reader looks first, and what they should find there is the game — not the
+oldest thing we happen to still ship. Everything under it is in build order
+because that is the only ordering of the alternates that stays true on its
+own: alphabetical says nothing, "best first" is an opinion that goes stale,
+and newest-first would reshuffle the list every time we prototype. So it
+reads as *here is the game, and here is everything else we have tried,
+oldest first*, which is what it is.
+
+`main: true` is what puts a mode at the top, and it is also what PLAY starts
+and what the OTHER MODES row leaves out — one flag, so those three cannot
+disagree.
 
 ---
 
@@ -65,7 +76,7 @@ you hold, so there is nothing to hoard and nothing to price. You never
 advance: they come to you, you sidestep, and when the strip is clear the
 corridor itself marches you to the open door.
 
-**DEAD STOP — time is yours, and it costs movement.**
+**STAND STILL — time is yours, and it costs movement.**
 The world runs at your thumb's speed: still is `SIMPLE.stop.still`, full drag
 is full speed. Standing still stops the world, which is exactly the thing §1
 warns about — so **every shot buys the world a slice of full-speed time**
@@ -109,7 +120,7 @@ survives; only the input for each one shrinks.
    enemy firing slows the world*. If it reads as random, `lead`/`miss` are
    the dials — too generous and the mode is permanently in slow motion with
    nothing to contrast against.
-2. **Is dead stop's shot cost felt, or just endured?** `shotTime` is the only
+2. **Is stand still's shot cost felt, or just endured?** `shotTime` is the only
    thing stopping the mode from being a shooting gallery.
 3. **Does the duel's march to the door outstay its welcome?** It is ~3.5 s of
    corridor with nothing to do. Shorten `duel.legCells` before raising

@@ -290,7 +290,7 @@ which is why each of the two owns time by a different rule. See
 Shared: a straight strip **3 cells wide**, a tap
 within **64 px** of a body takes the body.
 
-| Knob | Corridor duel | Dead stop |
+| Knob | Corridor duel | Stand still |
 |---|---|---|
 | Leg length | 6 cells (24 m) | 9 cells (36 m) |
 | World speed, idle | 1 | 0.02 (thumb still) |

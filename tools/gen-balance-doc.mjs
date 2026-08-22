@@ -303,7 +303,7 @@ which is why each of the two owns time by a different rule. See
 Shared: a straight strip **${SIMPLE.legWide * 2 + 1} cells wide**, a tap
 within **${n(SIMPLE.tapMagnetPx)} px** of a body takes the body.
 
-| Knob | Corridor duel | Dead stop |
+| Knob | Corridor duel | Stand still |
 |---|---|---|
 | Leg length | ${n(SIMPLE.duel.legCells)} cells (${n(SIMPLE.duel.legCells * LEG.cellM)} m) | ${n(SIMPLE.stop.legCells)} cells (${n(SIMPLE.stop.legCells * LEG.cellM)} m) |
 | World speed, idle | ${n(1)} | ${n(SIMPLE.stop.still)} (thumb still) |

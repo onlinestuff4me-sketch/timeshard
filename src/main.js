@@ -18,8 +18,9 @@ import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocol
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
 import { HALL, genHallLeg } from './genleg.js';
-// Every mode the game can start, in the order it was built. The menu row
-// and the MODES section in Settings are both rendered from it.
+// Every mode the game can start: the main game first, then the rest in the
+// order they were built. The menu row and the MODES section in Settings are
+// both rendered from it.
 import { MODES, modeById, isSimple } from './modes.js';
 import { loadTutorial, previewing as tutorPreviewing, NO_GRANTS } from './tutorial.js';
 import { haptic, persist, hydrateStorage, shellSetup, isNative } from './native.js';
@@ -3761,7 +3762,7 @@ function playerFire(aimAt = null) {
       }, k * spec.burstGap * 1000);
     }
   }
-  // SHOOTING IS NOT FREE IN DEAD STOP. The world is stopped whenever the
+  // SHOOTING IS NOT FREE IN STAND STILL. The world is stopped whenever the
   // thumb is still, so without a price a player could stand in one place and
   // empty the magazine into a frozen room. Every round spends a slice of
   // full-speed world time instead — the shots you did not dodge get closer
@@ -5734,8 +5735,9 @@ function renderModeList(live) {
   }).join('');
   if (el.modenote) {
     el.modenote.classList.remove('nudge');
-    el.modenote.textContent = live ? 'tap one to play — in the order they were built'
-      : 'in the order they were built';
+    el.modenote.textContent = live
+      ? 'tap one to play — the main game first, then oldest to newest'
+      : 'the main game first, then oldest to newest';
   }
 }
 
@@ -8718,7 +8720,7 @@ function hallSteer(e) {
 }
 
 // ---------------------------------------------------------------------------
-// THE SIMPLIFIED MODES — CORRIDOR DUEL and DEAD STOP
+// THE SIMPLIFIED MODES — CORRIDOR DUEL and STAND STILL
 //
 // One movement mechanic and nothing else. There is no look axis, no time
 // button and no bank: you drag to move and you tap to shoot, and that is the
@@ -8738,7 +8740,7 @@ function hallSteer(e) {
 //     advance: they come to you, and the corridor walks you to the door once
 //     the floor is clear.
 //
-//   DEAD STOP — time is yours, and it costs movement. The world runs at your
+//   STAND STILL — time is yours, and it costs movement. The world runs at your
 //     thumb's speed, so standing still stops it; but every SHOT spends a
 //     slice of full-speed world time, which means a frozen room cannot be
 //     cleared for free. You pay in the only thing left: the distance those
@@ -8798,8 +8800,8 @@ function roundInbound() {
 
 // The world speed each simplified mode wants this frame, and how fast to
 // cross to it. Returned together because the two are one decision: duel eases
-// (a window opening), dead stop tracks the thumb almost rigidly (the world is
-// an extension of your hand, and lag there reads as input lag).
+// (a window opening), stand still tracks the thumb almost rigidly (the world
+// is an extension of your hand, and lag there reads as input lag).
 function simpleTime() {
   const m = simple();
   if (m === 'duel') {
@@ -8845,7 +8847,7 @@ const SIMPLE_CHEST_Y = 1.25;
 const _vTap = new THREE.Vector3();
 
 // The corridor walks you to the door. Runs on REAL time, not the world clock:
-// in dead stop the world may be stopped, and a walk that stopped with it
+// in stand still the world may be stopped, and a walk that stopped with it
 // would strand the player in a cleared room with no way to say "go on".
 function updateSimple(dt) {
   const m = simple();

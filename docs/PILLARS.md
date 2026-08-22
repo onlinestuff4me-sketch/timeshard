@@ -26,11 +26,11 @@ world clock while frozen — with one deliberate exception, the GRINDER, whose
 entire point is that the building does not care that you froze.
 
 **The simplified modes lean on this line, on purpose.** CORRIDOR DUEL and
-DEAD STOP have no time bank, because they have no time button and no second
+STAND STILL have no time bank, because they have no time button and no second
 thumb to press one with, so neither can price the freeze in seconds. Each
 pays for time in a different currency instead — the duel never gives it to
-the player at all, and dead stop charges a slice of full-speed world time for
-every shot fired — and which of those is the better game is what the two
+the player at all, and stand still charges a slice of full-speed world time
+for every shot fired — and which is the better game is what the two
 prototypes exist to answer. See `docs/MODES.md`. Nothing here is relaxed for
 the tunnel, the arena or rush hour.
 

@@ -121,9 +121,10 @@
   .setpill.on { border-color:#ff2d1a; color:#ff2d1a; }
 
   /* ---- MODES, in Settings -----------------------------------------------
-     A catalogue, not a menu of buttons: every mode the game can start, in
-     the order it was built, each with the one line that says what you DO in
-     it. Rendered from src/modes.js — see docs/PILLARS.md §7.
+     A catalogue, not a menu of buttons: every mode the game can start —
+     the main game first, then the rest oldest to newest — each with the one
+     line that says what you DO in it. Rendered from src/modes.js, which is
+     also where that ordering is argued. See docs/PILLARS.md §7.
 
      A row is tappable only when Settings was opened from the MAIN MENU. Mid
      run the same list is a reference: tapping a mode there would mean
@@ -789,7 +790,7 @@
     <div class="setrow"><span>TIME</span><div id="modelink" class="setpill on">BUTTON</div></div>
     <div class="setrow"><span>TEST</span><div id="condlink" class="setpill">OFF</div></div>
     <div class="setrow"><span>TUTORIAL</span><div id="tutlink" class="setpill">OFF</div></div>
-    <div class="setsec">MODES<span class="secnote" id="modenote">in the order they were built</span></div>
+    <div class="setsec">MODES<span class="secnote" id="modenote">the main game first, then oldest to newest</span></div>
     <div id="modelist"></div>
     <div class="htpclose">TAP OUTSIDE TO CLOSE</div>
   </div>

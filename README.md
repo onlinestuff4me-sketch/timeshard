@@ -19,16 +19,17 @@ Everything runs off holds, drags, and taps — one thumb works, two thumbs sing:
 
 ## Modes
 
-Five, in the order they were built — listed in-game under **SETTINGS → MODES**,
-with the alternates also one tap from the title screen:
+Five — the main game first, then the rest in the order they were built.
+Listed in-game under **SETTINGS → MODES**, with the alternates also one tap
+from the title screen:
 
 | Mode | What you do |
 |---|---|
+| **THE TUNNEL** | Door to door, deeper each time. The main game; PLAY starts it. |
 | **CITY STREETS** | Endless waves in the white city — the original arena. |
 | **RUSH HOUR** | Freeze the crowd, find the one face that matters, walk out. |
-| **THE TUNNEL** | Door to door, deeper each time. The main game; PLAY starts it. |
 | **CORRIDOR DUEL** | They come to you. Drag to sidestep, tap them to shatter. |
-| **DEAD STOP** | Time only moves while you do. Stand still and the world waits. |
+| **STAND STILL** | Time only moves while you do. Stand still and the world waits. |
 
 The last two are **simplified-control prototypes**: no look axis and no time
 button, so the whole scheme is *drag to move, tap to shoot* and the table

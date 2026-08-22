@@ -478,7 +478,7 @@ export const TIME = {
 // other is a controlled comparison and not two unrelated games:
 //
 //   CORRIDOR DUEL  the world slows itself, whenever a round is in the air
-//   DEAD STOP      the world moves at your thumb's speed, and nothing else's
+//   STAND STILL    the world moves at your thumb's speed, and nothing else's
 //
 // Neither has a time bank, so neither can price the freeze the way the tunnel
 // does (docs/PILLARS.md §1, §2). What replaces the price is different in each
