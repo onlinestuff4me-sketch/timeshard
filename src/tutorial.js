@@ -103,12 +103,38 @@ export const TUTOR = {
   // against a round that is fired to be dodged; after the barrier the rooms
   // are real fights, and a player who has not internalised it just stands in
   // the lane and dies without ever learning why. So the lesson comes back —
-  // but only for somebody who is ABOUT to be hit and is NOT REACTING, and
-  // only once per area, because a prompt that fires on every round is not a
-  // rescue, it is a nag.
-  rescueDist: 5.0,      // metres from the player when the world stops
-  rescueLane: 1.0,      // how near his lane the round has to be to threaten
-  rescueStill: 0.7,     // seconds without a sideways step = not reacting
+  // for the FIRST round fired at him in an area, and only if that round is
+  // still on course to hit when it is most of the way over. One round per
+  // area, because a prompt that fires whenever somebody is in trouble is not
+  // a rescue, it is a nag.
+  //
+  // 0.75, NOT 0.45 like the lesson's own freeze: this one interrupts a real
+  // fight, so it waits as long as it can and still leave a quarter of the
+  // flight to move in. Earlier and it stops the world over a round he was
+  // already stepping out of.
+  rescueAt: 0.75,       // fraction of the muzzle-to-player distance flown
+  // 0.55 m = the player's 0.32 m radius and a graze. This is the answer to
+  // "is he still in the path", so it has to mean the round would land; at the
+  // metre it used to be, a bullet sailing past his shoulder brought up DODGE
+  // THE BULLET and told a player who had just dodged that he had not.
+  rescueLane: 0.55,     // metres off the round's line and still a threat
+  // HOW FAR A SCRIPTED BODY WILL ENGAGE FROM. A gunner's engage radius is
+  // rolled per spawn — 19 m plus up to 6 — and every retry deletes and
+  // re-spawns the area's bodies, so every retry re-rolls it. The training
+  // areas stand their lead man 5 cells in, which is 21.5 m from the door
+  // plane the player actually walks through: above the 19 m floor and inside
+  // the random band, so a measured 14 retries out of 30 came up under the
+  // standing distance. Those rooms were dead FOREVER — a pinned body never
+  // closes the gap, and `unstickHallEnemies` skips anything the script holds.
+  //
+  // A scripted body does not need a random radius. It cannot move, the script
+  // decided where it stands, and turn-taking is enforced separately by
+  // tutorTurnHolds() rather than by distance. So the script decides this too,
+  // and it covers the deepest authored placement with room to spare. Measured
+  // from the door plane the player walks through — which is 1.5 m behind the
+  // leg's own spine[0], and most of why 5 cells came out at 21.5 m against a
+  // 19 m floor — the worst is hall3's rear pair at 42.9 m.
+  engageM: 60,
   reshoot: 3.2,         // ...and the gap before a missed shot is retried
   // THE METER LESSON HAS A FLOOR. It empties at a readable rate to half, then
   // slows to a crawl, and never goes below a quarter: the player is being
@@ -509,9 +535,14 @@ export const STEPS = [
     // straddling the divider, while this comment claimed otherwise: a swipe
     // in the middle of the screen tells you to move but not where to put
     // your thumb. With the divider drawn, the left half is named.
-    divider: true,
+    //
+    // ON THE CUE, NOT ON THE STEP. At step level the line hung over the whole
+    // barrier beat — including the seconds between rounds, when nothing is
+    // being asked and there is no prompt for it to divide. A player standing
+    // at the barrier saw a dotted line down the middle of an empty corridor.
+    // It comes and goes with the words now, which is when it means something.
     cues: [{ text: 'DODGE THE BULLET', slot: 'mid', arrow: 'none', hand: 'sway',
-      pulse: false, on: 'held', off: 'dodge' }],
+      pulse: false, on: 'held', off: 'dodge', divider: true }],
   },
   // --- 6. THE GUN, AND THE OTHER TWO --------------------------------------
   // The squad arrives and the weapon comes up on the same beat as the words

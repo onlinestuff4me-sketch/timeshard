@@ -171,7 +171,22 @@ const AIM_ASSIST_TAPER = 26;      // ...above this, drive falls off: a sweep PAS
 // speed: proportional by construction, and zero when you are still.
 const AIM_ASSIST_SHARE = 0.5;     // most it may add, as a fraction of your turn
 let assistGain = 0;               // eased drive, so acquiring is not a step
-const EDGE_ARROW_MIN = 0.34;      // bearing (rad) beyond which an enemy gets an arrow
+// THE OFF-SCREEN ARROW APPEARS WHERE THE FRAME ENDS, and the frame does not
+// end in the same place every frame: the camera zooms from 80 degrees to 66
+// in bullet time. This used to be one constant, 0.34 rad, compared once —
+// which was roughly right at the wide FOV and wrong at every narrower one.
+// Under any slow-motion press deep enough to bring the FOV below 75 degrees
+// the arrow switched off while the body was still outside the frame, leaving
+// a band 2.6 degrees wide on each side with an enemy alive, off screen, and
+// nothing pointing at him.
+//
+// One threshold also meant no hysteresis, and a single comparison against a
+// yaw that dithers — look smoothing, aim assist — strobes on and off frame to
+// frame. So there are two now, as fractions of the half-angle the camera
+// actually has: it comes on just BEFORE the body leaves the frame, and does
+// not go off again until he is well back inside it.
+const EDGE_ARROW_SHOW = 0.94;     // ...of the half-frame: arrow on
+const EDGE_ARROW_HIDE = 0.72;     // ...and it stays on until he is this far in
 const FOV_NORMAL = 80;
 const FOV_SLOW = 66;              // bullet-time zoom
 
@@ -1241,7 +1256,12 @@ function updateReload(dt) {
 // ---------------------------------------------------------------------------
 // Bullets — simple projectile physics with swept capsule collision
 // ---------------------------------------------------------------------------
-const bullets = [];   // {mesh, trail, pos, vel, prev, fromPlayer, life}
+const bullets = [];   // {mesh, trail, pos, vel, prev, born, seq, fromPlayer, life}
+// EVERY ROUND GETS A NUMBER, and it only ever goes up. The dodge coach wants
+// "the first round fired at him IN THIS AREA", and the array cannot answer
+// that: a bullet from the last room is still in the air when he crosses into
+// the next one, and it would be sitting at the front of the list.
+let bulletSeq = 0;
 const bulletGeo = new THREE.SphereGeometry(0.04, 8, 8);
 // A ROUND, not a ball. Lathed ogive profile — flat base, straight shank,
 // curved nose — spun about Y, then tipped so its axis is +Z, which is the
@@ -1400,6 +1420,10 @@ function spawnBullet(pos, dir, fromPlayer, opt = 0, pierce = 0) {
   bullets.push({
     mesh, trail,
     pos: pos.clone(), prev: pos.clone(),
+    // WHERE IT LEFT THE MUZZLE, kept for the life of the round. The dodge
+    // coach asks "how far along its flight is this?", and that question has no
+    // answer from a position and a velocity alone.
+    born: pos.clone(), seq: ++bulletSeq,
     vel: dir.clone().multiplyScalar(speed),
     fromPlayer, pierce, life: 6, rippleAcc: 0,
     whoosh: fromPlayer ? null : sfx.attachWhoosh(),   // incoming rounds sing
@@ -2766,7 +2790,17 @@ function pointInObstacle(x, z, pad) {
   return false;
 }
 
-function spawnEnemy(type = 'gunner') {
+// `at` PLACES THE BODY BEFORE IT IS BUILT, and that ordering is the whole
+// point of the argument rather than a convenience. Everything below bakes the
+// assemble animation into ABSOLUTE world coordinates at whatever point is
+// chosen here: `parts.g.position`, and 156 shards each with a `from` out in a
+// ring and a `to` on the finished silhouette. A caller that spawns first and
+// moves the body afterwards moves the body ONLY — the swarm still flies
+// together at the spawn point, blinks out, and the man appears somewhere else
+// entirely. That is what the onboarding did at every training leg, and why a
+// player saw the little red assemble animation play in the middle of an empty
+// room with nobody in it and two gunners arrive silently at the edges.
+function spawnEnemy(type = 'gunner', at = null) {
   // The archive files what you MEET, not what you kill — but the attract loop
   // behind the title is a shop window, not a meeting, so the menu files
   // nothing. Otherwise every player would "know" the heavy before playing.
@@ -2777,20 +2811,60 @@ function spawnEnemy(type = 'gunner') {
   const bodyR = bodyRadius(type, parts.g);
   // the wave attacks from one flank: spawn in an arc around the wave bearing
   // so the fight stays in front of you instead of whipping side to side
-  let x = 0, z = 0, placed = false, holdZ;
-  if (inHall() && hall) {
+  let x = 0, z = 0, placed = false, holdZ, stagedZ;
+  if (at) {
+    // The caller has already decided, and has usually clamped to real floor
+    // to do it — there is nothing here that would improve on that.
+    x = at.x; z = at.z; placed = true;
+  } else if (inHall() && hall) {
     const L = hall.legs[hall.cur], C = HALL.cell;
     // The wave's last few stage on the door approach: you fight them with
     // the door in frame, so the opening lands as visible payoff and you are
     // never left hunting for where to go next.
-    const finale = game.spawnQueue.length < HALL_FINALE && L.approach && L.approach.length;
+    // THE FINALE IS THE APPROACH'S OWN SHARE, and it is on only once the
+    // player has walked far enough for the approach to be in the release
+    // window. It used to be `spawnQueue.length < HALL_FINALE` — is what is
+    // left small enough to be the last group — with HALL_FINALE 3 and a
+    // measured maximum queue of 2 at every door from 1 to 26. So it was
+    // ALWAYS true, `pool = L.approach` unconditionally, and every body in the
+    // game was placed in the last four cells before the door no matter what
+    // the quota said. Fixing the quota alone would have changed nothing.
+    const finK = playerStretch(L);
+    const finLast = (L.stretches ? L.stretches.length : 1) - 1;
+    const finale = !!(L.approach && L.approach.length
+      && finK + LEG.lookahead >= finLast);
     // Everyone else comes out of the stretch the player is walking THROUGH,
     // or the next one — never the whole remaining corridor. Bodies therefore
     // travel with you down the leg instead of accumulating in whatever is
     // still ahead, which is what stacked a whole wave in front of the door.
     const approachZ = L.approach && L.approach.length ? L.approach[0][1] * HALL.cell : 1e9;
     let pool;
-    if (finale) pool = L.approach;
+    // IS THIS THE ONE THE HEADLINE IS ABOUT? A leg reserves exactly one body
+    // for its feature stretch (see hallWave) and this is the frame that body
+    // is released on: the player has walked into the window that covers the
+    // room, the room's own share has not been spent, and the pool is the
+    // room's cells rather than the corridor's.
+    const fsIx = L.featureStretch;
+    if (!finale && fsIx >= 0 && L.stretches && fsIx < L.stretches.length
+      && L.quota && L.quota[fsIx] > 0 && !L.featureSent
+      && playerStretch(L) + LEG.lookahead >= fsIx) {
+      const st = L.stretches[fsIx];
+      // THE ROOM'S WHOLE FLOOR, not just its spine. `stretches[].cells` is the
+      // spine crossing the room; the pillars stand off the spine and getting
+      // behind one is the entire point, so the pool is every cell of the leg
+      // inside the stretch's z band — the widened chamber included.
+      pool = L.cells.filter(([, cz]) =>
+        cz * C >= st.z0 - C * 0.5 && cz * C <= st.z1 + C * 0.5);
+      if (pool.length) {
+        L.featureSent = true;
+        // ...ARMED WHEN THEY ARE THROUGH THE NEAR DOORWAY, not when they have
+        // crossed the whole room. Standing among the pillars is the moment the
+        // headline is about.
+        stagedZ = st.z0;
+      } else pool = null;
+    }
+    if (pool && pool.length) { /* the room's own pool, chosen above */ }
+    else if (finale) pool = L.approach;
     else if (L.stretches && L.stretches.length > 1) {
       const body = L.stretches.length - 2;   // last stretch before the approach
       const k = Math.min(playerStretch(L), body);
@@ -2808,9 +2882,18 @@ function spawnEnemy(type = 'gunner') {
     const doorView = finale
       ? L.approach[L.approach.length - 1]
       : null;
-    // and they hold there — see holdZ in advance(): a finale enemy may close
-    // on you but never retreats back round a corner out of the door's frame
-    if (finale) holdZ = approachZ - C;
+    // and they hold there — see holdZ in advance(): an enemy may close on you
+    // but never comes nearer than the door approach.
+    //
+    // NOT GATED ON `finale`. It used to be, and `finale` used to be true for
+    // every spawn in the game — so every body in every leg carried this line
+    // and none of them ever advanced in z at all. Fixing `finale` to mean
+    // what it says would therefore have quietly switched enemy advance ON
+    // across the whole game, which is a change to how the game plays and not
+    // one that belongs in a fix about where bodies are PLACED. The two were
+    // only ever coupled by the bug. They are separate now: `finale` chooses
+    // the spawn pool, this chooses how close he may come.
+    if (L.approach && L.approach.length) holdZ = approachZ - C;
     let fbX = 0, fbZ = 0, fbOk = false;
     // A VOLLEY STANDS TOGETHER. In the slow-time school the answer to several
     // men firing at once is to slow time and sweep across them, and that only
@@ -2997,6 +3080,13 @@ function spawnEnemy(type = 'gunner') {
     burstT: 0,
     tell: 0,                              // fire-telegraph heat, 0..1
     holdZ,                                // set for the door-approach finale
+    // THE MAN THE HEADLINE IS ABOUT. Set when this body is the one reserved
+    // for a leg's feature stretch — the pillared hall. He assembles while the
+    // player is still a stretch short of the room, so they watch him arrive;
+    // he does not leave the room to meet them, and he does not fire until
+    // they are actually in it. Undefined for everybody else.
+    stageZ: stagedZ,
+    stageArm: 0,
     alive: true,
   });
   // snipers and lasers announce every entrance; everyone else gets a warning
@@ -3837,6 +3927,14 @@ function updateEnemy(e, sdt) {
       // round a corner — so the fight that opens the door is always fought
       // with the door in frame.
       if (e.holdZ !== undefined && dir.z < 0 && e.pos.z <= e.holdZ) dir.z = 0;
+      // ...AND THE MAN IN THE ROOM STAYS IN THE ROOM UNTIL YOU ARE IN IT.
+      // He does not close the distance AT ALL while he is unarmed — not a
+      // ceiling at the room's near edge, which is what this was: the vault's
+      // room splits into a one-cell-deep stretch whose z0 and z1 are the same
+      // number, so "do not go past the near edge" was a knife edge he stood
+      // on and drifted over. He may still turn and strafe, so he is plainly a
+      // man waiting rather than a prop.
+      if (!stagedArmed(e) && dir.z < 0) dir.z = 0;
       e.pos.x += dir.x * moveSpeed * sdt;
       e.pos.z += dir.z * moveSpeed * sdt;
       resolveEnemyCollisions(e);   // hard guarantee: steering can fail, this can't
@@ -3853,6 +3951,7 @@ function updateEnemy(e, sdt) {
       if (e.type !== 'rusher' && dist < e.engageDist && e.fireCd <= 0 &&
           (!ENEMY_TYPES[e.type].shielded || Math.cos(e.g.rotation.y - wantYaw) > 0.8) &&
           performance.now() >= game.noFireBefore && !tutorHoldsFire(e) &&
+          stagedArmed(e) &&
           !earlyRoundInFlight() &&
           los && e.seenT > RAMP.sightGrace) {
         // take turns on the trigger: only a couple of guns telegraph at once,
@@ -5768,14 +5867,31 @@ const sfx = (() => {
     },
     // Airlock: pneumatic hiss, heavy clunk, and the slab running down its
     // track — the sound of somewhere sealed being opened for you.
-    airlock() {
+    //
+    // `far` IS HOW FAR AWAY THE DOOR IS, IN METRES, and it matters because
+    // there is no panner and no distance rolloff anywhere in this graph: a
+    // door seventy-eight metres down a corridor that jogs twice was arriving
+    // at exactly the volume of one at your feet. Killing the last man in a
+    // leg opens that door, so the last shatter of every leg was followed by a
+    // full-volume mechanical hiss-and-clunk for an object nobody could see —
+    // reported, reasonably, as a stray sound.
+    //
+    // Two things go with distance and both are done here: it gets quieter,
+    // and it gets DULLER, because air eats the top end first. A near door is
+    // untouched.
+    airlock(far = 0) {
       if (!ctx || muted) return;
-      noise(0.55, 2600, 0.55, 0.16, 1, 0.25);           // pressure release
-      tone(70, 44, 0.5, 0.55, 'sine', 1, 0.35);         // the clunk
+      // 6 m is "in the room with you". Beyond that an inverse rolloff, floored
+      // so a door at the far end of a long leg is a thud you can just hear
+      // rather than nothing at all — it is still news that it opened.
+      const g = far <= 6 ? 1 : Math.max(0.12, 6 / far);
+      const hiss = far <= 6 ? 2600 : Math.max(700, 2600 * g);
+      noise(0.55, hiss, 0.55, 0.16 * g, 1, 0.25);       // pressure release
+      tone(70, 44, 0.5, 0.55 * g, 'sine', 1, 0.35);     // the clunk
       setTimeout(() => {
         if (!ctx || muted) return;
-        noise(0.85, 420, 0.5, 0.2, 1, 0.3);             // slab on its track
-        tone(150, 96, 0.75, 0.16, 'sawtooth', 1, 0.3);
+        noise(0.85, 420, 0.5, 0.2 * g, 1, 0.3);         // slab on its track
+        tone(150, 96, 0.75, 0.16 * g, 'sawtooth', 1, 0.3);
       }, 130);
     },
     // Death fades the MASTER, which attenuates the output but leaves the
@@ -6792,10 +6908,11 @@ let tutorSpent = new Set();
 // only be spent by the action it asked for if it got as far as asking.
 let tutorShown = new Set();
 let tutorWorldHeld = false;    // ...and right now the world is actually held
-// THE RESCUE: one per area, and only for somebody who is not reacting.
-let tutorRescued = false;     // has this area already stopped a round for them
-let tutorStillT = 0;          // seconds since they last stepped sideways
-let tutorStillX = 0;          // ...measured from here
+// THE RESCUE: the first round fired at them in an area, and only if it is
+// still on course to hit when it is three-quarters of the way over.
+let tutorRescued = false;     // has this area already spent its one prompt
+let tutorRescueB = null;      // ...on this round, the first one fired here
+let tutorRescueFrom = 0;      // ...and "here" starts after this bullet serial
 let tutorLegIx = 0;          // which entry of tutorLegsOf() the current leg is
 let tutorVolleyT = 0;        // beat between rounds in the three-round lesson
 let tutorSpineIx = 0;        // how far along the leg's spine they have walked
@@ -7099,7 +7216,6 @@ const TUTOR_BAR_MAT = new THREE.MeshLambertMaterial({ color: 0x3b4148 });
 // each side, all level and all the same distance beyond the barrier.
 function tutorEnsureBodies(want) {
   const z = tutorBarrierZ() + TUTOR.enemyCells * HALL.cell;
-  const have = enemies.filter((e) => e.alive && e.hold).length;
   // SIX PLACES, NOT THREE. The count is an input the tool exposes from 0 to 6
   // and the ring only had three offsets, so bodies 4 and 5 were placed exactly
   // on top of bodies 1 and 2 — one silhouette, two men, and a round arriving
@@ -7111,25 +7227,51 @@ function tutorEnsureBodies(want) {
   // side it comes in at an angle, and by the time the world stops it is
   // unmistakably a separate thing hanging in the air.
   const OFF = [[-1, 0], [1, 0], [0, 0], [-2, 0.9], [2, 0.9], [0, 1.8]];
-  let added = 0;
-  for (let i = have; i < want; i++) {
-    const [ox, oz] = OFF[i % OFF.length];
-    const e = tutorPlaceEnemy(z + oz * HALL.cell, ox * TUTOR.enemyX);
-    if (e) added++;
-  }
   // ...AND EXACTLY THAT MANY. `bodies` is a count of who should be standing
   // there, so it has to be able to go down as well as up: entering a beat that
   // declares one man with three already up — which the tool's step jump does
   // every time somebody steps backwards through the sequence — used to leave
   // the other two in place, and the lesson about ONE round came with three
   // gunners in the corridor.
-  for (let i = enemies.length - 1; i >= 0 && enemies.filter((e) => e.alive && e.hold).length > want; i--) {
-    const e = enemies[i];
-    if (!e.alive || !e.hold) continue;
-    removeEnemyShards(e); removeBeam(e);
-    scene.remove(e.g);
-    enemies.splice(i, 1);
-    if (tutorMark === e) tutorMark = null;
+  //
+  // TRIMMED FIRST, AND THE LEAST-FORMED GO. This used to add and then trim,
+  // in that order, which meant a beat could spawn a man and delete him inside
+  // the same call — his shards were already in the air, so the player watched
+  // a swarm converge and resolve into nobody at all. That is the phantom, and
+  // it was two of eight spawns through the slow-time school.
+  //
+  // Nothing here can avoid removing SOMEBODY when the count goes down, so the
+  // choice is which disappearance the player notices. A swarm that has barely
+  // started is a few shards blinking out; a man who is finished looks like a
+  // man leaving; a swarm nine-tenths of the way in is the phantom. So they go
+  // in that order, newest first within each.
+  const heldUp = () => enemies.filter((e) => e.alive && e.hold);
+  const noticed = (e) => {
+    if (e.state !== 'assemble') return 1;                       // formed
+    return e.stateT / ASSEMBLE_T < 0.25 ? 0 : 2;                // barely / nearly
+  };
+  let over = heldUp().length - want;
+  if (over > 0) {
+    const victims = enemies
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => e.alive && e.hold)
+      .sort((a, b) => noticed(a.e) - noticed(b.e) || b.i - a.i)
+      .slice(0, over)
+      .map(({ e }) => e);
+    for (const e of victims) {
+      const i = enemies.indexOf(e);
+      if (i < 0) continue;
+      removeEnemyShards(e); removeBeam(e);
+      scene.remove(e.g);
+      enemies.splice(i, 1);
+      if (tutorMark === e) tutorMark = null;
+    }
+  }
+  let added = 0;
+  for (let i = heldUp().length; i < want; i++) {
+    const [ox, oz] = OFF[i % OFF.length];
+    const e = tutorPlaceEnemy(z + oz * HALL.cell, ox * TUTOR.enemyX);
+    if (e) added++;
   }
   if (!tutorMark || !tutorMark.alive || enemies.indexOf(tutorMark) < 0) {
     tutorMark = enemies.find((e) => e.alive && e.hold) || null;
@@ -7294,19 +7436,30 @@ function tutorNoteShot() {
 // own floor: a player hugging the left wall must not push the left-hand man
 // through it.
 function tutorPlaceEnemyAt(x, z, type = 'gunner') {
-  spawnEnemy(type);
-  const e = enemies[enemies.length - 1];
-  if (!e) return null;
   // A held body ignores collision, so the script is the only thing keeping it
   // out of the masonry — snapped to the nearest row of floor there is, and
   // clamped across it. Clamping x alone was not enough: a body authored two
   // cells past the end of a room was still two cells into the end wall.
+  //
+  // WORKED OUT BEFORE THE BODY EXISTS, not after. This used to spawn first
+  // and then move what came back, which moved the man and left his 156 shards
+  // assembling at the point spawnEnemy had picked for itself — reliably
+  // several metres deeper into the room, because the tunnel placer keeps
+  // bodies at least `LEG.spawnMin` ahead of the player while the script pins
+  // them four to six cells in. Measured across the onboarding: ten of twelve
+  // bodies drifted more than a metre, median nine, worst twenty-seven — a
+  // swarm on the centre line converging into a silhouette of somebody who
+  // then appeared in silence at the edge of the room.
   const row = tutorRow(z);
   const cz = row ? row.gz * HALL.cell : z;
   const cx = tutorClampX(x, cz);
+  spawnEnemy(type, { x: cx, z: cz });
+  const e = enemies[enemies.length - 1];
+  if (!e) return null;
   e.hold = { x: cx, z: cz };
-  e.pos.set(cx, 0, cz);
-  e.g.position.set(cx, 0, cz);
+  // ...AND HE ENGAGES FROM WHERE HE WAS PUT. See TUTOR.engageM: the rolled
+  // radius made "fires as you enter" a coin flip that a retry re-tossed.
+  e.engageDist = TUTOR.engageM;
   return e;
 }
 // The clear floor at a given z: the row's cell extent, less half a wall and
@@ -7526,11 +7679,17 @@ function endTutorial(taught = true) {
   // one frame — score line, meter, ammo, gun, button — and without a word for
   // it the only thing that tells the player the training wheels are off is the
   // next room being harder.
-  // ONE LINE. It used to be two banners and then the new leg's own headline —
+  // ONE CARD. It used to be two banners and then the new leg's own headline —
   // three instructions in five seconds, on the frame everything the lesson had
   // been withholding arrived at once. What the player needs to know is that
   // the training is over and where to walk.
-  if (taught) setTimeout(() => showBanner('TRAINING COMPLETE \u00B7 GO TO THE NEXT DOOR', 2600), 60);
+  // TWO SIZES, NOT ONE SENTENCE. Joined with a middot it set as one run of
+  // 58px caps and wrapped to three ragged lines across the middle of the
+  // screen — a paragraph where a sign was wanted. The headline is the news;
+  // the instruction rides underneath in the sub-line the card already has.
+  if (taught) {
+    setTimeout(() => showBanner('TRAINING COMPLETE<small>GO TO THE NEXT DOOR</small>', 2600), 60);
+  }
 }
 const tutorAfter = (id) => {
   const order = tutorOrder();
@@ -7563,7 +7722,7 @@ function tutorNext(step) {
   tutorShown = new Set();
   tutorSlowedHere = false; tutorResumedHere = false;
   tutorHardFreeze = false;
-  tutorRescued = false; tutorStillT = 0; tutorStillX = player.pos.x;
+  tutorRescued = false; tutorRescueB = null; tutorRescueFrom = bulletSeq;
   const sp = tutorSpecOf(step);
   if (sp) {
     // WHERE TO PUT THEM BACK IF THIS BEAT IS FAILED — every beat, not just the
@@ -7831,6 +7990,41 @@ function tutorRevealButton() {
   el.timebtn.classList.add('arrive', 'hint');
 }
 
+// IS THIS ROUND THE ONE TO STOP THE WORLD FOR? Two questions, both answered
+// against the round's own line of flight rather than against the z axis, so a
+// body shooting across a room is judged the same way as one down a corridor.
+//
+//   how far along is it — muzzle to the player, measured NOW so that walking
+//   into the shot counts as closing the gap, which it is; and
+//   is he still in front of it — his distance from the line, not from the
+//   bullet, because a round two metres short and dead on his chest is about
+//   to hit him and one a metre to the side never was.
+//
+// The lane is the player's own radius and a little: "in the path" has to mean
+// it would land. At the metre the freeze used to allow, a round already
+// sailing past his shoulder brought up DODGE THE BULLET — telling somebody
+// who had just dodged that they had not.
+const _resA = new THREE.Vector3();
+const _resB = new THREE.Vector3();
+function tutorRescueDue(b) {
+  if (!b || !b.born) return false;
+  // travelled, and the whole trip: flat, because the muzzle is chest-high and
+  // the drop over a room is not part of "how far along".
+  _resA.set(b.pos.x - b.born.x, 0, b.pos.z - b.born.z);
+  _resB.set(player.pos.x - b.born.x, 0, player.pos.z - b.born.z);
+  const span = _resB.length();
+  if (span < 1e-3) return false;
+  if (_resA.length() < span * TUTOR.rescueAt) return false;
+  // ...and the perpendicular miss distance from the line the round is on.
+  _resA.set(b.vel.x, 0, b.vel.z);
+  if (_resA.lengthSq() < 1e-6) return false;
+  _resA.normalize();
+  _resB.set(player.pos.x - b.pos.x, 0, player.pos.z - b.pos.z);
+  const along = _resB.dot(_resA);
+  if (along <= 0) return false;                  // already past him
+  return _resB.addScaledVector(_resA, -along).length() <= TUTOR.rescueLane;
+}
+
 // Driven on REAL time from the frame loop, after input and movement have been
 // applied, so "did they do it yet" is answered against this frame's state.
 function updateTutorial(dtReal, movedM, yawDelta) {
@@ -7858,40 +8052,48 @@ function updateTutorial(dtReal, movedM, yawDelta) {
   //
   // Released by the button and by nothing else, every round, so the second and
   // the third are the first one practised rather than a new problem.
-  // ARE THEY REACTING? A sideways step resets the clock; standing in the lane
-  // runs it. Measured on the player's own axis and in real time, because this
-  // is about a thumb rather than about the world.
-  if (Math.abs(player.pos.x - tutorStillX) >= TUTOR.dodgeStepM * 0.5) {
-    tutorStillX = player.pos.x; tutorStillT = 0;
-  } else {
-    tutorStillT += dtReal;
-  }
   // ...AND IF A ROUND IS ABOUT TO LAND ON THEM, THE LESSON COMES BACK. Only
-  // in the training rooms (`rescue` is granted there and nowhere else), only
-  // once per area, and only for a round that is genuinely coming at them:
-  // close, closing, and in their lane. Everything after this is lesson 5's
-  // own machinery — the same freeze, the same words, the same way out.
+  // in the training areas (`rescue` is granted there and nowhere else), only
+  // for the FIRST round anybody fires at them in that area, and only if it is
+  // still going to hit them by the time it is three-quarters of the way over.
+  // Everything after this is lesson 5's own machinery — the same freeze, the
+  // same words, the same way out.
+  //
+  // THE FIRST ROUND, NOT THE FIRST QUALIFYING ROUND. The rescue used to scan
+  // every bullet in the air and adopt whichever one happened to be close, in
+  // lane and unanswered — which meant a player who dodged three rounds
+  // cleanly and then mistimed the fourth got the beginner's prompt in the
+  // middle of a fight they were winning. The leg's opening round is the one
+  // that reads as a lesson: it arrives before the fight has a rhythm, and
+  // whichever way it goes it retires the prompt for this area.
+  //
   // `tutorStep !== null` FIRST. tutorMay answers TRUE outside the lesson —
   // "outside the lesson everything is granted" — so asking it alone would arm
   // the rescue for the entire game, stopping the world on every round anybody
   // ever failed to sidestep.
-  if (tutorStep !== null && tutorMay('rescue')
-      && !tutorRescued && !tutorRound && !tutorWorldHeld
-      && tutorStillT >= TUTOR.rescueStill) {
-    for (const b of bullets) {
-      if (b.fromPlayer) continue;
-      const dz = b.pos.z - player.pos.z;
-      const closing = b.pos.z - b.prev.z < 0;   // travelling toward him
-      if (!closing || dz <= 0 || dz > TUTOR.rescueDist) continue;
-      if (Math.abs(b.pos.x - player.pos.x) > TUTOR.rescueLane) continue;
+  if (tutorStep !== null && tutorMay('rescue') && !tutorRescued) {
+    // SPENT IS SPENT. Once the leg's opening round is off the board — it hit
+    // him, it hit a wall, it ran out of life — this area has had its chance
+    // and the prompt does not transfer to the next bullet.
+    if (tutorRescueB && bullets.indexOf(tutorRescueB) < 0) {
+      tutorRescueB = null; tutorRescued = true;
+    }
+    if (!tutorRescueB) {
+      for (const b of bullets) {
+        if (b.fromPlayer || b.seq <= tutorRescueFrom) continue;
+        tutorRescueB = b;
+        break;
+      }
+    }
+    const b = tutorRescueB;
+    if (b && !tutorRound && !tutorWorldHeld && tutorRescueDue(b)) {
       // ADOPTED WITH A SPAN OF NOTHING, so the shared freeze below fires on
-      // this very frame: the round is already as close as it is going to get
-      // before it is a hit, and 45% of "no distance left" is zero.
+      // this very frame: the round is already as far along as the coach is
+      // willing to let it get, and 45% of "no distance left" is zero.
       tutorRound = { b, passedBar: true, counted: false, let: false,
         from: b.pos.z, span: 1e-6 };
       tutorHardFreeze = true;
       tutorRescued = true;
-      break;
     }
   }
   if (tutorHardFreeze && tutorRound && !tutorRound.counted && !tutorRound.let
@@ -8521,14 +8723,124 @@ function warnFlash(words) {
 
 // red chevrons at the screen edge pointing toward off-screen enemies
 const edgeArrows = [];
+// ---------------------------------------------------------------------------
+// THE STALL WATCHDOG
+//
+// "Nothing is happening" is a state the game can reach and cannot get out of,
+// and it looks exactly like a bug because it is one. Two ways in, both
+// measured:
+//
+//   A live enemy who will not engage. `engageDist` is rolled per spawn and
+//   the training areas stand their lead man 21.5 m from the door plane the
+//   player walks through, against a roll of 19 + rand(6) — so 14 retries in
+//   30 came up short. A body the script pins never closes the distance, and
+//   `unstickHallEnemies` skips anything with a `hold`, so nothing on any code
+//   path ever resolved it. The room was dead forever. (TUTOR.engageM now
+//   settles the scripted case at the source; this is the floor under every
+//   other one — a body behind cover it will not leave, a roll that comes up
+//   short in an ordinary corridor.)
+//
+//   A queue that will not release. The leg's share belongs to a stretch
+//   further in, so `hallAllowance()` is 0 and the corridor stays empty until
+//   the player walks up to fifty metres. Measured 22 world seconds of nothing
+//   at the mouth of door 1 — the first corridor after the training ends, and
+//   the exact moment the coaching stops.
+//
+// Both are answered the same way: make something happen. Not a message — the
+// player has no way to act on "wait" — and not a teleport, which is how an
+// earlier rescue moved the enemy you were supposed to dodge out of the
+// hallway. The nearest reluctant body simply notices you, or the corridor
+// releases one it was holding back.
+//
+// ON THE WORLD CLOCK, so a player holding time still is not nagged for it,
+// and so this cannot fire while a lesson has the world frozen.
+let stallT = 0;              // world seconds since anything last happened
+let stallSaw = new WeakMap(); // ...and where each body was when we last looked
+function stallHappening() {
+  if (bullets.some((b) => !b.fromPlayer)) return true;
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    if (e.state === 'assemble' || e.state === 'aim' || e.state === 'burst'
+      || e.state === 'windup') return true;
+    const was = stallSaw.get(e);
+    const now = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
+    stallSaw.set(e, now);
+    // closing on him counts as something happening; strafing on the spot,
+    // which is what a parked body does, does not
+    if (was !== undefined && was - now > LEG.stallCloseM) return true;
+  }
+  return false;
+}
+function updateStall(sdt, playing) {
+  if (!playing || !player.alive || game.state !== 'play' || timeLocked) {
+    stallT = 0; stallOwed = false; return;
+  }
+  // A held world is the lesson's own doing and is not a stall.
+  if (tutorWorldHeld) { stallT = 0; return; }
+  if (stallHappening()) { stallT = 0; return; }
+  stallT += sdt;
+  if (stallT < LEG.stallAfter) return;
+  stallT = 0;
+  // 1. somebody is standing there not engaging: let him see you. Nearest
+  //    first, and only somebody who actually has a line to you — opening the
+  //    radius of a man round a corner would do nothing and cost the next
+  //    check another four seconds.
+  let best = null, bestD = Infinity;
+  for (const e of enemies) {
+    if (!e.alive || e.state === 'assemble') continue;
+    const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
+    if (d >= bestD) continue;
+    if (!hasLineOfSight(_v2.set(e.pos.x, 1.35, e.pos.z),
+      _v3.set(player.pos.x, EYE_HEIGHT - 0.3, player.pos.z))) continue;
+    best = e; bestD = d;
+  }
+  if (best) {
+    best.engageDist = Math.max(best.engageDist || 0, bestD + LEG.stallReachM);
+    best.fireCd = Math.min(best.fireCd || 0, 0.2);
+    // ...AND A STAGED BODY IS ARMED HERE TOO. The man reserved for a leg's
+    // feature stretch holds his fire until the player walks into the room —
+    // which is the whole point of him, and which is also a brand new way to
+    // stand in a corridor while nothing happens if the player never gets
+    // there: pushed back by a corner, turned around, or simply not going.
+    // A hold with no way out is the bug this watchdog exists for, and it
+    // does not get an exemption for being one of mine.
+    if (best.stageZ !== undefined) best.stageArm = worldT;
+    return;
+  }
+  // 2. nobody to wake, so the corridor lets one through — see stallRelease(),
+  //    which the release gate reads on the next frame.
+  stallOwed = true;
+}
+// The release gate's own allowance is a position window and can legitimately
+// be zero for a long walk. This overrides it exactly once, when the watchdog
+// has decided the corridor has been silent too long.
+let stallOwed = false;
+function stallRelease() {
+  if (!stallOwed) return false;
+  stallOwed = false;
+  return true;
+}
+
 function updateEdgeArrows(playing) {
   const dirs = [];
+  // Half the horizontal field of view, asked of the camera rather than
+  // assumed: `fov` is VERTICAL, so the horizontal one is the vertical one
+  // through the aspect, and in portrait that is a much narrower angle.
+  const halfH = Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect);
+  const showAt = halfH * EDGE_ARROW_SHOW;
+  const hideAt = halfH * EDGE_ARROW_HIDE;
   if (playing && player.alive) {
     for (const e of enemies) {
       let dYaw = Math.atan2(-(e.pos.x - player.pos.x), -(e.pos.z - player.pos.z)) - player.yaw;
       while (dYaw > Math.PI) dYaw -= Math.PI * 2;
       while (dYaw < -Math.PI) dYaw += Math.PI * 2;
-      if (Math.abs(dYaw) > EDGE_ARROW_MIN) dirs.push(dYaw);
+      // THE LATCH LIVES ON THE BODY, because the arrow is a statement about
+      // one man and there can be six of them at different bearings. A fresh
+      // enemy has no flag and so starts without an arrow.
+      const off = Math.abs(dYaw);
+      if (e.edgeArrow) { if (off < hideAt) e.edgeArrow = false; }
+      else if (off >= showAt) e.edgeArrow = true;
+      if (e.edgeArrow) dirs.push(dYaw);
       if (dirs.length >= 6) break;
     }
   }
@@ -8619,6 +8931,41 @@ const LEG_HEADLINES = {
   stairwell: 'MIND THE LEVEL ABOVE',
   spiral: 'NO STRAIGHT LINE OUT',
 };
+// IS THE STAGED BODY LIVE YET? Everybody who is not staged always is — the
+// question only means anything for the one man a leg reserves for its feature
+// stretch. He is placed while the player is a stretch short of the room so
+// they see him assemble; he arms when they are through the near doorway, plus
+// a grace so that crossing the threshold is not the same instant as being
+// shot at. Once armed he stays armed: walking back out does not disarm him.
+//
+// NOT game.noFireBefore. That is one global wall-clock stamp that silences
+// every enemy on the level, so holding one man with it would mute the door
+// group too — and being wall-clock it cannot express "until they walk in".
+function stagedArmed(e) {
+  if (!e || e.stageZ === undefined) return true;
+  // the clock starts the first frame they are inside, and does not restart
+  if (!e.stageArm) {
+    if (player.pos.z < e.stageZ) return false;
+    e.stageArm = worldT + LEG.featureArmGrace;
+  }
+  return worldT >= e.stageArm;
+}
+// DOES THIS LEG ACTUALLY PROMISE SOMETHING? A vault says PILLARS ARE YOUR ONLY
+// COVER and a gauntlet says NO COVER · DO NOT STOP; a plain corridor says
+// DOOR 7, which is a fact rather than a claim. Only a claim has to be paid
+// for — see LEG.featureFloor.
+function legPromises(proto) {
+  const pick = (e) => e && LEG_HEADLINES[e.id];
+  return !!(pick(proto && proto.condition)
+    || (proto && proto.measures || []).map(pick).find(Boolean)
+    || pick(proto && proto.form));
+}
+// ...and does it promise a PLACE? A form headline names geometry — a vault's
+// pillared hall is somewhere you stand. A condition headline (FLOODED, DEAD
+// AIR) names a quality of the whole leg and has no room to put anybody in.
+// Only the first buys an extra body; see LEG.featureFloor.
+const legPromisesPlace = (proto) =>
+  !!(proto && proto.form && LEG_HEADLINES[proto.form.id]);
 function legHeadline(proto) {
   // A SIMPLIFIED LEG IS ALWAYS THE SAME SHAPE, so the composer's names for
   // it are all lies: every one of them describes geometry (tight turns, a
@@ -9072,7 +9419,8 @@ function buildMenuHall() {
 // The approach is always the last stretch, however the leg was built.
 
 function buildHallLeg(sgx, sgz, proto) {
-  const { cells, spine, approach, stretches, doorways, pillars, covers, endGx, endGz, authored } =
+  const { cells, spine, approach, stretches, doorways, pillars, covers,
+    featureStretch, endGx, endGz, authored } =
     genHallLeg(sgx, sgz, proto, hall.grid, proto.tutorCells || TUTOR.hallCells);
   const cond = (proto && proto.condition && proto.condition.id) || null;
   const measures = new Set((proto && proto.measures || []).map((m) => m.id));
@@ -9236,6 +9584,10 @@ function buildHallLeg(sgx, sgz, proto) {
   // `spine` comes out too: the onboarding measures "have they reached the
   // corner yet" against it, which a list of floor cells cannot answer.
   return { cells, spine, approach, stretches, doorways, pillars, meshes, obs, door, seal, grind,
+    // WHICH STRETCH THE LEG'S HEADLINE IS ABOUT — the vault's pillared room,
+    // or the chamber an atrium widens into. -1 for a leg that promises nothing
+    // in particular. The wave reserves a body for it; see hallWave().
+    featureStretch: featureStretch === undefined ? -1 : featureStretch,
     endGx, endGz, proto, authored: !!authored, retired: false, nextBuilt: false };
 }
 
@@ -9460,8 +9812,35 @@ function hallWave(n) {
   // corridor games with the same four beats, and a mode whose whole pitch is
   // "one round at a time, dodge it" wants the metronome most of all.
   if (inHall()) {
-    const want = legShare(n, hall ? hall.legInDoor : 0);
     const leg = hall && hall.legs[hall.cur];
+    // WHERE THIS LEG'S HEADLINE POINTS, if anywhere, and whether that place is
+    // somewhere a body can actually be put. Never the approach — that ground
+    // is the door's and has its own share.
+    const bodyN = leg && leg.stretches ? leg.stretches.length - 1 : 0;
+    const fs = leg && leg.featureStretch >= 0 && leg.featureStretch < bodyN
+      ? leg.featureStretch : -1;
+    // A LEG THAT PROMISES A ROOM HAS TO AFFORD BOTH THE ROOM AND THE DOOR.
+    // At a share of one, reserving a body for the pillared hall empties the
+    // approach and moves the anticlimax rather than removing it. This is the
+    // only place the opening ramp is added to, and it is added to only where
+    // a headline has made a claim that needs paying for.
+    // THREE KINDS OF LEG, and only two of them change.
+    //
+    //   a leg that promises a PLACE — a vault's pillared hall — reserves a
+    //   body for that place and is given a floor of two so the door keeps
+    //   one as well, but never more than the door itself holds;
+    //   a leg that promises a QUALITY — NO COVER · DO NOT STOP, TIGHT TURNS,
+    //   FLOODED — spreads what it has down the corridor the claim is about,
+    //   because the claim is about all of it;
+    //   a leg that promises NOTHING is left exactly as it was. Its headline
+    //   is DOOR 7, which is a fact and not a claim, and the last group
+    //   waiting on the approach so you fight it with the door in frame is a
+    //   deliberate payoff rather than an accident.
+    const proto = leg && leg.proto;
+    const reserve = fs >= 0 && legPromisesPlace(proto);
+    const spread = !reserve && legPromises(proto);
+    const want = Math.max(legShare(n, hall ? hall.legInDoor : 0),
+      reserve ? Math.min(LEG.featureFloor, doorBodies(n)) : 0);
     if (leg && leg.stretches && leg.stretches.length) {
       // ONE EACH IN THE LAST `want` STRETCHES, so the fight travels with the
       // player rather than waiting in a heap at the door — and if the leg is
@@ -9474,14 +9853,36 @@ function hallWave(n) {
       // deals in GROUPS: a volley's worth per stretch, so walking into one is
       // walking into all of them.
       const per = Math.max(1, schoolVolleyAt(n));
-      leg.quota = leg.stretches.map((_, i) => {
-        const back = k - 1 - i;                        // 0 is the last stretch
-        const from = want - back * per;                // ...filled from the end
-        return Math.max(0, Math.min(per, from));
-      });
-      const placed = leg.quota.reduce((a, b) => a + b, 0);
-      if (placed < want) leg.quota[k - 1] += want - placed;
+      // THE FEATURE IS PAID FIRST, then the rest fill from the end.
+      //
+      // Filling purely from the end is right when there is enough to reach
+      // back down the leg, and a lie when there is not. `want` is one or two
+      // for every door in the opening ramp and a leg has six to eight
+      // stretches, so `want - back * per` came out [0,0,0,0,0,1] every single
+      // time: measured across 300 legs at doors 1-26, not one had a non-zero
+      // share anywhere before its last two stretches. A median of 84% of
+      // every leg in the game was structurally incapable of producing an
+      // enemy — including, in all 71 vault legs sampled, the pillared room
+      // the banner had just called your only cover.
+      leg.quota = leg.stretches.map(() => 0);
+      let left = want;
+      if (reserve && left > 0) { leg.quota[fs] = 1; left--; }
+      if (spread) {
+        // evenly down the body of the leg, because that is what the headline
+        // is describing — the turns, the straight, the flooded length of it
+        for (let i = 0; i < want && left > 0; i++) {
+          const at = Math.min(bodyN - 1, Math.floor(((i + 0.5) / want) * bodyN));
+          if (leg.quota[at] >= per) continue;
+          leg.quota[at]++; left--;
+        }
+      }
+      for (let i = k - 1; i >= 0 && left > 0; i--) {
+        const add = Math.min(per - leg.quota[i], left);
+        if (add > 0) { leg.quota[i] += add; left -= add; }
+      }
+      if (left > 0) leg.quota[k - 1] += left;   // nowhere else to put them
       leg.released = 0; leg.markK = undefined; leg.budget = 0;
+      leg.featureSent = false;   // one staged body per composition of the wave
     }
     hallWant = want;
   }
@@ -9912,7 +10313,14 @@ function openHallDoor() {
   }
   rebuildHallObstacles();
   showBanner('THE DOOR IS OPEN', 1800);
-  sfx.airlock();   // the door speaks for itself; the VO waits for the crossing
+  // ...AT THE DISTANCE IT ACTUALLY IS. This one fires because the last man in
+  // the leg went down, and the door it belongs to is routinely thirty to
+  // eighty metres away round two corners — so at full volume it was a
+  // mechanical noise stapled to the tail of a shatter with nothing on screen
+  // to pin it to. Every other airlock in the game is something happening
+  // where the player is standing and stays as loud as it was.
+  sfx.airlock(Math.hypot(L.door.x - player.pos.x, L.door.z - player.pos.z));
+  // the door speaks for itself; the VO waits for the crossing
   vibrate(20);
 }
 
@@ -9969,6 +10377,15 @@ function crossHallDoor() {
   // in this same function and has to know whether the lesson began on THIS
   // crossing — see below.
   let enteredSlow = false;
+  // THE LAST DOOR'S CARD DOES NOT OUTLIVE THE LAST DOOR. A headline is shown
+  // for two seconds and the queue serialises anything behind it, so crossing
+  // inside that window left DOOR 9 on screen while the HUD above it had
+  // already moved to DOOR 10 — the same two-numbers-disagree the playtest
+  // reported, arriving by a different route from the off-by-one that was
+  // fixed earlier. Whatever the previous door was saying is dropped here, so
+  // the card that comes next is the only one on screen and it describes the
+  // corridor the player is actually standing in.
+  clearMessages();
   if (tutorStep === null) {
     // EVERY crossing, not just the unlock one: this is what enters the lesson
     // AND what undoes an arm that is never going to be entered. See
@@ -10622,6 +11039,7 @@ function frame(now) {
       else if (player.pitch > hi) nudge(hi);
     }
   }
+  updateStall(sdt, playing);
   updateEdgeArrows(playing);
   if (tutorStep !== null) {
     updateTutorial(dt,
@@ -10744,8 +11162,14 @@ function frame(now) {
     // use it, and a body arriving mid-lesson is the loudest thing on screen.
     if (tutorHoldsSpawns()) game.spawnQueue.length = 0;
     const room = hallAllowance();
+    // ...and the watchdog's one-off override, asked for LAST so the flag is
+    // only spent on a frame that can actually use it. Spending it whenever
+    // this line runs would burn it on an empty queue and buy the stalled
+    // player another four seconds of nothing.
+    const owed = game.state === 'play' && game.spawnQueue.length > 0
+      && enemies.length < maxAlive() && room <= 0 && stallRelease();
     if (game.state === 'play' && game.spawnQueue.length > 0 &&
-        enemies.length < maxAlive() && room > 0) {
+        enemies.length < maxAlive() && (room > 0 || owed)) {
       game.spawnTimer -= sdt;
       // hold entrances while a card is on screen: one thing to read at a time
       if (game.spawnTimer <= 0 && performance.now() >= messageBusyUntil) {
@@ -11067,6 +11491,29 @@ window.__ts = {
     for (let k = enemies.length - 1; k >= 0; k--) { scene.remove(enemies[k].g); enemies.splice(k, 1); }
     tutorPopulateLeg();
     return true;
+  },
+  // THE DODGE COACH, so a test can ask what it is watching and how far along
+  // the round was when it stopped the world — the two numbers the rule is.
+  // What a leg claims, and whether that claim names somewhere to stand — the
+  // two questions hallWave() asks before it decides where the fight is.
+  // The stall watchdog's dials and where it currently stands, so a test can
+  // say "it waited, and it did not dawdle" against the same numbers.
+  stallCfg: () => ({ after: LEG.stallAfter, close: LEG.stallCloseM,
+    reach: LEG.stallReachM, t: +stallT.toFixed(2), owed: stallOwed }),
+  legPromise: (proto) => ({ any: legPromises(proto), place: legPromisesPlace(proto),
+    line: legHeadline(proto) }),
+  tutorRescue: () => {
+    const b = tutorRescueB;
+    return {
+      spent: tutorRescued, watching: b ? bullets.indexOf(b) : -1,
+      at: TUTOR.rescueAt, lane: TUTOR.rescueLane,
+      due: b ? tutorRescueDue(b) : false,
+      flown: b && b.born
+        ? +Math.hypot(b.pos.x - b.born.x, b.pos.z - b.born.z).toFixed(3) : null,
+      span: b && b.born
+        ? +Math.hypot(player.pos.x - b.born.x, player.pos.z - b.born.z).toFixed(3) : null,
+      held: tutorWorldHeld, froze: tutorFroze,
+    };
   },
   tutorTurn: () => ({ order: tutorTurnOrder,
     holder: tutorTurnHolder ? enemies.indexOf(tutorTurnHolder) : -1 }),
