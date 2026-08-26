@@ -5,25 +5,32 @@ first-person arcade shooter, Superhot-descended. Development is
 playtest-driven: the owner plays on an iPhone, reports what went wrong,
 the change is measured rather than eyeballed, and both repos ship.
 
-## The two repositories
+## Which repository — read this before anything else
 
-Named by their GitHub repo, not by wherever a session happens to check
-them out — an agent's local paths mean nothing to anyone else, and saying
-`/workspace/timeshard` to a human sent them looking for a directory that
-does not exist outside the container.
+**Work in `onlinestuff4me-sketch/timeshard`, branch `main`.** GitHub Pages
+serves timeshatter.app from its root. It is the repo the owner thinks of as
+the project, and it is the one that ships.
 
-| repo | branch | role |
-|---|---|---|
-| **`onlinestuff4me-sketch/timeshard`** | `main` | THE LIVE SITE. GitHub Pages serves timeshatter.app from its root. |
-| `onlinestuff4me-sketch/physics-arcade-game` | `claude/tunnel-focus-experiments` | development mirror |
+There was a second "development mirror" for a long time, and it should not
+be used again:
 
-`src/`, `index.html`, `tool/` and `docs/` are kept byte-identical between
-them; every change lands in both. If that split has outlived its use, the
-simplification is to work in `timeshard` alone — worth asking the owner,
-who thinks of `timeshard` as the repo, and reasonably so, since it is the
-one that ships.
+* Its git remote says `onlinestuff4me-sketch/physics-arcade-game`, but that
+  repo **has been renamed to `neon-grid-breaker`** — a different game.
+  GitHub silently redirects pushes to a renamed repo, so the remote kept
+  working while the name disappeared from the owner's repository list. Work
+  was landing on a `claude/tunnel-focus-experiments` branch inside a repo
+  named after something else, and nobody could find it.
+* It carries nothing of its own. Checked file by file: every `src/` module
+  and `index.html` are byte-identical to `timeshard`, and the only tracked
+  file unique to it is `package-lock.json`.
 
-Both are pushed and clean as of `52df38c` (live) / `5ac6465` (mirror).
+So there is no migration to do — just stop writing to it. If a session
+finds itself checked out at a path like `/home/user/physics-arcade-game`,
+that is the renamed repo; push to `timeshard` instead.
+
+> Sessions are given container paths (`/home/user/...`, `/workspace/...`).
+> Those mean nothing to the person reading a handoff. Name repositories.
+
 **A deploy is confirmed by the GitHub Actions conclusion, never by the
 push.** `mcp__github__actions_list` → `list_workflow_runs`, match the
 head SHA, wait for `completed / success`.
