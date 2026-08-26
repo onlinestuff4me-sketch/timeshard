@@ -700,6 +700,9 @@ setLayout();
 // Small math helpers
 // ---------------------------------------------------------------------------
 const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
+// ...and a second pair, because firstSightDist() runs INSIDE the placement
+// loop, which is already using _v2/_v3 for its own line-of-sight test.
+const _v4 = new THREE.Vector3(), _v5 = new THREE.Vector3();
 const _vMuz = new THREE.Vector3();
 
 // Squared distance between segments p1->q1 and p2->q2 (Ericson, RTCD 5.1.9).
@@ -2790,6 +2793,47 @@ function pointInObstacle(x, z, pad) {
   return false;
 }
 
+// HOW MUCH CLEAR GROUND A NEW BODY MUST HAVE WHEN HE FIRST BECOMES VISIBLE.
+// Full through EARLY.firstSightDoors, eased to nothing by firstSightEaseBy —
+// see EARLY for why the opening doors get a rule the rest of the game does
+// not. Zero means "not enforced", which is the deep game.
+function firstSightFloor() {
+  if (!inHall()) return 0;
+  const d = hall ? hall.doorsPassed + 1 : 1;
+  if (d <= EARLY.firstSightDoors) return EARLY.firstSightM;
+  const span = Math.max(1, EARLY.firstSightEaseBy - EARLY.firstSightDoors);
+  const t = Math.min(1, (d - EARLY.firstSightDoors) / span);
+  return EARLY.firstSightM * (1 - t);
+}
+// ...AND HOW MUCH THIS CANDIDATE ACTUALLY HAS. The player walks the spine, so
+// the first spine point that can see the spot is where he first sees the man,
+// and the gap between them there is the answer. Infinity means no point on the
+// walked path can see him at all — which is not a safe placement, it is an
+// unknown one, so the caller treats it as a failure while the rule is on.
+// IS THERE ENOUGH ROOM AT FIRST SIGHT? Infinity — no point on the walked path
+// can see the spot at all — is a FAILURE, not a pass. Both call sites used to
+// spell this as `dist < floor`, and `Infinity < 13` is false, so the one case
+// the rule most wanted to catch was the one it waved through: a body you never
+// see coming until you are standing in the lane with him.
+function sightOK(px, pz, floor) {
+  if (!(floor > 0)) return true;
+  const d = firstSightDist(px, pz);
+  return isFinite(d) && d >= floor;
+}
+function firstSightDist(px, pz) {
+  const L = hall && hall.legs[hall.cur];
+  if (!L || !L.spine) return Infinity;
+  const C = HALL.cell;
+  for (const [gx, gz] of L.spine) {
+    const sx = gx * C, sz = gz * C;
+    if (sz < player.pos.z - C) continue;          // already behind him
+    if (sz > pz + C * 2) break;                   // past the body: never seen
+    if (!hasLineOfSight(_v4.set(px, 1.4, pz), _v5.set(sx, EYE_HEIGHT, sz))) continue;
+    return Math.hypot(px - sx, pz - sz);
+  }
+  return Infinity;
+}
+
 // `at` PLACES THE BODY BEFORE IT IS BUILT, and that ordering is the whole
 // point of the argument rather than a convenience. Everything below bakes the
 // assemble animation into ABSOLUTE world coordinates at whatever point is
@@ -2800,7 +2844,14 @@ function pointInObstacle(x, z, pad) {
 // entirely. That is what the onboarding did at every training leg, and why a
 // player saw the little red assemble animation play in the middle of an empty
 // room with nobody in it and two gunners arrive silently at the edges.
-function spawnEnemy(type = 'gunner', at = null) {
+// `paced` MARKS THE CORRIDOR'S OWN RELEASE, and only that. The first-sight
+// floor is a pacing rule — it is about the rhythm a player meets bodies at as
+// they walk a leg — so it belongs to the release gate and to nothing else. The
+// menu's attract loop is a shop window with no player in it; a harness placing
+// a man to measure something has already decided where he goes. Applying the
+// rule to every caller made `spawnEnemy` refuse in both, which is how a change
+// about door 2 turned into a crash in a file about reload state.
+function spawnEnemy(type = 'gunner', at = null, paced = false) {
   // The archive files what you MEET, not what you kill — but the attract loop
   // behind the title is a shop window, not a meeting, so the menu files
   // nothing. Otherwise every player would "know" the heavy before playing.
@@ -2902,6 +2953,7 @@ function spawnEnemy(type = 'gunner', at = null) {
     // school pins each new body to whoever is already up: the group is the
     // thing the player is being taught to point the power at.
     const anchor = inSchool() ? schoolAnchor() : null;
+    const sightFloor = paced ? firstSightFloor() : 0;
     for (let tries = 0; tries < 40 && !placed; tries++) {
       const [cgx, cgz] = pool[Math.floor(Math.random() * pool.length)];
       const px = cgx * C + (Math.random() - 0.5) * 1.6;
@@ -2918,6 +2970,12 @@ function spawnEnemy(type = 'gunner', at = null) {
         // stage still has to happen, and it has to happen where you can see
         // the door — never in a branch lane off to the side of it
         if (d < 4) continue;
+        // ...BUT THE OPENING DOORS STILL GET THEIR ROOM. This branch was the
+        // hole: it skips `spawnMin` by design, so it was placing the door
+        // group at eight metres and first sight at twelve while the rule
+        // asked for thirteen. The staging is not so precious that it is worth
+        // a round the player cannot answer.
+        if (!sightOK(px, pz, sightFloor)) continue;
         if (!hasLineOfSight(_v2.set(px, 1.4, pz),
           _v3.set(doorView[0] * C, 1.4, doorView[1] * C))) continue;
         x = px; z = pz; placed = true; break;
@@ -2927,6 +2985,9 @@ function spawnEnemy(type = 'gunner', at = null) {
       const minD = (L.proto && L.proto.form && L.proto.form.id === 'vault')
         ? LEG.vaultSpawnMin : LEG.spawnMin;
       if (d < minD || d > LEG.spawnMax) continue;
+      // ...AND ENOUGH ROOM WHEN HE IS FIRST SEEN, which is a different number
+      // from `d` the moment the corridor bends. See firstSightDist.
+      if (!sightOK(px, pz, sightFloor)) continue;
       // NOT INSIDE THE FURNITURE. The city path a hundred lines below has
       // always checked this; the tunnel path never did. It only ever tested
       // distance and line of sight, and a vault room's low cover sits 0.2 m
@@ -2940,7 +3001,20 @@ function spawnEnemy(type = 'gunner', at = null) {
       }
       if (!fbOk) { fbOk = true; fbX = px; fbZ = pz; }
     }
-    if (!placed && fbOk) { x = fbX; z = fbZ; placed = true; }
+    // THE FALLBACK OBEYS THE RULE TOO, or it is not a fallback, it is a hole in
+    // the floor. `fb` is the best in-sight candidate the loop found; it was
+    // recorded before the sight test, so it is re-checked here.
+    if (!placed && fbOk && sightOK(fbX, fbZ, sightFloor)) {
+      x = fbX; z = fbZ; placed = true;
+    }
+    if (!placed && sightFloor > 0) {
+      // NOWHERE FAR ENOUGH, SO NOBODY. A tight winding corridor in the opening
+      // doors simply has no spot that gives the player room to answer a round,
+      // and the honest thing is to leave it empty and let the next release try
+      // again from further along. The alternative is what shipped: a body four
+      // metres round a corner, which is not a fight, it is a coin toss.
+      return false;
+    }
     if (!placed) {
       // Last resort: the furthest-ahead cell of THIS spawn's own pool. It
       // used to fall back to the door approach, which is how a whole wave
@@ -3099,6 +3173,7 @@ function spawnEnemy(type = 'gunner', at = null) {
     warnFlash([type.toUpperCase() + '.']);   // silent card: the name is enough
   }
   seen[type] = true;
+  return true;   // ...and `false` from the early return that refuses a spot
 }
 
 // ---------------------------------------------------------------------------
@@ -4695,6 +4770,11 @@ function onPointerDown(ev) {
       // many. The handler stays because the screen is still reached — from
       // that button, which the overlay block routes.)
       if (ev.target.closest('#savesclose')) { closeSaves(); return; }
+      // ...AND THE DIMMED GROUND AROUND THE CARD CLOSES IT TOO. A list this
+      // long can put CLOSE below the fold, and a screen with no visible way
+      // back is a screen the player leaves by reloading the game. `ev.target`
+      // is the overlay ITSELF only when the tap missed the card.
+      if (ev.target.id === 'saves') { closeSaves(); return; }
       const cont = ev.target.closest('#slotlist .cont');
       if (cont) {
         setTutorArmed(false);
@@ -6326,16 +6406,45 @@ function fmtWhen(t) {
 // what it has found — a number to be proud of, and four rows of marks whose
 // hollow squares are the tease. It reads the save CONTINUE would start
 // (the selected mode's latest), so the teaser and the panel behind it agree.
+// WHAT THIS PLAYER HAS EVER FOUND, ACROSS EVERY SAVE THEY HAVE.
+//
+// This used to read `latestSave()` and nothing else, so the panel called
+// RECOVERED SO FAR was really "recovered in the run you happened to touch
+// last": start a new game and a player who had met nine enemy types was shown
+// one, and the pips they had spent hours filling emptied. Discovery is a
+// property of the PLAYER — the archive is the thing you build up across runs
+// — so it is the union of every slot, plus whatever the live run has added
+// that is not written to disk yet.
+//
+// Shattered and doors are lifetime figures for the same reason: a headline
+// number over a panel about everything you have ever done cannot be about one
+// save. Doors is the DEEPEST reached rather than a sum — "how far in have you
+// been" is the question a door count answers, and adding two runs together
+// answers a question nobody asked.
 function discoverData() {
-  const last = latestSave();
-  const read = last ? slotRead(last.i) : null;
-  const have = new Set(read ? read.archiveList : []);
+  const have = new Set(archive);          // the live run, including this door
+  let shat = 0, doors = 0;
+  for (const e of saveIndex()) {
+    const read = slotRead(e.i);
+    if (!read || !read.used) continue;
+    for (const id of read.archiveList) have.add(id);
+    // THE ACTIVE SLOT IS COUNTED FROM MEMORY, NOT FROM DISK, and so it is
+    // skipped here. Its in-memory total is ahead of its stored one for the
+    // whole of a run — and reconciling that with a `max` over the SUM would
+    // throw away every other save the moment the live run passed their
+    // combined total.
+    if (e.i === slotIx) continue;
+    shat += read.shat || 0;
+    doors = Math.max(doors, read.best || read.doors || 0);
+  }
+  shat += lifetimeShattered;
+  doors = Math.max(doors, lifetimeDoors);
   const secs = ARCH_SECTIONS.map((sec) => {
     const rows = ELEMENTS.filter((e) => sec.kinds.includes(e.kind));
     return { title: sec.title, got: rows.filter((e) => have.has(e.id)).length,
       total: rows.length };
   });
-  return { shat: read ? read.shat : 0, doors: read ? read.doors : 0, secs,
+  return { shat, doors, secs,
     got: secs.reduce((n, x) => n + x.got, 0),
     total: secs.reduce((n, x) => n + x.total, 0) };
 }
@@ -6641,7 +6750,13 @@ function startNewRun(ask = true) {
   // save — which beginNewGame then wipes and re-stamps, destroying the run and
   // the creation date the details panel promises never moves.
   const entry = makeSave(menuMode, '');
-  if (!entry) return;
+  // ...AND IF THERE IS NO ROOM, SAY SO. `makeSave` returns null at the save
+  // cap, and this used to answer that with `return` — NEW RUN did nothing at
+  // all, no card, no sound, no page, for a player with six saves. Reported as
+  // the button being broken, which from the outside is exactly what it is.
+  // The saves page is where a slot gets freed and it already says ALL 6 SAVES
+  // IN USE — DELETE ONE across the bottom, so that is where this goes.
+  if (!entry) { openSaves(); return; }
   if (!ask) {
     // NO DIALOGUE AND NO ARMING. Going through beginNewGame here would call
     // setTutorArmed(true) on a first launch, and `tutorArmed` is a sticky
@@ -11258,8 +11373,21 @@ function frame(now) {
         game.waveBearing = player.yaw + Math.PI + (Math.random() - 0.5) *
           (Math.random() < 0.2 ? Math.PI * 2 : 2.4);
         const next = game.spawnQueue.shift();
-        spawnEnemy(next);
-        if (next === 'rusher') {
+        // A REFUSED PLACEMENT IS NOT A SPENT BODY. In the opening doors there
+        // may be nowhere in this stretch that gives the player room to answer
+        // a round — see EARLY.firstSightM — and the man goes back on the queue
+        // to be released from somewhere further along instead of being quietly
+        // dropped, which would empty the leg.
+        const born = spawnEnemy(next, null, true) !== false;
+        if (!born) {
+          game.spawnQueue.unshift(next);
+          game.spawnTimer = PACING.hallFullGap;
+        }
+        // NOT `return`. This block sits inside the frame update, and bailing
+        // out of it here would skip everything after the spawner — the
+        // enemies' own update, the HUD, the lot — on any frame a placement was
+        // refused. Only the rest of THIS arrival is skipped.
+        if (born && next === 'rusher') {
           // rushers hunt in packs of 3-4: pull the rest of the pack from
           // anywhere in the wave and send them out the same alley together
           let extra = Math.min(2 + (Math.random() < 0.5 ? 1 : 0),
@@ -11267,11 +11395,11 @@ function frame(now) {
           for (let i = 0; i < game.spawnQueue.length && extra > 0;) {
             if (game.spawnQueue[i] === 'rusher') {
               game.spawnQueue.splice(i, 1);
-              spawnEnemy('rusher');
+              spawnEnemy('rusher', null, true);
               extra--;
             } else i++;
           }
-        } else if (inHall()) {
+        } else if (born && inHall()) {
           // corridors fight in clusters: 1-3 round the corner together — but
           // NOT under a condition. A clump in the dark is a single problem
           // you solve with one burst or one knife sweep; the same bodies met
@@ -11281,12 +11409,13 @@ function frame(now) {
           let extra = clumps ? Math.min(
             (Math.random() < 0.65 ? 1 : 0) + (Math.random() < 0.3 ? 1 : 0),
             game.spawnQueue.length, maxAlive() - enemies.length, room - 1) : 0;
-          while (extra-- > 0) spawnEnemy(game.spawnQueue.shift());
+          while (extra-- > 0) spawnEnemy(game.spawnQueue.shift(), null, true);
         }
         // the fuller the street (a fresh pack fills it fast), the longer
         // until the next arrival
         const fill = enemies.length / maxAlive();
-        if (inHall()) {
+        if (!born) { /* the refusal above already set the retry gap */ }
+        else if (inHall()) {
           // A cleared corridor stays quiet only briefly — long enough to
           // breathe and push forward, never long enough to feel empty.
           game.spawnTimer = (enemies.length === 0 ? PACING.hallEmptyGap
@@ -11578,6 +11707,11 @@ window.__ts = {
   // say "it waited, and it did not dawdle" against the same numbers.
   stallCfg: () => ({ after: LEG.stallAfter, close: LEG.stallCloseM,
     reach: LEG.stallReachM, t: +stallT.toFixed(2), owed: stallOwed }),
+  discover: () => discoverData(),
+  saves: () => saveIndex(),
+  // how far a spot is from the player when the walked path first sees it
+  firstSight: (x, z) => firstSightDist(x, z),
+  sightFloor: () => firstSightFloor(),
   legPromise: (proto) => ({ any: legPromises(proto), place: legPromisesPlace(proto),
     line: legHeadline(proto) }),
   tutorRescue: () => {
