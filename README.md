@@ -1,5 +1,25 @@
 # TIME SHATTER
 
+> ## This repository is the only home of TIME SHATTER
+>
+> **All development happens here — `onlinestuff4me-sketch/timeshard`, branch
+> `main`.** GitHub Pages serves https://timeshatter.app from this repo's
+> root, so what is on `main` is what players get.
+>
+> **Do not use `onlinestuff4me-sketch/neon-grid-breaker` for anything to do
+> with this game. It is a different game.** That repo was once called
+> `physics-arcade-game`, and TIME SHATTER work was mirrored into it for a
+> long time. It was renamed; GitHub silently redirects git pushes to a
+> renamed repository, so a stale remote URL of
+> `.../onlinestuff4me-sketch/physics-arcade-game` keeps succeeding while the
+> commits land somewhere nobody associates with this project.
+>
+> If a working copy's `git remote -v` says `physics-arcade-game`, it is
+> pointing at that other game. Re-point it at `timeshard` or clone this repo
+> fresh. Nothing needs migrating: every `src/` module and `index.html` there
+> were byte-identical to the ones here, and the only tracked file unique to
+> it was `package-lock.json`.
+
 **The ramp and the unlock** — how many men stand behind each door, how fast
 their rounds travel, and the door that arithmetic unlocks slow time on:
 https://claude.ai/code/artifact/b764bbb1-3a09-4146-be55-b02bcb7318b9

@@ -3,33 +3,40 @@
 TIME SHATTER, live at **https://timeshatter.app**. Portrait-mobile
 first-person arcade shooter, Superhot-descended. Development is
 playtest-driven: the owner plays on an iPhone, reports what went wrong,
-the change is measured rather than eyeballed, and both repos ship.
+the change is measured rather than eyeballed, and it ships from this repo.
 
 ## Which repository — read this before anything else
 
-**Work in `onlinestuff4me-sketch/timeshard`, branch `main`.** GitHub Pages
-serves timeshatter.app from its root. It is the repo the owner thinks of as
-the project, and it is the one that ships.
+**`onlinestuff4me-sketch/timeshard`, branch `main`, is the only home of
+TIME SHATTER.** GitHub Pages serves timeshatter.app from its root: what is
+on `main` is what players get. Every change belongs here and nowhere else.
 
-There was a second "development mirror" for a long time, and it should not
-be used again:
+**`onlinestuff4me-sketch/neon-grid-breaker` is a DIFFERENT GAME. Nothing to
+do with TIME SHATTER goes into it.**
 
-* Its git remote says `onlinestuff4me-sketch/physics-arcade-game`, but that
-  repo **has been renamed to `neon-grid-breaker`** — a different game.
-  GitHub silently redirects pushes to a renamed repo, so the remote kept
-  working while the name disappeared from the owner's repository list. Work
-  was landing on a `claude/tunnel-focus-experiments` branch inside a repo
-  named after something else, and nobody could find it.
-* It carries nothing of its own. Checked file by file: every `src/` module
-  and `index.html` are byte-identical to `timeshard`, and the only tracked
-  file unique to it is `package-lock.json`.
+That repo used to be called `physics-arcade-game`, and for a long time this
+game's work was mirrored into it as well. It has since been renamed and
+repurposed. The trap is that **GitHub silently redirects git pushes to a
+renamed repository**: a working copy whose remote still reads
+`.../onlinestuff4me-sketch/physics-arcade-game` will push, report success,
+and land the commits in `neon-grid-breaker` — where they are invisible to
+anyone looking for this project, and mixed into a repo about something
+else. That is exactly what happened; it went unnoticed for a whole session
+because every push said it worked.
 
-So there is no migration to do — just stop writing to it. If a session
-finds itself checked out at a path like `/home/user/physics-arcade-game`,
-that is the renamed repo; push to `timeshard` instead.
+**So, concretely:**
 
-> Sessions are given container paths (`/home/user/...`, `/workspace/...`).
-> Those mean nothing to the person reading a handoff. Name repositories.
+* Clone or work in `timeshard`. Push to `timeshard`. Nothing else.
+* If a session starts checked out somewhere whose `git remote -v` says
+  `physics-arcade-game` — a path like `/home/user/physics-arcade-game` is
+  the giveaway — that is the other game's repo. Do not push to it.
+* There is nothing to migrate out of it. Checked file by file: every `src/`
+  module and `index.html` were byte-identical to the copies here, and the
+  only tracked file unique to it was `package-lock.json`.
+
+> Container paths (`/home/user/...`, `/workspace/...`) are an artefact of
+> whichever machine a session runs on and mean nothing to the person reading
+> a handoff. Always name repositories.
 
 **A deploy is confirmed by the GitHub Actions conclusion, never by the
 push.** `mcp__github__actions_list` → `list_workflow_runs`, match the
