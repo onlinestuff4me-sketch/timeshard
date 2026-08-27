@@ -341,16 +341,21 @@ export const LEGS = [
   // is 19-25 m; bodies parked at z 7-10 stood 28 m from the entry, so nothing
   // happened for the first four cells of every area and "fires as they enter"
   // never once happened. They stand at 4-6 cells now.
+  // CLOSE ENOUGH TO AIM AT. At 5 cells the first man anybody meets stood 21.5 m
+  // from the door they walk in through, which on a portrait phone is a figure
+  // about a centimetre tall — a hard first target for somebody who has held
+  // the trigger once. 3.5 cells is 15.5 m, the same order as the teaching
+  // leg's own gunner (TUTOR.enemyCells, 4 cells past the barrier).
   { id: 'hall1', form: 'corridor', kind: 'hall', note: '10. One enemy in a hallway.',
     plan: { moves: [['f', 8]], approach: 3 },
-    enemies: [{ x: 0, z: 5, type: 'gunner' }], fireOrder: 'free' },
+    enemies: [{ x: 0, z: 3.5, type: 'gunner' }], fireOrder: 'free' },
   // OFF THE CENTRE LINE. Two bodies at x = 0 are one silhouette: the front one
   // occludes the other perfectly and the HUD count contradicts the screen.
   { id: 'hall2', form: 'corridor', kind: 'hall', note: '11. Two in a hallway, taking turns.',
     plan: { moves: [['f', 10]], approach: 3 },
     // x is in CELLS, so a quarter is a metre — enough to break the silhouette
     // in a corridor that only has 3.4 m of floor to play with.
-    enemies: [{ x: -0.22, z: 5, type: 'gunner' }, { x: 0.22, z: 8, type: 'gunner' }],
+    enemies: [{ x: -0.22, z: 3.5, type: 'gunner' }, { x: 0.22, z: 5.5, type: 'gunner' }],
     fireOrder: 'turns' },
   // ...AND THE ROOM HAS COLUMNS IN IT — the first cover in the game, and the
   // whole lesson of the area. `plan.pillars` is in CELLS like the rest of a
@@ -573,7 +578,13 @@ export const STEPS = [
     id: 'stand', label: '4 · Stand here',
     hud: 'GO TO THE BARRIER',
     advance: { kind: 'atBarrier' },
-    grants: {},
+    // THE NEEDLE IS STILL HELD HERE, and dropped by the SIGN rather than by
+    // this step starting. `stand` begins the moment the player reaches the
+    // last corner, which they can do without having turned to look down the
+    // straight — so retiring the mark on the step took it away while there
+    // was still nothing on screen to replace it. wayArrowShows() waits for
+    // tutorPlaceWorldCue to put STAND HERE in frame.
+    grants: { way: true },
     cues: [{ text: 'STAND HERE', slot: 'world', arrow: 'none', hand: 'none',
       pulse: true, on: 'enter', off: 'advance' }],
   },

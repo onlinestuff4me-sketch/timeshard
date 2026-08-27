@@ -350,6 +350,49 @@ Three separate causes:
   is REMOVED rather than set to an identity, because a full-screen filter
   costs a compositor pass on a phone whether or not it changes anything.
 
+## Three more off a second look at the dodge
+
+**The needle is retired by the SIGN, not by the step.** `stand` begins the
+moment the player reaches the last corner — which they can reach without
+having turned to look down the straight — so the mark was going out while
+there was still nothing on screen to replace it. The step holds the `way`
+grant now, and `tutorPlaceWorldCue` sets `tutorSignSeen` on the frame it
+actually puts STAND HERE in frame; `wayArrowShows()` waits for that. Latched,
+because a mark that returns every time the player glances away is the flicker
+this whole thing exists to remove. Walked, the reported case: round the last
+corner without turning, and across 102 frames the sign was on screen in **0**
+and the needle stayed up for **all 102**. Then turn: sign at frame 1, needle
+fades over 11 frames.
+
+**Two things still cut at the start of the freeze.** The world, the zoom, the
+grade and the bars were fixed last round; what was left was the headline and
+the ring.
+
+* `tutorSlot` writes `innerHTML` every frame, so one cue replacing another in
+  the same slot swapped a full-width sentence between two frames — TAP
+  ANYWHERE TO SHOOT to DODGE THE BULLET, at the exact moment the world starts
+  stopping. The old line dips out first now (`.tslot.swapout`, 190 ms) and the
+  new one arrives on its own fade.
+* `#tutorpin` already had an opacity transition and it had never once run: the
+  `.on` rule adds `pinpulse`, which holds opacity 1 at 0%, and **a running
+  animation beats a transition on the same property**. Delayed past the fade,
+  the ring now comes up 0 → 0.11 → 0.47 → 0.85 → 1 across 19 frames.
+
+That same trap bit the headline swap too, and is worth remembering: an
+outgoing line that was PULSING cannot dissolve, because a removed animation
+cannot be transitioned from — the computed value jumps to the declared one
+before the transition is set up. So a pulsing line clears in a frame and then
+there is a gap before the new one fades in; a non-pulsing one cross-dissolves
+properly (measured: 1 → 0.76 → 0.27 → 0.03 → 0.41 → 0.74 → 1, 11 frames).
+
+**The first two ramp gunners stand closer.** At 5 cells the first man anybody
+meets stood 21.5 m from the door they walk in through, which on a portrait
+phone is a figure about a centimetre tall — a hard first target for somebody
+who has held the trigger once. 3.5 cells puts him at **17.5 m**, which is the
+same range as the teaching leg's own gunner (`TUTOR.enemyCells` is 4 cells
+past the barrier, and the player stands at the barrier). `hall2`'s pair went
+21.5/33.5 → 17.5/25.5. The pillared room is unchanged.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
@@ -465,6 +508,13 @@ Traps that cost real time, all of them mine:
   halo, and a "is it red enough" threshold was a guess about the renderer.
   Screenshot with the thing on and off and count how many of the mark's own
   core pixels changed. Zero means it is on top.
+* **A running CSS animation beats a transition on the same property, and a
+  removed animation cannot be transitioned FROM.** This has now cost time
+  twice in one session: the ring on the round had an opacity transition that
+  had never run because `pinpulse` held opacity up, and the headline swap
+  measured a dip that never happened for the same reason (0.78, steady, then
+  the words changed anyway). If something with a pulse has to fade, cancel
+  the animation — and expect the first frame to jump rather than ease.
 * **Two easings pulling opposite ways settle at an equilibrium, not at
   either end.** A hold that eases toward zero AFTER the ordinary ease has
   pulled toward full speed does not stop the world; it parks it at whatever

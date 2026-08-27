@@ -7155,12 +7155,42 @@ const tutorFreeIsFree = () => tutorStep !== null && !tutorMay('bank');
 // single element that took its position from a class, which made DRAG TO MOVE
 // and DRAG TO LOOK mutually exclusive — and the whole point of lesson 2 is
 // that looking is a separate action you do AT THE SAME TIME as moving.
+// A HEADLINE DOES NOT CUT. This is re-run every frame, so writing `innerHTML`
+// unconditionally swapped a full-width sentence between two frames whenever
+// one cue replaced another in the same slot — TAP ANYWHERE TO SHOOT to DODGE
+// THE BULLET, at the exact moment the world starts stopping, which is the one
+// beat that most wants to feel like it is easing in. The old line dips out
+// first, then the new one arrives on its own fade.
+const SLOT_SWAP_MS = 190;   // ...matching `.tslot.swapout` in index.html
 function tutorSlot(slot, html, pulse) {
   const n = el.tslot && el.tslot[slot];
   if (!n) return;
-  if (!html) { n.className = `tslot ${slot}`; n.innerHTML = ''; return; }
+  if (!html) {
+    if (n._swap) { clearTimeout(n._swap); n._swap = 0; }
+    n._want = '';
+    n.className = `tslot ${slot}`; n.innerHTML = '';
+    return;
+  }
+  const cls = `tslot ${slot}${pulse ? ' pulse' : ''} show`;
+  if (n._want === html) {
+    // same words: keep whatever fade is in flight, only correct the class
+    if (!n._swap && n.className !== cls) n.className = cls;
+    return;
+  }
+  n._want = html;
+  if (n.classList.contains('show') && n.innerHTML) {
+    n.classList.add('swapout');
+    if (n._swap) clearTimeout(n._swap);
+    n._swap = setTimeout(() => {
+      n._swap = 0;
+      if (n._want !== html) return;      // superseded while it was fading
+      n.innerHTML = html;
+      n.className = cls;                 // drops `swapout`, so it fades back in
+    }, SLOT_SWAP_MS);
+    return;
+  }
   n.innerHTML = html;
-  n.className = `tslot ${slot}${pulse ? ' pulse' : ''} show`;
+  n.className = cls;
 }
 function tutorArrows(down, up) {
   if (el.tutorarrow) el.tutorarrow.classList.toggle('on', !!down);
@@ -7184,6 +7214,10 @@ function tutorHideMsg() {
 // GOAL 2: a cue with off:'advance' stays until the LESSON is over. Nothing
 // here is on a timer, and nothing here can be.
 let tutorFired = new Set();
+// Has the player actually SEEN the sign the lesson is sending them to? Set by
+// tutorPlaceWorldCue on the frame it puts STAND HERE on screen, cleared with
+// the step. The way-out needle reads it — see wayArrowShows().
+let tutorSignSeen = false;
 // A BEAT IS A LOOP, and a Set of things that have happened cannot describe a
 // loop on its own. Emitting one of these un-fires the others listed with it,
 // which is what lets a step hang two or three declarative cues on a beat and
@@ -7345,6 +7379,14 @@ function tutorPlaceWorldCue() {
   const off = _vWorld.z > 1 || Math.abs(_vWorld.x) > 1.15 || Math.abs(_vWorld.y) > 1.15;
   if (off || !inFinalRun || !onPath) { n.style.visibility = 'hidden'; return; }
   n.style.visibility = '';
+  // ...AND THAT IS THE MOMENT THE WAY-OUT NEEDLE HAS DONE ITS JOB. Not the
+  // moment the step changed: `stand` begins when the player reaches the last
+  // corner, which they can do without having turned their head, so the mark
+  // was going out before there was anything on screen to replace it. This is
+  // the only place in the build that knows the sign is genuinely being
+  // looked at. Latched, because a mark that comes back every time the player
+  // glances away is the flicker this whole thing exists to remove.
+  tutorSignSeen = true;
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
   // ...AND IT IS THE SIZE OF THE SIGN, not a number that happens to grow.
   // Every previous attempt was a curve fitted to distance — 620/d, capped at
@@ -7718,6 +7760,7 @@ function tutorResetWorld() {
   tutorShotsFired = 0; tutorDodged = 0;
   tutorAwaitShot = false; tutorAnchor = null; tutorDeadPending = false;
   tutorAnchorStep = null; tutorButtonShown = false; tutorFired = new Set();
+  tutorSignSeen = false;
   tutorHardFreeze = false; tutorWorldHeld = false;
   tutorMeterOn = false; tutorMeterAt = 0; tutorMeterSaid = false;
   tutorMeterEverShown = false;
@@ -7740,7 +7783,8 @@ function startTutorial() {
   tutorShotsFired = 0; tutorDodged = 0; tutorCrossedDoor = false;
   tutorAwaitShot = false; tutorAnchor = null;
   tutorDeadPending = false; tutorAnchorStep = null; tutorButtonShown = false;
-  tutorFired = new Set(); tutorHardFreeze = false; tutorWorldHeld = false;
+  tutorFired = new Set(); tutorSignSeen = false;
+  tutorHardFreeze = false; tutorWorldHeld = false;
   tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0; tutorCrossedDoor = false;
   document.body.classList.add('tutoring');
   gun.visible = false;
@@ -7811,7 +7855,8 @@ function startSlowLesson() {
   tutorShotsFired = 0; tutorDodged = 0; tutorCrossedDoor = false;
   tutorAwaitShot = false; tutorAnchor = null;
   tutorDeadPending = false; tutorAnchorStep = null;
-  tutorFired = new Set(); tutorHardFreeze = false; tutorWorldHeld = false;
+  tutorFired = new Set(); tutorSignSeen = false;
+  tutorHardFreeze = false; tutorWorldHeld = false;
   tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0;
   // THE GUN STAYS IN THEIR HANDS. This is the one real difference from the
   // onboarding: the player is seventy doors in, armed, and mid-run. The lesson
@@ -9223,7 +9268,11 @@ function wayArrowShows() {
   // pointing at it is a second answer to a question already answered. It is
   // off for the whole combat course and off for the ramp, which are fights
   // and not navigation.
-  if (tutorStep !== null) return !!tutorMay('way');
+  // ...and it is retired by the SIGN, not by the step. `stand` begins when the
+  // player reaches the last corner, which they can reach without having turned
+  // to look down the straight — so keying the hand-off to the step took the
+  // mark away while there was still nothing on screen to replace it.
+  if (tutorStep !== null) return !!tutorMay('way') && !tutorSignSeen;
   // ...and past the onboarding it is the empty-leg mark: only on a leg with
   // nobody left in it, which is the one place "which way now" is a real
   // question — a corridor with no sound, no fight, and two directions that
@@ -11979,6 +12028,10 @@ window.__ts = {
     dodged: tutorDodged, shots: tutorShotsFired, deadPending: tutorDeadPending,
     awaitShot: tutorAwaitShot, froze: tutorFroze,
     anchor: tutorAnchor && { x: +tutorAnchor.x.toFixed(2), z: +tutorAnchor.z.toFixed(2) },
+    // ...and whether the sign the lesson sends them to has been on screen yet,
+    // which is what retires the way-out needle rather than the step changing
+    signSeen: tutorSignSeen,
+    bar: tutorBar ? { x: +tutorBar.m.position.x.toFixed(2), z: +tutorBar.z.toFixed(2) } : null,
     anchorStep: tutorAnchorStep,
     legIx: tutorLegIx, spineIx: tutorSpineIx, held: tutorWorldHeld,
     barrierZ: tutorBar ? +tutorBar.z.toFixed(1) : null,
@@ -12085,6 +12138,9 @@ window.__ts = {
   restartHall: () => { setEnvironment('city'); clearField(); initHall(); },
   killAt: (i) => killEnemy(i, _v1.set(0, 0.5, -1).normalize()),
   banner: showBanner,
+  // The cue slot writer, so a harness can exercise a same-slot headline swap
+  // without staging the beats that produce one in play.
+  slot: (k, html, pulse) => tutorSlot(k, html, pulse),
   diff: () => ({ speed: enemyBulletSpeed(), aim: aimSpeedFactor(), t: diffT() }),
   // WALKING TO THE UNLOCK DOOR TAKES AN HOUR. The staircase, the unlock and the school
   // are all functions of the door number and nothing else, so a harness is

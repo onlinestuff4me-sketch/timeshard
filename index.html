@@ -446,6 +446,18 @@
            transition:opacity .35s ease, transform .35s ease;
            transform:translateY(8px); pointer-events:none; }
   .tslot.show { opacity:1; transform:none; }
+  /* ...AND ONE HEADLINE DIPS OUT BEFORE THE NEXT ARRIVES. Two cues sharing a
+     slot used to swap their words between two frames; this is the outgoing
+     half, kept short so the new line is not late. After `.show` on purpose —
+     same specificity, so the later rule wins. See SLOT_SWAP_MS in main.js. */
+  .tslot.swapout { opacity:0; transform:translateY(3px);
+                   /* AND THE PULSE HAS TO STOP FOR IT. A running animation
+                      beats a transition on the same property, and the outgoing
+                      headline is often a pulsing one (TAP ANYWHERE TO SHOOT),
+                      so `tutorpulse` held its opacity up and the dip never
+                      happened — measured, it sat at 0.78 and swapped anyway. */
+                   animation:none !important;
+                   transition:opacity .19s ease, transform .19s ease; }
   /* In bullet time the corridor is a pale wash and white text on it measured
      about 1.2:1 — DRAG TO MOVE, the one instruction you need while a round is
      in the air, was effectively invisible. Every slot gets the shadow the red
@@ -519,8 +531,14 @@
            border:3px solid #ff2d1a; box-shadow:0 0 18px rgba(255,45,26,.55),
            inset 0 0 12px rgba(255,45,26,.35);
            opacity:0; visibility:hidden; pointer-events:none;
-           transition:opacity .18s ease; }
-  #tutorpin.on { opacity:1; visibility:visible; animation:pinpulse 1.05s ease-in-out infinite; }
+           transition:opacity .3s ease; }
+  /* THE PULSE WAITS FOR THE FADE. A running animation beats the transition
+     beside it, and `pinpulse` holds opacity 1 at 0% — so the ring on the
+     round appeared at full strength on one frame while everything else in the
+     freeze was easing in. Delayed past the fade, the transition plays first
+     and the pulse takes over from it. */
+  #tutorpin.on { opacity:1; visibility:visible;
+           animation:pinpulse 1.05s ease-in-out .3s infinite; }
   @keyframes pinpulse { 0%,100% { transform:scale(1); opacity:1; }
                         50% { transform:scale(1.16); opacity:.7; } }
 
