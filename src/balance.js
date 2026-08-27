@@ -297,6 +297,34 @@ export const EARLY = {
   // and the only question worth answering is which way ahead goes.
   wayDoors: 8,         // the way-out arrow is simply always up through here
   wayMinM: 3,          // ...and never points at a spot you already stand on
+  // HOW FAR AHEAD ALONG THE PATH IT READS.
+  //
+  // The needle used to point at the furthest thing it could SEE, and that is
+  // a different question with a worse answer. Walking a straight toward a
+  // left turn, the moment the branch comes into view the furthest visible
+  // point is deep inside it — so the needle snapped through ninety degrees
+  // and then sat pointing at a wall while there was still corridor to walk.
+  // Off the playtest clip: it reached 95-100 degrees at 0.9 s, held there
+  // until 2.1 s with the corridor plainly continuing ahead, and only then
+  // swung back.
+  //
+  // A LOOKAHEAD POINT SLIDES. Take the point this far along the path from
+  // where the player is standing and the bearing has no jump in it anywhere:
+  // it begins to swing a few metres before the corner and finishes as they
+  // arrive, which is what somebody following it needs — "the turn is coming,
+  // and it goes left" — instead of "it went left, three metres ago".
+  //
+  // Seven metres is a little under two cells. Shorter and the needle whips at
+  // the corner; longer and it points through the wall before the opening is
+  // anything the player can see.
+  wayLookM: 14,
+  // ...SAMPLED AT THIS MANY DISTANCES, near-weighted 4:3:2:1. One sample only
+  // begins to swing when the corner is nearer than the sample itself, so its
+  // warning distance is its own length — and a single long one reports
+  // "straight on" through an S-bend, because a point far enough ahead is
+  // straight again. Four, weighted toward the player, gives an early lean off
+  // the far ones without letting them overrule the corner actually in front.
+  wayLookN: 4,
   wayEase: 7,          // how fast the needle settles on a new bearing (1/s)
   // AND AFTER THAT IT IS THE EMPTY-LEG MARK IT REPLACED — but not on the
   // frame you walk in. Crossing into a new area, the leg has no bodies yet,

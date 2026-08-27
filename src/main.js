@@ -9043,49 +9043,158 @@ function beingLed() {
   return !!(inHall() && hall && (hall.doorsPassed + 1) <= EARLY.wayDoors);
 }
 
-let wayYaw = null;      // the needle's own bearing — eased, so it never snaps
+// THE NEEDLE'S BEARING IS HELD IN THE WORLD, NOT ON THE SCREEN, and that is
+// the difference between a compass and a lagging graphic. It used to ease the
+// SCREEN-relative angle, which is the world bearing minus the player's yaw —
+// so every time the player dragged to look, their own turn went through the
+// easing too and the needle swung after them a beat late. A real needle does
+// not lag your head. Only changes in where the PATH goes are eased; the
+// player's yaw is subtracted fresh, every frame, undamped.
+let wayWorld = null;    // eased world bearing of the way ahead
 let wayClearT = 0;      // seconds this leg has been clear of bodies
 let wayLegSeen = -1;    // ...reset when the corridor moves on to the next one
 
-// THE WAY TO GO IS THE PATH, NOT THE DOOR. A leg that jogs twice puts its door
-// through a wall from where you stand, and an arrow pointing at a wall is
-// worse than none: it is a wrong answer confidently given. So this walks the
-// spine forward from where the player is and takes the FURTHEST point still in
-// line of sight — the corner you are heading for — and only once the door
-// itself is visible does it point at the door.
-function wayTarget() {
+// THE WAY TO GO IS THE PATH, NOT THE DOOR, AND NOT THE FURTHEST THING IN
+// SIGHT EITHER.
+//
+// Two wrong answers were tried before this one. The door: a leg that jogs
+// twice puts its door through a wall from where you stand, and an arrow
+// pointing at a wall is a wrong answer confidently given. Then the furthest
+// point still in line of sight, which is right in a straight corridor and
+// badly wrong at the one moment the player most needs it — walking a straight
+// toward a left turn, the frame the branch comes into view the furthest
+// visible point is deep inside it, ninety degrees off the way you are
+// walking. Off the playtest clip the needle reached 95-100 degrees at 0.9 s,
+// held there through 2.1 s with corridor still ahead, then swung back.
+//
+// What a person following an arrow needs is not "where is the goal" and not
+// "what can I see" — it is WHERE DOES THIS CORRIDOR GO NEXT. So this walks
+// the path forward from where the player actually stands and returns the
+// point `EARLY.wayLookM` along it. That point slides continuously as they
+// walk, which is the whole property: the bearing has no jump in it anywhere,
+// it starts easing toward the turn a few metres out, and it has finished
+// turning by the time they reach the corner.
+//
+// Line of sight is deliberately NOT consulted. The corridor goes where it
+// goes whether or not you can see round the bend yet, and telling the player
+// early is the entire job.
+// THE PATH, AS A LIST OF POINTS: the spine cells in metres, then the door.
+function wayPath() {
   const L = hall && hall.legs[hall.cur];
   if (!L || !L.spine || !L.spine.length) return null;
   const C = HALL.cell;
-  let i0 = 0, bd = Infinity;
-  for (let i = 0; i < L.spine.length; i++) {
-    const d = Math.hypot(L.spine[i][0] * C - player.pos.x, L.spine[i][1] * C - player.pos.z);
-    if (d < bd) { bd = d; i0 = i; }
+  const pts = L.spine.map(([gx, gz]) => ({ x: gx * C, z: gz * C }));
+  if (L.door) pts.push({ x: L.door.x, z: L.door.z });
+  return pts.length >= 2 ? pts : null;
+}
+
+// WHERE HE IS ON THE PATH — the closest point of the closest SEGMENT, not the
+// closest cell, because snapping to cells makes the lookahead jump a whole
+// four metres at a time and puts the discontinuity back in by another route.
+//
+// SEARCHED FORWARD ONLY. A leg that jogs comes back alongside itself, and a
+// plain nearest-segment search will happily decide the player is standing on
+// a stretch they walked a minute ago — or one they have not reached — and
+// send the needle somewhere else entirely for a few frames. Progress along a
+// route is monotonic; the search that finds it should be too.
+let wayPathIx = 0;
+function wayProject(pts) {
+  let bi = wayPathIx, bt = 0, bd = Infinity;
+  const lo = Math.max(0, wayPathIx - 1);
+  const hi = Math.min(pts.length - 2, wayPathIx + 6);
+  for (let i = lo; i <= hi; i++) {
+    const dx = pts[i + 1].x - pts[i].x, dz = pts[i + 1].z - pts[i].z;
+    const len2 = dx * dx + dz * dz;
+    let t = len2 > 1e-9
+      ? ((player.pos.x - pts[i].x) * dx + (player.pos.z - pts[i].z) * dz) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const d = Math.hypot(player.pos.x - (pts[i].x + dx * t),
+      player.pos.z - (pts[i].z + dz * t));
+    if (d < bd) { bd = d; bi = i; bt = t; }
   }
-  const eye = _v4.set(player.pos.x, EYE_HEIGHT, player.pos.z);
-  let tx = null, tz = null, last = i0;
-  for (let i = i0; i < L.spine.length; i++) {
-    const sx = L.spine[i][0] * C, sz = L.spine[i][1] * C;
-    if (!hasLineOfSight(_v5.set(sx, EYE_HEIGHT, sz), eye)) break;
-    tx = sx; tz = sz; last = i;
-  }
-  if (tx !== null && L.door
-    && hasLineOfSight(_v5.set(L.door.x, EYE_HEIGHT, L.door.z), eye)) {
-    tx = L.door.x; tz = L.door.z;
-  }
-  // NEVER POINT AT YOUR OWN FEET. Standing on the corner, the visible run ends
-  // where you are and the bearing becomes noise — the exact jitter this arrow
-  // exists to remove. Walk on down the path, sight or no sight, until there is
-  // enough of a gap for a bearing to mean something.
-  if (tx === null || Math.hypot(tx - player.pos.x, tz - player.pos.z) < EARLY.wayMinM) {
-    for (let i = last + 1; i < L.spine.length; i++) {
-      const sx = L.spine[i][0] * C, sz = L.spine[i][1] * C;
-      tx = sx; tz = sz;
-      if (Math.hypot(sx - player.pos.x, sz - player.pos.z) >= EARLY.wayMinM) break;
+  wayPathIx = bi;
+  return { i: bi, t: bt };
+}
+
+// ...and the point `ahead` metres further along it.
+function wayPointAt(pts, at, ahead) {
+  let need = ahead, i = at.i;
+  let cx = pts[i].x + (pts[i + 1].x - pts[i].x) * at.t;
+  let cz = pts[i].z + (pts[i + 1].z - pts[i].z) * at.t;
+  while (i < pts.length - 1) {
+    const seg = Math.hypot(pts[i + 1].x - cx, pts[i + 1].z - cz);
+    if (seg >= need) {
+      const f = need / Math.max(seg, 1e-6);
+      return { x: cx + (pts[i + 1].x - cx) * f, z: cz + (pts[i + 1].z - cz) * f };
     }
+    need -= seg;
+    i++;
+    if (i > pts.length - 1) break;
+    cx = pts[i].x; cz = pts[i].z;
   }
-  if (tx === null) { if (!L.door) return null; tx = L.door.x; tz = L.door.z; }
-  return { x: tx, z: tz };
+  return { x: pts[pts.length - 1].x, z: pts[pts.length - 1].z };
+}
+
+// THE WAY TO GO IS THE PATH, NOT THE DOOR, AND NOT THE FURTHEST THING IN
+// SIGHT EITHER.
+//
+// Two wrong answers were tried before this one. The door: a leg that jogs
+// twice puts its door through a wall from where you stand, and an arrow
+// pointing at a wall is a wrong answer confidently given. Then the furthest
+// point still in line of sight, which is right in a straight corridor and
+// badly wrong at the one moment the player most needs it — the frame the
+// branch comes into view, the furthest visible point is deep inside it,
+// ninety degrees off the way they are walking.
+//
+// What somebody following an arrow needs is not "where is the goal" and not
+// "what can I see" — it is WHERE DOES THIS CORRIDOR GO NEXT, told early
+// enough to act on. So the needle reads the path AHEAD, at several distances
+// at once, and averages the directions with the near ones weighted heaviest.
+//
+// WHY SEVERAL AND NOT ONE. A single lookahead only starts to swing when the
+// corner is closer than the lookahead itself, so its warning distance IS its
+// length — and simply making it long breaks on an S-bend, where a far point
+// sits straight ahead again and the needle calmly reports "straight on" into
+// a corner. Sampling near AND far, near-weighted, gives both: the far samples
+// lean the needle into the turn while it is still metres off, the near ones
+// keep it honest about the corner actually in front of the player.
+//
+// Line of sight is deliberately not consulted anywhere in here. The corridor
+// goes where it goes whether or not you can see round the bend yet, and
+// saying so early is the entire job.
+function wayBearing() {
+  const pts = wayPath();
+  if (!pts) return null;
+  const at = wayProject(pts);
+  let vx = 0, vz = 0, any = false;
+  for (let k = 1; k <= EARLY.wayLookN; k++) {
+    const p = wayPointAt(pts, at, EARLY.wayLookM * k / EARLY.wayLookN);
+    const dx = p.x - player.pos.x, dz = p.z - player.pos.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.25) continue;
+    const w = EARLY.wayLookN - k + 1;      // 4, 3, 2, 1 — nearest counts most
+    vx += (dx / len) * w; vz += (dz / len) * w;
+    any = true;
+  }
+  if (!any || (vx * vx + vz * vz) < 1e-8) {
+    // EVERY SAMPLE LANDED ON THE SAME SPOT, which happens for one reason: the
+    // player is standing at the end of the path, so all four lookaheads clamp
+    // to the last point and every one of them is under his feet. Ask the last
+    // point directly, with a threshold small enough to answer.
+    const end = pts[pts.length - 1];
+    const dx = end.x - player.pos.x, dz = end.z - player.pos.z;
+    if (Math.hypot(dx, dz) < 0.05) return null;
+    return Math.atan2(-dx, -dz);
+  }
+  return Math.atan2(-vx, -vz);
+}
+
+// Where the needle is pointing, as a point — for the harness, and for nothing
+// else. The arrow itself only ever needs the bearing.
+function wayTarget() {
+  const pts = wayPath();
+  if (!pts) return null;
+  return wayPointAt(pts, wayProject(pts), EARLY.wayLookM);
 }
 
 function wayArrowShows() {
@@ -9115,24 +9224,33 @@ function wayArrowShows() {
 function updateWayArrow(playing, dt) {
   const a = el.wayarrow;
   if (!a) return;
-  if (hall && hall.cur !== wayLegSeen) { wayLegSeen = hall.cur; wayClearT = 0; wayYaw = null; }
+  if (hall && hall.cur !== wayLegSeen) {
+    wayLegSeen = hall.cur; wayClearT = 0; wayWorld = null; wayPathIx = 0;
+  }
   wayClearT = enemies.length ? 0 : wayClearT + dt;
-  const on = playing && player.alive && wayArrowShows();
-  const t = on ? wayTarget() : null;
-  a.classList.toggle('on', !!t);
-  if (!t) { wayYaw = null; return; }
-  // positive = the way out is to the LEFT, the same sign the edge arrows use
-  let want = Math.atan2(-(t.x - player.pos.x), -(t.z - player.pos.z)) - player.yaw;
-  while (want > Math.PI) want -= Math.PI * 2;
-  while (want < -Math.PI) want += Math.PI * 2;
-  if (wayYaw === null) wayYaw = want;
+  const show = playing && player.alive && wayArrowShows();
+  if (!show) { a.classList.remove('on'); wayWorld = null; return; }
+  const want = wayBearing();
+  // A BEARING WE CANNOT COMPUTE IS NOT A REASON TO TAKE THE MARK AWAY. Walking
+  // right up to the door leaves the player standing on the last point of the
+  // path, where there is no direction left to measure — and the arrow simply
+  // disappeared, which is the vanishing act this whole mark exists to avoid.
+  // Hold the last bearing instead; a new leg resets it.
+  if (want === null && wayWorld === null) { a.classList.remove('on'); return; }
+  a.classList.add('on');
+  if (want === null) { /* keep pointing where it last pointed */ }
+  // world bearing: positive is to the LEFT, the sign the edge arrows use
+  else if (wayWorld === null) wayWorld = want;
   else {
-    let d = want - wayYaw;
+    let d = want - wayWorld;
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
-    wayYaw += d * (1 - Math.exp(-EARLY.wayEase * dt));
+    wayWorld += d * (1 - Math.exp(-EARLY.wayEase * dt));
   }
-  a.firstElementChild.style.transform = `rotateX(58deg) rotateZ(${-wayYaw}rad)`;
+  let screen = wayWorld - player.yaw;          // undamped: the head is not eased
+  while (screen > Math.PI) screen -= Math.PI * 2;
+  while (screen < -Math.PI) screen += Math.PI * 2;
+  a.firstElementChild.style.transform = `rotateX(58deg) rotateZ(${-screen}rad)`;
 }
 
 function updateEdgeArrows(playing) {
@@ -11864,7 +11982,10 @@ window.__ts = {
     const t = wayTarget();
     return { on: el.wayarrow ? el.wayarrow.classList.contains('on') : false,
       led: beingLed(), clearT: +wayClearT.toFixed(2), doors: EARLY.wayDoors,
-      yaw: wayYaw === null ? null : +wayYaw.toFixed(4),
+      look: EARLY.wayLookM,
+      // the bearing in the WORLD, and the one actually drawn on the glass
+      world: wayWorld === null ? null : +wayWorld.toFixed(4),
+      yaw: wayWorld === null ? null : +(wayWorld - player.yaw).toFixed(4),
       target: t ? { x: +t.x.toFixed(2), z: +t.z.toFixed(2) } : null,
       box: el.wayarrow ? (({ x, y, width, height }) => ({ x, y, width, height }))(
         el.wayarrow.getBoundingClientRect()) : null };

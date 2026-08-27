@@ -34,6 +34,10 @@ export const TUTOR = {
   // FOUR, NOT FIVE. At five the gunner stood twenty metres past the barrier,
   // which on a portrait phone is a figure a centimetre tall firing a round the
   // player has to be told is there. Close enough to read the arm going up.
+  // HOW FAR BEFORE THE FIRST CORNER THE LOOKING LESSON STARTS. In cells, so a
+  // path edit in the tool cannot strand it. Eight metres — a shade more than
+  // EARLY.wayLookM, so the words land just before the needle begins to turn.
+  lookLeadCells: 2,
   enemyCells: 4,        // cells beyond the barrier the first gunner stands
   enemyX: 1.15,         // ...and how far to either side the other two stand.
                         // A one-cell leg is 4 m of cell less 0.3 m of wall each
@@ -223,6 +227,14 @@ export function marksFromPlan(plan) {
   const turns = runs.filter((r) => r.dir !== 'f');
   const marks = {
     firstCorner: fwd.length ? fwd[0].at : n,          // end of the opening straight
+    // ...AND A LEAD ON IT, WHERE DRAG TO LOOK ARRIVES. The looking lesson used
+    // to start AT the corner, which is the one place it is too late to be
+    // useful: the player is already turning, and the way-out needle — which
+    // reads `EARLY.wayLookM` metres ahead along the path — has already begun
+    // swinging toward the turn by then. Two cells is eight metres, a shade
+    // more than the needle's own lookahead, so the words are up first and the
+    // needle then turns under them in the direction they are asking for.
+    firstCornerLead: fwd.length ? Math.max(1, fwd[0].at - TUTOR.lookLeadCells) : n,
     secondRun: fwd.length > 1 ? fwd[1].at : n,        // ...and of the next one
     // THE LAST CORNER. Everything past it is one straight run to the door, so
     // it is where the barrier first comes into view — and therefore where the
@@ -463,13 +475,16 @@ const REMIND_DODGE = () => [{
 
 export const STEPS = [
   // --- 1. MOVE -------------------------------------------------------------
-  // Ends at the corner, not after n metres. Goal 2: the words stay the whole
-  // way down the hallway, because a prompt that leaves halfway is a prompt
-  // that leaves while somebody is still working out what it meant.
+  // Ends a couple of cells SHORT of the corner, not after n metres. Goal 2 is
+  // unharmed — DRAG TO MOVE does not leave, it is in the next step's cues too
+  // — and the point of stopping early is that DRAG TO LOOK has to be on
+  // screen BEFORE there is anything to look at. It used to arrive at the
+  // corner, by which time the player is already mid-turn and the way-out
+  // needle has already started swinging toward it.
   {
     id: 'move', label: '1 · Move',
     hud: 'PROCEED DOWN THE HALLWAY',
-    advance: { kind: 'reached', need: 'firstCorner' },
+    advance: { kind: 'reached', need: 'firstCornerLead' },
     // THE BARRIER IS A FIXTURE, not something lesson 4 conjures. It stands
     // from the first frame of the run, so turning the last corner shows you a
     // corridor with a thing in it rather than a corridor that grows one.

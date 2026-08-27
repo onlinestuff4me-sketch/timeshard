@@ -446,6 +446,8 @@ firstSightDoors  : 10
 firstSightEaseBy : 18
 wayDoors         : 8
 wayMinM          : 3
+wayLookM         : 14
+wayLookN         : 4
 wayEase          : 7
 waySettleS       : 0.7
 ```

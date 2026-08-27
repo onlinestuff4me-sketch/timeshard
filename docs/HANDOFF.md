@@ -191,11 +191,69 @@ satisfy, 40 of 40 calls refused, 41 refusals counted, 0 enemies in the world
 and the archive unchanged in memory AND on disk; then one heavy placed
 through `at`, in the world, filed and saved.
 
+## The needle, after a playtest of it
+
+The owner recorded the first hallway and asked for a navigation aid rather
+than a goal marker: "it has a delay before it turns, and sometimes points in
+the wrong direction for a little bit before correcting itself and swinging
+suddenly." Measured off the shipped build (429c151) against a rebuilt one,
+walking the same opening straight:
+
+| | 429c151 | now |
+|---|---|---|
+| peak turn rate of the world bearing | **1104** deg/world-s | **96** |
+| world bearing moved while only the VIEW swept +/-57 deg | **16.1** deg | **0.0** |
+| angle off the straight, 10 m before the corner | 0 deg | 1 |
+| ...8 m | 0 | 4 |
+| ...6 m | 0 | 8 |
+| ...4 m | 0 | 18 |
+| ...2 m | 27 | 35 |
+| ...at the corner | 69 | 57 |
+| ...2 m past | **105** (overshoot, then back to 90) | 75 |
+| `DRAG TO LOOK` appears | 1.7 m before the corner | **10 m** |
+
+Three separate causes, and the clip showed all three at once:
+
+1. **It read the wrong thing.** It took the furthest point still in line of
+   sight, which is right down a straight corridor and badly wrong at the one
+   moment it matters: the frame the branch comes into view, the furthest
+   visible point is deep inside it, ninety degrees off the way you are
+   walking. It now reads the PATH ahead and ignores sight entirely — the
+   corridor goes where it goes whether or not you can see round the bend, and
+   saying so early is the whole job.
+2. **One lookahead is not enough.** A single point only starts to swing once
+   the corner is nearer than the point itself, so its warning distance is its
+   own length — and simply making it long reports "straight on" through an
+   S-bend, because a point far enough ahead is straight again. Four samples,
+   near-weighted 4:3:2:1 over `EARLY.wayLookM`: the far ones lean the needle
+   into a turn while it is still metres off, the near ones keep it honest
+   about the corner actually in front.
+3. **It was eased on the SCREEN, not in the world.** The drawn angle is the
+   world bearing minus the player's yaw, and easing that meant the player's
+   own head-turn went through the damping too — so the needle swung after
+   them a beat late. That is the "delay before it turns". Only changes in
+   where the path goes are eased now; yaw is subtracted fresh every frame,
+   undamped. A compass needle does not lag your head.
+
+Two things this cost, both caught by re-running the older files:
+
+* A leg that jogs comes back alongside itself, and a plain nearest-segment
+  search decides the player is standing on a stretch they walked a minute ago.
+  `wayProject` searches forward only, from where it was last frame.
+* Walking right up to the door leaves the player standing on the last point of
+  the path, where there is no direction left to measure — and the mark simply
+  disappeared, which is the exact vanishing act it exists to avoid. It holds
+  its last bearing instead.
+
 ## NEXT UP
 
-1. **Play the new needle.** Everything about it is measured except how it
-   feels: `rotateX(58deg)`, 104 px, 19vh up the centre line. It has never
-   been on a phone. The bearing easing is `EARLY.wayEase` 7/s.
+1. **Play the needle again.** The turn profile is now a ramp instead of a
+   step, but two numbers are judgement calls nobody has felt yet:
+   `EARLY.wayLookM` 14 m sets how early it leans, and the 4:3:2:1 weighting
+   sets how hard. At the corner itself it reads 57 deg of a 90 deg turn —
+   deliberately short, because the near samples are still on the straight —
+   and reaches 83 deg two metres past. If that reads as under-committed,
+   weight the far samples heavier before lengthening the lookahead.
 2. **The small marks arrive at door 9 with no introduction.** The player
    asked for them "once the player has learned what the marks mean" — and
    nothing currently teaches that. A one-time line on the door they turn on
@@ -284,6 +342,16 @@ Traps that cost real time, all of them mine:
   metric scores a healthy gunner as broken. Sample the position on the frame
   he stops being shards and compare it to the frame he was born on: he
   cannot walk while he is a swarm, so anything in that gap is the bug.
+* **Binning by straight-line distance mixes the approach with the departure.**
+  The teaching leg is f7, r3, f4, l3, f4, r3 — so after the first corner the
+  player comes back within eighteen metres of it, walking somewhere else. The
+  first version of `turn.mjs` filed those samples in the same rows as the
+  approach and produced a -43 deg "wrong way" in BOTH builds, which is the
+  tell: an artefact that survives the change is usually the metric's.
+* **A field only the new build exposes measures nothing on the old one.**
+  `way().world` is `undefined` on 429c151, and `undefined !== null` is true,
+  so the first comparison reported 900 frames, a peak turn rate of zero and a
+  head-test error of `NaN`. Compare on something BOTH builds draw.
 * **`at`-placed bodies skip the obstacle test.** Anything authored into a
   plan — the tutorial's legs — is checked by nobody but the plan. If you add
   furniture to an authored leg, box-test its bodies against `__ts.obstacles`
