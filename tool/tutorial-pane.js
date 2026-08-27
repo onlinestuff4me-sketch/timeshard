@@ -223,7 +223,7 @@ function renderLegs() {
     // the same number the map's readout gives, in the same units
     len.textContent = `${(leg.plan && leg.plan.moves || []).reduce((n, [, k]) => n + k, 0) * 4} m`;
     // TURN ORDER. The game reads `fireOrder` on every leg — it is what makes
-    // room2 and hall3 hand the trigger from one man to the next instead of
+    // hall2 and room1 hand the trigger from one man to the next instead of
     // firing together — and 541 controls in this pane mentioned it nowhere.
     // (`straight` used to live here and did nothing: genHallLeg short-circuits
     // to the authored plan before it is ever read, so ticking it on any of the

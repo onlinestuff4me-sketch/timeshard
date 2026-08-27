@@ -16,8 +16,21 @@ import {
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const n = (v) => (v === Infinity ? '∞' : String(Math.round(v * 1000) / 1000));
 
-const diffT = (w) => Math.min((w - 1) / RAMP.rampWaves, 1);
-// Speed is no longer on diffT — it is the staircase in SPEED, read by door.
+// THE SAME FUNCTION THE GAME RUNS, not a copy of one it used to run. `diffT`
+// was `(w - 1) / RAMP.rampWaves` here long after `RAMP.rampWaves` was deleted
+// — the ramp rewrite put telegraph tightness on where the round's SPEED sits
+// between `openM` and `capM` — so every cell this feeds rendered `NaN` and the
+// header claimed "0 -> 1 across undefined waves". Speed is not ON diffT; diffT
+// is READ FROM speed, which is why the door column and this one agree.
+const diffT = (w) => {
+  const span = Math.max(0.01, SPEED.capM - SPEED.openM);
+  return Math.min(1, Math.max(0, (speedAt(w, SPEED, true) - SPEED.openM) / span));
+};
+// ...and the door the staircase tops out on, which is where diffT reaches 1.
+const capDoor = (() => {
+  for (let d = 1; d <= 500; d++) if (speedAt(d, SPEED, true) >= SPEED.capM - 1e-9) return d;
+  return 1;
+})();
 const speed = (w) => speedAt(w);
 const aim = (w) => RAMP.aimBase - RAMP.aimRange * diffT(w);
 const drain = (w) => RAMP.drainFloor + RAMP.drainRange * diffT(w);
@@ -43,8 +56,8 @@ const enemyRows = Object.keys(TYPE_INTRO).map((k) => {
   return `| ${k} | ${TYPE_INTRO[k]} | ${sh ? sh[0] : '—'} | ${sh ? sh[1] : '—'} | ${TYPE_DROP[k] || '—'} | ${ROLES[k] || ''} |`;
 }).join('\n');
 
-const rampRows = [1, SPEED.openDoors + 1, Math.ceil((RAMP.rampWaves + 1) / 2),
-  RAMP.rampWaves + 1, unlockDoor()]
+const rampRows = [...new Set([1, SPEED.openDoors + 1, Math.ceil((capDoor + 1) / 2),
+  capDoor, unlockDoor()])].sort((a, b) => a - b)
   .map((w) => `| door ${w} | ${n(speed(w))} | ${n(aim(w))}× | ${n(drain(w))}× |`).join('\n');
 
 const md = `# TIME SHATTER — balance reference
@@ -153,8 +166,8 @@ it is a real decision — which is the whole point of collecting on foot.
 
 ## Difficulty ramp
 
-\`diffT\` runs 0 → 1 across **${RAMP.rampWaves} waves** (full heat at wave
-${RAMP.rampWaves + 1}) and drives the telegraph and the slow-mo cost. **Bullet
+\`diffT\` runs 0 → 1 with the speed staircase, reaching full heat on **door
+${capDoor}**, and drives the telegraph and the slow-mo cost. **Bullet
 speed is not on it** — it is the staircase in \`SPEED\`, stepped by door, and
 the column below is \`speedAt(door)\`. In Rush Hour the wave number is replaced
 by \`1 + rushT / 25\`, so everything ramps on the run clock instead.
@@ -347,6 +360,16 @@ if (existsSync(OUT)) {
 if (prelude) {
   const want = unlockDoor();
   const ok = new Set([want, want + SPEED.schoolDoors - 1, want + SPEED.schoolDoors]);
+  // ...AND THE DOOR THE STAIRCASE TOPS OUT ON, which is the other door number
+  // this document is entitled to name. The ramp rewrite tied telegraph
+  // tightness to where the round's speed sits between `openM` and `capM`, so
+  // the sentence explaining it says "reach full heat together on door 98" —
+  // with the word "school" ten words later, inside the guard's window. That is
+  // a true claim solved from the same functions as the rest of the file, and
+  // the guard failed the whole document over it, which is why BALANCE.md could
+  // not be regenerated at all. Solve it rather than excuse it: an
+  // <!--door-ok--> here would switch off checking for a checkable number.
+  ok.add(capDoor);
   const bad = [];
   // A CHARACTER WINDOW, NOT A LINE. The first version of this check tested
   // each LINE for the words unlock/school/power and then for a door number,

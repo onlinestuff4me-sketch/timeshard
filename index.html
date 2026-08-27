@@ -43,9 +43,55 @@
   body.slowmo #ammo.shotgun { color:#ff5d4a; }
   body.inmenu #hud { opacity:0; }
 
-  /* edge arrows: enemies in that direction, off-screen */
+  /* edge arrows: enemies in that direction, off-screen. A statement about ONE
+     MAN — which is why they latch per body and why there can be six of them.
+     They are a LATER lesson: see #wayarrow, and EARLY.wayDoors. */
   .edgearrow { position:absolute; display:none; font-size:26px; font-weight:900; color:#ff2d1a;
                text-shadow:0 0 6px rgba(255,45,26,.35); pointer-events:none; }
+
+  /* WHICH WAY TO GO — one mark, and a different job from the marks above.
+     A playtest walking the training hallway saw a small red arrow appear and
+     disappear "seemingly at random", once landing on top of DRAG TO MOVE.
+     That was two kinds of mark trading places: the per-enemy arrows latching
+     on and off at the edge of frame, and the door arrow that only shows on a
+     leg with nobody in it. So they separate. While the player is being led,
+     there is exactly this, it is large, and it never blinks.
+
+     A FIXED PLACE, so it cannot land on a lesson. Every message slot lives
+     between 12% and 48% of the frame — `#ts-top` under the topbar, `#ts-mid`
+     at 26%, the left/right pair at 38%, the button prompt at 42% — and the
+     thumb coaches sit at 42% and 58%. The bottom is the ammo readout and its
+     reload bar (about 5%), the letterbox bar (7vh), and the time button,
+     which is a circle hung off the RIGHT edge. 19vh up the centre line is
+     clear of all of it.
+
+     AND IT TURNS RATHER THAN MOVING. A needle you watch swing is one thing to
+     learn to read; a mark that jumps around a ring is a new thing every time
+     it appears. `rotateX` lays it on the floor ahead of you through the
+     wrapper's perspective, so the swing reads as a bearing in the world
+     rather than a glyph spinning on the glass. */
+  #wayarrow { position:absolute; left:50%; margin-left:-52px;
+              bottom:calc(env(safe-area-inset-bottom, 0px) + 19vh);
+              width:104px; height:104px; perspective:300px;
+              display:none; opacity:0; transition:opacity .45s ease;
+              pointer-events:none; z-index:7; }
+  #wayarrow.on { display:block; opacity:1; }
+  #wayarrow i { position:absolute; inset:0; display:block; will-change:transform; }
+  /* head and shaft, drawn as one needle in the game's red, wearing the HUD's
+     own halo so it survives a light floor the way the readout does */
+  #wayarrow i::before, #wayarrow i::after { content:''; position:absolute; left:50%;
+              filter:drop-shadow(0 2px 12px rgba(238,240,243,.9))
+                     drop-shadow(0 0 2px rgba(238,240,243,.75)); }
+  #wayarrow i::before { top:4%; margin-left:-21px; width:0; height:0;
+              border-left:21px solid transparent; border-right:21px solid transparent;
+              border-bottom:34px solid #ff2d1a; }
+  #wayarrow i::after  { top:36%; margin-left:-7px; width:14px; height:44%;
+              background:#ff2d1a; border-radius:0 0 4px 4px; }
+  /* on the dark letterbox of bullet time the light halo says nothing; the
+     needle wants a dark one there, the way every text slot already flips */
+  body.slowmo #wayarrow i::before, body.slowmo #wayarrow i::after {
+              filter:drop-shadow(0 2px 12px rgba(12,13,16,.92))
+                     drop-shadow(0 0 2px rgba(12,13,16,.8)); }
   /* Four bars around an open centre, not a solid cross: a solid one covers
      the thing you are aiming at. Built from two elements with a gradient so
      the gap costs no extra nodes. */
@@ -100,13 +146,32 @@
   /* A CARTRIDGE, not a bar-chart block: a case with a nose on it. Drawn in
      `currentColor` so it flips light with the rest of the HUD in bullet time,
      and sized in `em` so it rides the readout's own font size. */
+  /* THE PIPS ARE NOT GLYPHS, and the readout's halo is a `text-shadow`, which
+     paints around letterforms and does nothing whatever for a `background`-
+     filled box. So on a light floor PISTOL stayed legible and the cartridges
+     beside it disappeared into it. `drop-shadow` follows the RENDERED ALPHA
+     rather than the box, so one filter on the magazine hugs the silhouette of
+     a full cartridge and the hollow ring of a spent one alike. Same two radii
+     and the same colours as the word, so the readout carries one halo across
+     its whole width instead of a lit half and a dark one. */
   #ammo .mag { display:inline-flex; gap:.34em; vertical-align:-0.12em;
-               margin:0 .12em; }
+               margin:0 .12em;
+               filter:drop-shadow(0 1px 10px rgba(238,240,243,.9))
+                      drop-shadow(0 0 2px rgba(238,240,243,.75)); }
   #ammo .pip { display:inline-block; width:.42em; height:1.05em;
                background:currentColor;
                border-radius:.21em .21em .04em .04em / .34em .34em .04em .04em; }
+  /* A SPENT ROUND STILL HAS TO BE A ROUND. Hollow at 42% it measured 1.99:1
+     against the floor — under any threshold you would call visible — so the
+     readout lost its denominator: two full cartridges read the same whether
+     the magazine holds two or five. The halo above does not save it, because
+     `drop-shadow` lightens the ground around a mark that is itself pale, and
+     it took the spent pip from 2.25 down to 2.02.
+     At 75% the ring reads 4.18:1 and the filled cartridge 6.87:1 — visible,
+     and still unmistakably the dimmer of the two, which is the whole job.
+     Widening the ring instead does nothing: .13em measured 4.16:1. */
   #ammo .pip.out { background:none; box-shadow:inset 0 0 0 .1em currentColor;
-                   opacity:.42; }
+                   opacity:.75; }
   #reloadbar { position:absolute; left:50%; transform:translateX(-50%);
                bottom:calc(env(safe-area-inset-bottom, 0px) + 8px);
                width:132px; height:5px; border-radius:3px;
@@ -797,6 +862,7 @@
   <div id="warn"></div>
   <div id="banner"></div>
   <div id="tutor"><div id="tutorline"></div><div id="tutorhand"></div><div id="tutorhand2"></div><div id="tutorarrow"></div><div id="tutorup"></div><div id="ts-top" class="tslot top"></div><div id="ts-mid" class="tslot mid"></div><div id="ts-left" class="tslot left"></div><div id="ts-right" class="tslot right"></div><div id="ts-atbtn" class="tslot atbtn"></div><div id="ts-world" class="tslot world"></div><div id="tutorpin"></div></div>
+  <div id="wayarrow"><i></i></div>
   <div id="ammo">PISTOL · ∞</div>
   <div id="reloadbar"><div id="reloadfill"></div></div>
   <div id="pausebtn">❚❚</div>

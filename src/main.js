@@ -3013,6 +3013,12 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       // and the honest thing is to leave it empty and let the next release try
       // again from further along. The alternative is what shipped: a body four
       // metres round a corner, which is not a fight, it is a coin toss.
+      //
+      // COUNTED, because the cost of this refusal is invisible from outside:
+      // it is paid later, by a leg that ends up quieter than its quota asked
+      // for. A harness can walk the opening doors and see whether the corridor
+      // recovers every refusal or only most of them.
+      sightRefusals++;
       return false;
     }
     if (!placed) {
@@ -8635,6 +8641,7 @@ const el = {
   tint: document.getElementById('tint'),
   redflash: document.getElementById('redflash'),
   crosshair: document.getElementById('crosshair'),
+  wayarrow: document.getElementById('wayarrow'),
   ammo: document.getElementById('ammo'),
   stickBase: document.getElementById('stickbase'),
   stickNub: document.getElementById('sticknub'),
@@ -8998,11 +9005,119 @@ function legOpenerDue() {
 // The release gate's own allowance is a position window and can legitimately
 // be zero for a long walk. This overrides it exactly once, when the watchdog
 // has decided the corridor has been silent too long.
+// How many times the first-sight floor has turned a placement down. See the
+// refusal itself, in spawnEnemy, for why it is worth a counter.
+let sightRefusals = 0;
 let stallOwed = false;
 function stallRelease() {
   if (!stallOwed) return false;
   stallOwed = false;
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// WHICH WAY TO GO — one mark, and not the same mark as "somebody is over
+// there". See EARLY.wayDoors for why they had to be separated.
+// ---------------------------------------------------------------------------
+
+// IS THE PLAYER STILL BEING LED? The onboarding, and the opening doors after
+// it. While this holds there are no per-enemy marks at all: one arrow, always
+// up, saying which way to go.
+function beingLed() {
+  if (tutorStep !== null) return true;
+  return !!(inHall() && hall && (hall.doorsPassed + 1) <= EARLY.wayDoors);
+}
+
+let wayYaw = null;      // the needle's own bearing — eased, so it never snaps
+let wayClearT = 0;      // seconds this leg has been clear of bodies
+let wayLegSeen = -1;    // ...reset when the corridor moves on to the next one
+
+// THE WAY TO GO IS THE PATH, NOT THE DOOR. A leg that jogs twice puts its door
+// through a wall from where you stand, and an arrow pointing at a wall is
+// worse than none: it is a wrong answer confidently given. So this walks the
+// spine forward from where the player is and takes the FURTHEST point still in
+// line of sight — the corner you are heading for — and only once the door
+// itself is visible does it point at the door.
+function wayTarget() {
+  const L = hall && hall.legs[hall.cur];
+  if (!L || !L.spine || !L.spine.length) return null;
+  const C = HALL.cell;
+  let i0 = 0, bd = Infinity;
+  for (let i = 0; i < L.spine.length; i++) {
+    const d = Math.hypot(L.spine[i][0] * C - player.pos.x, L.spine[i][1] * C - player.pos.z);
+    if (d < bd) { bd = d; i0 = i; }
+  }
+  const eye = _v4.set(player.pos.x, EYE_HEIGHT, player.pos.z);
+  let tx = null, tz = null, last = i0;
+  for (let i = i0; i < L.spine.length; i++) {
+    const sx = L.spine[i][0] * C, sz = L.spine[i][1] * C;
+    if (!hasLineOfSight(_v5.set(sx, EYE_HEIGHT, sz), eye)) break;
+    tx = sx; tz = sz; last = i;
+  }
+  if (tx !== null && L.door
+    && hasLineOfSight(_v5.set(L.door.x, EYE_HEIGHT, L.door.z), eye)) {
+    tx = L.door.x; tz = L.door.z;
+  }
+  // NEVER POINT AT YOUR OWN FEET. Standing on the corner, the visible run ends
+  // where you are and the bearing becomes noise — the exact jitter this arrow
+  // exists to remove. Walk on down the path, sight or no sight, until there is
+  // enough of a gap for a bearing to mean something.
+  if (tx === null || Math.hypot(tx - player.pos.x, tz - player.pos.z) < EARLY.wayMinM) {
+    for (let i = last + 1; i < L.spine.length; i++) {
+      const sx = L.spine[i][0] * C, sz = L.spine[i][1] * C;
+      tx = sx; tz = sz;
+      if (Math.hypot(sx - player.pos.x, sz - player.pos.z) >= EARLY.wayMinM) break;
+    }
+  }
+  if (tx === null) { if (!L.door) return null; tx = L.door.x; tz = L.door.z; }
+  return { x: tx, z: tz };
+}
+
+function wayArrowShows() {
+  if (!inHall() || !hall) return false;
+  if (beingLed()) return true;
+  // ...and past that it is the empty-leg mark it replaced: only on a leg with
+  // nobody left in it.
+  //
+  // A LEG THAT HAS NOT RELEASED ANYBODY YET IS NOT CLEAR, IT IS NOT STARTED.
+  // "No bodies on screen" is true of both, and the difference is the whole
+  // bug: on the frame you cross in, the leg has nobody YET, so the arrow came
+  // up pointing at the door and went out again as the opener spawned. A settle
+  // timer alone only moves the flash — it is a guess about when the opener
+  // arrives, and measured at door 15 it guessed wrong by six tenths of a
+  // second (arrow on at 1.6 s, first body at 2.2 s, two transitions).
+  //
+  // The leg knows. It still owes bodies, so there is nothing to say yet.
+  const L = hall.legs[hall.cur];
+  const owed = L && L.quota
+    ? L.quota.reduce((a, b) => a + b, 0) - (L.released || 0) : 0;
+  if (owed > 0) return false;
+  // ...and a short debounce on top, so a gap between two releases in the same
+  // stretch cannot blink it either.
+  return !enemies.length && wayClearT >= EARLY.waySettleS;
+}
+
+function updateWayArrow(playing, dt) {
+  const a = el.wayarrow;
+  if (!a) return;
+  if (hall && hall.cur !== wayLegSeen) { wayLegSeen = hall.cur; wayClearT = 0; wayYaw = null; }
+  wayClearT = enemies.length ? 0 : wayClearT + dt;
+  const on = playing && player.alive && wayArrowShows();
+  const t = on ? wayTarget() : null;
+  a.classList.toggle('on', !!t);
+  if (!t) { wayYaw = null; return; }
+  // positive = the way out is to the LEFT, the same sign the edge arrows use
+  let want = Math.atan2(-(t.x - player.pos.x), -(t.z - player.pos.z)) - player.yaw;
+  while (want > Math.PI) want -= Math.PI * 2;
+  while (want < -Math.PI) want += Math.PI * 2;
+  if (wayYaw === null) wayYaw = want;
+  else {
+    let d = want - wayYaw;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    wayYaw += d * (1 - Math.exp(-EARLY.wayEase * dt));
+  }
+  a.firstElementChild.style.transform = `rotateX(58deg) rotateZ(${-wayYaw}rad)`;
 }
 
 function updateEdgeArrows(playing) {
@@ -9013,26 +9128,18 @@ function updateEdgeArrows(playing) {
   const halfH = Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect);
   const showAt = halfH * EDGE_ARROW_SHOW;
   const hideAt = halfH * EDGE_ARROW_HIDE;
-  if (playing && player.alive) {
-    // NOBODY TO POINT AT MEANS POINT AT THE DOOR. The arrow's job is "the
-    // thing you care about is over there", and when a corridor is empty the
-    // thing you care about is the way out — which in a leg that jogs twice is
-    // routinely behind you. This is the same mark, doing the same job, for
-    // the case the player is most likely to be lost in: an empty leg, no
-    // sound, no fight, and two directions that look identical.
-    //
-    // Only when the leg is genuinely clear. An arrow to the door competing
-    // with an arrow to a live enemy is two answers to one question.
-    if (!enemies.length && inHall() && hall) {
-      const L = hall.legs[hall.cur];
-      if (L && L.door) {
-        let dYaw = Math.atan2(-(L.door.x - player.pos.x), -(L.door.z - player.pos.z)) - player.yaw;
-        while (dYaw > Math.PI) dYaw -= Math.PI * 2;
-        while (dYaw < -Math.PI) dYaw += Math.PI * 2;
-        const halfHd = Math.atan(Math.tan(camera.fov * Math.PI / 360) * camera.aspect);
-        if (Math.abs(dYaw) >= halfHd * EDGE_ARROW_SHOW) dirs.push(dYaw);
-      }
-    }
+  // THE DOOR FALLBACK IS GONE FROM HERE. Pointing at the way out is a
+  // different statement from pointing at a man, and doing both with the same
+  // mark is what a player read as random flicker: the two took turns as
+  // bodies came and went. `updateWayArrow` owns the way out now — including
+  // the empty-leg case this used to cover — and it holds off for a beat after
+  // a crossing rather than flashing on the frame you walk in.
+  //
+  // ...AND NO PER-ENEMY MARKS WHILE THE PLAYER IS STILL BEING LED. They mean
+  // "somebody is over there", which is worth saying once a room holds several
+  // men; through the onboarding and the opening doors there is one man at a
+  // time and one mark on screen.
+  if (playing && player.alive && !beingLed()) {
     for (const e of enemies) {
       let dYaw = Math.atan2(-(e.pos.x - player.pos.x), -(e.pos.z - player.pos.z)) - player.yaw;
       while (dYaw > Math.PI) dYaw -= Math.PI * 2;
@@ -11258,6 +11365,7 @@ function frame(now) {
   }
   updateStall(sdt, playing);
   updateEdgeArrows(playing);
+  updateWayArrow(playing, dt);
   if (tutorStep !== null) {
     updateTutorial(dt,
       Math.hypot(player.pos.x - tutorPrevX, player.pos.z - tutorPrevZ),
@@ -11736,6 +11844,17 @@ window.__ts = {
   // how far a spot is from the player when the walked path first sees it
   firstSight: (x, z) => firstSightDist(x, z),
   sightFloor: () => firstSightFloor(),
+  sightRefusals: () => sightRefusals,
+  way: () => {
+    const t = wayTarget();
+    return { on: el.wayarrow ? el.wayarrow.classList.contains('on') : false,
+      led: beingLed(), clearT: +wayClearT.toFixed(2), doors: EARLY.wayDoors,
+      yaw: wayYaw === null ? null : +wayYaw.toFixed(4),
+      target: t ? { x: +t.x.toFixed(2), z: +t.z.toFixed(2) } : null,
+      box: el.wayarrow ? (({ x, y, width, height }) => ({ x, y, width, height }))(
+        el.wayarrow.getBoundingClientRect()) : null };
+  },
+  edgeArrowCount: () => edgeArrows.filter((a) => a.style.display === 'block').length,
   legPromise: (proto) => ({ any: legPromises(proto), place: legPromisesPlace(proto),
     line: legHeadline(proto) }),
   tutorRescue: () => {

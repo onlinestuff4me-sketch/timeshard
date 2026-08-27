@@ -271,6 +271,37 @@ export const EARLY = {
   firstSightM: 13,     // metres of clear ground when he first becomes visible
   firstSightDoors: 10, // ...enforced in full through this door
   firstSightEaseBy: 18, // ...and gone by this one
+  // ---------------------------------------------------------------------
+  // ONE MARK WHILE YOU ARE STILL BEING LED.
+  //
+  // There were two kinds of red triangle on screen and they were doing two
+  // different jobs at two different thresholds: a per-enemy mark that latched
+  // on and off as a body crossed the edge of frame, and — for a clear leg —
+  // the same mark pointed at the door. Walking the training hallway, they
+  // traded places with each other, so what the player saw was a small arrow
+  // appearing and disappearing for no reason they could name, once directly
+  // on top of DRAG TO MOVE.
+  //
+  // They separate. While the player is being led anywhere — the whole
+  // onboarding and the opening doors — there is ONE mark, it is large, it
+  // says WHICH WAY TO GO, it never blinks, and it lives in a fixed place
+  // clear of every message slot. The small per-enemy marks are a later
+  // lesson, for when a room holds several men and "somebody is over there"
+  // is a thing worth saying.
+  wayDoors: 8,         // the way-out arrow is simply always up through here
+  wayMinM: 3,          // ...and never points at a spot you already stand on
+  wayEase: 7,          // how fast the needle settles on a new bearing (1/s)
+  // AND AFTER THAT IT IS THE EMPTY-LEG MARK IT REPLACED — but not on the
+  // frame you walk in. Crossing into a new area, the leg has no bodies yet,
+  // so the arrow came up pointing at the door for about a second and then
+  // vanished as the opener spawned. The player read that as a bug, and it is
+  // one: it is the arrow answering a question nobody had asked yet.
+  //
+  // The real test is not this timer — it is whether the leg still OWES bodies,
+  // which wayArrowShows() asks first. At 1.6 s the timer alone still let a
+  // six-tenths-of-a-second flash through at door 15. This is only the debounce
+  // that sits on top of it, for the gap between two releases in one stretch.
+  waySettleS: 0.7,     // seconds a CLEARED leg must stay quiet before the mark
 };
 
 // ---------------------------------------------------------------------------

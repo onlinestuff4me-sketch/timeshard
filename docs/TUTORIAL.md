@@ -82,7 +82,7 @@ Two rules keep the split honest:
 
 ## The sequence
 
-Fourteen steps. The spec is `docs/TUTORIAL-GOALS.md`; this table is what the
+Eleven steps. The spec is `docs/TUTORIAL-GOALS.md`; this table is what the
 build does.
 
 | step | what the player sees | ends when |
@@ -93,8 +93,10 @@ build does.
 | `stand` | prompts go; the barrier is already standing 32 m down the straight and `STAND HERE` is on it from this frame | they reach the barrier |
 | `dodge` | a gunner appears, raises his arm and **fires** — the world stops with the round ringed in mid-air, `DODGE THE BULLET`, and a thumb swiping side to side directly under the words. Stepping aside releases it; the round goes past at ordinary speed. Three times. | three rounds dodged |
 | `shoot` | the other two arrive and the weapon comes up with `TAP ANYWHERE TO SHOOT`. Magazine drawn as cartridges, and it does not run down | all three down |
-| `exit` | barrier sinks, door opens, `GO TO THE NEXT ROOM` | they cross |
-| `ramp1`–`ramp6` | room/hall/room/hall/room/hall with 1,1,2,2,3,3 enemies. One reminder only: `TAP ANYWHERE TO SHOOT`, once per area, spent when they fire | they cross each door |
+| `exit` | barrier sinks, door opens, `GO THROUGH THE DOOR` — the next area is a hallway now, and so is the one after it | they cross |
+| `ramp1` | a hallway with **one** enemy in it. One reminder: the dodge | they cross the door |
+| `ramp2` | a hallway with **two**, taking turns. Reminders: the trigger, and the dodge | they cross the door |
+| `ramp3` | a **room with pillars** and **three**, taking turns — the first cover in the game. Same two reminders | they cross the door, and training ends |
 
 **There is no time button anywhere in it, and no meter.** The slow-motion
 control is deferred past the whole onboarding — see `docs/TUTORIAL-GOALS.md`
@@ -416,7 +418,10 @@ aiming, so it answers something rather than captioning an empty corridor — and
 **`once` per area**, which means *spent by the action it asked for*. Shoot in
 this room and the words are gone for this room; the next room starts fresh,
 because `tutorSpent` is cleared with the step and an area **is** a step.
-`ramp1` carries no cue at all: the trigger was taught one screen ago.
+`ramp1` carries the dodge reminder but not the trigger one: the trigger was
+taught one screen ago, and the first hallway with somebody in it is where a
+player who has been shooting without being told has already proved they do
+not need it.
 
 Two other things the training areas do differently:
 

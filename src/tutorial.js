@@ -133,7 +133,9 @@ export const TUTOR = {
   // and it covers the deepest authored placement with room to spare. Measured
   // from the door plane the player walks through — which is 1.5 m behind the
   // leg's own spine[0], and most of why 5 cells came out at 21.5 m against a
-  // 19 m floor — the worst is hall3's rear pair at 42.9 m.
+  // 19 m floor — the worst is now 33.5 m: hall2's rear man and room1's, both
+  // at z 8. (It was 42.9 m when the ramp ran to six areas and finished on a
+  // corridor with a man ten cells down it.)
   engageM: 60,
   reshoot: 3.2,         // ...and the gap before a missed shot is retried
   // THE METER LESSON HAS A FLOOR. It empties at a readable rate to half, then
@@ -300,36 +302,45 @@ export const LEGS = [
   // ROOMS ARE WIDE AT THE MOUTH. A three-cell bay buried mid-leg is
   // indistinguishable from a corridor at the only moment the difference
   // matters, which is when you walk in.
-  { id: 'room1', form: 'vault', kind: 'room', note: '10. One enemy, fires as you enter.',
-    plan: { moves: [['f', 8]], extra: room(1, 1, 6), approach: 3 },
-    enemies: [{ x: 0, z: 5, type: 'gunner' }], fireOrder: 'free' },
-  { id: 'hall1', form: 'corridor', kind: 'hall', note: '11. One enemy blocking the door.',
+  // --- THE RAMP: THREE AREAS, NOT SIX -------------------------------------
+  // It ran room, hall, room, hall, room, hall at 1, 1, 2, 2, 3, 3 — six
+  // checkpoints and six door crossings between the last lesson and Door 1,
+  // where the last four say nothing the first two did not. Each of the three
+  // that remain is a different sentence: one man in a hallway, two men in a
+  // hallway, three men in a room with pillars.
+  //
+  // THE ROOM COMES LAST, and it is the only one of the three that is about
+  // GROUND rather than about numbers — the first cover in the game you can put
+  // between yourself and a raised arm. Meeting it with three men standing in
+  // it is what makes walking to a column worth doing.
+  //
+  // WITHIN ENGAGE RANGE OF THE DOOR YOU COME IN THROUGH. A gunner's engageDist
+  // is 19-25 m; bodies parked at z 7-10 stood 28 m from the entry, so nothing
+  // happened for the first four cells of every area and "fires as they enter"
+  // never once happened. They stand at 4-6 cells now.
+  { id: 'hall1', form: 'corridor', kind: 'hall', note: '10. One enemy in a hallway.',
     plan: { moves: [['f', 8]], approach: 3 },
     enemies: [{ x: 0, z: 5, type: 'gunner' }], fireOrder: 'free' },
-  { id: 'room2', form: 'vault', kind: 'room', note: '12. Two side by side, taking turns.',
-    plan: { moves: [['f', 9]], extra: room(1, 1, 7), approach: 3 },
-    enemies: [{ x: -1, z: 5, type: 'gunner' }, { x: 1, z: 5, type: 'gunner' }],
-    fireOrder: 'turns' },
-  // OFF THE CENTRE LINE. Three bodies at x = 0 are one silhouette: the front
-  // one occludes the others perfectly and the HUD count contradicts the screen.
-  { id: 'hall2', form: 'corridor', kind: 'hall', note: '13. Two in a hallway, taking turns.',
+  // OFF THE CENTRE LINE. Two bodies at x = 0 are one silhouette: the front one
+  // occludes the other perfectly and the HUD count contradicts the screen.
+  { id: 'hall2', form: 'corridor', kind: 'hall', note: '11. Two in a hallway, taking turns.',
     plan: { moves: [['f', 10]], approach: 3 },
     // x is in CELLS, so a quarter is a metre — enough to break the silhouette
     // in a corridor that only has 3.4 m of floor to play with.
     enemies: [{ x: -0.22, z: 5, type: 'gunner' }, { x: 0.22, z: 8, type: 'gunner' }],
     fireOrder: 'turns' },
-  { id: 'room3', form: 'vault', kind: 'room', note: '14. Three in a room, taking turns.',
-    plan: { moves: [['f', 10]], extra: room(1, 1, 8), approach: 3 },
+  // ...AND THE ROOM HAS COLUMNS IN IT. Every vault the generator builds stands
+  // four of them in the chamber its headline is about; the onboarding's rooms
+  // were bare boxes, so the first column a player ever met was in a real run
+  // with a real wave behind it. `plan.pillars` is in CELLS like the rest of a
+  // plan: the room is three cells wide, so 12 m of floor from -6 to +6, and
+  // columns at +/-3 m stand between the walking lane and the walls — cover you
+  // commit to, not cover you walk past. The three men stand between the rows.
+  { id: 'room1', form: 'vault', kind: 'room', note: '12. Three in a room with pillars.',
+    plan: { moves: [['f', 10]], extra: room(1, 1, 8), approach: 3,
+      pillars: [[-0.75, 3], [0.75, 3], [-0.75, 6], [0.75, 6]] },
     enemies: [{ x: -1, z: 5, type: 'gunner' }, { x: 1, z: 5, type: 'gunner' },
       { x: 0, z: 8, type: 'gunner' }], fireOrder: 'turns' },
-  { id: 'hall3', form: 'corridor', kind: 'hall', note: '15. Three: one, then two close behind.',
-    plan: { moves: [['f', 11]], approach: 3 },
-    // NONE OF THEM ON THE CENTRE LINE. The leading man stood at x 0 and the
-    // third at x 0.24 nine cells back — 1.5° apart from the door, so he was
-    // hidden inside the silhouette of the man in front of him until the first
-    // one dropped. Spread across the corridor they read as three.
-    enemies: [{ x: -0.28, z: 4, type: 'gunner' }, { x: 0.28, z: 8, type: 'gunner' },
-      { x: -0.12, z: 10, type: 'gunner' }], fireOrder: 'turns' },
 ];
 
 // --- what the player is allowed to do --------------------------------------
@@ -568,34 +579,32 @@ export const STEPS = [
     // DOOR rather than DOOR 1 · OPEN — GO.
     grants: { gun: true, fire: true, ammo: true, score: true },
     dropBarrier: true, openDoor: true, hud: 'GO TO THE NEXT DOOR',
-    cues: [{ text: 'GO TO THE NEXT ROOM', slot: 'mid', arrow: 'none',
+    // NOT "THE NEXT ROOM": the next area is a hallway now, and the one after
+    // that is too. The door is the thing that is true of all three.
+    cues: [{ text: 'GO THROUGH THE DOOR', slot: 'mid', arrow: 'none',
       hand: 'none', pulse: false, on: 'enter', off: 'advance' }],
   },
-  // --- 10-15. THE RAMP -----------------------------------------------------
+  // --- 10-12. THE RAMP -----------------------------------------------------
   // The teaching is over. Each of these is a real fight and a checkpoint: the
   // enemies come from the LEG rather than the step, and dying puts the player
   // back at the start of this area and nowhere further.
-  { id: 'ramp1', label: '8 · Room · 1', advance: { kind: 'crossed' },
-    grants: { ...PLAYING }, checkpoint: true, hud: 'CLEAR THE ROOM',
+  //
+  // THREE OF THEM. One step per leg, in the order the LEGS above stand in —
+  // hallway, hallway, room — and then Door 1. There is no numbering here that
+  // is independent of that list: a step whose leg has gone is a step with
+  // nobody in it.
+  { id: 'ramp1', label: '8 · Hall · 1', advance: { kind: 'crossed' },
+    grants: { ...PLAYING }, checkpoint: true, hud: 'CLEAR THE HALLWAY',
     cues: REMIND_DODGE() },
   // ...and from here on the reminders are once each, per area. The trigger
   // prompt starts after the first hallway with anybody in it, which is where
   // a player who has been shooting without being told has proved they do not
   // need it and one who has not is overdue.
-  { id: 'ramp2', label: '9 · Hall · 1', advance: { kind: 'crossed' },
+  { id: 'ramp2', label: '9 · Hall · 2', advance: { kind: 'crossed' },
     grants: { ...PLAYING }, checkpoint: true, hud: 'CLEAR THE HALLWAY',
     cues: [...REMIND_SHOOT(), ...REMIND_DODGE()] },
-  { id: 'ramp3', label: '10 · Room · 2', advance: { kind: 'crossed' },
+  { id: 'ramp3', label: '10 · Room · 3', advance: { kind: 'crossed' },
     grants: { ...PLAYING }, checkpoint: true, hud: 'CLEAR THE ROOM',
-    cues: [...REMIND_SHOOT(), ...REMIND_DODGE()] },
-  { id: 'ramp4', label: '11 · Hall · 2', advance: { kind: 'crossed' },
-    grants: { ...PLAYING }, checkpoint: true, hud: 'CLEAR THE HALLWAY',
-    cues: [...REMIND_SHOOT(), ...REMIND_DODGE()] },
-  { id: 'ramp5', label: '12 · Room · 3', advance: { kind: 'crossed' },
-    grants: { ...PLAYING }, checkpoint: true, hud: 'CLEAR THE ROOM',
-    cues: [...REMIND_SHOOT(), ...REMIND_DODGE()] },
-  { id: 'ramp6', label: '13 · Hall · 3', advance: { kind: 'crossed' },
-    grants: { ...PLAYING }, checkpoint: true, hud: 'CLEAR THE HALLWAY',
     cues: [...REMIND_SHOOT(), ...REMIND_DODGE()] },
   // ...AND IT LETS THE GAME SPAWN. `PLAYING` holds the spawn queue, because
   // a training area's bodies come from the LEG rather than the queue — but
