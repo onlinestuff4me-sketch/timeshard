@@ -28,7 +28,13 @@ export const TUTOR = {
   // barrier stood 56 m from the last turn, which on a phone is a corridor
   // fading to white — so it and its sign appeared out of nothing half way
   // down the straight instead of being the thing you turn the corner and see.
-  barrierCells: 3,      // cells from the fork's rejoin to the barrier
+  // ...AND A COUPLE OF CELLS NEARER THAN IT WAS. This counts from the last
+  // CORNER now — with the fork gone there is no rejoin to count from — and
+  // the old arrangement put the barrier eight cells past it, 32 m of straight.
+  // Two cells nearer is 24 m: still a walk, still small and far off when they
+  // turn the corner and see it, which is what makes it a place rather than an
+  // announcement. (Two cells flat measured 8 m, which is not a walk at all.)
+  barrierCells: 6,      // cells from the last corner to the barrier
   barrierH: 1.05,       // low enough to see and shoot over
   standWithin: 2.6,     // metres from the barrier that counts as standing at it
   // FOUR, NOT FIVE. At five the gunner stood twenty metres past the barrier,
@@ -182,8 +188,8 @@ export const TUTOR = {
 };
 
 // --- the legs --------------------------------------------------------------
-// AUTHORED, not generated. "A straight run, then a right turn, then a fork
-// that rejoins" is a sequence of specific corners; a generator that produces
+// AUTHORED, not generated. "A straight run, then a jog left, then another"
+// is a sequence of specific corners; a generator that produces
 // something like it four times out of five is no use for a lesson whose whole
 // point is that the player knows what is coming.
 //
@@ -198,21 +204,21 @@ export const TUTOR = {
 // The teaching leg's moves, named, so the steps can say "ends at the corner"
 // instead of "ends at spine index 7" — and stay right when somebody makes the
 // first hallway one cell longer in the tool.
+// TWO JOGS, NOT THREE, AND NO FORK. A lateral run is TWO turns to the person
+// walking it — one into it, one back onto the axis — so three of them is six
+// turns before anybody has been handed a gun, over a hundred and sixteen
+// metres of corridor. Two is four: left, right, left, right, and then the
+// straight the barrier stands in. The fork went with the third: a second route
+// that rejoins is one more thing to notice, and lessons 1-3 are about the two
+// thumbs and nothing else.
 const TEACH_MOVES = [
-  ['f', 7],    // 1. MOVE — dead straight, nothing else on screen
-  ['r', 3],    // 2. LOOK — the corner they have to turn their head round
+  ['f', 6],    // 1. MOVE — dead straight, nothing else on screen
+  ['l', 3],    // 2. LOOK — the corner they have to turn their head round
   ['f', 4],
-  ['l', 3],    // 3. another corner...
-  ['f', 4],
-  ['r', 3],    // ...and another
-  // THE FORK IS SHORTER, AND SO IS THE RUN AFTER IT. What matters at the last
-  // corner is that the player can SEE the barrier they are being sent to: at
-  // eight cells of fork plus six of approach it stood 56 m away, which on a
-  // phone is a corridor fading to white. Five and three puts it 32 m off —
-  // near enough to read as a thing in the world, far enough to walk to.
-  ['f', 2],    // the fork opens
-  ['f', 3],    // ...and rejoins
-  ['f', 11],   // 4-9. the barrier, the dodging, the shooting, the door
+  ['l', 3],    // 3. and once more, so the habit is not a one-off
+  // ...and one straight for everything that happens standing still: the
+  // barrier two cells along it, the gunner four past that, and the door.
+  ['f', 15],   // 4-9. the barrier, the dodging, the shooting, the door
 ];
 // --- marks: named cells on the walked path ---------------------------------
 // DERIVED, NEVER TYPED. A mark is a place in the lesson — "the first corner",
@@ -282,14 +288,9 @@ export function marksFromPlan(plan) {
   return marks;
 }
 
-// The fork's second lane: out to the right at the split, forward alongside,
-// and back in at the rejoin. Both routes reach the same place, which is the
-// only thing this leg is trying to say.
-const FORK_LANE = [
-  [4, 17], [5, 17],
-  [5, 18], [5, 19], [5, 20],
-  [4, 20],
-];
+// The fork's second lane is gone with the third jog — see TEACH_MOVES. It ran
+// out to the right at the split, forward alongside, and back in at the
+// rejoin; both routes reached the same place, which was all it ever said.
 
 // EVERY TRAINING AREA WITH MORE THAN ONE BODY IN IT TAKES TURNS. Two rounds
 // resolving on the same frame is one loud event a first-time player cannot
@@ -299,7 +300,7 @@ const FORK_LANE = [
 //
 // A room is the spine plus width. Three cells across and four deep reads as a
 // room on a portrait phone without becoming a space you can get lost in.
-export const TEACH_MARKS = marksFromPlan({ moves: TEACH_MOVES, extra: FORK_LANE });
+export const TEACH_MARKS = marksFromPlan({ moves: TEACH_MOVES });
 
 const room = (halfW, z0, z1) => {
   const out = [];
@@ -313,9 +314,9 @@ const room = (halfW, z0, z1) => {
 export const LEGS = [
   {
     id: 'teaching', form: 'corridor', barrier: true, countsAsDoor: false,
-    note: 'Lessons 1-9. Straight run, right turn, two more turns, a fork that '
-      + 'rejoins, then the hallway where the whole combat lesson happens.',
-    plan: { moves: TEACH_MOVES, extra: FORK_LANE, approach: 4 },
+    note: 'Lessons 1-9. Straight run, two jogs left, then the straight where '
+      + 'the barrier stands and the combat lesson happens.',
+    plan: { moves: TEACH_MOVES, approach: 4 },
   },
   // WITHIN ENGAGE RANGE OF THE DOOR YOU COME IN THROUGH. A gunner's
   // engageDist is 19-25 m; bodies parked at z 7-10 stood 28 m from the entry,

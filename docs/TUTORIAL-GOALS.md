@@ -119,7 +119,7 @@ stays**, because the point is that looking is a separate action you do at the
 same time. Ends at the end of the next straight.
 
 ### 3. Corners
-Both prompts stay through two more turns and a fork that rejoins. Ends **at
+Both prompts stay through the second jog left. Ends **at
 the last corner** — which is where the barrier comes into view.
 
 ### 4. Stand here

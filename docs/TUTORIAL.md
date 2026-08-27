@@ -89,7 +89,7 @@ build does.
 |---|---|---|
 | `move` | `DRAG TO MOVE`, left half, thumb coach, dotted divider, and the way-out needle. Nothing else on screen at all. | they reach **two cells short of** the corner (`firstCornerLead`, a spine index, not a distance) — so `DRAG TO LOOK` is up *before* there is anything to look at |
 | `look` | `DRAG TO LOOK` joins it on the right with its own coach — **and `DRAG TO MOVE` stays**. It arrives about 10 m before the turn, and the needle then leans into that turn under it | they reach the end of the next straight |
-| `corners` | both prompts stay through two more turns and a fork that rejoins — **and so does the divider**, which belongs to the words rather than to a lesson | **they turn the last corner** |
+| `corners` | both prompts stay through the second jog — **and so does the divider**, which belongs to the words rather than to a lesson | **they turn the last corner** |
 | `stand` | prompts go, **and so does the way-out needle** — from here the player is being sent to a PLACE that is on screen, and a mark pointing at it is a second answer. The barrier is already standing 32 m down the straight and `STAND HERE` is on it from this frame | they reach the barrier |
 | `dodge` | a gunner appears, raises his arm and **fires** — the world stops with the round ringed in mid-air, `DODGE THE BULLET`, and a thumb swiping side to side directly under the words. Stepping aside releases it; the round goes past at ordinary speed. Three times. | three rounds dodged |
 | `shoot` | the other two arrive and the weapon comes up with `TAP ANYWHERE TO SHOOT`. Magazine drawn as cartridges, and it does not run down | all three down |
@@ -181,12 +181,12 @@ gated on the same door) but no coach, because there is no button to point at.
 
 Seven, all **authored** — `genAuthoredLeg` in `src/genleg.js`, driven by a plan
 of moves (`['f', 7]`, `['r', 3]`) rather than rolled. "A straight run, then a
-right turn, then a fork that rejoins" is a sequence of specific corners, and a
+left, then another jog left" is a sequence of specific corners, and a
 generator that produces something like it four times out of five is no use for
 a lesson whose point is that the player knows what is coming.
 
 The teaching leg is 148 m: seven cells straight, right, four, left, four,
-right, three, the fork's five, then fourteen for the barrier, the dodging, the
+left, three, then fifteen for the barrier, the dodging, the
 shooting and the door. Its marks (`firstCorner`, `secondRun`, `forkEnd`,
 `barrierAt`) are **derived from the move list**, so lengthening the first
 hallway in the tool moves the lessons with it instead of silently breaking them.
@@ -392,10 +392,10 @@ It stands from the first frame of the run, not from lesson 4 — you turn the
 last corner and there is something in the corridor, rather than a corridor that
 grows one. Which meant three other things had to move:
 
-* the teaching leg's fork is five cells rather than eight and the run after it
+* the teaching leg has no fork at all, and two jogs rather than three
   eleven rather than fourteen, so the barrier is **32 m from the last corner**
   instead of 56. Fifty-six metres of this corridor is a fade to white.
-* `corners` ends at `finalRun` — the turn — not at the fork's rejoin, so the
+* `corners` ends at `finalRun` — the last turn — so the
   walking prompts leave and `STAND HERE` arrives on the same frame.
 * `tutorJumpTo` had to stop standing every jump at the barrier. With a barrier
   present from step 1, "if there is a barrier, stand at it" teleported a jump
@@ -628,7 +628,7 @@ ones with a reason:
   rise. Much shorter than it needed to be before the freeze existed: the prompt
   no longer has to be read against a clock, so this only has to be long enough
   to see him arrive.
-* **`enemyCells: 4` / `barrierCells: 3`** — measured from the fork's rejoin and
+* **`enemyCells: 4` / `barrierCells: 6`** — measured from the last corner and
   from the barrier respectively, so the whole combat section moves with the
   geometry instead of with numbers somebody has to remember to change. Both
   came down: at six cells the barrier stood 56 m from the last corner, which on

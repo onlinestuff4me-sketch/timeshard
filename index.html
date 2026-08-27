@@ -462,7 +462,12 @@
      about 1.2:1 — DRAG TO MOVE, the one instruction you need while a round is
      in the air, was effectively invisible. Every slot gets the shadow the red
      ones already had. */
-  .tslot { text-shadow:0 2px 14px rgba(238,240,243,.9), 0 0 2px rgba(238,240,243,.7); }
+  /* ...AND THE FLIP ITSELF EASES. Even landing on the right frame, a headline
+     that changes colour between two frames reads as a flash; over a third of
+     a second it reads as the room changing around it. */
+  .tslot { text-shadow:0 2px 14px rgba(238,240,243,.9), 0 0 2px rgba(238,240,243,.7);
+           transition:opacity .35s ease, transform .35s ease,
+                      color .35s ease, text-shadow .35s ease; }
   body.slowmo .tslot { color:#eef0f3;
      text-shadow:0 2px 14px rgba(12,13,16,.92), 0 0 2px rgba(12,13,16,.8); }
   .tslot span { display:block; margin-top:14px; font-size:min(5.2vw,24px);

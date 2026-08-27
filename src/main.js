@@ -11911,7 +11911,15 @@ function frame(now) {
     if (el.lbtop) el.lbtop.style.transform = bar;
     if (el.lbbot) el.lbbot.style.transform = bar;
   }
-  document.body.classList.toggle('slowmo', playing && timeScale < 0.55);
+  // THE PALETTE FLIPS WHEN THE FREEZE IS CALLED, not when the clock has
+  // finished slowing. `timeScale < 0.55` is reached about 0.15 s into the
+  // hold, and the cue that goes with the freeze fires on the hold itself —
+  // so DODGE THE BULLET was drawn in the light-corridor colour, dark, for
+  // about a tenth of a second and then flashed to white. Measured off a
+  // playtest recording: black at 0.33 s, still black at 0.38, white at 0.43.
+  // The onboarding's hold is known on its first frame, so the words come up
+  // already the colour they are going to be.
+  document.body.classList.toggle('slowmo', playing && (timeScale < 0.55 || tutorWorldHeld));
   document.body.classList.toggle('inmenu', game.state === 'menu');
   if (game.state === 'menu') updateShimmer(now / 1000);
   sfx.update(playing || game.state === 'clear' ? timeScale : 1, dt);

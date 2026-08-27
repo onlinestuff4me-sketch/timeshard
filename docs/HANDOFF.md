@@ -393,6 +393,47 @@ same range as the teaching leg's own gunner (`TUTOR.enemyCells` is 4 cells
 past the barrier, and the player stands at the barrier). `hall2`'s pair went
 21.5/33.5 → 17.5/25.5. The pillared room is unchanged.
 
+## The headline's colour, and a shorter walk
+
+**DODGE THE BULLET came up black and flashed white.** The HUD palette flips on
+`body.slowmo`, which is set when the clock crosses 0.55 — about 0.15 s into
+the hold — while the cue that goes with the freeze fires on the hold itself.
+So the words were painted in the light-corridor colour for a tenth of a
+second and then changed under the player. Off the recording: black at 0.33 s,
+still black at 0.38, white at 0.43.
+
+The onboarding's hold is known on its first frame, so the palette flips there
+instead (`timeScale < 0.55 || tutorWorldHeld`), and `.tslot` transitions its
+colour and shadow over 0.35 s so even the flip eases. Measured: `slowmo` is on
+at clock 1.000, two frames before the words are legible at all, and the colour
+then climbs 0.09 → 0.24 → 0.42 → 0.65 → 0.79 → 0.94 in step with the fade —
+one frame is both legible and darkish, at 17% opacity.
+
+**The teaching leg is shorter and has two jogs, not three.** A lateral run is
+TWO turns to the person walking it — one into it, one back onto the axis — so
+`['r',3]` reads as "left, right", and three of them is six turns before
+anybody has been handed a gun. Now: straight, jog left, jog left, straight.
+The fork came out with the third jog. `barrierCells` counts from the last
+corner now rather than the fork's rejoin, two cells nearer than the old
+arrangement worked out to.
+
+| | before | now |
+|---|---|---|
+| direction changes on the walked path | 6 | **4** |
+| off-spine cells (the fork) | 6 | **0** |
+| walk to the barrier | 108 m | **88 m** |
+| whole path end to end | 148 m | 124 m |
+| barrier past the last corner | 32 m | 24 m |
+
+Everything the lessons stand on still fits, asked of the running build: the
+barrier on floor, all three of the shooting lesson's men on floor 16 m past
+it, and the door 22 m past them.
+
+> Careful with `barrierCells`. Two cells flat put the barrier **8 m** past the
+> corner — no walk at all — because the old number counted from a rejoin that
+> was itself well down the straight. Six is what "a couple of cells nearer"
+> actually means now.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
@@ -508,6 +549,10 @@ Traps that cost real time, all of them mine:
   halo, and a "is it red enough" threshold was a guess about the renderer.
   Screenshot with the thing on and off and count how many of the mark's own
   core pixels changed. Zero means it is on top.
+* **A lateral run is two turns, not one.** `['r', 3]` is a jog: you turn into
+  it and turn back out. Counting `moves` entries undercounts what the player
+  feels by half, which is how a leg described as "three corners" walked like
+  six.
 * **A running CSS animation beats a transition on the same property, and a
   removed animation cannot be transitioned FROM.** This has now cost time
   twice in one session: the ring on the round had an opacity transition that
