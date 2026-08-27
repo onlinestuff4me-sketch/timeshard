@@ -2852,10 +2852,6 @@ function firstSightDist(px, pz) {
 // rule to every caller made `spawnEnemy` refuse in both, which is how a change
 // about door 2 turned into a crash in a file about reload state.
 function spawnEnemy(type = 'gunner', at = null, paced = false) {
-  // The archive files what you MEET, not what you kill — but the attract loop
-  // behind the title is a shop window, not a meeting, so the menu files
-  // nothing. Otherwise every player would "know" the heavy before playing.
-  if (game.state !== 'menu') recordMet([type]);
   const parts = buildEnemyMesh(type);
   const spec = ENEMY_TYPES[type];
   parts.g.scale.set(...spec.scale);
@@ -3087,6 +3083,18 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     if (!placed) { x = player.pos.x * 0.5; z = player.pos.z * 0.5; }   // mid-avenue, last resort
   }
   parts.g.position.set(x, 0, z);
+  // THE ARCHIVE FILES WHAT YOU MEET, not what you kill — but the attract loop
+  // behind the title is a shop window, not a meeting, so the menu files
+  // nothing. Otherwise every player would "know" the heavy before playing.
+  //
+  // AND NOT WHAT WAS REFUSED. This sat at the top of the function, before the
+  // first-sight floor was given a veto: a placement it turns down returns out
+  // of here, so the man was filed as met — and `recordMet` calls
+  // `saveProgress`, so he was written to disk as met — while never reaching
+  // the scene at all. Measured over doors 1-10, the floor refuses 0.68
+  // placements a leg, so this was not rare. It goes on the line that puts him
+  // in the world, which is the only line that means he was there.
+  if (game.state !== 'menu') recordMet([type]);
   scene.add(parts.g);
   // materialize: red shards fly in from thin air and assemble into the body —
   // the death shatter, reversed. It starts as a sparse dozen and accelerates,

@@ -152,6 +152,45 @@ Caveat worth knowing: the walker kills each body 0.7 world-seconds after it
 appears. A player who dawdles gives the release gate a different rhythm, and
 34 legs is two runs, not thirty.
 
+## Spawn integrity — asked after the fact, and one real defect found
+
+The ramp change put four columns in a room that scripted bodies are placed
+into by `spawnEnemy`'s `at` argument, and `at` **skips the obstacle test on
+purpose** ("the caller has already decided"). So the plan is the only thing
+between a gunner and the inside of a column. Checked as a BOX against every
+solid in the leg, not as a point — a body clear at its feet can still have a
+shoulder in the stone:
+
+* **0 bodies inside a solid**, across all three training areas and the first
+  real leg (117, 46, 58 and 106 solids checked).
+* **0 phantom spawns.** Every arrival watched from its first frame: 13
+  arrivals over 8 real corridor legs, all born in state `assemble` and
+  settled at exactly the position their swarm converged on — jump across
+  the assemble 0 m for every one. Biggest single-frame move 0.17 m, which is
+  a walk; a teleport is metres in one frame.
+* **0 bodies appeared and then vanished** without being killed.
+
+> A warning for the next person: "how far did he move" is NOT the test. A
+> gunner in a real leg walks, and the first version of `clip.mjs` scored the
+> live corridor at 7.6-12.0 m and called it drift. The teleport is the gap
+> between the swarm's target and the finished man, and he is shards until
+> that point, so a walk cannot appear in it.
+
+**The defect: a man the floor refused was filed as met.** `recordMet([type])`
+sat on the first line of `spawnEnemy`, above everything — and last session's
+first-sight veto returns out of the middle of the function. So a placement
+the floor turned down archived the enemy type, and `recordMet` calls
+`saveProgress`, so it went to disk — while nothing ever reached the scene.
+Measured at 0.68 refusals a leg over doors 1-10, so it was not rare, and the
+opening doors ease their floor out to door 18, which is past the first
+debuts. It now sits on the line that puts the body in the world.
+
+Proven both ways, because moving it down could just as easily have stopped
+the archive filing anything: with the floor forced to a value nothing can
+satisfy, 40 of 40 calls refused, 41 refusals counted, 0 enemies in the world
+and the archive unchanged in memory AND on disk; then one heavy placed
+through `at`, in the world, filed and saved.
+
 ## NEXT UP
 
 1. **Play the new needle.** Everything about it is measured except how it
@@ -241,6 +280,14 @@ Traps that cost real time, all of them mine:
   real crossing, which hides the dead-room bug entirely.
 * Synthetic `.click()` does nothing on overlay buttons; use
   `page.touchscreen.tap` on a `boundingBox()`.
+* **A body that walks is not a body that teleported.** Any "did he move"
+  metric scores a healthy gunner as broken. Sample the position on the frame
+  he stops being shards and compare it to the frame he was born on: he
+  cannot walk while he is a swarm, so anything in that gap is the bug.
+* **`at`-placed bodies skip the obstacle test.** Anything authored into a
+  plan — the tutorial's legs — is checked by nobody but the plan. If you add
+  furniture to an authored leg, box-test its bodies against `__ts.obstacles`
+  (`clip.mjs`).
 
 Checks before any commit: `node --input-type=module --check < src/main.js`,
 `grep -oE "^function ([A-Za-z0-9_]+)\(" src/main.js | sort | uniq -c |
