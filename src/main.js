@@ -6451,6 +6451,13 @@ function fmtWhen(t) {
 // save. Doors is the DEEPEST reached rather than a sum — "how far in have you
 // been" is the question a door count answers, and adding two runs together
 // answers a question nobody asked.
+// THE ARCHIVE IS THE PLAYER'S, NOT THE SAVE'S AND NOT THE MODE'S. Confirmed
+// with the owner: one collection, one number, and every mode contributes to it
+// and reads it. There is no mode anywhere below on purpose — a heavy first met
+// in THE TUNNEL is still recovered when the menu is on RUSH HOUR, which is
+// what a player means when they say they have seen one. Splitting it per mode
+// would turn one number that only goes up into several incomplete checklists,
+// and make starting a new mode read as losing what you had found.
 function discoverData() {
   const have = new Set(archive);          // the live run, including this door
   let shat = 0, doors = 0;

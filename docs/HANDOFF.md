@@ -1,4 +1,4 @@
-# Where this leaves off — 2026-08-26
+# Where this leaves off — 2026-08-27
 
 TIME SHATTER, live at **https://timeshatter.app**. Portrait-mobile
 first-person arcade shooter, Superhot-descended. Development is
@@ -20,234 +20,242 @@ repurposed. The trap is that **GitHub silently redirects git pushes to a
 renamed repository**: a working copy whose remote still reads
 `.../onlinestuff4me-sketch/physics-arcade-game` will push, report success,
 and land the commits in `neon-grid-breaker` — where they are invisible to
-anyone looking for this project, and mixed into a repo about something
-else. That is exactly what happened; it went unnoticed for a whole session
-because every push said it worked.
-
-**So, concretely:**
-
-* Clone or work in `timeshard`. Push to `timeshard`. Nothing else.
-* If a session starts checked out somewhere whose `git remote -v` says
-  `physics-arcade-game` — a path like `/home/user/physics-arcade-game` is
-  the giveaway — that is the other game's repo. Do not push to it.
-* There is nothing to migrate out of it. Checked file by file: every `src/`
-  module and `index.html` were byte-identical to the copies here, and the
-  only tracked file unique to it was `package-lock.json`.
+anyone looking for this project. Check `git remote -v` before pushing.
+There is nothing to migrate out of it.
 
 > Container paths (`/home/user/...`, `/workspace/...`) are an artefact of
 > whichever machine a session runs on and mean nothing to the person reading
 > a handoff. Always name repositories.
 
 **A deploy is confirmed by the GitHub Actions conclusion, never by the
-push.** `mcp__github__actions_list` → `list_workflow_runs`, match the
-head SHA, wait for `completed / success`.
+push.** `.github/workflows/pages.yml` runs `on: push: branches: [main]`
+only — **a push to any other branch deploys nothing and produces no run to
+check**. Match the head SHA, wait for `completed / success`.
 
-> The session brief named `claude/superhot-mobile-portrait-wynhu2` as the
-> development branch. This stream of work has lived on
-> `claude/tunnel-focus-experiments` for many sessions and stayed there to
-> avoid fragmenting it. Worth confirming which the owner wants.
+### THIS SESSION'S WORK IS NOT LIVE YET
+
+It is on `claude/timeshatter-dev-continue-s3afr6`, because the session brief
+named that branch and said never to push elsewhere without permission. The
+site serves `main`. Nothing below is in front of players until somebody
+merges it.
 
 ## What shipped this session
 
-Two rounds of playtest findings and one balance change.
+Four of the five NEXT UP items, the fifth confirmed as already correct, and
+a repair to the tool that writes docs/BALANCE.md.
 
-**Round one — eight tutorial findings.** The divider line now comes and
-goes with the DODGE cue. The dodge coach watches the FIRST round of each
-leg and stops the world at 75% of its flight when the player is still
-within 0.55 m of its line. Phantom spawns are gone: `spawnEnemy` bakes the
-assemble into absolute world coordinates, and the onboarding was spawning
-first and moving the body after, leaving 156 shards to converge on nobody
-— median drift nine metres, now 2.4 cm. TRAINING COMPLETE is a headline
-plus a sub-line. The "stray sound" after a leg's last shatter was the
-leg's own door opening 30-80 m away at the volume of a door at your feet;
-there is no distance rolloff anywhere in the sfx graph, so `airlock()`
-takes a distance now. The off-screen arrow had one fixed angle against a
-camera whose FOV moves 80° → 66°, with no hysteresis; it has two
-thresholds derived from the live half-frame. And door 5's empty pillared
-room turned out not to be a vault bug at all — see below.
+**The direction mark was doing two jobs.** A small red triangle appeared and
+disappeared "seemingly at random" walking the training hallway, once landing
+on top of DRAG TO MOVE. It was two marks trading places: the per-enemy edge
+arrows, which latch on and off as a body crosses the edge of frame, and the
+door arrow added last session, which shows only on a leg with nobody in it.
+They separate now. While the player is being led — the whole onboarding, and
+then through `EARLY.wayDoors` — there is ONE mark: `#wayarrow`, a large
+needle laid on the floor ahead by a perspective tilt, turning to a bearing
+rather than jumping around a ring, and it never blinks. The small per-enemy
+marks are a later lesson.
 
-**The distribution.** 71 of 71 vault legs fielded nobody in the room the
-banner calls your only cover, and no leg of any kind had a share anywhere
-before its last two stretches: a median 84% of every leg could not produce
-an enemy. Two mechanisms, both correct code on a small input — `hallWave`
-filled quota from the END (`want - back * per`, and `want` is 1-2), and
-`spawnEnemy`'s finale guard was `spawnQueue.length < 3` against a measured
-maximum queue of 2, so it was always true and every body went to the door.
-Legs now come in three kinds: one that promises a PLACE reserves a body
-for it, one that promises a QUALITY spreads down the corridor, one that
-promises nothing is untouched (its `DOOR 7` is a fact, not a claim, and
-the door group is a deliberate payoff). Cost: mean bodies per leg 1.34 →
-1.48.
+It points at the **path**, not the door. A leg that jogs twice puts its door
+through a wall from where you stand, and an arrow pointing at a wall is a
+wrong answer confidently given: `wayTarget()` walks the spine forward and
+takes the furthest point still in line of sight — the corner you are heading
+for — and points at the door only once the door itself is visible.
 
-**Round two — five more.** Ammo readout moved off the weapon to the bottom
-row. No firing while the dodge freeze holds the world. TRAINING COMPLETE
-4200 ms. A leg's first body ignores the release window so a corridor is
-never silent on arrival, and an empty leg's edge arrow points at the door.
-TIME/SHATTER only when somebody is still standing.
+**Why door 8.** `doorAlive()` — how many bodies may be up at once — is 1
+through door 3, reaches 2 at door 4 and 3 at door 8. The small marks say
+"somebody is over there", which is only worth saying when there is more than
+one somebody, so they arrive at door 9 and not before.
 
-**The ramp.** Telegraph tightness had its own 18-door schedule while
-bullet speed climbed to door 98 — half the difficulty curve spent in the
-first fifth of the game. `diffT()` now reads where the round's speed sits
-between `SPEED.openM` and `SPEED.capM`, so both reach full heat together
-on door 98 and telegraphs inherit the school's ten-door plateau.
-**Doors 19-97 are easier than they were**: aim factor at door 19 went
-0.52 → 1.06, at door 46 → 0.85. `RAMP.rampWaves` is gone, slider and all.
+**The spurious arrow on walking in** was the door fallback answering a
+question nobody had asked: on the frame you cross, the leg has no bodies
+YET, so it came up pointing at the door and went out again as the opener
+spawned. A settle timer alone only moves the flash — at 1.6 s, measured at
+door 15, the arrow came on at 1.60 s and off at 2.20 s, two transitions. A
+leg that has not released anybody is not clear, it is **not started**, and
+the leg knows: it still owes bodies. `wayArrowShows()` asks that first, and
+the timer is now a 0.7 s debounce sitting on top rather than the test.
 
-**Round three — first sight, and the menu.** Every distance check measured
-from where the player STANDS, and a corridor jogs: a body 9 m away round a
-corner is 3 m from where you'll be when you can see him — and placement
-prefers hidden spots on purpose. Now `firstSightDist()` walks the leg's
-spine, finds the first point with a line to the candidate, and measures
-there; `EARLY.firstSightM` is 13 m, flat through door 10, eased away by
-door 18. Where nothing qualifies, nobody spawns and the body goes back on
-the queue. Applies only to the corridor's own paced release. Measured
-worst first sight in doors 1-10: 13.09 m; with the rule removed, 3.39 m
-and a straight-line zero.
+**The ammo pips** wanted the readout's halo, and the halo turned out not to
+be the problem. `#ammo` carries a `text-shadow`, which does nothing for a
+`background`-filled box, so the magazine gets a `drop-shadow` that follows
+the rendered alpha. But the pip that vanishes is the **spent** one — hollow
+at 42% opacity, measuring 1.99:1 against the floor, and the halo made it
+*worse* (2.25 → 2.02) because it lightens the ground under a mark that is
+itself pale. At 75% opacity it reads 4.18:1 with a full cartridge at 6.87:1
+— visible, and still unmistakably the dimmer of the two, which is the whole
+job. Widening the ring instead does nothing: .13em measured 4.16:1.
 
-Menu: overlay cards scroll (the saves card never had `max-height`, and a
-flex-centred overflowing card is cut off at BOTH ends, so CLOSE was below
-the bottom of the phone and reloading was the only way out); the dimmed
-ground closes them; RECOVERED SO FAR is the union of every save plus the
-live run; and NEW RUN starts a new run — at the cap the oldest save with
-no doors behind it gives way.
+**The training ramp is three areas.** It ran room/hall/room/hall/room/hall
+at 1,1,2,2,3,3 — six checkpoints where the last four teach nothing the first
+two did. Now `hall1` (one man), `hall2` (two, taking turns), `room1` (three
+in a vault with four columns authored in `plan.pillars` — the first cover in
+the game, met with three men standing among it), then Door 1. Cutting it
+touched `LEGS`, `STEPS`, the `exit` cue (which said GO TO THE NEXT ROOM
+where the next area is now a hallway), `docs/TUTORIAL.md` and one comment in
+`tool/tutorial-pane.js`.
 
-## NEXT UP — the playtest that closed this session
+**The archive spans game modes**, confirmed with the owner and now written
+down in `discoverData()` and `docs/SAVES.md` rather than left as a question.
+Discovery is a property of the player, not of the save and not of the mode.
 
-Five things, reported with screenshots after the last deploy. None is
-started; all of them are described here in enough detail to act on.
+**docs/BALANCE.md can be regenerated again.** It could not: the guard failed
+the whole document over "reach full heat together on door 98" — a true claim
+solved from the same functions as the rest of the file, which merely sat
+near the word "school". The generator also still computed
+`diffT = (w - 1) / RAMP.rampWaves` after that dial was deleted last session,
+so every cell of the ramp table rendered `NaN`, and a hand-written section
+had been appended BELOW the marker, where regenerating discards it. Guard
+taught the cap door, `diffT` read from the speed staircase the way the game
+reads it, prose moved above the marker. `node tools/gen-balance-doc.mjs` is
+idempotent now — run it after touching `src/balance.js`.
 
-### 1. The direction arrow needs to be one clear thing, not a flicker
+## The measurements
 
-**What was seen:** the small red arrow appears and disappears seemingly at
-random while walking the training hallway, and when it is up it collides
-with the lesson's own words (it landed on DRAG TO MOVE).
+| what | number |
+|---|---|
+| way arrow up over an onboarding walk | 1800 / 1800 frames |
+| per-enemy marks up over the same walk | 0 frames |
+| on/off transitions | 0 |
+| arrow box vs every visible message box, at all 11 steps | no overlap at any |
+| flips on crossing into a new leg, at door 15 | 0, 0, 0 (was 2 on the first) |
+| ...and on a leg cleared of everybody it owed | mark still comes up, 0.05 s |
+| full cartridge against the floor | 6.00 → 6.87 : 1 |
+| spent cartridge against the floor | 1.99 → 4.18 : 1 |
+| ramp areas walked | corridor/1 → corridor/2 → vault/3 with 4 columns |
+| deepest scripted body in the ramp | 42.9 m → 33.5 m (`TUTOR.engageM` 60) |
 
-**What is wanted:** while the player is being led somewhere — the whole
-early game — ONE larger, unmistakable arrow that reads as a compass
-needle rotating in space, pointing the way to go, placed so it never
-obstructs the messaging. The small per-enemy markers are for LATER, once
-rooms hold several enemies and the player has learned what the marks mean.
-So: one big "go this way" arrow now, small "somebody is over there" marks
-introduced later.
+## The quiet early corridors — asked, and the answer is "they are not quiet"
 
-**Where:** `updateEdgeArrows()` in `src/main.js` (it builds `.edgearrow`
-divs on a ring of `min(vw,vh) * 0.38` and points them by rotation);
-`.edgearrow` CSS at `index.html:47`; thresholds `EDGE_ARROW_SHOW` 0.94 /
-`EDGE_ARROW_HIDE` 0.72 of the camera's live half-frame. The door fallback
-— arrow to the door when a leg is empty — is inside the same function.
-The flicker the player still sees is most likely the door arrow and the
-enemy arrows trading places, not the hysteresis, which is measured good in
-`edgesnd.js`.
+The owner asked whether the opening corridors feel too empty, and chose
+"degrade, don't veto" for the first-sight rule: where no spot gives 13 m of
+clear ground at first sight, take the best available down to a floor rather
+than spawning nobody.
 
-### 2. The spurious arrow on entering a room
+**I did not make that change, because the problem it fixes does not happen.**
+Walked doors 1-10 twice, driving the real stick so the release gate sees a
+real walk:
 
-**What was seen:** walking into a new training room, a direction arrow
-flashes for about a second and vanishes. It reads as a bug and it is not
-needed — the player is already in the room.
+* **34 legs, 0 of them fielded nobody.** Every leg met its whole quota.
+* Mean bodies met per leg **1.59** (it was 1.48 after last session's change).
+* The rule refuses **23 placements, 0.68 per leg** — so it is doing work —
+  and **all 6 legs that saw a refusal still fielded their full quota**. One
+  refused 13 times and still delivered its man.
 
-**Cause:** almost certainly the door fallback added this session. On the
-frame you cross in, the leg has no bodies yet, so the arrow points at the
-door until the opener spawns. Suppress it for a beat after a crossing, or
-require the leg to have been quiet for a moment first.
+That is the design working: a refusal defers a body, the corridor tries again
+further along, and it recovers every time. Degrading would loosen a safety
+rule the owner asked for in exchange for nothing measurable, so the veto
+stays. `__ts.sightRefusals()` was added to make this askable again in one
+line — if a future playtest *does* report a silent early corridor, that
+counter plus the walk in `early.mjs` is the whole diagnosis.
 
-### 3. The ammo pips need the readout's own shadow
+Caveat worth knowing: the walker kills each body 0.7 world-seconds after it
+appears. A player who dawdles gives the release gate a different rhythm, and
+34 legs is two runs, not thirty.
 
-**What was seen:** PISTOL is legible against a light floor; the pips
-beside it are not.
+## NEXT UP
 
-**Where:** `#ammo` carries `text-shadow: 0 1px 10px rgba(238,240,243,.9),
-0 0 2px rgba(238,240,243,.75)` — a TEXT shadow, which does nothing for the
-pips because they are `background`-filled elements, not glyphs
-(`index.html:105`). They want the same halo: `filter: drop-shadow(...)` on
-`#ammo .mag`, or a matching `box-shadow` on `.pip`.
-
-### 4. The training ramp should be three rooms, not six
-
-**What is wanted**, after the STAND HERE barrier and the dodge/shoot
-lessons: one enemy in a hallway, then two enemies in a hallway, then three
-enemies in a room with pillars, then training ends and Door 1 begins.
-
-**Where:** `src/tutorial.js` — `LEGS` currently runs `room1` (vault, 1),
-`hall1` (corridor, 1), `room2` (vault, 2), `hall2` (corridor, 2), `room3`
-(vault, 3), `hall3` (corridor, 3) at lines 303-325, with `STEPS` entries
-`ramp1`..`ramp6` to match. That is six areas where three are asked for,
-and it alternates room/hall where the ask is hall, hall, room. Cutting it
-means the leg list, the step list, and the tool's TUTORIAL pane, which
-reads both. `tutool.js` lints cue/grant agreement and will catch a step
-whose cues no longer have a leg.
-
-### 5. Confirm with the owner
-
-Whether the archive should span game modes (it does now — discovery is
-treated as the player's, not the save's) or track each mode separately.
-One line in `discoverData()`.
-
-## Open from before, in the order I would take them
-
-1. **Play the opening doors.** The first-sight rule means a tight winding
-   early leg can legitimately field nobody. That is the trade the owner
-   asked for, and it is the most likely thing to feel wrong.
-2. **Doors 19-50 may read limp** after the ramp change. `RAMP.aimRange`
-   is the knob; steepen it before touching `aimBase`.
-3. **The archive spans modes.** Discovery is treated as a property of the
-   player, so Rush Hour and The Tunnel share it. Unconfirmed with the
-   owner; one line in `discoverData()` to reverse.
-4. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
+1. **Play the new needle.** Everything about it is measured except how it
+   feels: `rotateX(58deg)`, 104 px, 19vh up the centre line. It has never
+   been on a phone. The bearing easing is `EARLY.wayEase` 7/s.
+2. **The small marks arrive at door 9 with no introduction.** The player
+   asked for them "once the player has learned what the marks mean" — and
+   nothing currently teaches that. A one-time line on the door they turn on
+   would close the loop; it is deliberately not built, because it is a
+   tutorial decision and those get confirmed first.
+3. **`EARLY.waySettleS` is 0.7 s** and is now only a debounce. Nothing has
+   measured whether a gap between two releases in one stretch can still
+   blink the mark — the `owed` test should make it impossible, and that is
+   an assumption, not a measurement.
+4. **Doors 19-50 may read limp** after last session's ramp change.
+   `RAMP.aimRange` is the knob; steepen it before touching `aimBase`. The
+   regenerated table in docs/BALANCE.md now shows the real telegraph scale
+   per door, which it did not when it was full of `NaN`.
+5. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
    the player is through the near doorway. The stall watchdog arms them if
    nothing happens for `LEG.stallAfter`, but that path has never been seen
-   in real play.
-5. **`LEG.stallAfter` is 4.5 s**, chosen from the shape of the problem
-   rather than from play.
+   in real play. `LEG.stallAfter` is 4.5 s, chosen from the shape of the
+   problem rather than from play.
 
 ## The test harness — read this before writing a probe
 
-`/tmp/claude-0/.../scratchpad/test`, 45 files, `bash runall.sh`. Serve with
-`python3 -m http.server 8321` **from the repo root**; the server dies on
-its own and a suite run then stalls mid-list looking like a hang — check
+**It does not survive between sessions.** The scratchpad directory is
+per-session, so last session's 45 files were gone and this one started from
+nothing. Budget for that, or move the harness into the repo.
+
+What this session rebuilt, under the session scratchpad in `test/`:
+`lib.mjs` (boot/tap/done), `walk.mjs` (the leg walker), `early.mjs`,
+`arrows.mjs`, `late.mjs`, `ramp.mjs`, `archive.mjs`, `pips2.mjs`,
+`pipsweep.mjs`, `fps.mjs`. Every file prints an `errors:` line.
+
+Serve the repo root with `python3 -m http.server 8321`; the server dies on
+its own, so check
 `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8321/index.html`
-before diagnosing anything else. Chromium at `/opt/pw-browsers/chromium`,
-`--no-sandbox`, viewport 402x874 `hasTouch`/`isMobile`. Always attach
-`page.on('pageerror')`. Every file must print an `errors:` line — the
-runner grades "did this reach the end" on it.
+before diagnosing anything else. Chromium, viewport 402x874,
+`hasTouch`/`isMobile`. Always attach `page.on('pageerror')`.
 
-Traps that cost real time this session, all of them mine:
+Traps that cost real time, all of them mine:
 
-* **Wait on STATE, never on a clock.** Game time runs far slower than
-  wall clock headless. Rates in world seconds via `__ts.worldClock()`.
-* **Measure the subject, not a proxy.** A kill is `game.kills`, not
-  `enemies.length` dropping — the corridor can add a body in the same
-  window. Four separate red files came from this one habit.
-* **Never assert against the constant under test.** "held at 75%" passed
-  at 0.248 when the threshold moved; "13 m" passed over 3.39 m bodies.
-  Write the spec number out, and add a second assertion that the code
-  still asks for it.
-* **`isFinite(null)` is `true`.** It coerces to 0. A body never visible
-  from the walked path sailed through an "is it visible" check.
-* **Sample at the moment the rule applies.** First-sight distance measured
-  from wherever the loop noticed a body reported 4.6 m for men placed
-  correctly at spawn.
-* **`__ts.crossDoor()` teleports to `door.z + 2.5`** — two metres closer
-  than a real crossing, which hides the dead-room bug entirely (0/30).
+* **Serve a FROZEN SNAPSHOT to any probe that runs longer than an edit.**
+  A twenty-minute walk against the working tree picks up every change made
+  while it runs and reports half of one build and half of another. Copy the
+  repo to a scratch directory, serve it on a second port, and point long
+  probes at that (`TS_PORT` in `lib.mjs`).
+* **A dead player measures nothing.** Pin `player.iframes = 999` every frame
+  in any loop that idles, including the ones that only wait for cues. The
+  first arrows run reported "arrow off at every step from `exit`, and up on
+  0 of 5000 walked frames" — all true of a corpse and of nothing else.
+* **Wait on state, but never let a stopped clock be the only way out.** The
+  dodge lesson STOPS THE WORLD until the player steps aside, so a loop
+  capped in world seconds never terminates. Cap on frames as well.
+* **`deviceScaleFactor: 2` costs eight times the frame rate** — 2 fps
+  against 17 at dsf 1, on the same machine. Use 1. It also silently breaks
+  any pixel measurement that indexes a screenshot with CSS-pixel
+  coordinates: scale by `png.width / clip.width` or you sample the floor and
+  call it the mark (a first pass reported 1.01:1 for every case).
+* **Do not seed `Math.random`.** A 32-bit xorshift folded through `% 1e6`
+  has short enough cycles that the leg generator's retry loops never
+  terminate: the page hangs with no error, which reads exactly like a
+  stalled harness. Variety comes from walking more legs.
+* **The walker gets stuck in vault rooms**, whose exit jogs sideways out of
+  a room wider than the spine. It burned 157 s of wall clock reporting "did
+  not cross", which reads as a corridor bug and is a harness one. `walk.mjs`
+  slides along the wall when it stops making progress, the way a player
+  would.
+* The PLAY button is **`.go`, a class, not `#go`**, and the playing state is
+  **`'play'` or `'intro'`, never `'playing'`**.
+* Chromium is at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
+* **Never pipe a long probe through `head`/`tail`.** When the outer timeout
+  kills it, the pager dies holding everything and you see nothing at all.
+  Redirect to a file and read the file.
+* **`pkill -f "early.mjs"` in the same command that launches
+  `node early.mjs` kills its own shell** — `-f` matches the whole command
+  line, including the one about to run. Kill in a separate step.
+* Wait on STATE, never on a clock. Game time runs far slower than wall clock
+  headless; rates in world seconds via `__ts.worldClock()`.
+* Measure the subject, not a proxy. A kill is `game.kills`, not
+  `enemies.length` dropping.
+* Never assert against the constant under test. Write the spec number out,
+  and add a second assertion that the code still asks for it.
+* `isFinite(null)` is `true`. It coerces to 0.
+* `__ts.crossDoor()` teleports to `door.z + 2.5` — two metres closer than a
+  real crossing, which hides the dead-room bug entirely.
 * Synthetic `.click()` does nothing on overlay buttons; use
   `page.touchscreen.tap` on a `boundingBox()`.
-* `playerFire` aims via `camera.getWorldDirection`, and the camera takes
-  yaw from the player in the frame loop — give it ~4 frames.
-* A section needing a different world than its file gets its own file:
-  `stall.js` (own browser), `dodgefire.js` (cleared profile, so the
-  training legs actually exist).
 
 Checks before any commit: `node --input-type=module --check < src/main.js`,
-and `grep -oE "^function ([A-Za-z0-9_]+)\(" src/main.js | sort | uniq -c |
-awk '$1>1'` for duplicate definitions.
+`grep -oE "^function ([A-Za-z0-9_]+)\(" src/main.js | sort | uniq -c |
+awk '$1>1'` for duplicate definitions, and
+`node tools/gen-balance-doc.mjs` if `src/balance.js` moved.
 
 ## Standing lesson
 
-Three separate times this session a change of mine was correct in the
-small and wrong in the large, and the tests caught it only because they
-measured the player's experience rather than the code's intent: `holdZ`
-was gated on `finale`, and fixing `finale` would have silently switched
-enemy advance on across the whole game; NEW RUN was "fixed" twice without
-ever starting a run; the archive was per-save when the player thinks of it
-as theirs. When a behavioural change makes several unrelated tests fail in
-different ways, the tests are usually right and the change has a reach
-nobody intended.
+Twice this session the fix that was asked for was not the fix that was
+needed, and only measuring the thing the player actually looks at told the
+difference. The ammo pips were meant to want the readout's halo; the halo
+helped the cartridge that was already legible and made the spent one worse,
+and the spent one was the whole complaint. The opening corridors were meant
+to be too quiet; walked twice over ten doors they were never once empty, and
+the change that had been agreed would have loosened a safety rule in
+exchange for nothing. Both times the proposed diagnosis was reasonable and
+both times it was wrong about which half of the thing was broken. Measure
+the half you are about to change, and measure the other half too.

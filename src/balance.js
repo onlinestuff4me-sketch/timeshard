@@ -288,6 +288,13 @@ export const EARLY = {
   // clear of every message slot. The small per-enemy marks are a later
   // lesson, for when a room holds several men and "somebody is over there"
   // is a thing worth saying.
+  // WHY 8. The small marks say "somebody is over there", which is only worth
+  // saying when there is more than one somebody and they are not all in front
+  // of you. `doorAlive()` — how many bodies may be up at once — is 1 through
+  // door 3, reaches 2 at door 4 and 3 at door 8. So the marks arrive at door
+  // 9, on the first door where three men can be standing at once, and not
+  // before: through the opening doors the answer to "where is he" is "ahead",
+  // and the only question worth answering is which way ahead goes.
   wayDoors: 8,         // the way-out arrow is simply always up through here
   wayMinM: 3,          // ...and never points at a spot you already stand on
   wayEase: 7,          // how fast the needle settles on a new bearing (1/s)

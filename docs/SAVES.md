@@ -328,6 +328,15 @@ the menu.
 | the attract fight behind the title | `demoMode` / `DEMO_CAST` / `demoCorridor` |
 | the default name of a save | `saveName` |
 | the archive teaser | `discoverData` / `renderDiscover`, `#discover` in `index.html` |
+
+**The archive spans game modes**, and that is settled rather than incidental.
+Discovery is a property of the player — not of the save, and not of the mode —
+so a heavy first met in THE TUNNEL is still recovered while the menu is on
+RUSH HOUR, and `discoverData()` has no mode in it anywhere. Tracking each mode
+separately would turn one number that only ever goes up into several
+incomplete checklists, and make opening a new mode read as losing what you had
+already found.
+
 | the lifetime shattered counter | `lifetimeShattered`, persisted as `ts_s{i}_shat` |
 | what one step of progress is called | `unitOf` / `unit` in `src/modes.js` |
 | the whole surface, tested | `saves.js` in the harness |
