@@ -6909,10 +6909,17 @@ const menuIsCity = (id) => id === 'wave' || id === 'rush';
 function menuBackdrop() {
   const corridor = !menuIsCity(menuMode);
   setEnvironment(corridor ? 'hall' : 'city');
-  // ...and if this launch has never built one, build the one leg the menu
-  // stands in. setEnvironment('hall') only hides the city; it does not make
-  // a corridor.
-  if (corridor && !hall) buildMenuHall();
+  // ...and if there is no MENU corridor standing, build one. setEnvironment
+  // ('hall') only hides the city; it does not make a corridor.
+  //
+  // `!hall` WAS NOT THE TEST. After a run there is a hall — the run's — whose
+  // legs are hundreds of metres down the tunnel at whatever door the player
+  // died on, while the attract loop walks its ghost up and down the ORIGIN,
+  // which is where the menu's own leg is built. So the camera stood in empty
+  // space outside the level: a white, washed-out nothing with no gameplay in
+  // it, which is exactly what a player reported after dying. The question is
+  // not "is there a hall" but "is this hall the menu's".
+  if (corridor && (!hall || !hall.forMenu)) buildMenuHall();
 }
 
 // `live` = opened from the main menu, where a tap can start a run. From the
@@ -9035,9 +9042,14 @@ function stallRelease() {
 // there". See EARLY.wayDoors for why they had to be separated.
 // ---------------------------------------------------------------------------
 
-// IS THE PLAYER STILL BEING LED? The onboarding, and the opening doors after
-// it. While this holds there are no per-enemy marks at all: one arrow, always
-// up, saying which way to go.
+// IS THE PLAYER STILL LEARNING? The onboarding, and the opening doors after
+// it. While this holds there are no per-enemy marks at all.
+//
+// THIS IS NOT WHAT PUTS THE WAY-OUT NEEDLE ON SCREEN — the two used to share
+// one test and they are two different questions. "Somebody is over there" is
+// worth saying once a room can hold several men (door 9, see EARLY.wayDoors);
+// "the corridor goes this way" is worth saying while the player is being
+// taught to walk, and then only when a hallway is empty. See wayArrowShows().
 function beingLed() {
   if (tutorStep !== null) return true;
   return !!(inHall() && hall && (hall.doorsPassed + 1) <= EARLY.wayDoors);
@@ -9199,9 +9211,17 @@ function wayTarget() {
 
 function wayArrowShows() {
   if (!inHall() || !hall) return false;
-  if (beingLed()) return true;
-  // ...and past that it is the empty-leg mark it replaced: only on a leg with
-  // nobody left in it.
+  // THE ONBOARDING ASKS FOR IT BY NAME. It is held by the three walking
+  // lessons and dropped the moment STAND HERE goes up on the barrier: from
+  // there the player is being sent to a PLACE that is on screen, and a needle
+  // pointing at it is a second answer to a question already answered. It is
+  // off for the whole combat course and off for the ramp, which are fights
+  // and not navigation.
+  if (tutorStep !== null) return !!tutorMay('way');
+  // ...and past the onboarding it is the empty-leg mark: only on a leg with
+  // nobody left in it, which is the one place "which way now" is a real
+  // question — a corridor with no sound, no fight, and two directions that
+  // look identical.
   //
   // A LEG THAT HAS NOT RELEASED ANYBODY YET IS NOT CLEAR, IT IS NOT STARTED.
   // "No bodies on screen" is true of both, and the difference is the whole
@@ -9859,6 +9879,9 @@ function buildMenuHall() {
   clearHall();
   hall = { legs: [], grid: new Set(), cur: 0, doorsPassed: 0,
     checkpoint: { x: 0, z: 0 }, legInDoor: 0, legsThisDoor: 1,
+    // ...and it says so, because "is this the menu's corridor" is a question
+    // menuBackdrop has to be able to ask. See it for what went wrong without.
+    forMenu: true,
     mem: newRunMemory(archive) };
   hall.legs.push(buildHallLeg(0, 0, composeProtocol(1, lifetimeDoors, hall.mem)));
   applyLegVisibility(true);

@@ -245,6 +245,62 @@ Two things this cost, both caught by re-running the older files:
   disappeared, which is the exact vanishing act it exists to avoid. It holds
   its last bearing instead.
 
+## The second needle playtest, and four things around it
+
+Screenshots, five findings, all shipped.
+
+**The needle is a WALKING aid and nothing else now.** It used to be up for the
+whole onboarding and then through door 8. It is a grant — `way`, in
+`MECHANICS` — held by `move`, `look` and `corners` and dropped the moment
+STAND HERE goes up on the barrier: from there the player is being sent to a
+place that is on screen, and a mark pointing at it is a second answer to a
+question already answered. It is off for the combat course and off for all
+three ramp areas. Past the onboarding it returns only on a hallway with
+nobody left in it, which was already the late rule.
+
+`EARLY.wayDoors` still exists and still means door 9 — but only for the SMALL
+per-enemy marks. The two used to share one test and they are two different
+questions.
+
+**The divider belongs to the words.** `corners` shows DRAG TO MOVE and DRAG TO
+LOOK with `divider: false`, so the line vanished under the player mid-corridor.
+It is on wherever those words are.
+
+**And the needle draws over it.** `#tutor` is a sibling inside `#hud` at
+z-index 11; the needle was at 7, so the dotted line ran through the mark.
+It is at 12.
+
+**Once there is a gun, the needle moves to the top of the frame.** Measured in
+its own column strip on a 402x874 frame, the viewmodel's dark mass starts at
+50% of the height and is solid from 71% — the low seat it uses during the
+walking lessons, when no gun is drawn, sits on top of it. `body.armed` moves
+it to 58 px from the top, where the only thing near it is the score line.
+Measured on a cleared leg at door 12: 0 of 3 visible HUD boxes overlap, and
+274 px of clearance above the gun.
+
+**The pillared room was laid out wrong.** Columns at 12 and 24 m with the men
+at 20 put the columns ON the sight lines: the left-hand man was completely
+hidden, and cover you have to walk twelve metres into the fight to reach is
+not cover anybody uses on the first round fired at them. Columns forward to 6
+and 11 m, men back to 22 and 26. Measured in the running game:
+
+* 0 of 3 men concealed from the doorway (was 1).
+* every one of the three can be hidden from, at 5.1, 5.1 and 5.7 m from the
+  doorway.
+* a round fired at a column dies at (8.6, 213.65) against a column spanning
+  213.7-214.3 — i.e. **on its face**. Columns stop rounds, so ducking behind
+  one is a real answer and the lesson has something to teach.
+
+**The menu shows gameplay again after a death.** `menuBackdrop()` built its
+corridor only `if (!hall)` — and after a run there IS a hall: the run's, whose
+legs are hundreds of metres down the tunnel, while the attract loop walks its
+ghost up and down the ORIGIN where the menu's own leg goes. So the camera
+stood outside the level in white nothing. The test is not "is there a hall"
+but "is this hall the menu's": `hall.forMenu`. Measured after dying at door
+10 — `forMenu` true, one leg, ghost on floor at the origin, two enemies
+fighting, and a frame whose mean and spread match a first load (196/38.1
+against 200/37.9).
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
@@ -348,6 +404,26 @@ Traps that cost real time, all of them mine:
   first version of `turn.mjs` filed those samples in the same rows as the
   approach and produced a -43 deg "wrong way" in BOTH builds, which is the
   tell: an artefact that survives the change is usually the metric's.
+* **A jump to a step is not the same as being there.** Walking the whole step
+  list ends on `done`, which tears the tutor layer down — `body.tutoring`
+  goes, `#tutor` computes to `display:none` — and jumping back to `corners`
+  does not put it back. A z-order test then sampled bare corridor and reported
+  the divider on top of a mark it could not see. Anything that needs the tutor
+  layer rendered gets its own page.
+* **Decide a z-order by DIFFING THE SAME PIXELS, not by a colour threshold.**
+  Three readings in a row were wrong here: a patch near the box centre missed
+  the mark entirely (it rotates), a mean over the strip was dominated by the
+  halo, and a "is it red enough" threshold was a guess about the renderer.
+  Screenshot with the thing on and off and count how many of the mark's own
+  core pixels changed. Zero means it is on top.
+* **"Not inside an obstacle" is not "on floor".** Everywhere outside the level
+  passes that test, and out there a wall sits between you and everybody — so a
+  cover probe happily reported perfect cover 6.5 m away, through the side of
+  the corridor. Ask the leg for its own `cells`.
+* **A round dying is not a round being stopped by the thing you aimed at.**
+  The first bullet-versus-column test fired from six metres out, which that
+  near the doorway is inside the side wall; it hit the wall at 1.8 m and the
+  file called it a pass. Assert WHERE it died, against that column's box.
 * **A field only the new build exposes measures nothing on the old one.**
   `way().world` is `undefined` on 429c151, and `undefined !== null` is true,
   so the first comparison reported 900 frames, a peak turn rate of zero and a

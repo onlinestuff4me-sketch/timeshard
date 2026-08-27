@@ -89,8 +89,8 @@ build does.
 |---|---|---|
 | `move` | `DRAG TO MOVE`, left half, thumb coach, dotted divider, and the way-out needle. Nothing else on screen at all. | they reach **two cells short of** the corner (`firstCornerLead`, a spine index, not a distance) — so `DRAG TO LOOK` is up *before* there is anything to look at |
 | `look` | `DRAG TO LOOK` joins it on the right with its own coach — **and `DRAG TO MOVE` stays**. It arrives about 10 m before the turn, and the needle then leans into that turn under it | they reach the end of the next straight |
-| `corners` | both prompts stay through two more turns and a fork that rejoins | **they turn the last corner** |
-| `stand` | prompts go; the barrier is already standing 32 m down the straight and `STAND HERE` is on it from this frame | they reach the barrier |
+| `corners` | both prompts stay through two more turns and a fork that rejoins — **and so does the divider**, which belongs to the words rather than to a lesson | **they turn the last corner** |
+| `stand` | prompts go, **and so does the way-out needle** — from here the player is being sent to a PLACE that is on screen, and a mark pointing at it is a second answer. The barrier is already standing 32 m down the straight and `STAND HERE` is on it from this frame | they reach the barrier |
 | `dodge` | a gunner appears, raises his arm and **fires** — the world stops with the round ringed in mid-air, `DODGE THE BULLET`, and a thumb swiping side to side directly under the words. Stepping aside releases it; the round goes past at ordinary speed. Three times. | three rounds dodged |
 | `shoot` | the other two arrive and the weapon comes up with `TAP ANYWHERE TO SHOOT`. Magazine drawn as cartridges, and it does not run down | all three down |
 | `exit` | barrier sinks, door opens, `GO THROUGH THE DOOR` — the next area is a hallway now, and so is the one after it | they cross |

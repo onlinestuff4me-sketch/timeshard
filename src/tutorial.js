@@ -341,18 +341,29 @@ export const LEGS = [
     // in a corridor that only has 3.4 m of floor to play with.
     enemies: [{ x: -0.22, z: 5, type: 'gunner' }, { x: 0.22, z: 8, type: 'gunner' }],
     fireOrder: 'turns' },
-  // ...AND THE ROOM HAS COLUMNS IN IT. Every vault the generator builds stands
-  // four of them in the chamber its headline is about; the onboarding's rooms
-  // were bare boxes, so the first column a player ever met was in a real run
-  // with a real wave behind it. `plan.pillars` is in CELLS like the rest of a
-  // plan: the room is three cells wide, so 12 m of floor from -6 to +6, and
-  // columns at +/-3 m stand between the walking lane and the walls — cover you
-  // commit to, not cover you walk past. The three men stand between the rows.
+  // ...AND THE ROOM HAS COLUMNS IN IT — the first cover in the game, and the
+  // whole lesson of the area. `plan.pillars` is in CELLS like the rest of a
+  // plan: the room is three cells wide, so 12 m of floor from -6 to +6.
+  //
+  // THE COLUMNS ARE NEAR THE PLAYER AND THE MEN ARE NOT. First pass put the
+  // columns at 12 and 24 m with the men at 20 — half way down the room, on
+  // top of the sight lines — and a playtest found exactly what that geometry
+  // predicts: the left-hand man was completely hidden behind a column, and
+  // cover you have to walk twelve metres INTO the fight to reach is not cover
+  // you will use on the first round fired at you.
+  //
+  // So the columns come forward to 6 and 11 m, close enough to step behind,
+  // and the men go back to 22 and 26 m. That also clears every sight line by
+  // construction: from the doorway the three of them subtend +/-4.2 m at 22 m,
+  // which is +/-1.2 m of fan at the near column row and +/-2.0 m at the far
+  // one, against columns whose inner faces stand at 2.75 m. Nobody is hidden,
+  // and a player who steps sideways to a column has put it between themselves
+  // and the man shooting at them.
   { id: 'room1', form: 'vault', kind: 'room', note: '12. Three in a room with pillars.',
     plan: { moves: [['f', 10]], extra: room(1, 1, 8), approach: 3,
-      pillars: [[-0.75, 3], [0.75, 3], [-0.75, 6], [0.75, 6]] },
-    enemies: [{ x: -1, z: 5, type: 'gunner' }, { x: 1, z: 5, type: 'gunner' },
-      { x: 0, z: 8, type: 'gunner' }], fireOrder: 'turns' },
+      pillars: [[-0.85, 1.5], [0.85, 1.5], [-0.85, 2.75], [0.85, 2.75]] },
+    enemies: [{ x: -1.05, z: 5.5, type: 'gunner' }, { x: 1.05, z: 5.5, type: 'gunner' },
+      { x: 0, z: 6.5, type: 'gunner' }], fireOrder: 'turns' },
 ];
 
 // --- what the player is allowed to do --------------------------------------
@@ -369,6 +380,13 @@ export const MECHANICS = [
   ['aiFire', 'Enemies may fire', 'Off, only the script pulls a trigger. Their walk and aim are untouched.'],
   ['spawns', 'Spawn queue runs', 'Off, the queue is held: nobody arrives unless the script places them.'],
   ['score',  'Door / enemy line','The HUD line at the top left.'],
+  // THE WAY-OUT NEEDLE, and it belongs to the WALKING lessons and nothing
+  // else. Once STAND HERE is on the barrier the player is not being sent
+  // anywhere any more — they are being sent to a PLACE that is on screen, and
+  // a second mark pointing at it is one answer too many. Past that it comes
+  // back on its own terms: only on a hallway with nobody left in it, where
+  // "which way now" is a real question. See wayArrowShows() in main.js.
+  ['way',    'Way-out needle',   'The big red needle that points along the corridor.'],
 ];
 
 // Everything is off unless a step says otherwise. A tutorial that has to
@@ -376,6 +394,7 @@ export const MECHANICS = [
 export const NO_GRANTS = {
   gun: false, fire: false, timebtn: false, meter: false,
   bank: false, ammo: false, aiFire: false, spawns: false, score: false,
+  way: false,
   // `rescue` — may this area stop the world for a round that is about to hit
   // somebody who is not reacting? The teaching beats say no: they fire rounds
   // ON PURPOSE and have their own freezes, and a second one arriving over the
@@ -488,7 +507,7 @@ export const STEPS = [
     // THE BARRIER IS A FIXTURE, not something lesson 4 conjures. It stands
     // from the first frame of the run, so turning the last corner shows you a
     // corridor with a thing in it rather than a corridor that grows one.
-    grants: {}, divider: true, buildBarrier: true,
+    grants: { way: true }, divider: true, buildBarrier: true,
     cues: [{ text: 'DRAG TO MOVE', slot: 'left', arrow: 'none', hand: 'up',
       pulse: false, on: 'enter', off: 'advance' }],
   },
@@ -499,7 +518,7 @@ export const STEPS = [
     id: 'look', label: '2 · Look',
     hud: 'PROCEED DOWN THE HALLWAY',
     advance: { kind: 'reached', need: 'secondRun' },
-    grants: {}, divider: true,
+    grants: { way: true }, divider: true,
     cues: [
       { text: 'DRAG TO MOVE', slot: 'left', arrow: 'none', hand: 'up',
         pulse: false, on: 'enter', off: 'advance' },
@@ -517,7 +536,12 @@ export const STEPS = [
     // comes into view, which is what makes it a place rather than an
     // announcement.
     advance: { kind: 'reached', need: 'finalRun' },
-    grants: {}, divider: false,
+    // THE DIVIDER BELONGS TO THE WORDS, not to a particular lesson. It names
+    // which half of the glass each instruction is about, so it has to be
+    // there for as long as DRAG TO MOVE and DRAG TO LOOK are — and this step
+    // shows both of them while having switched it off, so the line vanished
+    // under the player mid-corridor for no reason they could see.
+    grants: { way: true }, divider: true,
     cues: [
       { text: 'DRAG TO MOVE', slot: 'left', arrow: 'none', hand: 'up',
         pulse: false, on: 'enter', off: 'advance' },

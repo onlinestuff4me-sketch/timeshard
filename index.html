@@ -74,7 +74,19 @@
               bottom:calc(env(safe-area-inset-bottom, 0px) + 19vh);
               width:104px; height:104px; perspective:300px;
               display:none; opacity:0; transition:opacity .45s ease;
-              pointer-events:none; z-index:7; }
+              /* ABOVE THE DIVIDER, not under it. `#tutor` is a sibling inside
+                 `#hud` at z-index 11 and carries the dotted centre line, so at
+                 7 the needle was drawn behind it and the line ran straight
+                 through the mark. */
+              pointer-events:none; z-index:12; }
+  /* ...AND OUT OF THE GUN'S WAY ONCE THERE IS A GUN. Measured on a 402x874
+     frame, inside the needle's own column strip: the viewmodel's dark mass
+     starts at 50% of the height and is solid from 71%, so the low seat it uses
+     during the walking lessons — when no gun is drawn — sits right on top of
+     it. Above the fold there is only the score line, which ends around 40 px,
+     and the banner does not start until 273. */
+  body.armed #wayarrow { bottom:auto;
+              top:calc(env(safe-area-inset-top, 0px) + 58px); }
   #wayarrow.on { display:block; opacity:1; }
   #wayarrow i { position:absolute; inset:0; display:block; will-change:transform; }
   /* head and shaft, drawn as one needle in the game's red, wearing the HUD's
