@@ -172,9 +172,22 @@
      so the one number telling you whether you can shoot was the one thing on
      the screen you could not read. Down here it shares the row with the pause
      glyph, clear of the model and clear of the reload bar below it. */
+  /* THE READOUT ARRIVES AFTER THE GUN. Both are switched on by the same
+     lesson, and the HUD is a DOM node while the viewmodel has to be raised
+     into frame — so the words and the cartridges appeared first, labelling a
+     weapon that was not there yet. `body.armed` follows `gun.visible`, and the
+     delay lets the pistol get on screen before anything names it. */
   #ammo { position:absolute; left:0; right:0; bottom:calc(env(safe-area-inset-bottom, 0px) + 18px);
           text-align:center; font-size:13px; font-weight:900; letter-spacing:.26em; color:#16181d;
+          opacity:0;
           text-shadow:0 1px 10px rgba(238,240,243,.9), 0 0 2px rgba(238,240,243,.75); }
+  /* AN ANIMATION, NOT A TRANSITION. The readout is switched on with `display`,
+     and an element coming out of `display:none` does not transition — the new
+     value is simply where it starts, so a delayed fade never ran and the words
+     appeared with the gun instead of after it. A keyframe with `both` holds it
+     at nothing through the delay and lands it at full. */
+  body.armed #ammo { animation:ammoin .5s ease .42s both; }
+  @keyframes ammoin { from { opacity:0 } to { opacity:1 } }
   #ammo.shotgun { color:#ff2d1a; }
   /* A CARTRIDGE, not a bar-chart block: a case with a nose on it. Drawn in
      `currentColor` so it flips light with the rest of the HUD in bullet time,
@@ -450,6 +463,13 @@
      slot used to swap their words between two frames; this is the outgoing
      half, kept short so the new line is not late. After `.show` on purpose —
      same specificity, so the later rule wins. See SLOT_SWAP_MS in main.js. */
+  /* A RETIRED LINE LEAVES AT THE PACE OF THE THING IT WAS ABOUT. DODGE THE
+     BULLET goes when the player steps aside, which is when the freeze starts
+     fading — and the grade takes about eight tenths of a second to go, so the
+     words taking a third of one read as being snatched away. Same reason as
+     `swapout` for killing the animation: a pulse would hold the opacity up. */
+  .tslot.fadeout { opacity:0; animation:none !important;
+                   transition:opacity .58s ease; }
   .tslot.swapout { opacity:0; transform:translateY(3px);
                    /* AND THE PULSE HAS TO STOP FOR IT. A running animation
                       beats a transition on the same property, and the outgoing

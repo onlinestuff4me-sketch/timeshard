@@ -7162,12 +7162,24 @@ const tutorFreeIsFree = () => tutorStep !== null && !tutorMay('bank');
 // beat that most wants to feel like it is easing in. The old line dips out
 // first, then the new one arrives on its own fade.
 const SLOT_SWAP_MS = 190;   // ...matching `.tslot.swapout` in index.html
+const SLOT_FADE_MS = 620;   // ...and `.tslot.fadeout`, which leaves with the grade
 function tutorSlot(slot, html, pulse) {
   const n = el.tslot && el.tslot[slot];
   if (!n) return;
   if (!html) {
     if (n._swap) { clearTimeout(n._swap); n._swap = 0; }
     n._want = '';
+    // A RETIRED LINE FADES OUT, IT DOES NOT VANISH. Clearing `innerHTML` here
+    // took the words off the glass on that frame and left an empty box to
+    // fade, so DODGE THE BULLET disappeared the instant its beat ended while
+    // the freeze it belongs to was still visibly going. It fades over the
+    // same sort of window the grade does, and the content goes when it has.
+    if (n.classList.contains('show') && n.innerHTML) {
+      n.className = `tslot ${slot} fadeout`;
+      n._swap = setTimeout(() => { n._swap = 0; if (n._want) return;
+        n.className = `tslot ${slot}`; n.innerHTML = ''; }, SLOT_FADE_MS);
+      return;
+    }
     n.className = `tslot ${slot}`; n.innerHTML = '';
     return;
   }
@@ -11919,7 +11931,13 @@ function frame(now) {
   // playtest recording: black at 0.33 s, still black at 0.38, white at 0.43.
   // The onboarding's hold is known on its first frame, so the words come up
   // already the colour they are going to be.
-  document.body.classList.toggle('slowmo', playing && (timeScale < 0.55 || tutorWorldHeld));
+  // ...AND IT LEAVES WITH THE EFFECT, not ahead of it. On the way out the
+  // clock snaps back at TIME_EASE while the grade and the bars fade over half
+  // a second, so a palette keyed on the clock alone turned everything on
+  // screen dark while the freeze was visibly still going. `slowLook` is the
+  // effect itself; the palette rides it out.
+  document.body.classList.toggle('slowmo',
+    playing && (tutorWorldHeld || slowLook > 0.3 || timeScale < 0.55));
   document.body.classList.toggle('inmenu', game.state === 'menu');
   if (game.state === 'menu') updateShimmer(now / 1000);
   sfx.update(playing || game.state === 'clear' ? timeScale : 1, dt);

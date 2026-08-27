@@ -34,7 +34,7 @@ export const TUTOR = {
   // Two cells nearer is 24 m: still a walk, still small and far off when they
   // turn the corner and see it, which is what makes it a place rather than an
   // announcement. (Two cells flat measured 8 m, which is not a walk at all.)
-  barrierCells: 6,      // cells from the last corner to the barrier
+  barrierCells: 5,      // cells from the last corner to the barrier
   barrierH: 1.05,       // low enough to see and shoot over
   standWithin: 2.6,     // metres from the barrier that counts as standing at it
   // FOUR, NOT FIVE. At five the gunner stood twenty metres past the barrier,
@@ -211,14 +211,29 @@ export const TUTOR = {
 // straight the barrier stands in. The fork went with the third: a second route
 // that rejoins is one more thing to notice, and lessons 1-3 are about the two
 // thumbs and nothing else.
+// LEFT FIRST, AND SHORTER. A lateral run is TWO turns to the person walking it
+// — one into it and one back onto the axis — so `['r', 3]` between two forward
+// runs reads as "left, then right", and two of them is four turns.
+//
+// FOUR IS THE FLOOR, not a choice. An odd number needs the leg to FINISH on a
+// lateral run, and the barrier cannot live on one: it is placed at a grid ROW
+// and spans that row's width (see the placement in main.js), so a leg ending
+// sideways puts the slab off the floor entirely — measured, at (12, 64) with
+// no floor under it. The sign, the gunner's cells and the dodge lane make the
+// same assumption. Three walking lessons also need three distinct end marks,
+// and one jog cannot supply them. So: two jogs, both turning LEFT first, on
+// the shortest runs that still leave room to walk.
+//
+// (The move letters do not match the turn the player feels. Measured off the
+// build, `['r', N]` swings the camera +90 degrees, which is a LEFT turn in the
+// yaw convention the whole HUD uses. The names say which way the corridor
+// steps in the grid, not which way the head goes.)
 const TEACH_MOVES = [
-  ['f', 6],    // 1. MOVE — dead straight, nothing else on screen
-  ['l', 3],    // 2. LOOK — the corner they have to turn their head round
-  ['f', 4],
-  ['l', 3],    // 3. and once more, so the habit is not a one-off
-  // ...and one straight for everything that happens standing still: the
-  // barrier two cells along it, the gunner four past that, and the door.
-  ['f', 15],   // 4-9. the barrier, the dodging, the shooting, the door
+  ['f', 5],    // 1. MOVE — dead straight, nothing else on screen
+  ['r', 3],    // 2. LOOK — turn left, and back right onto the axis
+  ['f', 3],
+  ['r', 3],    // 3. and once more, so the habit is not a one-off
+  ['f', 13],   // 4-9. the barrier, the dodging, the shooting, the door
 ];
 // --- marks: named cells on the walked path ---------------------------------
 // DERIVED, NEVER TYPED. A mark is a place in the lesson — "the first corner",
@@ -231,6 +246,17 @@ const TEACH_MOVES = [
 //
 // So they are computed from the plan, every load, for every leg — which means
 // a path edit cannot strand them and the tool needs no control for them.
+// Where the path last changes direction, as a spine index. For a leg that
+// ends on a straight this is the end of the last lateral run; for one that
+// ends going sideways it is where that run begins.
+function lastTurnAt(runs) {
+  let at = 0;
+  for (let i = 1; i < runs.length; i++) {
+    if (runs[i].dir !== runs[i - 1].dir) at = runs[i - 1].at;
+  }
+  return at;
+}
+
 export function marksFromPlan(plan) {
   const moves = (plan && plan.moves) || [];
   let n = 0;
@@ -253,10 +279,22 @@ export function marksFromPlan(plan) {
     // needle then turns under them in the direction they are asking for.
     firstCornerLead: fwd.length ? Math.max(1, fwd[0].at - TUTOR.lookLeadCells) : n,
     secondRun: fwd.length > 1 ? fwd[1].at : n,        // ...and of the next one
-    // THE LAST CORNER. Everything past it is one straight run to the door, so
-    // it is where the barrier first comes into view — and therefore where the
-    // STAND HERE sign is allowed to appear, small, in the distance.
-    finalRun: turns.length ? turns[turns.length - 1].at : 0,
+    // WHERE THE FIRST JOG PUTS THEM BACK ON THE AXIS. The looking lesson used
+    // to end at the second forward run, which on a leg with only two of them
+    // is the SAME CELL as the last corner — so `corners` would have had no
+    // length at all and would have ended on the frame `look` began. Coming out
+    // of the first corner is its own moment and does not collide with
+    // anything.
+    firstJogEnd: runs.length > 1 ? runs[1].at : n,
+    // THE LAST CORNER — the last place the path CHANGES DIRECTION, which is
+    // not the same as the end of the last lateral run. A leg that finishes
+    // going sideways (the teaching leg does now: its last move is the run the
+    // barrier stands in) has its final corner at the START of that run, and
+    // reading the end of it put the barrier past the end of the corridor.
+    // Everything past this point is one straight run to the door, so it is
+    // where the barrier first comes into view — and therefore where the STAND
+    // HERE sign is allowed to appear, small, in the distance.
+    finalRun: lastTurnAt(runs),
     forkEnd: n,   // ...the end of the walk, unless a side lane rejoins sooner
     // WHERE THE BARRIER STANDS. The onboarding's leg ends in a fork, and the
     // barrier belongs just past where it rejoins — so `forkEnd` was the
@@ -511,9 +549,15 @@ const REMIND_SHOOT = () => [{
 // moving. Same words, same swipe and same divider as lesson 5, because it IS
 // lesson 5 — recognising it is the point. `once` per area: the rescue fires
 // at most one round per room, and answering it retires the prompt there.
+// ...AND IT LEAVES WHEN THE PLAYER ACTS, not when the round finally passes.
+// `dodge` fires when the bullet is behind them, which at resumed speed is a
+// second and a half after the freeze has faded out — so the words sat there
+// over an ordinary corridor, black, long after the thing they were about had
+// finished. `freeze` is the frame they step aside, which is the frame the
+// effect starts going.
 const REMIND_DODGE = () => [{
   text: 'DODGE THE BULLET', slot: 'mid', arrow: 'none', hand: 'sway',
-  pulse: false, on: 'held', off: 'dodge', once: true, divider: true,
+  pulse: false, on: 'held', off: 'freeze', once: true, divider: true,
 }];
 
 export const STEPS = [
@@ -541,7 +585,7 @@ export const STEPS = [
   {
     id: 'look', label: '2 · Look',
     hud: 'PROCEED DOWN THE HALLWAY',
-    advance: { kind: 'reached', need: 'secondRun' },
+    advance: { kind: 'reached', need: 'firstJogEnd' },
     grants: { way: true }, divider: true,
     cues: [
       { text: 'DRAG TO MOVE', slot: 'left', arrow: 'none', hand: 'up',
@@ -622,7 +666,7 @@ export const STEPS = [
     // at the barrier saw a dotted line down the middle of an empty corridor.
     // It comes and goes with the words now, which is when it means something.
     cues: [{ text: 'DODGE THE BULLET', slot: 'mid', arrow: 'none', hand: 'sway',
-      pulse: false, on: 'held', off: 'dodge', divider: true }],
+      pulse: false, on: 'held', off: 'freeze', divider: true }],
   },
   // --- 6. THE GUN, AND THE OTHER TWO --------------------------------------
   // The squad arrives and the weapon comes up on the same beat as the words

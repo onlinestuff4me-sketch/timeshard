@@ -434,6 +434,59 @@ it, and the door 22 m past them.
 > was itself well down the straight. Six is what "a couple of cells nearer"
 > actually means now.
 
+## Three from the third dodge playtest
+
+**The DODGE line was cleared, not faded.** Two separate things: its beat ran
+long, and its retirement was instant. `off: 'dodge'` fires when the round is
+BEHIND the player — at resumed speed, a second and a half after the freeze has
+finished fading — so the words sat over an ordinary corridor going black as
+the palette dropped. It leaves on `freeze` now, which is the frame the player
+steps aside. And `tutorSlot(slot, null)` cleared `innerHTML` on the spot, so
+what faded was an empty box: a retired line gets `.tslot.fadeout` and its
+content goes only when the fade has. Measured from the release: the words fade
+1 → 0.93 → 0.77 → 0.57 → 0.40 → 0.24 → 0.09 → 0 by frame 16, the grade reaches
+zero at 21, and **0 frames** have the words legible and dark with the effect
+gone. The palette also rides the effect out now (`slowLook > 0.3`) rather than
+snapping back when the clock crosses 0.55.
+
+**The readout arrives after the pistol.** Both are switched on by the same
+lesson, but the HUD is a DOM node and the viewmodel has to be raised into
+frame, so PISTOL and its cartridges appeared first, labelling a weapon that
+was not there. The gun is visible at frame 0 and the readout passes half
+opacity at frame 14 now.
+
+> It had to be an ANIMATION, not a transition. `#ammo` is switched on with
+> `display`, and an element coming out of `display:none` does not transition —
+> the new value is simply where it starts. A delayed fade did nothing at all;
+> a keyframe with `both` holds it at nothing through the delay.
+
+**The teaching leg turns LEFT first, and is shorter again.**
+
+| | two builds ago | last build | now |
+|---|---|---|---|
+| direction changes | 6 | 4 | 4 |
+| first turn | right | right | **left** |
+| walk to the barrier | 108 m | 88 m | **76 m** |
+| whole path | 148 m | 124 m | 108 m |
+
+> **Four turns is a floor, not a choice** — worth knowing before anybody tries
+> for three again. An odd number needs the leg to FINISH on a lateral run, and
+> the barrier cannot live on one: it is placed at a grid ROW and spans that
+> row's width, so a leg ending sideways puts the slab off the floor entirely
+> (measured, at (12, 64) with nothing under it). The sign, the gunner's cells
+> and the dodge lane make the same +z assumption. Three walking lessons also
+> need three distinct end marks, and one jog cannot supply them.
+
+> **The move letters do not match the turn the player feels.** Measured off the
+> build, `['r', N]` swings the camera +90 degrees, which is a LEFT turn in the
+> yaw convention the whole HUD uses. They say which way the corridor steps in
+> the grid, not which way the head goes.
+
+`marksFromPlan` gained `firstJogEnd` (the looking lesson ends there — on a leg
+with only two forward runs, `secondRun` is the SAME CELL as the last corner
+and `corners` would have had no length), and `finalRun` is now the last place
+the path changes direction rather than the end of the last lateral run.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
