@@ -6558,6 +6558,10 @@ function composeWave(n) {
 }
 
 let timeScale = 1;
+// The bullet-time LOOK, 0..1, eased off timeScale — see VIS.slowLookOn.
+// `slowLookDrawn` is the last value written to the DOM, so a still frame
+// writes nothing.
+let slowLook = 0, slowLookDrawn = -1;
 
 // --- time-control mode: 'classic' (hold to slow) or 'toggle' (button locks it)
 let timeMode = 'toggle';   // button mode is the default
@@ -8663,6 +8667,8 @@ const el = {
   tint: document.getElementById('tint'),
   redflash: document.getElementById('redflash'),
   crosshair: document.getElementById('crosshair'),
+  lbtop: document.getElementById('lbtop'),
+  lbbot: document.getElementById('lbbot'),
   wayarrow: document.getElementById('wayarrow'),
   ammo: document.getElementById('ammo'),
   stickBase: document.getElementById('stickbase'),
@@ -11381,12 +11387,22 @@ function frame(now) {
   }
   if (game.state === 'dead') target = 0.12;
   if (game.state === 'menu') target = 0.5;   // dreamy half-speed attract mode
+  // THE ONBOARDING'S FREEZE IS A TARGET, NOT A CORRECTION APPLIED AFTER ONE.
+  // Easing toward zero AFTER the ordinary ease had already pulled toward full
+  // speed sets the two against each other, and they settle at whatever the two
+  // rates balance at — measured, the clock stuck at 0.57 and stayed there, so
+  // the world never actually stopped. It owns the target and the rate.
+  if (tutorWorldHeld) { target = 0; timeEase = TUTOR.holdEase; }
   timeScale += (target - timeScale) * Math.min(dt * timeEase, 1);
-  // THE ONBOARDING'S HARD FREEZE. Snapped rather than eased, and applied after
-  // the ease so nothing creeps: the arm stops mid-raise and the world waits.
-  // The player's own controls keep working — they can look around at the man
-  // about to shoot them, which is rather the point.
-  if (tutorWorldHeld) timeScale = 0;
+  // THE ONBOARDING'S FREEZE. Applied after the ordinary ease, so this is the
+  // one that wins — but EASED rather than snapped. It used to set the clock to
+  // zero on a single frame, and the bullet-time zoom is read straight off
+  // `timeScale`, so the lesson opened with the world, the colour and the lens
+  // all jolting at once. It settles now, and then clamps to a true zero so
+  // nothing creeps while the player reads the prompt. Their own controls keep
+  // working throughout — they can look around at the man about to shoot them,
+  // which is rather the point.
+  if (tutorWorldHeld && timeScale < 0.004) timeScale = 0;   // ...and it does stop
   const sdt = dt * timeScale;   // scaled dt: the world's clock
   worldT += sdt;                // ...and its running total, for world-time gaps
 
@@ -11824,6 +11840,28 @@ function frame(now) {
         ? `WAVE ${game.wave}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`
         : `WAVE ${game.wave}${SEP}${game.kills}`;
   el.tint.style.opacity = playing ? (1 - timeScale / TIME_FULL) : 0;
+  // HOW MUCH THE WORLD LOOKS STOPPED, as a ramp rather than a switch. See
+  // VIS.slowLookOn. The class below still drives the HUD's colour flip, which
+  // is a palette and reads better decided than dissolved; the grade and the
+  // letterbox come off this instead, so they slide.
+  const wantLook = playing
+    ? Math.min(1, Math.max(0, (VIS.slowLookOn - timeScale) / VIS.slowLookSpan)) : 0;
+  slowLook += (wantLook - slowLook) * Math.min(dt * VIS.slowLookEase, 1);
+  if (slowLook < 0.002) slowLook = 0;
+  if (Math.abs(slowLook - slowLookDrawn) > 0.002 || (slowLook === 0 && slowLookDrawn !== 0)) {
+    slowLookDrawn = slowLook;
+    const k = slowLook;
+    // NOTHING AT ALL AT REST. A full-screen filter costs a compositor pass
+    // every frame on a phone, so at zero the property is removed rather than
+    // set to an identity that still makes the browser do the work.
+    renderer.domElement.style.filter = k === 0 ? ''
+      : `saturate(${(1 - 0.5 * k).toFixed(3)}) contrast(${(1 + 0.12 * k).toFixed(3)})`
+        + ` sepia(${(0.35 * k).toFixed(3)}) hue-rotate(${(-28 * k).toFixed(1)}deg)`
+        + ` invert(${(0.06 * k).toFixed(3)})`;
+    const bar = `scaleY(${(1.4 * k).toFixed(3)})`;
+    if (el.lbtop) el.lbtop.style.transform = bar;
+    if (el.lbbot) el.lbbot.style.transform = bar;
+  }
   document.body.classList.toggle('slowmo', playing && timeScale < 0.55);
   document.body.classList.toggle('inmenu', game.state === 'menu');
   if (game.state === 'menu') updateShimmer(now / 1000);
@@ -11904,6 +11942,10 @@ window.__ts = {
       stretches: (L.stretches || []).map((s) => ({ z0: s.z0, z1: s.z1, n: s.cells.length })),
       doorZ: L.door.z };
   },
+  slowLook: () => ({ look: +slowLook.toFixed(3), scale: +timeScale.toFixed(4),
+    held: tutorWorldHeld, fov: +camera.fov.toFixed(2),
+    filter: renderer.domElement.style.filter,
+    bar: el.lbtop ? el.lbtop.style.transform : null }),
   fx: () => ({ on: fxOn, slowT: +fxSlowT.toFixed(2),
     active: fxQuads.filter((q) => q.visible).length }),
   setFx: (v) => { fxOn = !!v; fxSlowT = 0; },

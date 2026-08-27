@@ -60,6 +60,17 @@ export const TUTOR = {
   // than "this bullet". Clear of him, it is unmistakably a separate thing
   // hanging in the air, with eight metres still to come.
   freezeAfter: 0.45,    // of the way from the muzzle to the player
+  // ...AND IT SETTLES INTO THE STOP RATHER THAN HITTING IT. The freeze used
+  // to set the world's clock to zero on one frame, which took the bullet-time
+  // zoom with it — the FOV is read straight off `timeScale` — so the lesson
+  // opened with a jolt. Eased to a standstill over about half a second, and
+  // then clamped to a true zero so nothing creeps while the player reads the
+  // prompt. The round keeps travelling while it slows; see the harness note
+  // on where it ends up.
+  // 4/s: nine tenths of the way to a standstill in 0.58 s and a true zero by
+  // about 1.2, against the single frame it used to take. Slower than this and
+  // the stop stops reading as a stop; faster and the lens snap comes back.
+  holdEase: 4,          // 1/s toward a dead stop once the freeze is called
   // ...and once they let it go, it travels at a pace a person can read. The
   // ordinary rule is that time moves when YOU move (0.05 standing still), and
   // at that rate a round twelve metres out takes half a minute to arrive: on
@@ -360,7 +371,14 @@ export const LEGS = [
   // and a player who steps sideways to a column has put it between themselves
   // and the man shooting at them.
   { id: 'room1', form: 'vault', kind: 'room', note: '12. Three in a room with pillars.',
-    plan: { moves: [['f', 10]], extra: room(1, 1, 8), approach: 3,
+    // ...AND THE ROOM IS ALREADY WIDE AT THE DOOR. It used to start widening
+    // one cell IN, which leaves a stub of wall jutting out either side of the
+    // entrance: the player walks in through a one-cell slot, and the first
+    // thing they try — step aside, out of the line of the round — is the one
+    // thing that slot will not let them do. Widened from the entry row, so the
+    // wall they come through is flat and sidestepping works from the first
+    // frame in the room.
+    plan: { moves: [['f', 10]], extra: room(1, 0, 8), approach: 3,
       pillars: [[-0.85, 1.5], [0.85, 1.5], [-0.85, 2.75], [0.85, 2.75]] },
     enemies: [{ x: -1.05, z: 5.5, type: 'gunner' }, { x: 1.05, z: 5.5, type: 'gunner' },
       { x: 0, z: 6.5, type: 'gunner' }], fireOrder: 'turns' },

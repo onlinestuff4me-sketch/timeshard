@@ -543,6 +543,24 @@ export const LEG = {
 // CONTACT -- one fog-exempt pinprick at head height that gives you a bearing
 // and nothing else: not what they are, not how far, not where the head is.
 export const VIS = {
+  // ---------------------------------------------------------------------
+  // HOW FAST THE WORLD *LOOKS* LIKE IT HAS STOPPED.
+  //
+  // Bullet time used to arrive as a switch: `body.slowmo` toggles the moment
+  // `timeScale` crosses 0.55, and everything hanging off it — the canvas
+  // colour grade, the letterbox bars — changed on that one frame. The zoom
+  // was worse, because the FOV is read straight off `timeScale`, which the
+  // onboarding's hard freeze SNAPPED to zero. So the dodge lesson landed as a
+  // jolt: colour, bars, zoom and the world all stopping inside a frame.
+  //
+  // The look is a ramp now. `slowLookOn` is the timeScale the grade starts
+  // coming in at and `slowLookSpan` how much further it takes to reach full,
+  // and the whole thing is then eased at `slowLookEase` so it stays smooth
+  // even when timeScale itself moves quickly.
+  slowLookOn: 0.75,
+  slowLookSpan: 0.55,
+  slowLookEase: 4,
+
   hallNear: 14, hallFar: 55,     // the ordinary corridor
 
   // FOG. Close enough to be on you. The freeze does not lift it -- it bores a

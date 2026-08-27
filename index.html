@@ -21,7 +21,12 @@
   canvas { display:block; transition:filter .28s ease; }
   /* bullet time reads as its own world: drained color pushed warm-red with a
      hint of negative — like the air itself changed */
-  body.slowmo #game canvas { filter:saturate(.5) contrast(1.12) sepia(.35) hue-rotate(-28deg) invert(.06); }
+  /* THE BULLET-TIME GRADE IS DRIVEN FROM JS, not from this class. It used to
+     be `body.slowmo #game canvas { filter:... }`, which snapped on the one
+     frame timeScale crossed 0.55. It is a ramp now — see VIS.slowLookOn — and
+     at rest the property is removed entirely rather than set to an identity,
+     because a full-screen filter costs a compositor pass on a phone whether
+     or not it changes anything. */
   /* ...but not when a condition's own reveal is up. This filter is a sepia
      hue-rotate: it desaturated the night-vision phosphor by half and dragged
      it 28 degrees toward red, and it turned a cold grey fog wash salmon. The
@@ -29,16 +34,23 @@
   body.grading #game canvas { filter:none; }
 
   /* cinematic letterbox bars that slide in during bullet time */
+  /* ...and so are the bars. A .3s CSS transition off the same threshold made
+     them start late and arrive in a rush; they now follow the same eased ramp
+     the grade does, written per frame, so there is no transition here to lag
+     behind it. */
   .lbar { position:fixed; left:0; right:0; height:7vh; background:#0c0d10; z-index:5;
-          transform:scaleY(0); transition:transform .3s ease; pointer-events:none; }
+          transform:scaleY(0); pointer-events:none; }
   #lbtop { top:0; transform-origin:top; }
   #lbbot { bottom:0; transform-origin:bottom; }
-  body.slowmo .lbar { transform:scaleY(1.4); }   /* heavier vignette in bullet time */
 
   /* ---- HUD ---- */
   #hud { position:fixed; inset:0; pointer-events:none; z-index:7;
          padding:calc(env(safe-area-inset-top, 0px) + 10px) 14px calc(env(safe-area-inset-bottom, 0px) + 12px); }
   /* HUD text sits on the letterbox bars in bullet time — flip it light */
+  /* The HUD's palette still flips on the class — a readout is better decided
+     than dissolved — but it eases across rather than cutting, so it lands with
+     the grade instead of ahead of it. */
+  #topbar, #ammo, #score { transition:color .45s ease; }
   body.slowmo #topbar, body.slowmo #ammo { color:#eef0f3; }
   body.slowmo #ammo.shotgun { color:#ff5d4a; }
   body.inmenu #hud { opacity:0; }
@@ -73,7 +85,15 @@
   #wayarrow { position:absolute; left:50%; margin-left:-52px;
               bottom:calc(env(safe-area-inset-bottom, 0px) + 19vh);
               width:104px; height:104px; perspective:300px;
-              display:none; opacity:0; transition:opacity .45s ease;
+              /* IT FADES, BOTH WAYS. `display:none` cut it out of the frame
+                 the instant the class went, so the opacity transition below
+                 never ran once — and STAND HERE arriving took the needle with
+                 it in a single frame, which reads as a glitch rather than a
+                 hand-off. `visibility` is transitionable at a delay, so the
+                 mark stays painted for the length of the fade and only then
+                 stops taking part in layout. */
+              opacity:0; visibility:hidden;
+              transition:opacity .55s ease, visibility 0s linear .55s;
               /* ABOVE THE DIVIDER, not under it. `#tutor` is a sibling inside
                  `#hud` at z-index 11 and carries the dotted centre line, so at
                  7 the needle was drawn behind it and the line ran straight
@@ -87,7 +107,8 @@
      and the banner does not start until 273. */
   body.armed #wayarrow { bottom:auto;
               top:calc(env(safe-area-inset-top, 0px) + 58px); }
-  #wayarrow.on { display:block; opacity:1; }
+  #wayarrow.on { opacity:1; visibility:visible;
+              transition:opacity .4s ease, visibility 0s linear 0s; }
   #wayarrow i { position:absolute; inset:0; display:block; will-change:transform; }
   /* head and shaft, drawn as one needle in the game's red, wearing the HUD's
      own halo so it survives a light floor the way the readout does */

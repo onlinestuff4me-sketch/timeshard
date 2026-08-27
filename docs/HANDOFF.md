@@ -301,6 +301,55 @@ but "is this hall the menu's": `hall.forMenu`. Measured after dying at door
 fighting, and a frame whose mean and spread match a first load (196/38.1
 against 200/37.9).
 
+## The dodge freeze, and two more from the same play
+
+**The needle fades now instead of being cut.** `#wayarrow` used `display:none`
+for its off state, so the opacity transition beside it had never run once —
+the element left layout on the frame the class went. `visibility` with a
+delayed transition keeps it painted for the length of the fade: measured
+through the hand-off to STAND HERE, opacity 1 → 0.87 → 0.42 → 0.16 → 0.05 → 0
+over 0.60 s, nine frames caught mid-fade.
+
+**The room's entrance is flat.** It widened one cell IN, leaving a stub of
+wall either side of the door: the player walks in through a one-cell slot and
+the first thing anybody tries — step aside, out of the line of the round — is
+the one thing that slot will not let them do. `room(1, 0, 8)` instead of
+`room(1, 1, 8)`. Measured standing in the doorway: 6 m of floor to the left
+and 6 m to the right (was 1.7). Cover from the two flanking men is now **1.5 m
+away** — one sidestep — and from the third 3.8 m, and the probe confirms the
+thing doing the blocking is a COLUMN in every case, not a wall.
+
+**The freeze settles instead of hitting.** Four things arrive when the lesson
+stops the world: the clock, the zoom (read straight off the clock), the colour
+grade and the letterbox bars. All four used to land inside a frame or two.
+
+| | live before | now |
+|---|---|---|
+| clock to a dead stop | 0.05 s | 1.27 s |
+| peak lens change | **291 deg/s** | **68** |
+| peak grade change | 3.4 /s | 1.0 |
+| peak bar change | 9.6 scaleY/s | 3.4 |
+| 90% of the zoom | 0.05 s | 0.53 s |
+| 90% of the grade | 0.32 s | 1.02 s |
+| 90% of the bars | 0.32 s | 0.72 s |
+| the round when the clock stops | 47% of its flight, 9.09 m to go | 53%, 8.08 m |
+
+Three separate causes:
+
+* **The hold snapped.** `if (tutorWorldHeld) timeScale = 0` — one frame, and
+  the FOV follows `timeScale`, so the lens snapped 14 degrees with it.
+* **It has to BE the target, not a correction after one.** The first attempt
+  eased toward zero *after* the ordinary ease had already pulled toward full
+  speed; the two rates balance and the clock stuck at **0.57 and stayed
+  there** — the world never stopped at all. `TUTOR.holdEase` owns the target
+  and the rate now.
+* **The grade and the bars hung off a class that flips at a threshold.**
+  `body.slowmo` toggles when `timeScale` crosses 0.55, and the canvas filter
+  and `.lbar` transform changed on that frame. Both come off a smooth scalar
+  now (`VIS.slowLookOn`), written per frame — and at rest the filter property
+  is REMOVED rather than set to an identity, because a full-screen filter
+  costs a compositor pass on a phone whether or not it changes anything.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
@@ -416,6 +465,15 @@ Traps that cost real time, all of them mine:
   halo, and a "is it red enough" threshold was a guess about the renderer.
   Screenshot with the thing on and off and count how many of the mark's own
   core pixels changed. Zero means it is on top.
+* **Two easings pulling opposite ways settle at an equilibrium, not at
+  either end.** A hold that eases toward zero AFTER the ordinary ease has
+  pulled toward full speed does not stop the world; it parks it at whatever
+  the two rates balance at. Measured 0.57, forever. Whatever wants to win has
+  to own the target, not correct it afterwards.
+* **Half a cell, not less.** Corridor cells are 4 m across, so an `onFloor`
+  test with a 1.7 m half-tolerance leaves a 0.6 m hole between every pair of
+  neighbours. A sidestep probe walked into one and reported a twelve-metre
+  room pinched to 1.5 m.
 * **"Not inside an obstacle" is not "on floor".** Everywhere outside the level
   passes that test, and out there a wall sits between you and everybody — so a
   cover probe happily reported perfect cover 6.5 m away, through the side of
