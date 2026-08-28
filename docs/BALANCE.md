@@ -617,7 +617,7 @@ in frame.
 | `runBase` / `runVar` | 3 + 0–2 cells | one stretch's straight, 12–20 m |
 | `runServiceRun` | 2 + 0–1 | a service run turns constantly |
 | `runGauntlet` | 6 + 0–3 | a gauntlet barely turns at all |
-| `approach` | 4 cells (16 m) | straight run in front of the door |
+| `approach` | 5 cells (20 m) | straight run in front of the door |
 | `vaultWide` / `vaultDeep` | 4 × 4 cells (16 × 16 m) | the vault room |
 | `vaultDoorW` | 2.6 m | its two framed doorways |
 | `vaultExitOffset` | 2 cells (8 m) | how far the exit sits off the entry line |

@@ -627,6 +627,64 @@ door. Re-measured:
 
 > Maps, plans and the full before/after are in the artifact **The First Five Doors**.
 
+## Two from the sixth playtest — spacing, and the door group
+
+**The door group was not a door group.** The last stretch of a leg is the
+approach, and its share is the group you fight with the door in frame. Measured
+over ten legs at doors 1-6: in **0 of 10** did the last man arrive after the
+door came into view, and the door comes into view about 30 m out. It now waits
+for the door — and getting there turned up four separate faults, each hidden
+behind the last.
+
+| | |
+|---|---|
+| the sight test was aimed at the door | The slab is an obstacle and stands in the doorway until the leg is clear, so a ray to the door's own position is blocked BY the door for the whole fight. It fired only after the door had opened. Aimed one cell short of the slab now: the floor the group stands on. |
+| the allowance counted the plan, not what was owed | `quota` never moves, so a stretch's share was granted again every time the window slid over it — the third release of a leg, with stretch 3 already standing there, took the only thing still owed: the door group. The window sums `fill` now. |
+| the stall watchdog called it early | 4.5 s of quiet is shorter than the walk from the last man to the last corner. It stands down while the only unspent share is the approach's and the door is not yet seen. |
+| the approach was 16 m | The player first sees the door from the near end of it, which is the frame the group is released on, and `EARLY.firstSightM` wants 13 m of clear ground. `LEG.approach` is 5 cells. |
+
+Result, 16 legs: **16 of 16** have the last man appear after the door is in
+view, +7 to +10 m after it, with the player 32-35 m from the door.
+
+**Half of every leg was empty and the rest were doubled up.** The quotas were
+already spread evenly — the *placement* threw that away. The pool was "the
+stretch the player is in, plus one", so a body funded by stretch 2 was placed
+in stretch 5, because stretch 5 is where the player had walked to by the time
+the allowance let it out.
+
+| | before | after |
+|---|---|---|
+| a leg's stretches with nobody in them | 50% | **35%** |
+| stretches holding two or more | 8 in 10 legs | **1 in 16** |
+| men arriving within 6 m of the one before | 4 | **1** |
+| first-sight refusals | 12 in 10 legs | **1 in 16** |
+
+`L.fill` is what each stretch still owes; a release takes the first stretch at
+or ahead of the player that still owes one, and stands the body there. Three
+rules make it hold:
+
+> **What is behind you is spent, and its body is dropped with it.** Every
+> candidate in a stretch the player has finished walking fails the "never
+> behind you" test, so the release burned forty tries and refused, over and
+> over — 78 refusals in one leg. Carrying the body forward instead is no
+> better: that is how one room ends up with two men while the room before had
+> none. A leg you outrun is a quieter leg.
+
+> **The spread starts at the SECOND stretch.** The opener comes out on arrival
+> and the first-sight floor puts him a stretch ahead, so nothing can ever stand
+> in the first one.
+
+> **The remainder layers instead of piling.** `per` is 1 outside the slow-time
+> school, so door 7's five-man leg with three rooms came out `[0,1,3,1]` — the
+> loaded leg the playtest objected to. Raising the cap a layer at a time gives
+> `[0,2,2,1]`.
+
+> **A leg that owes nothing has an empty queue.** Found while chasing the last
+> two stuck legs and it was real, not the harness: the player standing 1.5 m
+> from the slab, nobody alive, every share spent, and one body still queued —
+> and the door waits on an empty queue. 28 legs over doors 1-8 since: no leg
+> failed to open its door.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
@@ -649,23 +707,30 @@ door. Re-measured:
    `RAMP.aimRange` is the knob; steepen it before touching `aimBase`. The
    regenerated table in docs/BALANCE.md now shows the real telegraph scale
    per door, which it did not when it was full of `NaN`.
-5. **The opening density is a proposal with two runs behind it.** 3 men per
+5. **35% of a leg's stretches still hold nobody**, and that is arithmetic
+   rather than a fault: three or four men cannot occupy six rooms. If it still
+   reads thin the lever is `OPENING.perLegFrom`, not the spread — the spread is
+   now provably even, and the occupancy matches the quota leg for leg.
+6. **serviceRun legs defeat the harness walker**, not the game. Their branch
+   lanes make the spine-follower oscillate — 280-300 m walked on a 120 m leg.
+   It predates all of this; a probe that reports one STUCK is usually reporting
+   that, and `door.open`/`queue`/`fill` in the STUCK line say which.
+7. **The opening density is a proposal with two runs behind it.** 3 men per
    corridor at door 1 rising to 6 by door 10 has been measured, not felt. The
    dials are `OPENING.perLegFrom` / `perLegEvery` / `perLegCap` and they are
    independent of `aliveEvery`, so "meet more people" and "fight more people at
    once" can be tuned apart. Watch the ammo economy too: three times the bodies
    is three times the clips, and the drop curve was written for the old count.
-6. **The last stretch before a door still runs quiet.** The group reserved for
-   the approach is released early by the stall watchdog, so doors 3 and 4 came
-   out flat on the empty-run column even as their body counts rose. That group
-   is a deliberate payoff — fight it with the door in frame — so it wants a
-   playtest before anybody moves it.
-7. **Ten metres of tail is a guess with a measurement behind it, not a
+8. **The door group now arrives 7-10 m after the door comes into view**, with
+   the player 32-35 m out. That is measured, not felt: nobody has walked into
+   one yet. If it lands too early the dial is where the sight test aims (one
+   cell short of the slab); too late, and `LEG.approach` is the lever.
+9. **Ten metres of tail is a guess with a measurement behind it, not a
    measured answer.** 18 m read as too long; 10 m is two seconds and nobody has
    walked it yet. If it still reads as dead air the lever is the leg length in
    `LEGS` (6 / 8 / 9 cells), not the bodies — they were moved forward once
    already and are as close to the entrance as the sight lines allow.
-8. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
+10. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
    the player is through the near doorway. The stall watchdog arms them if
    nothing happens for `LEG.stallAfter`, but that path has never been seen
    in real play. `LEG.stallAfter` is 4.5 s, chosen from the shape of the

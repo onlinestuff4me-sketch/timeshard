@@ -2876,16 +2876,57 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     // ALWAYS true, `pool = L.approach` unconditionally, and every body in the
     // game was placed in the last four cells before the door no matter what
     // the quota said. Fixing the quota alone would have changed nothing.
-    const finK = playerStretch(L);
+    // WHICH STRETCH IS PAYING FOR THIS BODY — and therefore where he stands.
+    //
+    // The quota is dealt per stretch and that is the entire point of it. The
+    // pool, though, used to be "the stretch the player is in, plus one", so a
+    // body funded by stretch 2 was placed in stretch 5 — because stretch 5 is
+    // where the player had walked to by the time the allowance let it out.
+    // Measured over ten legs at doors 1-6 with the quotas already spread
+    // evenly: HALF of every leg's stretches still held nobody, eight stretches
+    // held two or three, and four pairs of men arrived within six metres of
+    // each other. The spacing was decided correctly and then thrown away here.
+    //
+    // `fill` is what each stretch still owes. A release takes the first
+    // stretch at or ahead of the player that still owes one — never one behind
+    // him, which would put a man in corridor he has finished walking.
     const finLast = (L.stretches ? L.stretches.length : 1) - 1;
-    const finale = !!(L.approach && L.approach.length
-      && finK + LEG.lookahead >= finLast);
+    // WHEN the approach's share comes out is hallAllowance's business — it
+    // withholds that stretch until the door is on screen. WHERE it goes is
+    // this, and it is always the approach: masking the stretch here as well
+    // meant a body released early by the stall watchdog took the last body
+    // stretch instead, spent nothing, and left the approach owing a man with
+    // an empty queue to fill it from. Measured: two legs in six never opened
+    // their door, after eighty refused placements each.
+    //
+    // AHEAD OF THE PLAYER BY PREFERENCE, because that is what the first-sight
+    // floor is asking for: a body owed by the stretch you are STANDING in is
+    // placed a few metres away with nowhere to back off to, and the rule then
+    // refuses him — measured, restricting the pool to the owed stretch alone
+    // and starting the scan at the player's own stretch produced eighty
+    // refusals in a single leg and a door that never opened.
+    let ownIx = -1;
+    if (L.fill && L.stretches) {
+      const here = Math.max(0, Math.min(playerStretch(L), finLast));
+      for (let i = Math.min(here + 1, finLast); i <= finLast; i++) {
+        if (L.fill[i] > 0) { ownIx = i; break; }
+      }
+      if (ownIx < 0 && L.fill[here] > 0) ownIx = here;
+      // Nothing at or ahead still owes — the watchdog has forced a body out
+      // with the plan already spent. It still has to stand somewhere in front
+      // of the player, so it overflows into the next stretch.
+      if (ownIx < 0) ownIx = Math.min(here + 1, finLast);
+    }
+    const finale = ownIx >= 0
+      ? !!(ownIx === finLast && L.approach && L.approach.length)
+      : !!(L.approach && L.approach.length && L.doorSeen
+        && playerStretch(L) + LEG.lookahead >= finLast);
     // Everyone else comes out of the stretch the player is walking THROUGH,
     // or the next one — never the whole remaining corridor. Bodies therefore
     // travel with you down the leg instead of accumulating in whatever is
     // still ahead, which is what stacked a whole wave in front of the door.
     const approachZ = L.approach && L.approach.length ? L.approach[0][1] * HALL.cell : 1e9;
-    let pool;
+    let pool, poolWide = null;
     // IS THIS THE ONE THE HEADLINE IS ABOUT? A leg reserves exactly one body
     // for its feature stretch (see hallWave) and this is the frame that body
     // is released on: the player has walked into the window that covers the
@@ -2893,8 +2934,8 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     // room's cells rather than the corridor's.
     const fsIx = L.featureStretch;
     if (!finale && fsIx >= 0 && L.stretches && fsIx < L.stretches.length
-      && L.quota && L.quota[fsIx] > 0 && !L.featureSent
-      && playerStretch(L) + LEG.lookahead >= fsIx) {
+      && !L.featureSent && (ownIx >= 0 ? ownIx === fsIx
+        : (L.quota && L.quota[fsIx] > 0 && playerStretch(L) + LEG.lookahead >= fsIx))) {
       const st = L.stretches[fsIx];
       // THE ROOM'S WHOLE FLOOR, not just its spine. `stretches[].cells` is the
       // spine crossing the room; the pillars stand off the spine and getting
@@ -2912,6 +2953,25 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     }
     if (pool && pool.length) { /* the room's own pool, chosen above */ }
     else if (finale) pool = L.approach;
+    else if (ownIx >= 0 && L.stretches && ownIx < finLast) {
+      // the stretch that is paying for him
+      const st = L.stretches[ownIx];
+      pool = L.cells.filter(([, cgz]) =>
+        cgz * C >= st.z0 - C * 0.5 && cgz * C <= st.z1 + C * 0.5
+        && cgz * C < approachZ - 2);
+      // ...WITH THE NEXT ONE BEHIND IT AS SLACK. One stretch is thirty metres
+      // of corridor at most and often eight, and the first-sight floor wants
+      // thirteen clear from wherever the player first sees the spot. The tight
+      // pool is the preference, not a cage: the placement loop below falls
+      // through to this once it has spent most of its tries.
+      const hi = Math.min(ownIx + 1, finLast - 1);
+      if (hi > ownIx) {
+        const s2 = L.stretches[hi];
+        poolWide = L.cells.filter(([, cgz]) =>
+          cgz * C >= st.z0 - C * 0.5 && cgz * C <= s2.z1 + C * 0.5
+          && cgz * C < approachZ - 2);
+      }
+    }
     else if (L.stretches && L.stretches.length > 1) {
       const body = L.stretches.length - 2;   // last stretch before the approach
       const k = Math.min(playerStretch(L), body);
@@ -2951,7 +3011,8 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     const anchor = inSchool() ? schoolAnchor() : null;
     const sightFloor = paced ? firstSightFloor() : 0;
     for (let tries = 0; tries < 40 && !placed; tries++) {
-      const [cgx, cgz] = pool[Math.floor(Math.random() * pool.length)];
+      const src = tries < 26 || !poolWide || !poolWide.length ? pool : poolWide;
+      const [cgx, cgz] = src[Math.floor(Math.random() * src.length)];
       const px = cgx * C + (Math.random() - 0.5) * 1.6;
       const pz = cgz * C + (Math.random() - 0.5) * 1.6;
       const d = Math.hypot(px - player.pos.x, pz - player.pos.z);
@@ -3049,6 +3110,7 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       }
     }
     L.released = (L.released || 0) + 1;   // the stretch budget is spent here
+    if (ownIx >= 0 && L.fill) L.fill[ownIx] = Math.max(0, L.fill[ownIx] - 1);
   } else {
     // valid ground = ON a street (never a block-interior pocket the player
     // can't reach), inside the live world, and clear of buildings
@@ -9087,6 +9149,16 @@ function updateStall(sdt, playing) {
   }
   // 2. nobody to wake, so the corridor lets one through — see stallRelease(),
   //    which the release gate reads on the next frame.
+  //
+  // ...UNLESS THE ONLY THING LEFT IS THE DOOR GROUP. That group is held back
+  // deliberately until the door is on screen (see hallAllowance), and the walk
+  // from the last man to the last corner is comfortably longer than this
+  // watchdog's four and a half seconds. Firing here spends the group in the
+  // corridor and leaves the door unguarded — which is the shape this whole
+  // change exists to fix, arriving through the safety valve instead.
+  const SL = inHall() && hall ? hall.legs[hall.cur] : null;
+  if (SL && SL.fill && !SL.doorSeen
+    && SL.fill.slice(0, -1).every((n) => !n) && SL.fill[SL.fill.length - 1] > 0) return;
   stallOwed = true;
 }
 // THE LEG'S FIRST MAN IGNORES THE WINDOW. See LEG.openerOnArrival: the
@@ -10340,25 +10412,61 @@ function hallAllowance() {
   const L = hall.legs[hall.cur];
   if (!L || !L.quota) return Infinity;
   const k = playerStretch(L);
-  if (L.markK === undefined || k > L.markK) {
+  // THE DOOR GROUP WAITS FOR THE DOOR. The last stretch is the approach and
+  // its share is the group you fight with the door in frame — released before
+  // the door is on screen it is just more corridor. Measured before this: in
+  // 0 of 10 legs did the last man arrive after the door came into view, and
+  // the door comes into view about 30 m out.
+  const doorNow = !!L.doorSeen;
+  if (L.markK === undefined || k > L.markK || doorNow !== !!L.doorMark) {
     // Only what is genuinely BEHIND you is forfeited. The old window reached
     // one stretch past where you were standing, and that stretch may be the
     // one you have just walked into — charging it as skipped would punish you
     // for arriving. So keep the part of the window still ahead of you.
-    let ahead = 0;
-    if (L.markK !== undefined) {
-      for (let i = k; i <= Math.min(L.markK + LEG.lookahead, L.quota.length - 1); i++) ahead += L.quota[i];
+    // WHAT IS BEHIND YOU IS SPENT, AND ITS BODIES ARE DROPPED.
+    //
+    // `fill` decides where the next body stands, and a stretch the player has
+    // finished walking is not a place to put one: every candidate in it fails
+    // the "never behind you" test, so a release owed by it burned forty tries
+    // and refused, over and over — measured, seventy-eight refusals in one leg
+    // and a door that never opened. Carrying the body forward instead is no
+    // better: that is how one room ends up holding two men while the room
+    // before it held none, which is what the playtest objected to. So the
+    // share and the body go together. A leg the player outruns is a quieter
+    // leg, and that is the honest price of walking past a fight.
+    if (L.fill) {
+      let dropped = 0;
+      for (let i = 0; i < k && i < L.fill.length - 1; i++) { dropped += L.fill[i]; L.fill[i] = 0; }
+      // ...never the door group, if the door group is still owed. Keeping one
+      // unconditionally is what soft-locked a leg: with the approach's man
+      // already out, the kept body was owed by nothing, could never be placed,
+      // and the door waits on an EMPTY QUEUE — measured, the player standing
+      // 1.5 m from the slab with nobody alive, every share spent and one body
+      // still queued behind them.
+      const keep = L.fill[L.fill.length - 1] > 0 ? 1 : 0;
+      const n = Math.min(dropped, Math.max(0, game.spawnQueue.length - keep));
+      if (n > 0) game.spawnQueue.splice(game.spawnQueue.length - keep - n, n);
+      // ...AND A LEG THAT OWES NOTHING HAS AN EMPTY QUEUE. Anything still in
+      // it is a body no stretch will ever fund, and the door it is holding
+      // shut is the only way out of the corridor.
+      if (L.fill.every((v) => !v) && game.spawnQueue.length) game.spawnQueue.length = 0;
     }
-    const leftover = L.markK === undefined ? 0
-      : Math.max(0, (L.budget - L.released) - ahead);
-    if (leftover > 0) {
-      const tail = LEG.finaleWave;
-      const n = Math.min(leftover, Math.max(0, game.spawnQueue.length - tail));
-      if (n > 0) game.spawnQueue.splice(game.spawnQueue.length - tail - n, n);
-    }
+    // COUNTED OFF WHAT IS STILL OWED, not off the plan.
+    //
+    // `quota` is the plan and never moves; `fill` is what each stretch has
+    // left. Summing the plan granted a stretch's share every time the window
+    // slid over it — so a body funded by stretch 3 at k=1 was granted AGAIN at
+    // k=2, and the leg's third release, with stretch 3 already standing there,
+    // took the only thing still owed: the door group. Measured, that is how
+    // the last man of a leg kept arriving twelve to twenty metres BEFORE the
+    // door came into view, with the gate that exists to prevent it switched on.
     let win = 0;
-    for (let i = k; i <= Math.min(k + LEG.lookahead, L.quota.length - 1); i++) win += L.quota[i];
-    L.markK = k;
+    const last = L.quota.length - 1;
+    for (let i = k; i <= Math.min(k + LEG.lookahead, last); i++) {
+      if (i === last && !doorNow) continue;   // the approach is not open yet
+      win += L.fill ? L.fill[i] : L.quota[i];
+    }
+    L.markK = k; L.doorMark = doorNow;
     L.budget = (L.released || 0) + win;
   }
   return L.budget - (L.released || 0);
@@ -10431,6 +10539,11 @@ function hallWave(n) {
       leg.quota = leg.stretches.map(() => 0);
       let left = want;
       if (reserve && left > 0) { leg.quota[fs] = 1; left--; }
+      // THE DOOR GROUP IS RESERVED FIRST. The approach is the last stretch and
+      // its share is the group you fight with the door in frame; it is the one
+      // placement never traded away for spacing, and hallAllowance holds it
+      // back until the door is actually on screen.
+      if (left > 0 && k > 1 && !leg.quota[k - 1]) { leg.quota[k - 1] = 1; left--; }
       if (spread) {
         // evenly down the body of the leg, because that is what the headline
         // is describing — the turns, the straight, the flooded length of it
@@ -10440,33 +10553,43 @@ function hallWave(n) {
           leg.quota[at]++; left--;
         }
       }
-      // A LEG WORTH THREE OR MORE FILLS DOWN ITS WHOLE LENGTH.
+      // ...AND THE REST SPREAD DOWN THE STRETCHES THE PLAYER WALKS THROUGH.
       //
-      // Filling purely from the end is right for a leg holding one or two: the
-      // last group waits at the door, you fight it with the door in frame, and
-      // the corridor before it is the walk. It is exactly wrong once a leg
-      // holds as many bodies as it has rooms — measured at doors 1-7 before
-      // the per-leg floor existed, one body in a 120 m leg, pulled out early
-      // by the stall watchdog, and then 109 m of nothing at all.
+      // Filling from the end is right for a leg holding one or two — the last
+      // group waits at the door and the corridor before it is the walk. It is
+      // exactly wrong once a leg holds as many bodies as it has rooms, which
+      // is every leg now: measured before the per-leg floor, one body in a
+      // 120 m leg and 109 m of nothing.
       //
-      // So the approach keeps its group, and everything else is dealt evenly
-      // across the stretches the player walks THROUGH. A leg with five rooms
-      // and three men to put in them gets one in the first, one in the middle
-      // and one at the door, rather than three standing at the door.
-      if (left >= 3 && bodyN > 1) {
-        const spreadN = Math.max(1, left - 1);          // the door keeps one
-        for (let i = 0; i < spreadN && left > 1; i++) {
-          const at = Math.min(bodyN - 1, Math.floor(((i + 0.5) / spreadN) * bodyN));
-          if (leg.quota[at] >= per) continue;
+      // STARTING AT THE SECOND STRETCH. The leg's opener comes out on arrival
+      // (LEG.openerOnArrival) and the first-sight floor puts him a stretch
+      // ahead, so by the time anybody is placed the player has already walked
+      // out of the first one. Quota left there can only be forfeited.
+      // ...IN LAYERS, so a leg with more men than rooms puts two in each rather
+      // than one in each and the rest in a heap. `per` is one outside the
+      // slow-time school, so door 7's five-man leg with three rooms came out
+      // [0,1,3,1] — which is exactly the "loaded leg" a playtest of the maps
+      // objected to. Raising the cap a layer at a time gives [0,2,2,1].
+      const lo = Math.min(1, bodyN - 1), span = Math.max(1, bodyN - lo);
+      for (let cap = per; left > 0 && cap <= Math.max(per, LEG.stretchCap); cap++) {
+        const n = left;
+        for (let i = 0; i < n && left > 0; i++) {
+          const at = lo + Math.min(span - 1, Math.floor(((i + 0.5) / n) * span));
+          if (leg.quota[at] >= cap) continue;
           leg.quota[at]++; left--;
         }
       }
-      for (let i = k - 1; i >= 0 && left > 0; i--) {
-        const add = Math.min(per - leg.quota[i], left);
-        if (add > 0) { leg.quota[i] += add; left -= add; }
-      }
-      if (left > 0) leg.quota[k - 1] += left;   // nowhere else to put them
+      // Anything the spread could not seat goes to the last stretch the player
+      // WALKS THROUGH, not to the approach: the door group is one group, and a
+      // leg that quietly grew it to three put three men in the last twenty
+      // metres of corridor with nothing in the eighty before it.
+      if (left > 0) leg.quota[Math.max(0, bodyN - 1)] += left;
       leg.released = 0; leg.markK = undefined; leg.budget = 0;
+      leg.doorMark = undefined;
+      // WHAT EACH STRETCH STILL OWES. `quota` is the plan and does not move;
+      // this is spent down as bodies are placed, and it is what decides WHERE
+      // the next one stands. See spawnEnemy's ownIx.
+      leg.fill = leg.quota.slice();
       leg.featureSent = false;   // one staged body per composition of the wave
     }
     hallWant = want;
@@ -11362,6 +11485,23 @@ function updateHall(dt) {
       L.seal.slab.position.y = Math.min(1.36, L.seal.slab.position.y + dt * 4.2);
     }
   }
+  // THE FRAME THE DOOR COMES INTO VIEW. It gates the approach's own share —
+  // see hallAllowance — so the last group of a leg arrives with the thing it
+  // is guarding on screen rather than somewhere back down the corridor. A
+  // latch, not a test: walking behind a column afterwards does not un-see it.
+  //
+  // AIMED AT THE GROUND IN FRONT OF THE DOOR, NOT AT THE DOOR. The slab is an
+  // obstacle in its own right and it stands in the doorway until the leg is
+  // clear, so a ray to the door's own position is blocked BY the door for the
+  // whole of the fight — measured, "the door became visible" fired only after
+  // it had opened, which is after the last man is already down. One cell short
+  // of the slab is the floor the door group stands on: seeing it means the
+  // last corner is behind you and the straight run to the door is ahead.
+  if (!L.doorSeen && game.state === 'play' && L.approach && L.approach.length) {
+    const [agx, agz] = L.approach[Math.max(0, L.approach.length - 2)];
+    if (hasLineOfSight(_v1.set(player.pos.x, EYE_HEIGHT, player.pos.z),
+      _v2.set(agx * HALL.cell, 1.4, agz * HALL.cell))) L.doorSeen = true;
+  }
   if (L.door.open && player.pos.z > L.door.z + 0.5) crossHallDoor();
 }
 
@@ -11808,7 +11948,13 @@ function frame(now) {
           // you solve with one burst or one knife sweep; the same bodies met
           // one at a time are separate searches, which is the harder and more
           // interesting version of a corridor you cannot see down.
-          const clumps = !legCondition();
+          // ...AND NOT WHILE THE FIRST-SIGHT FLOOR IS IN FORCE. A clump is two
+          // or three men arriving on the same frame, which is precisely what
+          // that rule exists to prevent: it guarantees ROOM to answer a round,
+          // and two rounds starting together is not one problem with room
+          // around it, it is two. The floor runs through door 10 and eases out
+          // by 18, so the opening trickles and the deep game still clumps.
+          const clumps = !legCondition() && !(inHall() && firstSightFloor() > 0);
           let extra = clumps ? Math.min(
             (Math.random() < 0.65 ? 1 : 0) + (Math.random() < 0.3 ? 1 : 0),
             game.spawnQueue.length, maxAlive() - enemies.length, room - 1) : 0;
@@ -12163,6 +12309,10 @@ window.__ts = {
   saves: () => saveIndex(),
   // how far a spot is from the player when the walked path first sees it
   firstSight: (x, z) => firstSightDist(x, z),
+  // ...and the raw question, between two points, so a harness can ask when the
+  // door itself comes into view rather than inferring it from a body.
+  sees: (ax, ay, az, bx, by, bz) =>
+    hasLineOfSight(_v4.set(ax, ay, az), _v5.set(bx, by, bz)),
   sightFloor: () => firstSightFloor(),
   sightRefusals: () => sightRefusals,
   way: () => {

@@ -454,7 +454,14 @@ export const LEG = {
   runBase: 3, runVar: 3,           // cells between turns: one stretch's straight
   runServiceRun: 2, runServiceVar: 2,
   runGauntlet: 6, runGauntletVar: 4,
-  approach: 4,                     // straight cells in front of the door
+  // STRAIGHT CELLS IN FRONT OF THE DOOR. This is the room the door group gets:
+  // the player first sees the door from the near end of this run, and that is
+  // the frame the group is released on, so the run has to be longer than the
+  // first-sight floor (EARLY.firstSightM, 13 m) or the man guarding the door
+  // is refused for standing too close and the approach ends up empty. Four
+  // cells is 16 m, three of them clear — measured, that refused 12 placements
+  // across ten legs. Five is 20 m.
+  approach: 5,
   // THE VAULT ROOM (form: vault). The corridor opens through ONE doorway
   // into a pillared hall and leaves through ONE more on the far side, offset
   // so you have to cross it. It is its own stretch, so it gets its own share
