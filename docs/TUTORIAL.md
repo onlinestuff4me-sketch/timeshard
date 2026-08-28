@@ -443,20 +443,25 @@ Two other things the training areas do differently:
 * **every area with more than one body in it takes turns** (`fireOrder`). Two
   rounds resolving on the same frame is one loud event a first-time player
   cannot parse; the same two a beat apart is a room reacting to them.
-* **an area is filled when its door opens, not when you cross it**
-  (`tutorStageNextLeg`). The crossing is the doorway, and the last stretch of
-  corridor before a door looks straight *through* that doorway: measured on the
-  pillared room, from four metres out the columns, the far wall and the next
-  door are all on screen, and hall 2 has eighteen metres of floor after its
-  last man. So the player walked three or four seconds into a room they could
-  see was empty, and three men then materialised around them one frame after
-  they stepped over the threshold. Filling on the door-open means the room has
-  people standing in it, finished assembling, for the whole approach — 42 m and
-  7.7 s of it in the measured walk. Nobody fires early: the staged bodies carry
-  `stageZ` at the door plane, which is the generated game's own mechanism
-  (`stagedArmed`) for a body placed before the player is in the room with him.
-  The crossing then owes only the beat before anyone shoots, which is a wall
-  clock and so has to start there rather than at the fill.
+* **nothing is in an area until you cross into it, and everything is there the
+  frame you do.** Measured across the threshold of the pillared room: the door
+  chime on the crossing frame, three bodies the same frame, the HUD line one
+  frame later, all three finished assembling at +0.28 s, the first round fired
+  at +1.54 s. That is the rule, and it is not negotiable in either direction —
+  filling an area early was tried and reverted, because a room that populates
+  while you watch it through the doorway is a room that fills before you enter.
+* **an area ends about ten metres past its last man.** A door opens on the
+  frame its area's last man goes down, and it opens onto the NEXT area — which
+  from the last stretch of corridor is straight ahead through the doorway, lit,
+  and necessarily empty. That walk used to be 18 m in both hallways and 14 m in
+  the room: three and a bit seconds of approaching a room you can see nobody is
+  in. The playtest read it as the room arriving late — *"I entered the room
+  with the pillars but had to walk further in to hear the announcement and see
+  the enemies appear"* — but the HUD in that clip read `GO TO THE NEXT DOOR`,
+  which only shows while the CURRENT leg's door is open, so the player was
+  still in hall 2 the whole time. What was late was not the room. It was the
+  walk. The areas are 6, 8 and 9 cells now: 10 m of tail each, about two
+  seconds.
 
 ## The line at the top of the screen
 

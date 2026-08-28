@@ -385,13 +385,29 @@ export const LEGS = [
   // about a centimetre tall — a hard first target for somebody who has held
   // the trigger once. 3.5 cells is 15.5 m, the same order as the teaching
   // leg's own gunner (TUTOR.enemyCells, 4 cells past the barrier).
+  // ...AND NOT MUCH CORRIDOR LEFT AFTER HIM. See THE DEAD TAIL below.
   { id: 'hall1', form: 'corridor', kind: 'hall', note: '10. One enemy in a hallway.',
-    plan: { moves: [['f', 8]], approach: 3 },
+    plan: { moves: [['f', 6]], approach: 3 },
     enemies: [{ x: 0, z: 3.5, type: 'gunner' }], fireOrder: 'free' },
   // OFF THE CENTRE LINE. Two bodies at x = 0 are one silhouette: the front one
   // occludes the other perfectly and the HUD count contradicts the screen.
+  // THE DEAD TAIL. A door opens on the frame the area's last man goes down, and
+  // it opens onto the next area — which from anywhere in the last stretch of
+  // corridor is straight ahead through the doorway, lit, and EMPTY, because
+  // nothing is placed in an area until the player crosses into it. Measured on
+  // the built legs, that walk was 18 m in both hallways and 14 m in the room:
+  // three and a bit seconds of approaching a room you can see has nobody in it
+  // before anything happens. The playtest read it as the room being late —
+  // "I entered the room with the pillars but had to walk further in to hear the
+  // announcement and see the enemies appear" — when in fact all of it lands on
+  // the threshold to the frame. What was long was the walk up to the threshold.
+  //
+  // Filling the next area early is not the answer: nothing should be there
+  // before you enter. Shortening the walk is. Every area now ends about ten
+  // metres past its last man, which is two seconds rather than three and a
+  // half, and still leaves the door a place you walk TO rather than fall over.
   { id: 'hall2', form: 'corridor', kind: 'hall', note: '11. Two in a hallway, taking turns.',
-    plan: { moves: [['f', 10]], approach: 3 },
+    plan: { moves: [['f', 8]], approach: 3 },
     // x is in CELLS, so a quarter is a metre — enough to break the silhouette
     // in a corridor that only has 3.4 m of floor to play with.
     enemies: [{ x: -0.22, z: 3.5, type: 'gunner' }, { x: 0.22, z: 5.5, type: 'gunner' }],
@@ -422,7 +438,7 @@ export const LEGS = [
     // thing that slot will not let them do. Widened from the entry row, so the
     // wall they come through is flat and sidestepping works from the first
     // frame in the room.
-    plan: { moves: [['f', 10]], extra: room(1, 0, 8), approach: 3,
+    plan: { moves: [['f', 9]], extra: room(1, 0, 8), approach: 3,
       pillars: [[-0.85, 1.5], [0.85, 1.5], [-0.85, 2.75], [0.85, 2.75]] },
     enemies: [{ x: -1.05, z: 5.5, type: 'gunner' }, { x: 1.05, z: 5.5, type: 'gunner' },
       { x: 0, z: 6.5, type: 'gunner' }], fireOrder: 'turns' },

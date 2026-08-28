@@ -527,34 +527,52 @@ as it can go and still clear it.
 > against a light corridor), and has no `transition` of its own so
 > `.tslot.fadeout` still owns the way it leaves. 1 dark frame of 24 → **0**.
 
-**The pillared room was empty until you were inside it.** The area's bodies
-were placed on the CROSSING, and the crossing is the doorway — but the last
-stretch of corridor before a door looks straight through that doorway.
-Photographed from four metres out: the columns, the far wall and the next door
-all on screen, and nobody in the room. hall 2 has eighteen metres of floor
-after its last man, so that is three or four seconds of walking into a room you
-can see is empty, and then three men materialise around you one frame after you
-cross. `tutorStageNextLeg` fills the next authored leg when its door OPENS
-instead. Measured on the same walk:
+**The pillared room was empty until you were inside it — and the room was not
+the problem.** First pass staged the next area's bodies when its door opened,
+so the room was occupied 42 m before the threshold. The playtest rejected it,
+correctly: *"the message, audio, or enemies should not appear before you enter
+a room or hallway, but they should appear as soon as you enter, so that you
+aren't waiting around thinking it's broken."* Reverted in full.
+
+The clip settles where the player actually was. The HUD read
+`TRAINING · GO TO THE NEXT DOOR` for the whole four and a half seconds, and
+that line only shows while the **current** leg's door is open — in the room it
+reads `CLEAR THE ROOM`, and a door never re-closes. So the player was in hall 2
+the whole time, looking through its open door at the empty room ahead. Nothing
+was late. Instrumented across the threshold, every sound and every element:
+
+| | when |
+|---|---|
+| door chime (`sfx.wave`) | **−0.00 s** |
+| three bodies exist | **+0.00 s** |
+| HUD reads `CLEAR THE ROOM` | +0.04 s |
+| all three finished assembling | +0.28 s / 1.5 m |
+| first round fired | +1.54 s |
+
+What was long was the walk up to it. A door opens on the frame its area's last
+man goes down, onto an area that is necessarily empty — so the tail of each
+training corridor is time spent approaching a room you can see nobody is in:
 
 | | before | now |
 |---|---|---|
-| room occupied | at the threshold | **42.0 m / 7.7 s before it** |
-| all three assembled | 1.5 m past the threshold | **40.8 m before it** |
-| staged men aiming before the crossing | — | **0 frames** |
+| hall 1 | 8 cells, **18 m** after its man | 6 cells, **10 m** |
+| hall 2 | 10 cells, **18 m** after its rear man | 8 cells, **10 m** |
+| room 1 | 10 cells, **14 m** | 9 cells, **10 m** |
 
-> Nobody fires early because the staged bodies carry `stageZ` at the door
-> plane, which is the generated game's own mechanism (`stagedArmed`) for a body
-> placed before the player is in the room with him. The crossing then owes only
-> the beat before anyone shoots — that is a wall clock, so it has to start at
-> the crossing rather than at the fill, and `tutorPopulateLeg` skips it when it
-> is staging.
+3.3 s of dead corridor becomes 1.8 s, and the rule stays: nothing in an area
+before you cross into it, all of it the frame you do.
 
-> **The harness lied twice about this, in the same way both times.** The probe
-> swept `enemies` at the top of each frame and read `hall.cur` after it: the
-> game's own frame had already crossed the door and placed the room's three
-> men, so the broom killed them and the log said the room was empty. Read the
-> crossing BEFORE the broom, and stop sweeping once it has happened.
+> **Instrument the whole entry, not the thing you suspect.** Two rounds were
+> spent on the room's population because that is what the report named. Wrapping
+> every `sfx` method and logging the HUD, the banner and all seven text slots
+> per frame across the crossing answered it in one run — and the answer was that
+> none of them was late.
+
+> **The harness lied twice, in the same way both times.** The probe swept
+> `enemies` at the top of each frame and read `hall.cur` after it: the game's
+> own frame had already crossed the door and placed the room's three men, so
+> the broom killed them and the log said the room was empty. Read the crossing
+> BEFORE the broom, and stop sweeping once it has happened.
 
 ## NEXT UP
 
@@ -578,14 +596,11 @@ instead. Measured on the same walk:
    `RAMP.aimRange` is the knob; steepen it before touching `aimBase`. The
    regenerated table in docs/BALANCE.md now shows the real telegraph scale
    per door, which it did not when it was full of `NaN`.
-5. **Staging fires for every authored area, not just the room.** hall 1 and
-   hall 2 now fill as the door before them opens too, which is right — but the
-   only one that has been photographed is the room. Worth a look at whether
-   watching a single gunner assemble 40 m away down a straight corridor reads
-   as the corridor filling up or as a pop. The fallback is deliberate and
-   silent: `tutorStageNextLeg` refuses if anybody is still standing (the
-   teaching leg's door opens on the script, not on a body count), and that area
-   fills on the crossing exactly as it used to.
+5. **Ten metres of tail is a guess with a measurement behind it, not a
+   measured answer.** 18 m read as too long; 10 m is two seconds and nobody has
+   walked it yet. If it still reads as dead air the lever is the leg length in
+   `LEGS` (6 / 8 / 9 cells), not the bodies — they were moved forward once
+   already and are as close to the entrance as the sight lines allow.
 6. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
    the player is through the near doorway. The stall watchdog arms them if
    nothing happens for `LEG.stallAfter`, but that path has never been seen
