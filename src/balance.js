@@ -224,6 +224,33 @@ export const OPENING = {
   //  door 3 at one body per leg, which turned it back into door 1.)
   aliveEvery: 3,       // how many may be up at once: 1 for 1-3, 2 for 4-8,
                        // 3 for 9-15, 4 for 16-24...
+  // ---------------------------------------------------------------------
+  // HOW MANY BODIES A SINGLE CORRIDOR HOLDS — a floor under the split above,
+  // and the answer to "after the tutorial, everything is empty".
+  //
+  // The budget above is a DOOR's, split across its legs, and `legsEvery` grows
+  // faster than `bodiesEvery` does — so the per-corridor count went 1, 1, 2,
+  // 2, and then back to 1 at door 5 when the door grew a second leg. Walked
+  // and measured over two runs of doors 1-7:
+  //
+  //   door 1: 121 m of corridor, 1 body, 109 m of it empty
+  //   door 2: 115 m, 1 body, 110 m empty
+  //   door 3: 101 m, 2 bodies, 52 m empty
+  //   door 5: 108 m per leg, 1 body, 104 m empty
+  //   door 7: 115 m, 1 body, 106 m empty
+  //
+  // A player walks out of a training room holding three men into a hundred and
+  // twenty metres of corridor holding one. The floor is per LEG, because a leg
+  // is what the player walks; it never goes down as the door number goes up,
+  // which is the property the door-budget split could not hold; and it is a
+  // floor, so a door whose own budget already exceeds it is untouched.
+  perLegFrom: 3,       // bodies in one corridor at door 1
+  perLegEvery: 3,      // ...and one more every this many doors
+  perLegCap: 6,        // ...up to here: 3 for doors 1-3, 4 for 4-6, 5 for 7-9,
+                       // 6 from door 10. `aliveEvery` still says how many of
+                       // them may be on their feet at once — 1 until door 4 —
+                       // so this is how OFTEN you meet somebody, not how many
+                       // you fight at a time.
   corridorDoors: 3,    // no rooms at all before this: one shape to learn first
   legsCap: 5,
   // THE ROOM'S SHOT FLOOR, in world seconds. Three seconds between one enemy

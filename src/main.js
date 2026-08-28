@@ -3640,6 +3640,12 @@ function shotGap() {
 }
 // A door's budget, split across its legs — weighted to the LAST of them, so
 // walking deeper into a door is walking into more of it rather than less.
+// WHAT ONE CORRIDOR HOLDS AT MINIMUM — see OPENING.perLegFrom. A door's budget
+// is split across its legs and the leg count grows faster than the budget, so
+// the per-corridor count used to FALL as the door number rose. This never does.
+const legFloor = (d) => Math.min(OPENING.perLegCap,
+  OPENING.perLegFrom + Math.floor(Math.max(0, d - 1) / OPENING.perLegEvery));
+
 function legShare(d, i) {
   const legs = doorLegs(d), total = doorBodies(d);
   const base = Math.floor(total / legs);
@@ -3648,7 +3654,7 @@ function legShare(d, i) {
   // enough that the ramp already deals out plenty of bodies, but it deals
   // them across five legs, and a leg holding two men cannot show a player
   // what a volley of three is for.
-  return Math.max(base + (i >= legs - extra ? 1 : 0), schoolFloor(d));
+  return Math.max(base + (i >= legs - extra ? 1 : 0), schoolFloor(d), legFloor(d));
 }
 
 // ---------------------------------------------------------------------------
@@ -7286,6 +7292,16 @@ function tutorRenderCues() {
     }
     if (on) bySlot[c.slot || 'mid'] = c;
   });
+  // ONE INSTRUCTION WHILE THE WORLD IS STOPPED. The trigger reminder is up from
+  // the first man in the area who aims, and the dodge prompt arrives on the
+  // freeze while it is still there — so a portrait phone got TAP ANYWHERE TO
+  // SHOOT over DODGE THE BULLET, four lines of two different instructions, and
+  // measured, the two boxes overlapped by 0.3% of the frame. The freeze exists
+  // so the player can read three words and step sideways; it is not the moment
+  // to also be told about the trigger. Nothing is spent by this — `tutorSpent`
+  // is decided above, so the reminder fades out and comes back afterwards if
+  // they still have not fired.
+  if (bySlot.dodge) for (const k of Object.keys(bySlot)) if (k !== 'dodge') delete bySlot[k];
   for (const k of Object.keys(el.tslot || {})) {
     const c = bySlot[k];
     tutorSlot(k, c ? c.text : null, c && c.pulse);
@@ -10420,6 +10436,27 @@ function hallWave(n) {
         // is describing — the turns, the straight, the flooded length of it
         for (let i = 0; i < want && left > 0; i++) {
           const at = Math.min(bodyN - 1, Math.floor(((i + 0.5) / want) * bodyN));
+          if (leg.quota[at] >= per) continue;
+          leg.quota[at]++; left--;
+        }
+      }
+      // A LEG WORTH THREE OR MORE FILLS DOWN ITS WHOLE LENGTH.
+      //
+      // Filling purely from the end is right for a leg holding one or two: the
+      // last group waits at the door, you fight it with the door in frame, and
+      // the corridor before it is the walk. It is exactly wrong once a leg
+      // holds as many bodies as it has rooms — measured at doors 1-7 before
+      // the per-leg floor existed, one body in a 120 m leg, pulled out early
+      // by the stall watchdog, and then 109 m of nothing at all.
+      //
+      // So the approach keeps its group, and everything else is dealt evenly
+      // across the stretches the player walks THROUGH. A leg with five rooms
+      // and three men to put in them gets one in the first, one in the middle
+      // and one at the door, rather than three standing at the door.
+      if (left >= 3 && bodyN > 1) {
+        const spreadN = Math.max(1, left - 1);          // the door keeps one
+        for (let i = 0; i < spreadN && left > 1; i++) {
+          const at = Math.min(bodyN - 1, Math.floor(((i + 0.5) / spreadN) * bodyN));
           if (leg.quota[at] >= per) continue;
           leg.quota[at]++; left--;
         }

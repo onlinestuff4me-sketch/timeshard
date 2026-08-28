@@ -117,14 +117,21 @@
                  7 the needle was drawn behind it and the line ran straight
                  through the mark. */
               pointer-events:none; z-index:12; }
-  /* ...AND OUT OF THE GUN'S WAY ONCE THERE IS A GUN. Measured on a 402x874
-     frame, inside the needle's own column strip: the viewmodel's dark mass
-     starts at 50% of the height and is solid from 71%, so the low seat it uses
-     during the walking lessons — when no gun is drawn — sits right on top of
-     it. Above the fold there is only the score line, which ends around 40 px,
-     and the banner does not start until 273. */
-  body.armed #wayarrow { bottom:auto;
-              top:calc(env(safe-area-inset-top, 0px) + 58px); }
+  /* ...AND JUST ABOVE THE GUN ONCE THERE IS A GUN.
+     The low seat it uses during the walking lessons sits right on top of the
+     viewmodel, whose dark mass starts at 50% of the height in the needle's own
+     column strip. First pass answered that by moving it to 7% of the frame,
+     under the score line — and a playtest of it said the arrow up there
+     "seems to be pointing in the wrong direction". It is not: it is a bearing
+     laid flat on the floor by `rotateX`, and read against the ceiling at the
+     top of the frame there is nothing for it to be flat ON. Down at the
+     horizon, where the corridor it describes actually is, the same rotation
+     reads as a direction.
+     42% is the only seat that works: the banner runs 31-44% and the gun starts
+     at 50%, which leaves no gap big enough for a 104 px needle, and of the two
+     it is the GUN that may be overlapped — the needle is only ever on screen
+     on a leg with nobody in it, so nothing is being aimed at underneath it. */
+  body.armed #wayarrow { bottom:auto; top:42%; }
   #wayarrow.on { opacity:1; visibility:visible;
               transition:opacity .4s ease, visibility 0s linear 0s; }
   #wayarrow i { position:absolute; inset:0; display:block; will-change:transform; }

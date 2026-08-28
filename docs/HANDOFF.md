@@ -574,6 +574,59 @@ before you cross into it, all of it the frame you do.
 > the broom killed them and the log said the room was empty. Read the crossing
 > BEFORE the broom, and stop sweeping once it has happened.
 
+## Three from the fifth playtest
+
+**The two cue lines collided.** `TAP ANYWHERE TO SHOOT` is up from the first man in the area
+who aims; `DODGE THE BULLET` arrives on the freeze while it is still there. Measured, the two
+boxes overlapped by 0.3% of the frame and read as one four-line block. Moving the dodge line
+would only have made a taller block: the freeze exists so the player can read three words and
+step sideways, so while the world is held the dodge slot is now the ONLY text slot. One line in
+`tutorCues`, after `tutorSpent` is decided, so the trigger reminder is not spent — it fades out
+and comes back if they still have not fired. **0 of 31 held frames** have both legible.
+
+**The needle sat at 7% of the frame and read as pointing nowhere.** It is a bearing laid flat on
+the floor by `rotateX`; read against the ceiling at the top of the frame there is nothing for it
+to be flat on. It moves to `top: 42%` — the seat the playtest asked for, just above the gun.
+There is no gap it fits in cleanly (the banner runs 31-44%, the viewmodel starts at 50%, and the
+needle is 104 px), and of the two the gun is the one to overlap: **the needle is only ever on
+screen on a leg with nobody in it**, so nothing is being aimed at underneath it.
+
+**The corridors after the tutorial hold one man per hundred metres.** Two runs of doors 1-7,
+walked end to end:
+
+| door | legs | path per leg | bodies per leg | longest empty run |
+|---|---|---|---|---|
+| 1 | 1 | 121 m | 1 | **109 m** |
+| 2 | 1 | 115 m | 1 | **110 m** |
+| 3 | 1 | 101 m | 2 | 52 m |
+| 5 | 2 | 108 m | 1 | **104 m** |
+| 7 | 2 | 115 m | 1 | **106 m** |
+
+A player walks out of a training room holding three men into a hundred and twenty metres holding
+one. The cause is a division: `doorBodies` is a whole DOOR's budget split across its legs, and
+`legsEvery` (4) grows faster than `bodiesEvery` (2), so the count per corridor — the thing a
+player actually walks — went 1, 1, 2, 2 and then back to 1 at door 5.
+
+Two changes. `OPENING.perLegFrom/perLegEvery/perLegCap` put a floor under the split, **per leg**,
+that never falls as the door number rises: 3 bodies in a corridor at door 1, one more every three
+doors, ceiling 6. And `hallWave` spreads a leg worth three or more evenly down its stretches
+instead of filling from the end, so the men stand along the corridor rather than in a heap at the
+door. Re-measured:
+
+| door | bodies per leg | longest empty run | empty share of the walk |
+|---|---|---|---|
+| 1 | 1.0 → **3.0** | 90 m → **29 m** | 76% → **28%** |
+| 2 | 1.0 → **3.0** | 92 m → **31 m** | 87% → **32%** |
+| 4 | 2.0 → **4.0** | 61 m → **48 m** | 41% → 57% |
+| 5 | 1.0 → **4.0** | 96 m → **43 m** | 87% → **43%** |
+
+> **It is how OFTEN, not how many.** `doorAlive` is untouched — one man on his feet at a time
+> until door 4, two until door 9 — as are `EARLY.oneRoundDoors` (one enemy round in the air
+> through door 5) and the three-second shot gap. The fight is the same shape; there is simply
+> somebody in the corridor.
+
+> Maps, plans and the full before/after are in the artifact **The First Five Doors**.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
@@ -596,12 +649,23 @@ before you cross into it, all of it the frame you do.
    `RAMP.aimRange` is the knob; steepen it before touching `aimBase`. The
    regenerated table in docs/BALANCE.md now shows the real telegraph scale
    per door, which it did not when it was full of `NaN`.
-5. **Ten metres of tail is a guess with a measurement behind it, not a
+5. **The opening density is a proposal with two runs behind it.** 3 men per
+   corridor at door 1 rising to 6 by door 10 has been measured, not felt. The
+   dials are `OPENING.perLegFrom` / `perLegEvery` / `perLegCap` and they are
+   independent of `aliveEvery`, so "meet more people" and "fight more people at
+   once" can be tuned apart. Watch the ammo economy too: three times the bodies
+   is three times the clips, and the drop curve was written for the old count.
+6. **The last stretch before a door still runs quiet.** The group reserved for
+   the approach is released early by the stall watchdog, so doors 3 and 4 came
+   out flat on the empty-run column even as their body counts rose. That group
+   is a deliberate payoff — fight it with the door in frame — so it wants a
+   playtest before anybody moves it.
+7. **Ten metres of tail is a guess with a measurement behind it, not a
    measured answer.** 18 m read as too long; 10 m is two seconds and nobody has
    walked it yet. If it still reads as dead air the lever is the leg length in
    `LEGS` (6 / 8 / 9 cells), not the bodies — they were moved forward once
    already and are as close to the entrance as the sight lines allow.
-6. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
+8. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
    the player is through the near doorway. The stall watchdog arms them if
    nothing happens for `LEG.stallAfter`, but that path has never been seen
    in real play. `LEG.stallAfter` is 4.5 s, chosen from the shape of the

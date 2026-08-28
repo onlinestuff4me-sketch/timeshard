@@ -214,7 +214,15 @@ element that took its position from a class, which made `DRAG TO MOVE` and
 over the barrier and grows as you walk up to it. There are two coach hands for
 the same reason there are seven slots.
 
-`dodge` is `mid` eight per cent lower, and it is the one slot that never waits
+`dodge` is `mid` eight per cent lower, and it is the only slot that ever takes the
+screen off the others: while the world is held for a dodge it is the ONLY text
+slot drawn. The trigger reminder is up from the first man in the area who aims
+and the dodge prompt arrives on the freeze while it is still there, which
+measured as a 0.3%-of-frame overlap and read as one four-line block. Nothing is
+spent by the suppression — `tutorSpent` is decided before it — so the reminder
+fades out and comes back afterwards if they still have not fired.
+
+It is also the one slot that never waits
 for the palette. Everything else in the centre is the only thing on screen; the
 dodge beat is three things at once — the words, the thumb coach under them, and
 the round ringed in red out in the world at about 52% of the height — so the
