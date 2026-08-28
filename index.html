@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="booting">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -18,6 +18,23 @@
   html, body { height:100%; overflow:hidden; background:#e8eaee; touch-action:none; overscroll-behavior:none; }
   body { font-family:-apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; }
   #game { position:fixed; inset:0; }
+  /* THE FIRST PAINT IS NOT THE MENU.
+     The document ships a menu skeleton so there is something for the game to
+     fill in, and until main.js has run it is the WRONG menu: no discovery
+     panel, no CONTINUE or LOAD GAME row, no attract corridor behind it, and
+     the HUD reading WAVE 1 · 0 painted over the top of it — the frame loop is
+     what hides that. Reloading therefore showed a half-built screen that then
+     rearranged itself into the real one, which is what the playtest called
+     "starts out strange and then fills in".
+     This holds it back behind the game's own background colour. `booting` is
+     on the <html> tag itself, so it is in force from the very first paint —
+     a class added by a script is already one paint too late — and the frame
+     loop takes it off on the first picture it actually renders, so what fades
+     up is the finished screen. The timeout below is the safety: if the module
+     never loads, the player gets the skeleton rather than a blank page. */
+  #boot { position:fixed; inset:0; background:#e8eaee; z-index:20;
+          pointer-events:none; transition:opacity .3s ease; }
+  html:not(.booting) #boot { opacity:0; }
   canvas { display:block; transition:filter .28s ease; }
   /* bullet time reads as its own world: drained color pushed warm-red with a
      hint of negative — like the air itself changed */
@@ -71,8 +88,9 @@
 
      A FIXED PLACE, so it cannot land on a lesson. Every message slot lives
      between 12% and 48% of the frame — `#ts-top` under the topbar, `#ts-mid`
-     at 26%, the left/right pair at 38%, the button prompt at 42% — and the
-     thumb coaches sit at 42% and 58%. The bottom is the ammo readout and its
+     at 26%, the dodge line at 34%, the left/right pair at 38%, the button
+     prompt at 42% — and the thumb coaches sit at 50% and 58%. The bottom is
+     the ammo readout and its
      reload bar (about 5%), the letterbox bar (7vh), and the time button,
      which is a circle hung off the RIGHT edge. 19vh up the centre line is
      clear of all of it.
@@ -494,6 +512,30 @@
            letter-spacing:.1em; }
 
   #ts-mid   { left:0; right:0; top:26%; font-size:min(8.4vw,38px); }
+  /* THE DODGE BEAT SITS LOWER THAN THE REST. Everything else that uses the
+     centre — TAP ANYWHERE TO SHOOT, GO THROUGH THE DOOR — is the only thing
+     on the screen, and a quarter of the way down is where a lone line reads.
+     The dodge is three things at once: the words, the thumb coach under them,
+     and the round itself ringed in red out in the world. Measured on the
+     freeze frame at 402x874: the ring lands at 52% of the height, and the
+     words were finishing at 34% with the coach at 42% — the sentence up under
+     the topbar and the two things it is about a third of a screen below it.
+     34% puts the line just above where DRAG TO MOVE stood (38%), which is the
+     height this player has already been taught to read instructions at, and
+     still clears the ring. */
+  #ts-dodge { left:0; right:0; top:34%; font-size:min(8.4vw,38px); }
+  /* ...AND IT IS BORN LIGHT. The colour transition on `.tslot` exists for a
+     line that is ALREADY on screen when the room changes around it — over a
+     third of a second the flip reads as the room dimming rather than as a
+     flash. This slot is only ever on screen during the freeze, and it arrives
+     ON the frame the palette does, so it inherited that third of a second as
+     a dark-to-light ramp underneath its own fade-in: measured, luminance 0.17
+     at 9% opacity climbing to 0.75 at 78%. That is the black-then-white flash
+     again in miniature. It is never shown against a light corridor, so it is
+     simply always the light colour and has nothing to ease. No `transition`
+     here on purpose — `.tslot.fadeout` owns the way it leaves. */
+  #ts-dodge { color:#eef0f3;
+              text-shadow:0 2px 14px rgba(12,13,16,.92), 0 0 2px rgba(12,13,16,.8); }
   #ts-left  { left:0; right:52%; top:38%; }
   #ts-right { left:52%; right:0; top:38%; }
 
@@ -654,12 +696,15 @@
   /* DIRECTLY UNDER THE WORDS, not off in the corner. The dodge lesson's whole
      instruction is "your thumb, sideways", and a coach forty per cent of the
      screen away from the sentence it illustrates is a second thing to find.
-     `#ts-mid` sits at 26%; this sits just below it, on the centre line. */
+     `#ts-dodge` finishes at about 42%; this sits just below it. 50% is the
+     lowest it can go and still clear the ring round the round, which the
+     freeze frame puts at 52% of the height — and it is on the LEFT half
+     (see below), where the ring never is. */
   /* THE MOVE STICK IS ON THE LEFT, so the swipe that says "step out of the
      way" is too. At left:50% it straddled the divider and pointed at
      neither thumb. 25% is the centre of the left half — the same place
      the opening guide puts MOVE. */
-  #tutorhand.sway, #tutorhand2.sway { left:25%; top:42%; animation:handsway 1.9s ease-in-out infinite; }
+  #tutorhand.sway, #tutorhand2.sway { left:25%; top:50%; animation:handsway 1.9s ease-in-out infinite; }
   @keyframes handsway { 0%   { transform:translateX(0); opacity:0; }
                         14%  { opacity:.95; }
                         34%  { transform:translateX(-54px); }
@@ -927,6 +972,7 @@
 </style>
 </head>
 <body>
+<div id="boot"></div>
 <div id="game"></div>
 
 <div id="hud">
@@ -937,7 +983,7 @@
   <div id="flash"></div>
   <div id="warn"></div>
   <div id="banner"></div>
-  <div id="tutor"><div id="tutorline"></div><div id="tutorhand"></div><div id="tutorhand2"></div><div id="tutorarrow"></div><div id="tutorup"></div><div id="ts-top" class="tslot top"></div><div id="ts-mid" class="tslot mid"></div><div id="ts-left" class="tslot left"></div><div id="ts-right" class="tslot right"></div><div id="ts-atbtn" class="tslot atbtn"></div><div id="ts-world" class="tslot world"></div><div id="tutorpin"></div></div>
+  <div id="tutor"><div id="tutorline"></div><div id="tutorhand"></div><div id="tutorhand2"></div><div id="tutorarrow"></div><div id="tutorup"></div><div id="ts-top" class="tslot top"></div><div id="ts-mid" class="tslot mid"></div><div id="ts-dodge" class="tslot dodge"></div><div id="ts-left" class="tslot left"></div><div id="ts-right" class="tslot right"></div><div id="ts-atbtn" class="tslot atbtn"></div><div id="ts-world" class="tslot world"></div><div id="tutorpin"></div></div>
   <div id="wayarrow"><i></i></div>
   <div id="ammo">PISTOL · ∞</div>
   <div id="reloadbar"><div id="reloadfill"></div></div>
@@ -1075,6 +1121,12 @@
   </div>
 </div>
 
+<script>
+  // ...AND IT NEVER STICKS. A module that fails to load — an offline reload
+  // against a cold cache, a syntax error in a bad deploy — would otherwise
+  // leave a plain grey rectangle with no way past it.
+  setTimeout(() => document.documentElement.classList.remove('booting'), 8000);
+</script>
 <script type="module">
   // Durable storage is hydrated BEFORE the game module loads, because
   // main.js reads bests, lifetime doors and the archive at import time. On

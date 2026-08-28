@@ -7535,9 +7535,13 @@ function tutorEnsureBodies(want) {
 // A ramp area's enemies belong to the AREA, not to a step: it is the room
 // that is "the room with two in it", and the retry has to be able to rebuild
 // it without replaying the step that placed them.
-function tutorPopulateLeg() {
-  const spec = tutorLegsOf()[tutorLegIx];
-  const L = hall && hall.legs[hall.cur];
+function tutorPopulateLeg(legIx = tutorLegIx, L = hall && hall.legs[hall.cur],
+  stageZ = undefined) {
+  const spec = tutorLegsOf()[legIx];
+  // Whatever was staged ahead is no longer staged: either this call is the
+  // staging, and says so on its way out, or it is a repopulate (a checkpoint
+  // respawn) that has just thrown the staged bodies away.
+  tutorPrePopped = -1;
   tutorTurnOrder = false;
   tutorTurnHolder = null;
   // Whatever was left in the last area does not follow you into this one. In
@@ -7553,14 +7557,54 @@ function tutorPopulateLeg() {
   if (!spec || !spec.enemies || !L || !L.spine) return;
   const base = L.spine[0];
   for (const e of spec.enemies) {
-    tutorPlaceEnemyAt((base[0] + (e.x || 0)) * HALL.cell,
-      (base[1] + (e.z || 0)) * HALL.cell, e.type || 'gunner');
+    const b = tutorPlaceEnemyAt((base[0] + (e.x || 0)) * HALL.cell,
+      (base[1] + (e.z || 0)) * HALL.cell, e.type || 'gunner', L);
+    // STAGED, when the area was filled before the player walked into it. See
+    // stagedArmed: he holds his fire until they are past the plane, plus a
+    // grace, so filling the room early costs nobody a round through a doorway.
+    if (b && stageZ !== undefined) b.stageZ = stageZ;
   }
   tutorTurnOrder = spec.fireOrder === 'turns';
   // A beat to see the room before anyone shoots at you. Walking through a
   // door into a round already in the air is not a fight, it is an ambush,
   // and the first room of the ramp is not the place to teach that.
-  game.noFireBefore = performance.now() + TUTOR.rampFireDelay * 1000;
+  //
+  // A STAGED AREA STARTS ITS BEAT WHEN YOU ENTER IT, not when it was filled.
+  // This is a wall clock, and staging happens the moment the door opens —
+  // which can be half a minute of walking before the crossing. The crossing
+  // sets it; until then `stagedArmed` is what holds them.
+  if (stageZ === undefined) game.noFireBefore = performance.now() + TUTOR.rampFireDelay * 1000;
+}
+
+// THE ROOM IS OCCUPIED BEFORE YOU CAN SEE INTO IT.
+//
+// An area's bodies used to be placed on the crossing, and the crossing is the
+// doorway — but the last stretch of corridor before a door looks straight
+// THROUGH that doorway. Measured on the pillared room: from four metres out
+// the columns, the far wall and the next door are all on screen and the room
+// is visibly empty, and hall 2 has eighteen metres of floor after its last
+// man, so a player spends three or four seconds walking into a room that
+// nobody is in — and then three men materialise around them one frame after
+// they cross. The playtest read it exactly that way: "I entered the room but
+// had to walk further in for the announcement, the message and the enemies."
+//
+// So the area is filled when its door OPENS. That is the same frame the leg
+// beyond it is built on, the player is still back down the corridor with the
+// last man of this area just down, and by the time they walk up to the
+// threshold the room has people standing in it and has finished assembling
+// them. Nobody fires early: they are staged on the door plane, so
+// `stagedArmed` holds them until the player is actually through it.
+function tutorStageNextLeg() {
+  if (tutorStep === null || !inHall() || !hall) return;
+  // ...ONLY INTO AN EMPTY FLOOR. Filling is also a clear-out, so a door that
+  // opened with somebody still standing (the teaching leg's door opens on the
+  // script, not on a body count) falls back to filling on the crossing.
+  if (enemies.length || game.spawnQueue.length) return;
+  const L = hall.legs[hall.cur], next = hall.legs[hall.cur + 1];
+  const legIx = tutorLegIx + 1, spec = tutorLegsOf()[legIx];
+  if (!L || !next || !spec || !(spec.enemies || []).length) return;
+  tutorPopulateLeg(legIx, next, L.door.z + 0.5);   // the crossing plane exactly
+  tutorPrePopped = legIx;
 }
 
 // ONE AT A TIME, in area 12. The second man waits until the first's round has
@@ -7568,6 +7612,9 @@ function tutorPopulateLeg() {
 // rather than one problem twice as fast, which is a different lesson.
 let tutorTurnOrder = false;
 let tutorTurnHolder = null;
+// which authored leg has already been filled, ahead of the player crossing
+// into it — see tutorStageNextLeg. -1 is "nothing is standing ahead".
+let tutorPrePopped = -1;
 function tutorTurnHolds(e) {
   if (!tutorTurnOrder) return false;
   if (tutorTurnHolder && (!tutorTurnHolder.alive || enemies.indexOf(tutorTurnHolder) < 0)) {
@@ -7688,7 +7735,7 @@ function tutorNoteShot() {
 // offset is measured from the player, but the result is clamped to the leg's
 // own floor: a player hugging the left wall must not push the left-hand man
 // through it.
-function tutorPlaceEnemyAt(x, z, type = 'gunner') {
+function tutorPlaceEnemyAt(x, z, type = 'gunner', L = null) {
   // A held body ignores collision, so the script is the only thing keeping it
   // out of the masonry — snapped to the nearest row of floor there is, and
   // clamped across it. Clamping x alone was not enough: a body authored two
@@ -7703,9 +7750,9 @@ function tutorPlaceEnemyAt(x, z, type = 'gunner') {
   // bodies drifted more than a metre, median nine, worst twenty-seven — a
   // swarm on the centre line converging into a silhouette of somebody who
   // then appeared in silence at the edge of the room.
-  const row = tutorRow(z);
+  const row = tutorRow(z, L);
   const cz = row ? row.gz * HALL.cell : z;
-  const cx = tutorClampX(x, cz);
+  const cx = tutorClampX(x, cz, L);
   spawnEnemy(type, { x: cx, z: cz });
   const e = enemies[enemies.length - 1];
   if (!e) return null;
@@ -7722,8 +7769,8 @@ function tutorPlaceEnemyAt(x, z, type = 'gunner') {
 // back the number they were given — which is how a body authored one cell past
 // the end of a room ended up standing in rock, invisible and unshootable, on a
 // step that waits for the floor to be cleared. There is always a nearest row.
-function tutorRow(z) {
-  const L = hall && hall.legs[hall.cur];
+function tutorRow(z, leg = null) {
+  const L = leg || (hall && hall.legs[hall.cur]);
   if (!L || !L.cells || !L.cells.length) return null;
   const C = HALL.cell, want = Math.round(z / C);
   let bestGz = null, bestD = Infinity;
@@ -7739,8 +7786,8 @@ function tutorRow(z) {
   }
   return isFinite(lo) ? { lo, hi, gz: bestGz } : null;
 }
-function tutorClampX(x, z) {
-  const C = HALL.cell, row = tutorRow(z);
+function tutorClampX(x, z, leg = null) {
+  const C = HALL.cell, row = tutorRow(z, leg);
   if (!row) return x;
   const { lo, hi } = row;
   const a = (lo - 0.5) * C + HALL.wall / 2 + 0.55;
@@ -8701,6 +8748,7 @@ const el = {
   // one element per text slot, so several prompts can share the screen
   tslot: {
     mid: document.getElementById('ts-mid'),
+    dodge: document.getElementById('ts-dodge'),
     left: document.getElementById('ts-left'),
     right: document.getElementById('ts-right'),
     atbtn: document.getElementById('ts-atbtn'),
@@ -10859,6 +10907,10 @@ function openHallDoor() {
     hall.legs.push(buildHallLeg(L.endGx, L.endGz + 1, proto));
   }
   rebuildHallObstacles();
+  // ...AND IF THE LESSON OWNS THE LEG BEYOND, IT IS FILLED NOW. The corridor
+  // past an open door is on screen for the whole walk up to it; see
+  // tutorStageNextLeg.
+  tutorStageNextLeg();
   showBanner('THE DOOR IS OPEN', 1800);
   // ...AT THE DISTANCE IT ACTUALLY IS. This one fires because the last man in
   // the leg went down, and the door it belongs to is routinely thirty to
@@ -10981,7 +11033,16 @@ function crossHallDoor() {
     tutorCrossedDoor = true;
     if (tutorLegsOf()[tutorLegIx]) {
       game.spawnQueue = [];
-      tutorPopulateLeg();
+      // ...UNLESS IT IS ALREADY STANDING THERE. tutorStageNextLeg filled this
+      // leg when the door opened, and repopulating would delete those bodies
+      // and restart their assembly around a player who is now inside the room
+      // — the very pop-in the staging exists to remove. All that is owed here
+      // is the beat before anyone fires, which is a wall clock and so has to
+      // start at the crossing rather than at the fill.
+      if (tutorPrePopped === tutorLegIx) {
+        tutorPrePopped = -1;
+        game.noFireBefore = performance.now() + TUTOR.rampFireDelay * 1000;
+      } else tutorPopulateLeg();
     } else if (tutorCourse === 'slow') {
       // OUT OF AUTHORED CORRIDOR IS OUT OF LESSON. The onboarding runs out of
       // legs exactly when it is finished, so for it this is the handover. The
@@ -11945,7 +12006,12 @@ function frame(now) {
   if (tutorStep !== null) tutorPlaceWorldCue();
 
   renderFrame(dt);
+  // THE VEIL COMES OFF ON THE FIRST REAL PICTURE, not when the module has
+  // finished importing: the menu's own backdrop is a rendered corridor, and
+  // uncovering before it exists is uncovering the blank canvas. See #boot.
+  if (!booted) { booted = true; document.documentElement.classList.remove('booting'); }
 }
+let booted = false;
 requestAnimationFrame(frame);
 
 // --- the level tool's preview ---------------------------------------------

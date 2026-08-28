@@ -1,4 +1,4 @@
-# Where this leaves off — 2026-08-27
+# Where this leaves off — 2026-08-28
 
 TIME SHATTER, live at **https://timeshatter.app**. Portrait-mobile
 first-person arcade shooter, Superhot-descended. Development is
@@ -487,6 +487,75 @@ with only two forward runs, `secondRun` is the SAME CELL as the last corner
 and `corners` would have had no length), and `finalRun` is now the last place
 the path changes direction rather than the end of the last lateral run.
 
+## Three from the fourth playtest
+
+**The reload showed a half-built menu.** The document ships a menu skeleton so
+there is something for the game to fill in, and until `main.js` has run it is
+the WRONG menu: no discovery panel, no CONTINUE / LOAD GAME row, no attract
+corridor behind it, and `#hud` reading `WAVE 1 · 0` painted over the top of it
+(the frame loop is what hides that). Measured at first paint on a throttled
+boot: `body.className` empty, `#hud` opacity 1, `#discpanel` missing, no canvas
+— and then the whole thing rearranged. `<html class="booting">` plus a `#boot`
+veil in the game's own background colour now holds it back, and the frame loop
+takes the class off on the first picture it actually RENDERS (the menu backdrop
+is a rendered corridor; uncovering before it exists uncovers a blank canvas).
+An 8 s inline `setTimeout` clears it if the module never loads, so a bad deploy
+gets the skeleton rather than a grey rectangle.
+
+> The class has to be on the `<html>` TAG. A class added by a script — even the
+> first script in `<head>` — is already one paint too late on a cold load.
+
+**The DODGE beat's furniture was a third of a screen from what it was about.**
+Measured on the freeze frame at 402x874: the words ran 26–34% of the height,
+the thumb coach sat at 42%, and the round itself is ringed in red at **52%**.
+There is now a seventh text slot, `dodge` — `mid` eight per cent lower — and:
+
+| | before | now |
+|---|---|---|
+| words | 26–34% | **34–42%** |
+| thumb coach | 38–46% | **46–54%** |
+| the ringed round | 52% | 52% |
+
+The coach is on the LEFT half (25%), where the ring never is, so 50% is as low
+as it can go and still clear it.
+
+> **A new slot re-opened the black-then-white flash, in miniature.** `.tslot`
+> eases its colour over 0.35 s so a line already on screen does not flash when
+> the palette flips — but this one arrives ON the frame the palette does, so it
+> rode that ramp underneath its own fade-in: luminance 0.17 at 9% opacity,
+> 0.75 at 78%. `#ts-dodge` is painted light outright now (it is never on screen
+> against a light corridor), and has no `transition` of its own so
+> `.tslot.fadeout` still owns the way it leaves. 1 dark frame of 24 → **0**.
+
+**The pillared room was empty until you were inside it.** The area's bodies
+were placed on the CROSSING, and the crossing is the doorway — but the last
+stretch of corridor before a door looks straight through that doorway.
+Photographed from four metres out: the columns, the far wall and the next door
+all on screen, and nobody in the room. hall 2 has eighteen metres of floor
+after its last man, so that is three or four seconds of walking into a room you
+can see is empty, and then three men materialise around you one frame after you
+cross. `tutorStageNextLeg` fills the next authored leg when its door OPENS
+instead. Measured on the same walk:
+
+| | before | now |
+|---|---|---|
+| room occupied | at the threshold | **42.0 m / 7.7 s before it** |
+| all three assembled | 1.5 m past the threshold | **40.8 m before it** |
+| staged men aiming before the crossing | — | **0 frames** |
+
+> Nobody fires early because the staged bodies carry `stageZ` at the door
+> plane, which is the generated game's own mechanism (`stagedArmed`) for a body
+> placed before the player is in the room with him. The crossing then owes only
+> the beat before anyone shoots — that is a wall clock, so it has to start at
+> the crossing rather than at the fill, and `tutorPopulateLeg` skips it when it
+> is staging.
+
+> **The harness lied twice about this, in the same way both times.** The probe
+> swept `enemies` at the top of each frame and read `hall.cur` after it: the
+> game's own frame had already crossed the door and placed the room's three
+> men, so the broom killed them and the log said the room was empty. Read the
+> crossing BEFORE the broom, and stop sweeping once it has happened.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
@@ -509,7 +578,15 @@ the path changes direction rather than the end of the last lateral run.
    `RAMP.aimRange` is the knob; steepen it before touching `aimBase`. The
    regenerated table in docs/BALANCE.md now shows the real telegraph scale
    per door, which it did not when it was full of `NaN`.
-5. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
+5. **Staging fires for every authored area, not just the room.** hall 1 and
+   hall 2 now fill as the door before them opens too, which is right — but the
+   only one that has been photographed is the room. Worth a look at whether
+   watching a single gunner assemble 40 m away down a straight corridor reads
+   as the corridor filling up or as a pop. The fallback is deliberate and
+   silent: `tutorStageNextLeg` refuses if anybody is still standing (the
+   teaching leg's door opens on the script, not on a body count), and that area
+   fills on the crossing exactly as it used to.
+6. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
    the player is through the near doorway. The stall watchdog arms them if
    nothing happens for `LEG.stallAfter`, but that path has never been seen
    in real play. `LEG.stallAfter` is 4.5 s, chosen from the shape of the

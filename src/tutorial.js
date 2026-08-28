@@ -498,6 +498,14 @@ export const CUE_SHOW = CUE_EVENTS.filter(([id]) => id !== 'advance');
 // LOOK arrives, or the player reads the second as replacing the first.
 export const CUE_SLOTS = [
   ['mid',   'Centre'],
+  // ...AND A LOWER CENTRE, for the dodge. `mid` sits at a quarter of the way
+  // down, which is the right height for a line with nothing else on screen —
+  // but the dodge beat also has a thumb coach under the words and a round
+  // ringed in red out in the world, and a playtest found the sentence stranded
+  // up under the topbar with the two things it is about halfway down the
+  // frame. This slot puts it near where DRAG TO MOVE stood, which is the
+  // height the player has already learned to read instructions at.
+  ['dodge', 'Centre, low'],
   ['left',  'Left half'],
   ['right', 'Right half'],
   ['atbtn', 'Above the time button'],
@@ -556,7 +564,7 @@ const REMIND_SHOOT = () => [{
 // finished. `freeze` is the frame they step aside, which is the frame the
 // effect starts going.
 const REMIND_DODGE = () => [{
-  text: 'DODGE THE BULLET', slot: 'mid', arrow: 'none', hand: 'sway',
+  text: 'DODGE THE BULLET', slot: 'dodge', arrow: 'none', hand: 'sway',
   pulse: false, on: 'held', off: 'freeze', once: true, divider: true,
 }];
 
@@ -665,7 +673,7 @@ export const STEPS = [
     // being asked and there is no prompt for it to divide. A player standing
     // at the barrier saw a dotted line down the middle of an empty corridor.
     // It comes and goes with the words now, which is when it means something.
-    cues: [{ text: 'DODGE THE BULLET', slot: 'mid', arrow: 'none', hand: 'sway',
+    cues: [{ text: 'DODGE THE BULLET', slot: 'dodge', arrow: 'none', hand: 'sway',
       pulse: false, on: 'held', off: 'freeze', divider: true }],
   },
   // --- 6. THE GUN, AND THE OTHER TWO --------------------------------------

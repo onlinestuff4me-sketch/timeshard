@@ -205,14 +205,23 @@ retry could not rebuild the area without replaying the step.
 
 ## The text slots
 
-Six elements, one per slot, all able to be on screen together: `mid`, `left`,
-`right`, `atbtn`, `top`, and `world`. They used to be a single element that
-took its position from a class, which made `DRAG TO MOVE` and `DRAG TO LOOK`
-mutually exclusive — and lesson 2 exists to say they are not.
+Seven elements, one per slot, all able to be on screen together: `mid`,
+`dodge`, `left`, `right`, `atbtn`, `top`, and `world`. They used to be a single
+element that took its position from a class, which made `DRAG TO MOVE` and
+`DRAG TO LOOK` mutually exclusive — and lesson 2 exists to say they are not.
 
 `world` is anchored in 3D and projected every frame, so `STAND HERE` hangs
 over the barrier and grows as you walk up to it. There are two coach hands for
-the same reason there are six slots.
+the same reason there are seven slots.
+
+`dodge` is `mid` eight per cent lower, and it is the one slot that never waits
+for the palette. Everything else in the centre is the only thing on screen; the
+dodge beat is three things at once — the words, the thumb coach under them, and
+the round ringed in red out in the world at about 52% of the height — so the
+line sits at 34% where `DRAG TO MOVE` taught the player to read, with the coach
+at 50%. And because it is only ever on screen during the freeze it is painted
+light outright, rather than easing there from the light-corridor colour while
+it is also fading in.
 
 ## The hard freeze
 
@@ -434,6 +443,20 @@ Two other things the training areas do differently:
 * **every area with more than one body in it takes turns** (`fireOrder`). Two
   rounds resolving on the same frame is one loud event a first-time player
   cannot parse; the same two a beat apart is a room reacting to them.
+* **an area is filled when its door opens, not when you cross it**
+  (`tutorStageNextLeg`). The crossing is the doorway, and the last stretch of
+  corridor before a door looks straight *through* that doorway: measured on the
+  pillared room, from four metres out the columns, the far wall and the next
+  door are all on screen, and hall 2 has eighteen metres of floor after its
+  last man. So the player walked three or four seconds into a room they could
+  see was empty, and three men then materialised around them one frame after
+  they stepped over the threshold. Filling on the door-open means the room has
+  people standing in it, finished assembling, for the whole approach — 42 m and
+  7.7 s of it in the measured walk. Nobody fires early: the staged bodies carry
+  `stageZ` at the door plane, which is the generated game's own mechanism
+  (`stagedArmed`) for a body placed before the player is in the room with him.
+  The crossing then owes only the beat before anyone shoots, which is a wall
+  clock and so has to start there rather than at the fill.
 
 ## The line at the top of the screen
 
