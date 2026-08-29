@@ -13,8 +13,8 @@
 // before it. That is the opposite of a curve that compounds, and it is why the
 // old rule had a cliff — one body at door 4, twenty-four at door 5.
 // ---------------------------------------------------------------------------
-import { OPENING, RAMP, SPEED, SCHOOL, ramp, speedAt, unlockDoor, volleyAt }
-  from '../src/balance.js';
+import { OPENING, RAMP, SPEED, SCHOOL, ramp, speedAt, unlockDoor, volleyAt,
+  doorEncounters, powerUnlockDoor } from '../src/balance.js';
 
 const $ = (id) => document.getElementById(id);
 const DOORS = 96;   // far enough to show the unlock and the school
@@ -26,8 +26,12 @@ let onChange = () => {};
 function seed() {
   V = {
     legsEvery: OPENING.legsEvery,
-    bodiesEvery: OPENING.bodiesEvery,
-    aliveEvery: OPENING.aliveEvery,
+    // ...and the encounter curve, which is a table rather than a slider. The
+    // pane reads it; editing it is editing OPENING.encounters in balance.js.
+    encounters: OPENING.encounters,
+    encCap: OPENING.encCap, encMax: OPENING.encMax,
+    encBigEvery: OPENING.encBigEvery, encMoreEvery: OPENING.encMoreEvery,
+    unlockGroup: OPENING.unlockGroup,
     legsCap: OPENING.legsCap,
     corridorDoors: OPENING.corridorDoors,
     gapDoors: OPENING.gapDoors,
@@ -52,20 +56,25 @@ function seed() {
 // "can never disagree" — which was true only for as long as nobody edited one
 // of them. balance.js exports all three with an override parameter for exactly
 // this: the pane hands them its edited dials and gets the game's answer.
+// THE SPEED staircase's own answer — where bullets get fast. The POWER lands
+// on the encounter curve's answer instead; the two are separate questions.
 export const unlockDoorOf = (v = V) => unlockDoor(v);
+export const powerDoorOf = (v = V) => powerUnlockDoor(v);
 export const speedOf = (d, v = V) => speedAt(d, v);
-export const volleyOf = (d, v = V) => volleyAt(d - unlockDoor(v), v, v);
+export const volleyOf = (d, v = V) => volleyAt(d - powerUnlockDoor(v), v, v);
 
 // --- the curve, computed exactly the way main.js computes it ---------------
 export function doorRow(d, v = V) {
   const legs = Math.min(v.legsCap, ramp(d, v.legsEvery));
-  const bodies = ramp(d, v.bodiesEvery);
-  const alive = Math.min(bodies, ramp(d, v.aliveEvery));
-  // a door's budget, split evenly across its legs, remainder to the last of
-  // them — so walking deeper into a door is walking into more of it
-  const base = Math.floor(bodies / legs);
-  const extra = bodies - base * legs;
-  const split = Array.from({ length: legs }, (_, i) => base + (i >= legs - extra ? 1 : 0));
+  // A DOOR IS A LIST OF ENCOUNTERS — groups of men who arrive together — and
+  // they are dealt round-robin across its legs, largest first, exactly as
+  // main.js deals them. `bodies` is the sum and `alive` is the largest group.
+  const enc = doorEncounters(d, v);
+  const bodies = enc.reduce((a, x) => a + x, 0);
+  const alive = Math.max(1, ...enc);
+  const desc = enc.slice().sort((a, b) => b - a);
+  const split = Array.from({ length: legs }, () => 0);
+  desc.forEach((g, i) => { split[i % legs] += g; });
   const t = Math.max(0, Math.min(1, (d - v.gapDoors) / Math.max(1, v.gapBy - v.gapDoors)));
   const volley = volleyOf(d, v);
   // The school overrides the ramp's own answers wherever it is in session.
@@ -75,9 +84,10 @@ export function doorRow(d, v = V) {
   return { d, legs,
     bodies: volley ? split2.reduce((a, x) => a + x, 0) : bodies,
     alive: Math.max(alive, floor), split: split2, gap, volley,
+    enc,
     speed: speedOf(d, v),
     form: d <= v.corridorDoors ? 'corridor' : 'any',
-    slow: d >= unlockDoorOf(v) };
+    slow: d >= powerDoorOf(v) };
 }
 
 // --- what each dial is FOR, in the pane rather than only in the docs -------
@@ -87,14 +97,6 @@ const DIALS = [
     + '1..N, value 2 the next N+1, value 3 the next N+2 — so "deeper" is a '
     + 'longer walk before the next door as well as a busier one. Only the LAST '
     + 'leg of a door counts as the door.'],
-  ['bodiesEvery', 'Bodies per door', 1, 10, 1,
-    'How many enemies the WHOLE door holds, across all its legs. This is the '
-    + 'primary dial: the legs split its budget evenly, remainder to the last '
-    + 'of them, so there is no separate per-leg number to fight with it.'],
-  ['aliveEvery', 'Alive at once', 1, 10, 1,
-    'How many may be on you at the same time. Moved on its own schedule so '
-    + '"more enemies" and "harder fight" never arrive on the same door — door '
-    + '3 is two men one at a time, door 4 is the first pair you meet together.'],
   ['legsCap', 'Legs ceiling', 1, 8, 1,
     'The most legs a single door will ever have. Past this the walk stops '
     + 'getting longer and only the fights keep growing.'],
@@ -255,8 +257,7 @@ function renderTable() {
 // so an export is a patch against balance.js rather than a shape of its own.
 export function read() {
   return {
-    OPENING: { legsEvery: V.legsEvery, bodiesEvery: V.bodiesEvery,
-      aliveEvery: V.aliveEvery, legsCap: V.legsCap,
+    OPENING: { legsEvery: V.legsEvery, legsCap: V.legsCap,
       corridorDoors: V.corridorDoors, gapDoors: V.gapDoors,
       gapFrom: V.gapFrom, gapTo: V.gapTo, gapBy: V.gapBy,
       holdSlack: V.holdSlack },

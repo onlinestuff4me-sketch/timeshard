@@ -685,6 +685,74 @@ rules make it hold:
 > and the door waits on an empty queue. 28 legs over doors 1-8 since: no leg
 > failed to open its door.
 
+## The encounter curve, and the door the power lands on
+
+**A door is a list of encounters now, not a number of bodies.** An encounter is
+a group of men who arrive together, and that is the unit the player answers.
+One man is a sidestep and a shot; two is a sidestep that has to solve both;
+three is the first thing a sidestep does not solve. `OPENING.encounters` is a
+table for the first ten doors, because the shape of the first ten minutes is a
+judgement and not an arithmetic:
+
+| door | encounters | bodies | up at once |
+|---|---|---|---|
+| 1-2 | 1, 1, 1 | 3 | 1 |
+| 3-4 | 2, 1, 1 | 4 | 2 |
+| 5 | 3, 2, 1 | 6 | 3 |
+| 6 | 3, 3, 2, 1, 1 | 10 | 3 |
+| 7-8 | 3, 3, 2, 2, 1, 1 | 12 | 3 |
+| 9-10 | 4, 3, 3, 2, 2, 1(, 1) | 15-16 | 4 |
+
+> **`bodiesEvery` and `aliveEvery` are gone.** Two ramps for one question, and
+> they disagreed: a door could plan four bodies and cap two of them on their
+> feet, which turns a planned pair into two singles a beat apart. A group is
+> the answer to how many, how often AND how many at once. The random clump of
+> one-to-three in the release gate is gone with them — a group taken from the
+> plan is not a clump, and every man in it still goes through the first-sight
+> floor, so all three get their thirteen metres.
+
+**A room is never empty; a corridor may be.** `featureStretch` — a vault's
+pillared hall, or a chamber widened into an ordinary corridor — used to be paid
+for only when the HEADLINE named it, so a leg whose banner said DOOR 4 could
+widen into a room and put nobody in it. A playtest of the plans circled exactly
+that, twice. The room now takes the second-largest encounter, and if there is
+nothing left the door group lends it a man. Empty rooms across legs with one:
+**3 in 11 → 1 in 10**. Empty corridor stretches are left alone deliberately —
+they are the breath.
+
+**The time button moves from door 46 to door 6.** It was solved from the speed
+staircase: the door bullet speed first reaches `SPEED.unlockM`. That answers
+*"when do rounds get too fast to walk out of"*, which is a real question and the
+wrong one — what a sidestep cannot answer is not one fast round, it is three at
+once, and that arrives forty doors earlier. `powerUnlockDoor()` solves the
+encounter curve instead: the door after the first one that asks for a group of
+`OPENING.unlockGroup`. Still derived, never typed.
+
+| door | what is new |
+|---|---|
+| 1-5 | nothing. Gunners, and the loop. |
+| 5 | the first three-man encounter — the wall |
+| **6** | **slow time**, and nothing else that door |
+| 7 | rusher — he does not fire, he arrives. What the power is *for*. |
+| 9 | shotgunner &nbsp;·&nbsp; 11 shield &nbsp;·&nbsp; 13 heavy &nbsp;·&nbsp; then ~every 4 |
+
+> `EARLY.gunnerOnlyDoors` is 6 so the power has its door to itself. `TYPE_INTRO`
+> (balance.js) and `minDoor` (protocols.js) carry the same schedule and must
+> move together. Verified end to end: door 6 builds the authored `slowteach`
+> corridor, runs `slowStand` then `slowIntro` in the `slowroom` vault, the time
+> button appears, and the school's volley climbs 2 → 3 over the doors after.
+
+> The speed staircase keeps its own answer — still door 46, where bullets get
+> genuinely fast and the curve levels off. Two questions, two answers, and
+> `gen-balance-doc`'s door guard now knows both.
+
+Measured over 10 legs of doors 1-5: **10 of 10** door groups arrive after the
+door is in view, occupancy matches the plan leg for leg, and the one soft-lock
+this turned up was the forfeit rule assuming a door group of one man — it
+dropped two of a three-man group and the door then waited for ever on a queue
+that could never empty. The rule is stated as an invariant now: **the queue is
+exactly as long as the plan still owes**.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
@@ -707,30 +775,34 @@ rules make it hold:
    `RAMP.aimRange` is the knob; steepen it before touching `aimBase`. The
    regenerated table in docs/BALANCE.md now shows the real telegraph scale
    per door, which it did not when it was full of `NaN`.
-5. **35% of a leg's stretches still hold nobody**, and that is arithmetic
-   rather than a fault: three or four men cannot occupy six rooms. If it still
-   reads thin the lever is `OPENING.perLegFrom`, not the spread — the spread is
-   now provably even, and the occupancy matches the quota leg for leg.
-6. **serviceRun legs defeat the harness walker**, not the game. Their branch
+5. **The encounter table is a proposal with two runs behind it.** Doors 1-6
+   are hand-written and nobody has played them. `OPENING.encounters` is the
+   whole dial: add a row, change a row, and `doorBodies`, `doorAlive` and the
+   door the power lands on all follow. Watch door 6 especially — it doubles
+   the body count of door 5 and hands over the button in the same breath.
+6. **~50% of a leg's stretches hold nobody**, and that is now deliberate: an
+   empty corridor between encounters is the breath. An empty ROOM is not, and
+   1 in 10 still slips through — a leg whose room stretch was outrun before its
+   share came out.
+7. **serviceRun legs defeat the harness walker**, not the game. Their branch
    lanes make the spine-follower oscillate — 280-300 m walked on a 120 m leg.
    It predates all of this; a probe that reports one STUCK is usually reporting
    that, and `door.open`/`queue`/`fill` in the STUCK line say which.
-7. **The opening density is a proposal with two runs behind it.** 3 men per
-   corridor at door 1 rising to 6 by door 10 has been measured, not felt. The
-   dials are `OPENING.perLegFrom` / `perLegEvery` / `perLegCap` and they are
-   independent of `aliveEvery`, so "meet more people" and "fight more people at
-   once" can be tuned apart. Watch the ammo economy too: three times the bodies
-   is three times the clips, and the drop curve was written for the old count.
-8. **The door group now arrives 7-10 m after the door comes into view**, with
+8. **Watch the ammo economy.** Door 1 held one body and now holds three;
+   door 6 held three and now holds ten. Every kill has a chance of a clip
+   (`DROPS.clipRate`) and that curve was written against the old counts, so
+   the opening may now be awash with pistol ammo — which is the one scarcity
+   the whole game hangs off.
+9. **The door group now arrives 7-10 m after the door comes into view**, with
    the player 32-35 m out. That is measured, not felt: nobody has walked into
    one yet. If it lands too early the dial is where the sight test aims (one
    cell short of the slab); too late, and `LEG.approach` is the lever.
-9. **Ten metres of tail is a guess with a measurement behind it, not a
+10. **Ten metres of tail is a guess with a measurement behind it, not a
    measured answer.** 18 m read as too long; 10 m is two seconds and nobody has
    walked it yet. If it still reads as dead air the lever is the leg length in
    `LEGS` (6 / 8 / 9 cells), not the bodies — they were moved forward once
    already and are as close to the entrance as the sight lines allow.
-10. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
+11. **`e.stageZ` bodies** (the man staged in a vault room) hold fire until
    the player is through the near doorway. The stall watchdog arms them if
    nothing happens for `LEG.stallAfter`, but that path has never been seen
    in real play. `LEG.stallAfter` is 4.5 s, chosen from the shape of the

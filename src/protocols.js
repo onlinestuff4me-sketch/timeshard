@@ -59,25 +59,29 @@ export const ELEMENTS = [
     archive: 'Fixed emplacement lowered. It does not need to reload.' },
 
   // --- enemies: same schedule, different kind ------------------------------
+  // `minDoor` here and TYPE_INTRO in balance.js carry the SAME schedule and
+  // have to move together: this one decides what a door may claim in its
+  // headline, that one composes the wave. See TYPE_INTRO for why the opening
+  // is one new thing at a time and what each door's one thing is.
   { id: 'gunner', name: 'GUNNER', kind: 'enemy', tier: 1, minDoor: 1, unlockAt: 0, weight: 10, impl: true,
     archive: 'Compliant. Armed. The building has many.' },
-  { id: 'rusher', name: 'RUSHER', kind: 'enemy', tier: 1, minDoor: 2, unlockAt: 0, weight: 8, impl: true,
+  { id: 'rusher', name: 'RUSHER', kind: 'enemy', tier: 1, minDoor: 7, unlockAt: 0, weight: 8, impl: true,
     archive: 'Close-quarters directive. Watch the arm come back.' },
-  { id: 'shotgunner', name: 'SHOTGUNNER', kind: 'enemy', tier: 2, minDoor: 3, unlockAt: 0, weight: 6, impl: true,
+  { id: 'shotgunner', name: 'SHOTGUNNER', kind: 'enemy', tier: 2, minDoor: 9, unlockAt: 0, weight: 6, impl: true,
     archive: 'Wide pattern. Effective only near. Get past him.' },
-  { id: 'shieldbearer', name: 'SHIELD', kind: 'enemy', tier: 2, minDoor: 4, unlockAt: 15, weight: 5, impl: true,
+  { id: 'shieldbearer', name: 'SHIELD', kind: 'enemy', tier: 2, minDoor: 11, unlockAt: 15, weight: 5, impl: true,
     archive: 'Plate rated for small arms. The plate only.' },
-  { id: 'heavy', name: 'HEAVY', kind: 'enemy', tier: 2, minDoor: 5, unlockAt: 15, weight: 5, impl: true,
+  { id: 'heavy', name: 'HEAVY', kind: 'enemy', tier: 2, minDoor: 13, unlockAt: 15, weight: 5, impl: true,
     archive: 'Three rounds, in quick succession, every time.' },
-  { id: 'sniper', name: 'SNIPER', kind: 'enemy', tier: 3, minDoor: 6, unlockAt: 40, weight: 4, impl: true,
+  { id: 'sniper', name: 'SNIPER', kind: 'enemy', tier: 3, minDoor: 16, unlockAt: 40, weight: 4, impl: true,
     archive: 'Long authorisation delay. Longer reach.' },
-  { id: 'bomber', name: 'BOMBER', kind: 'enemy', tier: 3, minDoor: 7, unlockAt: 40, weight: 4, impl: true,
+  { id: 'bomber', name: 'BOMBER', kind: 'enemy', tier: 3, minDoor: 19, unlockAt: 40, weight: 4, impl: true,
     archive: 'Area denial. The floor is the weapon.' },
-  { id: 'armored', name: 'ARMORED', kind: 'enemy', tier: 3, minDoor: 8, unlockAt: 80, weight: 3, impl: true,
+  { id: 'armored', name: 'ARMORED', kind: 'enemy', tier: 3, minDoor: 23, unlockAt: 80, weight: 3, impl: true,
     archive: 'Body plated. The head was not considered a risk.' },
-  { id: 'rocketeer', name: 'ROCKETEER', kind: 'enemy', tier: 4, minDoor: 10, unlockAt: 140, weight: 3, impl: true,
+  { id: 'rocketeer', name: 'ROCKETEER', kind: 'enemy', tier: 4, minDoor: 27, unlockAt: 140, weight: 3, impl: true,
     archive: 'Guided munition. It will follow. Break the line.' },
-  { id: 'laser', name: 'LASER', kind: 'enemy', tier: 4, minDoor: 12, unlockAt: 200, weight: 2, impl: true,
+  { id: 'laser', name: 'LASER', kind: 'enemy', tier: 4, minDoor: 31, unlockAt: 200, weight: 2, impl: true,
     archive: 'Sweep emitter. Cover is irrelevant. Kill it.' },
 
   // --- weapons: ids match the WEAPONS keys, so a pickup files itself --------

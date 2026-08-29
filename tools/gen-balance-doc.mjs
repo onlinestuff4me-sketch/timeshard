@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, LEG, PACING, TIME,
-  SHATTER, SCARCITY, CONDITION_TAX, EARLY, VIS, SIMPLE, SPEED, scarcity,
-  speedAt, unlockDoor,
+  SHATTER, SCARCITY, CONDITION_TAX, EARLY, VIS, SIMPLE, SPEED, OPENING, scarcity,
+  speedAt, unlockDoor, powerUnlockDoor, doorEncounters,
 } from '../src/balance.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -176,9 +176,11 @@ by \`1 + rushT / 25\`, so everything ramps on the run clock instead.
 |---|---|---|---|
 ${rampRows}
 
-Slow time unlocks on **door ${unlockDoor()}**, where the staircase reaches
-${n(SPEED.unlockM)} m/s; it holds there for the ${SPEED.schoolDoors}-door
-school and then climbs again to a ceiling of ${n(SPEED.capM)} m/s. Rush Hour
+Slow time unlocks on **door ${powerUnlockDoor()}** — the door after the first
+one that asks for a group of ${OPENING.unlockGroup} (see the encounter table) —
+and the ${SPEED.schoolDoors}-door school runs from there. The staircase above is
+a separate schedule: it reaches ${n(SPEED.unlockM)} m/s on door ${unlockDoor()},
+holds there, and then climbs again to a ceiling of ${n(SPEED.capM)} m/s. Rush Hour
 drains the bank at a flat ${n(RAMP.rushDrain)}×. An enemy must be in view for
 **${n(RAMP.sightGrace)} s** before its telegraph may begin.
 
@@ -358,8 +360,21 @@ if (existsSync(OUT)) {
 // a build failure, not a warning: a document that confidently names the wrong
 // door is worse than no document.
 if (prelude) {
+  // TWO DOORS ARE NOW LEGITIMATE, because there are two answers and they are
+  // to two different questions: `powerUnlockDoor()` is where the TIME BUTTON
+  // lands (it solves the encounter curve for the door after the player is
+  // first outnumbered) and `unlockDoor(SPEED)` is where the speed staircase
+  // levels off. The school follows the power. Both, and the doors either side
+  // of both schools, are checkable numbers this document may name.
+  const power = powerUnlockDoor();
   const want = unlockDoor();
-  const ok = new Set([want, want + SPEED.schoolDoors - 1, want + SPEED.schoolDoors]);
+  const ok = new Set([power, power + SPEED.schoolDoors - 1, power + SPEED.schoolDoors,
+    want, want + SPEED.schoolDoors - 1, want + SPEED.schoolDoors]);
+  // ...AND THE DOORS THE TYPE SCHEDULE NAMES, which the same window catches
+  // because "the power" appears in the paragraph above the table.
+  for (const d of Object.values(TYPE_INTRO)) ok.add(d);
+  // ...and the doors the encounter table names, for the same reason.
+  for (let d = 1; d <= OPENING.encounters.length; d++) ok.add(d);
   // ...AND THE DOOR THE STAIRCASE TOPS OUT ON, which is the other door number
   // this document is entitled to name. The ramp rewrite tied telegraph
   // tightness to where the round's speed sits between `openM` and `capM`, so

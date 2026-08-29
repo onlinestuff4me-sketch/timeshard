@@ -14,7 +14,8 @@
 import * as THREE from '../lib/three.module.min.js';
 import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, TIME, LEG, SHATTER,
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
-  speedAt, volleyAt, unlockDoor as speedUnlockDoor } from './balance.js';
+  speedAt, volleyAt, unlockDoor as speedUnlockDoor,
+  doorEncounters, powerUnlockDoor } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -3111,6 +3112,9 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     }
     L.released = (L.released || 0) + 1;   // the stretch budget is spent here
     if (ownIx >= 0 && L.fill) L.fill[ownIx] = Math.max(0, L.fill[ownIx] - 1);
+    // ...and WHICH stretch, so the release gate can finish the group it has
+    // just started rather than dealing the rest of it out a beat at a time.
+    L.lastOwn = ownIx;
   } else {
     // valid ground = ON a street (never a block-interior pocket the player
     // can't reach), inside the live world, and clear of buildings
@@ -3684,10 +3688,23 @@ function diffT() {
 // ---------------------------------------------------------------------------
 // How many corridors and rooms stand behind one door.
 const doorLegs = (d) => Math.min(OPENING.legsCap, ramp(d, OPENING.legsEvery));
-// ...how many bodies the WHOLE door holds, across all of them.
-const doorBodies = (d) => ramp(d, OPENING.bodiesEvery);
-// ...and how many may be up at once. Never more than the door holds.
-const doorAlive = (d) => Math.min(doorBodies(d), ramp(d, OPENING.aliveEvery));
+// ...how many bodies the WHOLE door holds, across all of them: the sum of its
+// encounters. See OPENING.encounters — a door is a list of GROUPS, not a count.
+const doorBodies = (d) => doorEncounters(d).reduce((a, b) => a + b, 0);
+// ...and how many may be up at once: the largest group the door asks for. It
+// is not a separate curve any more. It used to be, and the two disagreed —
+// a door could plan four bodies and cap two on their feet, which turns a
+// planned pair into two singles arriving a beat apart.
+const doorAlive = (d) => Math.max(1, ...doorEncounters(d));
+// HOW ONE DOOR'S ENCOUNTERS ARE SPLIT BETWEEN ITS LEGS. Dealt round-robin from
+// the largest down, so every corridor behind a door gets a mix: one leg does
+// not take all the threes and leave the next a row of singles.
+function legEncounters(d, i) {
+  const all = doorEncounters(d).slice().sort((a, b) => b - a);
+  const legs = Math.max(1, doorLegs(d)), out = [];
+  for (let k = 0; k < all.length; k++) if (k % legs === i) out.push(all[k]);
+  return out.length ? out : [1];
+}
 // THE ROOM'S SHOT FLOOR, in world seconds: how long everybody else waits after
 // one of them pulls a trigger. Three seconds for the opening doors — long
 // enough that every round is its own event — closing to the deep game's gap.
@@ -3702,21 +3719,12 @@ function shotGap() {
 }
 // A door's budget, split across its legs — weighted to the LAST of them, so
 // walking deeper into a door is walking into more of it rather than less.
-// WHAT ONE CORRIDOR HOLDS AT MINIMUM — see OPENING.perLegFrom. A door's budget
-// is split across its legs and the leg count grows faster than the budget, so
-// the per-corridor count used to FALL as the door number rose. This never does.
-const legFloor = (d) => Math.min(OPENING.perLegCap,
-  OPENING.perLegFrom + Math.floor(Math.max(0, d - 1) / OPENING.perLegEvery));
-
+// WHAT ONE CORRIDOR HOLDS: the sum of the encounters dealt to it, with the
+// slow-time school's own floor under it — the school's doors have to be able
+// to show a player what a volley of three is for.
 function legShare(d, i) {
-  const legs = doorLegs(d), total = doorBodies(d);
-  const base = Math.floor(total / legs);
-  const extra = total - base * legs;          // handed to the last `extra` legs
-  // ...and the slow-time school puts a FLOOR under it. Its doors are deep
-  // enough that the ramp already deals out plenty of bodies, but it deals
-  // them across five legs, and a leg holding two men cannot show a player
-  // what a volley of three is for.
-  return Math.max(base + (i >= legs - extra ? 1 : 0), schoolFloor(d), legFloor(d));
+  const own = legEncounters(d, i).reduce((a, b) => a + b, 0);
+  return Math.max(own, schoolFloor(d));
 }
 
 // ---------------------------------------------------------------------------
@@ -6641,9 +6649,19 @@ let timeLocked = false;
 // Empty bank -> time snaps back (the usual resume sound/visuals fire).
 const SLOWMO = { base: TIME.base, bonus: TIME.bonus, cap: TIME.cap, drain: TIME.drain,
   low: TIME.low, crit: TIME.crit,
-  // NOT A NUMBER OF ITS OWN. The door the power lands on is whichever one the
-  // speed staircase reaches SPEED.unlockM on — ask balance.js, never guess.
-  unlockDoor: speedUnlockDoor() };
+  // NOT A NUMBER OF ITS OWN, AND NOT A SPEED EITHER.
+  //
+  // It used to be the door the speed staircase reaches SPEED.unlockM on —
+  // door 46, an hour in. That answered "when do rounds get too fast to walk
+  // out of", which is a real question and the wrong one: what a player cannot
+  // answer with a sidestep is not one fast round, it is THREE ROUNDS AT ONCE.
+  // So the power lands the door after the first door that outnumbers them —
+  // see OPENING.encounters and OPENING.unlockGroup. Door 6.
+  //
+  // The speed staircase keeps its own answer (`speedUnlockDoor`) for where it
+  // levels off, because that is still the door bullets get genuinely fast on.
+  // The two are separate questions now and each has its own.
+  unlockDoor: powerUnlockDoor() };
 // SLOW MOTION IS A THING YOU UNLOCK. Not during the onboarding, which never
 // mentions it, and not on door 1 — a few doors in, once the rhythm is a habit
 // and the rounds have started to arrive faster than a walk can answer. Until
@@ -10435,21 +10453,23 @@ function hallAllowance() {
     // share and the body go together. A leg the player outruns is a quieter
     // leg, and that is the honest price of walking past a fight.
     if (L.fill) {
-      let dropped = 0;
-      for (let i = 0; i < k && i < L.fill.length - 1; i++) { dropped += L.fill[i]; L.fill[i] = 0; }
-      // ...never the door group, if the door group is still owed. Keeping one
-      // unconditionally is what soft-locked a leg: with the approach's man
-      // already out, the kept body was owed by nothing, could never be placed,
-      // and the door waits on an EMPTY QUEUE — measured, the player standing
-      // 1.5 m from the slab with nobody alive, every share spent and one body
-      // still queued behind them.
-      const keep = L.fill[L.fill.length - 1] > 0 ? 1 : 0;
-      const n = Math.min(dropped, Math.max(0, game.spawnQueue.length - keep));
-      if (n > 0) game.spawnQueue.splice(game.spawnQueue.length - keep - n, n);
-      // ...AND A LEG THAT OWES NOTHING HAS AN EMPTY QUEUE. Anything still in
-      // it is a body no stretch will ever fund, and the door it is holding
-      // shut is the only way out of the corridor.
-      if (L.fill.every((v) => !v) && game.spawnQueue.length) game.spawnQueue.length = 0;
+      for (let i = 0; i < k && i < L.fill.length - 1; i++) L.fill[i] = 0;
+      // THE QUEUE IS EXACTLY AS LONG AS THE PLAN STILL OWES. Stated as the
+      // invariant rather than as bookkeeping, because the bookkeeping got it
+      // wrong twice in two different ways: a body left in the queue that no
+      // stretch will fund holds the door shut for ever (the door waits on an
+      // empty queue), and a body dropped that a stretch IS still owed leaves
+      // the leg short. Counting what was forfeited and splicing that many is
+      // only right while every group is one man — it dropped two of a
+      // three-man door group the moment groups arrived.
+      const owed = L.fill.reduce((a, b) => a + b, 0);
+      const over = game.spawnQueue.length - owed;
+      if (over > 0) {
+        // never out of the door group, which is the tail of the queue
+        const tail = L.fill[L.fill.length - 1] || 0;
+        const n = Math.min(over, Math.max(0, game.spawnQueue.length - tail));
+        if (n > 0) game.spawnQueue.splice(game.spawnQueue.length - tail - n, n);
+      }
     }
     // COUNTED OFF WHAT IS STILL OWED, not off the plan.
     //
@@ -10491,99 +10511,60 @@ function hallWave(n) {
     const bodyN = leg && leg.stretches ? leg.stretches.length - 1 : 0;
     const fs = leg && leg.featureStretch >= 0 && leg.featureStretch < bodyN
       ? leg.featureStretch : -1;
-    // A LEG THAT PROMISES A ROOM HAS TO AFFORD BOTH THE ROOM AND THE DOOR.
-    // At a share of one, reserving a body for the pillared hall empties the
-    // approach and moves the anticlimax rather than removing it. This is the
-    // only place the opening ramp is added to, and it is added to only where
-    // a headline has made a claim that needs paying for.
-    // THREE KINDS OF LEG, and only two of them change.
+    // A ROOM IS NEVER EMPTY. `featureStretch` is the leg's open space — a
+    // vault's pillared hall, or a chamber widened into an ordinary corridor —
+    // and it used to be paid for only when the HEADLINE named it, so a leg
+    // whose banner said DOOR 4 could widen into a room and put nobody in it.
+    // A playtest of the plans circled exactly that, twice. It is a room; the
+    // player walks into it looking for the fight; it gets one.
     //
-    //   a leg that promises a PLACE — a vault's pillared hall — reserves a
-    //   body for that place and is given a floor of two so the door keeps
-    //   one as well, but never more than the door itself holds;
-    //   a leg that promises a QUALITY — NO COVER · DO NOT STOP, TIGHT TURNS,
-    //   FLOODED — spreads what it has down the corridor the claim is about,
-    //   because the claim is about all of it;
-    //   a leg that promises NOTHING is left exactly as it was. Its headline
-    //   is DOOR 7, which is a fact and not a claim, and the last group
-    //   waiting on the approach so you fight it with the door in frame is a
-    //   deliberate payoff rather than an accident.
-    const proto = leg && leg.proto;
-    const reserve = fs >= 0 && legPromisesPlace(proto);
-    const spread = !reserve && legPromises(proto);
-    const want = Math.max(legShare(n, hall ? hall.legInDoor : 0),
-      reserve ? Math.min(LEG.featureFloor, doorBodies(n)) : 0);
+    // An empty CORRIDOR stretch between two encounters is fine, and is
+    // deliberate: it is the breath, and the tension.
+    // ...AND THE LEG'S SHARE IS A LIST OF GROUPS, not a number. See
+    // OPENING.encounters.
+    const enc = legEncounters(n, hall ? hall.legInDoor : 0);
+    const want = Math.max(enc.reduce((a, b) => a + b, 0), schoolFloor(n));
     if (leg && leg.stretches && leg.stretches.length) {
-      // ONE EACH IN THE LAST `want` STRETCHES, so the fight travels with the
-      // player rather than waiting in a heap at the door — and if the leg is
-      // shorter than that, whatever is left over joins the approach.
       const k = leg.stretches.length;
-      // ONE PER STRETCH IS THE OPPOSITE OF A VOLLEY. The ordinary rule deals
-      // a body out as you walk into each stretch, so the fight travels with
-      // you and nothing waits in a heap — exactly right, and exactly wrong for
-      // a lesson whose whole subject is several men firing at once. The school
-      // deals in GROUPS: a volley's worth per stretch, so walking into one is
-      // walking into all of them.
-      const per = Math.max(1, schoolVolleyAt(n));
-      // THE FEATURE IS PAID FIRST, then the rest fill from the end.
-      //
-      // Filling purely from the end is right when there is enough to reach
-      // back down the leg, and a lie when there is not. `want` is one or two
-      // for every door in the opening ramp and a leg has six to eight
-      // stretches, so `want - back * per` came out [0,0,0,0,0,1] every single
-      // time: measured across 300 legs at doors 1-26, not one had a non-zero
-      // share anywhere before its last two stretches. A median of 84% of
-      // every leg in the game was structurally incapable of producing an
-      // enemy — including, in all 71 vault legs sampled, the pillared room
-      // the banner had just called your only cover.
+      // In the slow-time school a group is a VOLLEY and the school says how
+      // big: it deals in groups by definition, and this is the one place its
+      // number outranks the curve's.
+      const vol = schoolVolleyAt(n);
+      const groups = enc.slice().sort((a, b) => a - b)
+        .map((g) => (vol > g ? vol : g));
+      // top up if the school's floor asks for more than the curve's groups
+      let short = want - groups.reduce((a, b) => a + b, 0);
+      while (short > 0) { groups.unshift(1); short--; }
+
       leg.quota = leg.stretches.map(() => 0);
-      let left = want;
-      if (reserve && left > 0) { leg.quota[fs] = 1; left--; }
-      // THE DOOR GROUP IS RESERVED FIRST. The approach is the last stretch and
-      // its share is the group you fight with the door in frame; it is the one
-      // placement never traded away for spacing, and hallAllowance holds it
-      // back until the door is actually on screen.
-      if (left > 0 && k > 1 && !leg.quota[k - 1]) { leg.quota[k - 1] = 1; left--; }
-      if (spread) {
-        // evenly down the body of the leg, because that is what the headline
-        // is describing — the turns, the straight, the flooded length of it
-        for (let i = 0; i < want && left > 0; i++) {
-          const at = Math.min(bodyN - 1, Math.floor(((i + 0.5) / want) * bodyN));
-          if (leg.quota[at] >= per) continue;
-          leg.quota[at]++; left--;
-        }
+      // THE BIGGEST GROUP GUARDS THE DOOR. It is the one you fight with the
+      // door in frame, and it is the leg's climax.
+      if (groups.length && k > 1) leg.quota[k - 1] = groups.pop();
+      // ...THE NEXT BIGGEST STANDS IN THE ROOM, if the leg has one.
+      if (fs >= 0 && groups.length) leg.quota[fs] = groups.pop();
+      // ...AND IF THERE WAS NOTHING LEFT, THE DOOR GROUP LENDS IT A MAN. A leg
+      // can be dealt a single encounter — one corridor of a two-leg door often
+      // is — and the door takes it, which puts nobody in the room. Measured, 3
+      // of 11 legs with a room in them. A room is never empty: splitting the
+      // door group is the cheapest way to keep that true, and a pair split
+      // into a man in the room and a man at the door is a better leg than a
+      // pair at the door and an empty room on the way to it.
+      if (fs >= 0 && !leg.quota[fs] && leg.quota[k - 1] > 1) {
+        leg.quota[k - 1]--; leg.quota[fs] = 1;
       }
-      // ...AND THE REST SPREAD DOWN THE STRETCHES THE PLAYER WALKS THROUGH.
-      //
-      // Filling from the end is right for a leg holding one or two — the last
-      // group waits at the door and the corridor before it is the walk. It is
-      // exactly wrong once a leg holds as many bodies as it has rooms, which
-      // is every leg now: measured before the per-leg floor, one body in a
-      // 120 m leg and 109 m of nothing.
-      //
-      // STARTING AT THE SECOND STRETCH. The leg's opener comes out on arrival
-      // (LEG.openerOnArrival) and the first-sight floor puts him a stretch
-      // ahead, so by the time anybody is placed the player has already walked
-      // out of the first one. Quota left there can only be forfeited.
-      // ...IN LAYERS, so a leg with more men than rooms puts two in each rather
-      // than one in each and the rest in a heap. `per` is one outside the
-      // slow-time school, so door 7's five-man leg with three rooms came out
-      // [0,1,3,1] — which is exactly the "loaded leg" a playtest of the maps
-      // objected to. Raising the cap a layer at a time gives [0,2,2,1].
-      const lo = Math.min(1, bodyN - 1), span = Math.max(1, bodyN - lo);
-      for (let cap = per; left > 0 && cap <= Math.max(per, LEG.stretchCap); cap++) {
-        const n = left;
-        for (let i = 0; i < n && left > 0; i++) {
-          const at = lo + Math.min(span - 1, Math.floor(((i + 0.5) / n) * span));
-          if (leg.quota[at] >= cap) continue;
-          leg.quota[at]++; left--;
-        }
+      // ...AND THE REST ASCEND DOWN THE CORRIDOR. Smallest first, evenly
+      // spaced across the stretches the player walks THROUGH, starting at the
+      // second: the leg's opener comes out on arrival and the first-sight
+      // floor puts him a stretch ahead, so nothing can stand in the first one.
+      const lo = Math.min(1, Math.max(0, bodyN - 1));
+      const slots = [];
+      for (let i = lo; i < bodyN; i++) if (i !== fs) slots.push(i);
+      for (let j = 0; j < groups.length; j++) {
+        if (!slots.length) { leg.quota[Math.max(0, bodyN - 1)] += groups[j]; continue; }
+        const at = groups.length === 1 ? slots[slots.length - 1]
+          : slots[Math.round(j * (slots.length - 1) / (groups.length - 1))];
+        leg.quota[at] += groups[j];
       }
-      // Anything the spread could not seat goes to the last stretch the player
-      // WALKS THROUGH, not to the approach: the door group is one group, and a
-      // leg that quietly grew it to three put three men in the last twenty
-      // metres of corridor with nothing in the eighty before it.
-      if (left > 0) leg.quota[Math.max(0, bodyN - 1)] += left;
       leg.released = 0; leg.markK = undefined; leg.budget = 0;
       leg.doorMark = undefined;
       // WHAT EACH STRETCH STILL OWES. `quota` is the plan and does not move;
@@ -11943,21 +11924,28 @@ function frame(now) {
             } else i++;
           }
         } else if (born && inHall()) {
-          // corridors fight in clusters: 1-3 round the corner together — but
-          // NOT under a condition. A clump in the dark is a single problem
-          // you solve with one burst or one knife sweep; the same bodies met
-          // one at a time are separate searches, which is the harder and more
-          // interesting version of a corridor you cannot see down.
-          // ...AND NOT WHILE THE FIRST-SIGHT FLOOR IS IN FORCE. A clump is two
-          // or three men arriving on the same frame, which is precisely what
-          // that rule exists to prevent: it guarantees ROOM to answer a round,
-          // and two rounds starting together is not one problem with room
-          // around it, it is two. The floor runs through door 10 and eases out
-          // by 18, so the opening trickles and the deep game still clumps.
-          const clumps = !legCondition() && !(inHall() && firstSightFloor() > 0);
-          let extra = clumps ? Math.min(
-            (Math.random() < 0.65 ? 1 : 0) + (Math.random() < 0.3 ? 1 : 0),
-            game.spawnQueue.length, maxAlive() - enemies.length, room - 1) : 0;
+          // AN ENCOUNTER ARRIVES TOGETHER, and the leg's plan says how big it
+          // is — see OPENING.encounters. A group of three dealt out one man at
+          // a time is three singles a beat apart, which is the easier fight
+          // and not the one the door was written to be.
+          //
+          // This replaces a random clump of one to three. The randomness was
+          // the problem: a clump is exactly what the first-sight floor exists
+          // to prevent, so it had to be switched off for the opening doors —
+          // and then a planned pair could not arrive as a pair either. A group
+          // taken from the plan is not a clump, it is the encounter, and every
+          // man in it is placed through the same floor, so all three get their
+          // thirteen metres.
+          //
+          // NOT under a condition: a clump in the dark is a single problem you
+          // solve with one burst, where the same bodies met one at a time are
+          // separate searches — the harder and more interesting version of a
+          // corridor you cannot see down.
+          const LG = hall.legs[hall.cur];
+          const owes = !legCondition() && LG && LG.fill && LG.lastOwn >= 0
+            ? LG.fill[LG.lastOwn] || 0 : 0;
+          let extra = Math.min(owes, game.spawnQueue.length,
+            maxAlive() - enemies.length);
           while (extra-- > 0) spawnEnemy(game.spawnQueue.shift(), null, true);
         }
         // the fuller the street (a fresh pack fills it fast), the longer

@@ -24,18 +24,62 @@ That is the opposite of a curve that compounds, and it is the whole reason this
 exists. Each dial takes one number — how many doors its first band lasts — and
 the rest follows.
 
-### Why there are four of them, on four schedules
+### A door is a list of ENCOUNTERS, not a number of bodies
 
-Because **one change per step** is the idea, and the only way to enforce it is
-to make the dials land on different doors:
+An encounter is a **group of men who arrive together**, and that is the unit the
+player answers. One man is a sidestep and a shot. Two is a sidestep that has to
+solve both. Three is the first thing a sidestep does not solve, and it is what
+the time button is for.
 
-* door 3 is the first with two bodies in it — but still one alive at a time.
-  The same beat twice, not a new problem.
-* door 4 is the first time two can meet you together.
-* door 5 is the first door made of two legs — more corridor, not more men.
+`OPENING.encounters` is a table for the first ten doors, because the shape of
+the first ten minutes is a judgement and not an arithmetic. Reading down its
+first column is the difficulty curve — 1, 1, 2, 2, 3, 3, 3, 3, 4:
 
-"More rooms", "more bodies", "more of them at once" and "they shoot sooner"
-must never arrive on the same door.
+| door | encounters | bodies | up at once |
+|---|---|---|---|
+| 1-2 | 1, 1, 1 | 3 | 1 |
+| 3-4 | 2, 1, 1 | 4 | 2 |
+| 5 | 3, 2, 1 | 6 | 3 |
+| 6 | 3, 3, 2, 1, 1 | 10 | 3 |
+| 7-8 | 3, 3, 2, 2, 1, 1 | 12 | 3 |
+| 9 | 4, 3, 3, 2, 2, 1 | 15 | 4 |
+| 10 | 4, 3, 3, 2, 2, 1, 1 | 16 | 4 |
+
+Past the table it keeps escalating on two dials — `encBigEvery` (the biggest
+group grows) and `encMoreEvery` (the door gains an encounter) — against
+`encCap` and `encMax`.
+
+**There is no `bodiesEvery` or `aliveEvery` any more.** They were two ramps for
+one question and they disagreed: a door could plan four bodies and cap two of
+them on their feet, which turns a planned pair into two singles a beat apart.
+A group is the answer to how many, how often, and how many at once, so one
+table answers all three. `doorBodies` is the sum of a door's encounters and
+`doorAlive` is the largest of them; neither is a dial.
+
+### Where an encounter stands
+
+A door's encounters are dealt **round-robin across its legs**, largest first, so
+one corridor does not take all the threes and leave the next a row of singles.
+Within a leg they are dealt to *stretches* — the straight runs between its
+turns, which is what reads as a leg on a floor plan:
+
+* **the biggest group guards the door.** It is the one you fight with the door
+  in frame, and it is only released once the door is actually on screen (see
+  `hallAllowance` and `L.doorSeen`).
+* **the next biggest stands in the room**, if the leg has one. A room is never
+  empty; if there is nothing left to give it, the door group lends it a man.
+* **the rest ascend down the corridor**, evenly spaced from the second stretch
+  on — the leg's opener comes out on arrival and the first-sight floor puts him
+  a stretch ahead, so nothing can stand in the first.
+* **an empty corridor stretch between two encounters is deliberate.** It is the
+  breath, and the tension. An empty *room* is a bug.
+
+`L.fill` is what each stretch still owes; a release takes the first stretch at
+or ahead of the player that still owes one and stands the body there, and the
+rest of that stretch's group comes out with it. What is behind the player is
+spent, and its bodies are dropped with it: **the queue is exactly as long as
+the plan still owes**. Anything else is a body with nowhere to stand (and the
+door waits on an empty queue) or a stretch owed a man the queue cannot produce.
 
 ### The dials, one at a time
 
@@ -46,25 +90,6 @@ door counts as the door**; the ones before it are more corridor behind the same
 number, and `hall.legInDoor` is which of them you are standing in. This is what
 lets "how far to the next door" grow independently of "how hard the door is" —
 depth becomes a longer walk as well as a busier one.
-
-**`bodiesEvery` — bodies per door** (first band 2 doors)
-
-How many enemies the whole door holds, across all its legs. **This is the
-primary dial**, and the only one that decides a count.
-
-There is deliberately **no separate "bodies per leg" dial**. A door's budget is
-split evenly across its legs, remainder to the last of them (`legShare`), so the
-per-leg count is a *result*: 1 while a door holds one, 2 when a single-leg door
-holds two, and back to 1 the moment the door grows a second leg. A dial on top
-of that could only ever clip the budget — an early version capped door 3 at one
-body per leg, which turned door 3 straight back into door 1.
-
-**`aliveEvery` — alive at once** (first band 3 doors)
-
-How many may be on you at the same time, never more than the door holds. This
-is the dial that decides whether a door is a queue or a swarm, so it is the one
-that moves least. A condition thins it further (`condTax`): two bodies met
-separately are two searches, where a clump is one problem solved once.
 
 **shot gap** (`gapFrom` 3s, held flat until door 10, reaching `gapTo` 0.28s at door 25)
 
@@ -120,34 +145,47 @@ have a staircase, a school or an unlock:
 
 ### The door the power lands on is solved, not typed
 
-Slow time is not unlocked on a door number somebody picked. It is unlocked by
-the **speed reaching `SPEED.unlockM`** — the point at which walking out of a
-round stops being enough — and `unlockDoor()` solves the staircase for the door
-that happens on. On the shipped numbers that is **door 46**. Everything keys off
-that one answer: the button, the meter, the STAND HERE corridor that teaches it,
-and the school that follows. Move any tread and the whole lesson moves with it,
-because none of them carries a number of its own.
+Slow time is not unlocked on a door number somebody picked, and it is not
+unlocked by a speed either any more. It is unlocked by **being outnumbered**:
+`powerUnlockDoor()` walks the encounter curve and returns the door *after* the
+first door that asks for a group of `OPENING.unlockGroup` (three). On the
+shipped table that is **door 6**. Everything keys off that one answer — the
+button, the meter, the STAND HERE corridor that teaches it, and the school that
+follows — so moving the encounter table moves the whole lesson with it.
 
-There used to be a hand-typed `TIME.unlockDoor` here, and it could — and did —
-drift out of step with the speed it was supposed to be answering.
+**Why it moved.** It used to be the door the speed staircase reaches
+`SPEED.unlockM` on: door 46, about an hour of play, and most players would never
+have seen it. That answered *"when do rounds get too fast to walk out of"*,
+which is a real question and the wrong one. What a player cannot answer with a
+sidestep is not one fast round — it is **three rounds at once**, and that
+arrives forty doors earlier. There used to be a hand-typed `TIME.unlockDoor`
+before that, and it drifted out of step with the thing it was answering; this
+is derived for the same reason, from a different thing.
 
-**It is simply what the treads add up to**: 36 steps of 0.2 from 5.8, one door
-each. `unlockM` is 13 because that is what the old ramp topped out at
-(16 × 0.79 = 12.64), so it is the speed the power was implicitly balanced
-against before any of this existed.
+The speed staircase keeps its own `unlockDoor(SPEED)` — still door 46, still 36
+treads of 0.2 from 5.8 — because that is still the door bullets get genuinely
+fast on, and the staircase levels off there. The two are separate questions now
+and each has its own answer. `/tool` → **RAMP** prints both.
 
-<!--door-ok-->`stepDoors` was **2**, which put the unlock on door 81 — at roughly a minute a
-door, about an hour of play before the core mechanic of the game appears at
-all. Halving the tread WIDTH rather than doubling its HEIGHT was the fix worth
-making: every step is the same size underfoot as it was, the staircase just
-stops spending two doors on each.
+**The opening, one new thing at a time.** The power is the FIRST new thing after
+the tutorial, and it gets its door to itself (`EARLY.gunnerOnlyDoors` is 6):
 
-At roughly a minute a door that is about an hour of play before the core
-mechanic appears, and most players will never see it. Nothing about the speed
-curve has to change to fix that — the treads are twice as wide as they need to
-be. <!--door-ok-->`stepDoors` 2 → 1 puts the unlock on **door 46**; `stepM`
-0.2 → 0.4 does the same while keeping two-door treads. `/tool` → **RAMP** prints the solved door
-above the table and moves it as you drag.
+| door | what is new |
+|---|---|
+| 1-5 | nothing. Gunners, the loop: walk, look, shoot, sidestep. |
+| 5 | *(not new — but the first three-man encounter, and the wall)* |
+| **6** | **slow time.** Two three-man encounters, and the answer to them. |
+| 7 | the rusher. He does not fire, he arrives — the first thing the new power is *for*. |
+| 9 | the shotgunner. Deadly near, harmless far: the first enemy about distance rather than timing. |
+| 11 | the shield. The first one you have to move to solve. |
+| 13 | the heavy. Three rounds at once, which is a volley from one man. |
+
+...and roughly every four doors after that. `TYPE_INTRO` in `src/balance.js` and
+`minDoor` in `src/protocols.js` carry the same schedule and have to move
+together: the first composes the wave, the second decides what a door may claim
+in its headline. A type's `unlockAt` (lifetime doors, across runs) still meters
+the deeper half of the roster on top of this, so a first run meets gunner,
+rusher and shotgunner and nothing else.
 
 ### The slow-time school — the ten doors after the unlock
 
@@ -439,7 +477,7 @@ him, watch the round leave, step out of it, shatter him — has to be learnable
 once before it is asked for twice. See docs/PILLARS.md section 3.
 
 ```js
-gunnerOnlyDoors  : 5
+gunnerOnlyDoors  : 6
 oneRoundDoors    : 5
 firstSightM      : 13
 firstSightDoors  : 10
@@ -490,15 +528,15 @@ After that the type fills in at `min(cap, floor(total / share))` per wave.
 | Enemy | Debut | Fill share | Fill cap | Drops | Role |
 |---|---|---|---|---|---|
 | gunner | 1 | — | — | — | the backbone |
-| rusher | 2 | — | — | — | telegraphed lunge, packs of 3–4 |
-| shotgunner | 3 | 4 | 4 | shotgun | close-range cloud |
-| shieldbearer | 4 | 8 | 2 | — | attrition: flank the plate |
-| heavy | 5 | 5 | 3 | burst | 3-round burst |
-| sniper | 6 | 7 | 2 | sniper | long telegraph, heavy round |
-| bomber | 7 | 6 | 2 | launcher | area denial |
-| armored | 9 | 9 | 2 | burst | attrition: headshots only |
-| rocketeer | 11 | 8 | 2 | rocket | homing missile |
-| laser | 12 | — | — | — | unavoidable sweep |
+| rusher | 7 | — | — | — | telegraphed lunge, packs of 3–4 |
+| shotgunner | 9 | 4 | 4 | shotgun | close-range cloud |
+| shieldbearer | 11 | 8 | 2 | — | attrition: flank the plate |
+| heavy | 13 | 5 | 3 | burst | 3-round burst |
+| sniper | 16 | 7 | 2 | sniper | long telegraph, heavy round |
+| bomber | 19 | 6 | 2 | launcher | area denial |
+| armored | 23 | 9 | 2 | burst | attrition: headshots only |
+| rocketeer | 27 | 8 | 2 | rocket | homing missile |
+| laser | 31 | — | — | — | unavoidable sweep |
 
 Drop chances live per-type in `ENEMY_TYPES` in `src/main.js`; the table above
 is what each one leaves behind when it rolls.
@@ -530,9 +568,11 @@ by `1 + rushT / 25`, so everything ramps on the run clock instead.
 | door 50 | 13 | 0.854× | 0.761× |
 | door 98 | 21.6 | 0.52× | 1× |
 
-Slow time unlocks on **door 46**, where the staircase reaches
-13 m/s; it holds there for the 10-door
-school and then climbs again to a ceiling of 21.6 m/s. Rush Hour
+Slow time unlocks on **door 6** — the door after the first
+one that asks for a group of 3 (see the encounter table) —
+and the 10-door school runs from there. The staircase above is
+a separate schedule: it reaches 13 m/s on door 46,
+holds there, and then climbs again to a ceiling of 21.6 m/s. Rush Hour
 drains the bank at a flat 0.4×. An enemy must be in view for
 **0.45 s** before its telegraph may begin.
 

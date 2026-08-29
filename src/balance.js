@@ -20,10 +20,35 @@ export const WEAPONS = {
   rocket: { cd: 1.2, pellets: 1, spread: 0, kick: 3, speed: 34, mag: 2, maxClips: 3, reload: 2.35, blast: 8 },
 };
 
-// One debut per wave: the wave (or tunnel door) each type first appears on.
+// ONE DEBUT PER WAVE — the wave (or tunnel door) each type first appears on.
+//
+// SPACED AROUND THE POWER, not stacked against it. Everything used to debut in
+// the first seven doors and `EARLY.gunnerOnlyDoors` held all of it back to
+// door 5, so a player met the rusher, the shotgunner and (on a second run) the
+// shield and the heavy on the same two doors — and now the time button lands
+// at door 6 as well. Four new things at once is not four introductions, it is
+// one blur.
+//
+// So the opening is one new thing at a time, and the first of them is the
+// power itself:
+//
+//   1-5   gunners only. The loop: walk, look, shoot, sidestep.
+//   6     SLOW TIME. The door with two three-man encounters in it, and
+//         nothing else new in the whole door.
+//   7     RUSHER — he does not fire, he arrives, and stopping the world is
+//         the answer. The first thing the new power is FOR.
+//   9     SHOTGUNNER — deadly near, harmless far: the first enemy about
+//         distance rather than timing.
+//   11    SHIELD — the first one you have to move to solve.
+//   13    HEAVY — three rounds at once, which is a volley from one man.
+//
+// ...and then roughly every four doors, so a type still lands regularly
+// without two ever sharing a door. `minDoor` in protocols.js carries the same
+// schedule and both are read: this one composes the wave, that one decides
+// what the door may claim in its headline.
 export const TYPE_INTRO = {
-  gunner: 1, rusher: 2, shotgunner: 3, shieldbearer: 4, heavy: 5,
-  sniper: 6, bomber: 7, armored: 9, rocketeer: 11, laser: 12,
+  gunner: 1, rusher: 7, shotgunner: 9, shieldbearer: 11, heavy: 13,
+  sniper: 16, bomber: 19, armored: 23, rocketeer: 27, laser: 31,
 };
 
 // Veteran fill after the debut: [share, cap] -> min(cap, floor(total/share)).
@@ -214,43 +239,55 @@ export function ramp(d, first) {
 export const OPENING = {
   legsEvery: 4,        // rooms/corridors behind one door: 1 for doors 1-4,
                        // 2 for 5-9, 3 for 10-15, 4 for 16-22, 5 for 23-30...
-  bodiesEvery: 2,      // bodies in the WHOLE door: 1 for 1-2, 2 for 3-5,
-                       // 3 for 6-9, 4 for 10-14, 5 for 15-20, 6 for 21-27...
-  // (There is no separate "bodies per leg" dial. A door's budget is split
-  //  evenly across its legs, remainder to the last of them, so the per-leg
-  //  count is a RESULT — 1 while a door holds one, 2 when a single-leg door
-  //  holds two, and back to 1 the moment the door grows a second leg. A dial
-  //  on top of that could only ever clip the budget: an early version capped
-  //  door 3 at one body per leg, which turned it back into door 1.)
-  aliveEvery: 3,       // how many may be up at once: 1 for 1-3, 2 for 4-8,
-                       // 3 for 9-15, 4 for 16-24...
+  // (There is no `bodiesEvery` or `aliveEvery` any more. They were two ramps
+  //  for one question and they disagreed: a door could plan four bodies and
+  //  cap two of them on their feet, which turns a planned pair into two
+  //  singles a beat apart. The encounter table below answers all three — how
+  //  many, how often, and how many at once — because a group IS the answer to
+  //  all three. A dial that no longer changes anything is worse than no dial,
+  //  so they are gone rather than kept for the tool's sliders.)
   // ---------------------------------------------------------------------
-  // HOW MANY BODIES A SINGLE CORRIDOR HOLDS — a floor under the split above,
-  // and the answer to "after the tutorial, everything is empty".
+  // THE ENCOUNTER CURVE.
   //
-  // The budget above is a DOOR's, split across its legs, and `legsEvery` grows
-  // faster than `bodiesEvery` does — so the per-corridor count went 1, 1, 2,
-  // 2, and then back to 1 at door 5 when the door grew a second leg. Walked
-  // and measured over two runs of doors 1-7:
+  // A door is not a number of bodies, it is a list of ENCOUNTERS — and an
+  // encounter is a group of men who arrive together, which is the unit the
+  // player actually answers. One man is a sidestep and a shot. Two is a
+  // sidestep that has to solve both. Three is the first thing a sidestep does
+  // not solve, and it is what the time button is for.
   //
-  //   door 1: 121 m of corridor, 1 body, 109 m of it empty
-  //   door 2: 115 m, 1 body, 110 m empty
-  //   door 3: 101 m, 2 bodies, 52 m empty
-  //   door 5: 108 m per leg, 1 body, 104 m empty
-  //   door 7: 115 m, 1 body, 106 m empty
+  // Written as a table for the doors that matter, because this is the shape of
+  // the first ten minutes and it is a judgement, not an arithmetic. Reading
+  // down the first column is the difficulty curve: 1, 1, 2, 2, 3, 3, 3, 3, 4.
   //
-  // A player walks out of a training room holding three men into a hundred and
-  // twenty metres of corridor holding one. The floor is per LEG, because a leg
-  // is what the player walks; it never goes down as the door number goes up,
-  // which is the property the door-budget split could not hold; and it is a
-  // floor, so a door whose own budget already exceeds it is untouched.
-  perLegFrom: 3,       // bodies in one corridor at door 1
-  perLegEvery: 3,      // ...and one more every this many doors
-  perLegCap: 6,        // ...up to here: 3 for doors 1-3, 4 for 4-6, 5 for 7-9,
-                       // 6 from door 10. `aliveEvery` still says how many of
-                       // them may be on their feet at once — 1 until door 4 —
-                       // so this is how OFTEN you meet somebody, not how many
-                       // you fight at a time.
+  //   door 1-2   three single men          learn the loop
+  //   door 3-4   one pair, two singles     the first thing worth dodging twice
+  //   door 5     a three, a pair, a single the wall
+  //   door 6     two threes                ...and the power lands here
+  //
+  // `doorEncounters` below is the only reader. The bodies in a door is the sum
+  // of this; how many may be up at once is the largest group in it; and how
+  // often you meet somebody is how many entries there are.
+  encounters: [
+    [1, 1, 1],                  // 1
+    [1, 1, 1],                  // 2
+    [2, 1, 1],                  // 3
+    [2, 1, 1],                  // 4
+    [3, 2, 1],                  // 5
+    [3, 3, 2, 1, 1],            // 6
+    [3, 3, 2, 2, 1, 1],         // 7
+    [3, 3, 2, 2, 1, 1],         // 8
+    [4, 3, 3, 2, 2, 1],         // 9
+    [4, 3, 3, 2, 2, 1, 1],      // 10
+  ],
+  encCap: 6,           // the biggest group the game ever asks for
+  encMax: 10,          // ...and the most encounters one door may hold
+  encBigEvery: 6,      // past the table: the biggest group grows every N doors
+  encMoreEvery: 3,     // ...and the door gains an encounter every N
+  // THE DOOR THE TIME BUTTON ARRIVES ON is the door AFTER the first one that
+  // asks for a group this size. It is not a speed and not a hand-typed number:
+  // the power answers being outnumbered, so it lands the door after being
+  // outnumbered first happens. With the table above, that is door 6.
+  unlockGroup: 3,
   corridorDoors: 3,    // no rooms at all before this: one shape to learn first
   legsCap: 5,
   // THE ROOM'S SHOT FLOOR, in world seconds. Three seconds between one enemy
@@ -274,7 +311,10 @@ export const OPENING = {
 };
 
 export const EARLY = {
-  gunnerOnlyDoors: 5,  // no other type may debut before this door
+  // NO OTHER TYPE MAY DEBUT BEFORE THIS DOOR. Six, not five: door 6 is where
+  // the time button arrives, and the power gets that door to itself. See
+  // TYPE_INTRO for the schedule either side of it.
+  gunnerOnlyDoors: 6,
   oneRoundDoors: 5,    // and only one enemy round may be in the air at once
   // ---------------------------------------------------------------------
   // HOW CLOSE A MAN MAY BE THE MOMENT YOU FIRST SEE HIM.
@@ -391,6 +431,36 @@ export const EARLY = {
 // HOW MANY FIRE TOGETHER on school door `d` (0-based into the school), or 0
 // if that door is not one. Exported so main.js and the RAMP pane read the same
 // function rather than each keeping a copy of the ramp.
+// THE ENCOUNTERS A DOOR HOLDS, largest group first. The table in OPENING is
+// the first ten doors; past it the shape keeps escalating on two dials rather
+// than on a hand-written line per door.
+export function doorEncounters(d, O = OPENING) {
+  const T = O.encounters || [[1]];
+  const n = Math.max(1, d | 0);
+  if (n <= T.length) return T[n - 1].slice();
+  const over = n - T.length;
+  const big = Math.min(O.encCap, T[T.length - 1][0]
+    + Math.floor(over / Math.max(1, O.encBigEvery)));
+  const count = Math.min(O.encMax, T[T.length - 1].length
+    + Math.floor(over / Math.max(1, O.encMoreEvery)));
+  const out = [];
+  // largest first, tapering two entries at a time to singles, so a door is
+  // always a few big groups, a few pairs and a couple of loose men
+  for (let i = 0; i < count; i++) out.push(Math.max(1, big - Math.floor(i / 2)));
+  return out;
+}
+
+// THE DOOR THE TIME BUTTON ARRIVES ON. See OPENING.unlockGroup: the power
+// answers being outnumbered, so it lands the door after the first door that
+// outnumbers you. Derived, never typed — moving the encounter table moves it.
+export function powerUnlockDoor(O = OPENING) {
+  const want = Math.max(2, O.unlockGroup | 0);
+  for (let d = 1; d <= 200; d++) {
+    if (Math.max(...doorEncounters(d, O)) >= want) return d + 1;
+  }
+  return 6;
+}
+
 export function volleyAt(d, S = SPEED, SC = null) {
   const C = SC || SCHOOL;
   if (d < 0 || d >= Math.max(0, S.schoolDoors | 0)) return 0;
