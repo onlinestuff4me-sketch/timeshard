@@ -725,7 +725,7 @@
   #timebtn.arrive { animation:tbarrive .62s cubic-bezier(.2,1.4,.4,1) both; }
 
   /* ---- save slots ---- */
-  #saves, #askTut, #modepick { position:fixed; inset:0; z-index:14; display:none;
+  #saves, #askTut, #askFull, #modepick { position:fixed; inset:0; z-index:14; display:none;
             align-items:center; justify-content:center; background:rgba(22,24,29,.45); }
   /* above the list it was opened from, so BACK returns to it rather than to
      the menu */
@@ -1112,6 +1112,13 @@
   <div class="pbtn" id="askYes">YES, TEACH ME</div>
   <div class="pbtn" id="askNo">NO, JUST PLAY</div>
   <label id="askNever"><input type="checkbox" id="askNeverBox"> Don't ask me again</label>
+</div></div>
+<div id="askFull"><div class="htpcard">
+  <h3>ALL RUNS IN USE</h3>
+  <p class="askq">Every save slot has a run in it. Start a new one over the
+    oldest, or go and look at the list?</p>
+  <div class="pbtn" id="fullReplace">REPLACE THE OLDEST</div>
+  <div class="pbtn" id="fullList">SEE MY RUNS</div>
 </div></div>
 <div id="settings">
   <div class="htpcard">

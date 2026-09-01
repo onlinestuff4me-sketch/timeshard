@@ -792,6 +792,53 @@ unaffected.
 > the frame rate now, and takes the free arm with it so a body does not stop
 > mid-swing.
 
+## NEW RUN opened the LOAD GAME page, and nothing was watching the menu
+
+**The bug.** `startNewRun` asks `makeSave` for a slot. At the save cap it
+recycles a run that never went anywhere — but when all six have real depth
+there is nothing to recycle, `makeSave` returns null, and the handler answered
+that by calling `openSaves()`. So a player with six real runs taps NEW RUN and
+lands on LOAD GAME.
+
+The comment above that line said, of the version before it, *"a button that
+answers a tap by showing you a different page has not done it"* — and then did
+exactly that one branch further down. It now asks (`#askFull`): REPLACE THE
+OLDEST, which takes the oldest slot and starts a run, or SEE MY RUNS, which is
+the same page reached deliberately. Both answers do what the tap asked for.
+
+**The real failure is that nothing had ever pressed a menu button.** Sixty-odd
+probes in this harness, every one of them about corridors, enemies, cues or
+HUD geometry. The menu is the first three seconds of the game and it had zero
+coverage, so a broken primary button shipped and a playtester found it.
+
+`menuflow.mjs` covers it now — 13 assertions, each one a real tap on a real
+bounding box, across the three states the menu has (no saves, one save, six
+saves with depth):
+
+| | |
+|---|---|
+| the big button plays, with and without a save | 2 |
+| LOAD GAME opens the list | 2 |
+| NEW RUN: asks about the lesson / asks which run to replace | 3 |
+| ...and both answers to that question | 2 |
+| MODE, HOW TO PLAY, SETTINGS | 3 |
+| REPLACE THE OLDEST takes the oldest slot and nothing else | 1 |
+
+It fails loudly: `process.exit(1)`, and it did fail on the shipped build before
+the fix.
+
+> **A probe that seeds localStorage must seed it in `addInitScript`.** That
+> re-runs on every navigation, so writing the slots from an `evaluate()` and
+> then reloading silently puts the seed back — the depth assertion read six
+> zeroes and looked like a game bug.
+
+**And there is a `runall.sh` now.** `bash runall.sh [filter]` from the
+scratchpad's `test/`: starts the server if there is not one, runs 19 probes
+fastest-first, and fails a probe on a non-zero exit, a non-zero `errors:` line,
+or any line containing FAIL or WRONG. Whole suite, about eight minutes, all
+passing. The menu ones run first on purpose — a suite whose first ten minutes
+tell you nothing is a suite nobody runs.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
@@ -848,6 +895,17 @@ unaffected.
    problem rather than from play.
 
 ## The test harness — read this before writing a probe
+
+**Run `bash runall.sh` before you say anything shipped.** 19 probes,
+fastest-first, about eight minutes; a probe fails on a non-zero exit, an
+`errors:` line above zero, or any line containing FAIL or WRONG. It starts the
+server itself if there is not one. `bash runall.sh menu` filters by name.
+
+**Cover the thing the player touches first.** Sixty probes into this harness,
+every one of them was about corridors, enemies, cues or HUD geometry, and the
+MENU had none — so NEW RUN opening the LOAD GAME page shipped and a playtester
+found it. If a change can be reached from a button, there should be a probe
+that presses that button.
 
 **It does not survive between sessions.** The scratchpad directory is
 per-session, so last session's 45 files were gone and this one started from

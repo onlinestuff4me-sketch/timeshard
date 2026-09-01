@@ -4930,6 +4930,13 @@ function onPointerDown(ev) {
         refreshMenuPrimary();
         return;
       }
+      if (ev.target.closest('#fullReplace')) {
+        closeAskFull();
+        const entry = makeSave(menuMode, '', true);
+        if (entry) askTutorial(entry.i); else openSaves();
+        return;
+      }
+      if (ev.target.closest('#fullList')) { closeAskFull(); openSaves(); return; }
       if (ev.target.closest('#askNever')) return;   // the checkbox takes it
       if (ev.target.closest('#askYes') || ev.target.closest('#askNo')) {
         const yes = !!ev.target.closest('#askYes');
@@ -6363,7 +6370,7 @@ function latestSave(mode = menuMode) {
   const all = savesByRecent(mode);
   return all.length ? all[0] : null;
 }
-function makeSave(mode, name) {
+function makeSave(mode, name, replaceOldest = false) {
   const list = saveIndex();
   if (list.filter((e) => e.mode === mode).length >= MAX_SAVES) {
     // AT THE CAP, RECYCLE A RUN THAT NEVER WENT ANYWHERE. NEW RUN has one
@@ -6378,8 +6385,18 @@ function makeSave(mode, name) {
       .map((e) => ({ e, r: slotRead(e.i) }))
       .filter((x) => x.r && !(x.r.doors > 0))
       .sort((a, b) => (a.r.at || 0) - (b.r.at || 0));
-    if (!spent.length) return null;
-    const take = spent[0].e;
+
+    // ...AND IF EVERY ONE OF THEM HAS BEEN SOMEWHERE, THE PLAYER DECIDES. Six
+    // real runs and no free slot is a genuine choice, and `startNewRun` puts
+    // it to them rather than answering NEW RUN with the LOAD GAME page — which
+    // is exactly the broken-button feeling the recycle above exists to avoid,
+    // and which shipped: a playtest tapped NEW RUN and got the save list.
+    const pool = spent.length ? spent
+      : (replaceOldest ? list.filter((e) => e.mode === mode)
+        .map((e) => ({ e, r: slotRead(e.i) }))
+        .sort((a, b) => ((a.r && a.r.at) || 0) - ((b.r && b.r.at) || 0)) : []);
+    if (!pool.length) return null;
+    const take = pool[0].e;
     slotClear(take.i);
     stampSave(take.i);
     const kept = list.filter((e) => e.i !== take.i);
@@ -6892,6 +6909,15 @@ function askDelete(i) {
     `<div class="sbtn red delyes" data-i="${i}">DELETE ${escHtml(saveName(e))}</div>`
     + '<div class="sbtn delno">KEEP</div>';
 }
+// SIX RUNS AND NOWHERE TO PUT A SEVENTH. Two answers, both of them an answer
+// to the tap: take the oldest run's slot, or go and manage the list.
+function askFullSaves() {
+  if (el.askFull) el.askFull.style.display = 'flex';
+}
+function closeAskFull() {
+  if (el.askFull) el.askFull.style.display = 'none';
+}
+
 function askTutorial(i) {
   pendingNewSlot = i;
   if (askNever) { beginNewGame(i, false); return; }
@@ -6927,13 +6953,20 @@ function startNewRun(ask = true) {
   // save — which beginNewGame then wipes and re-stamps, destroying the run and
   // the creation date the details panel promises never moves.
   const entry = makeSave(menuMode, '');
-  // ...AND IF THERE IS NO ROOM, SAY SO. `makeSave` returns null at the save
-  // cap, and this used to answer that with `return` — NEW RUN did nothing at
-  // all, no card, no sound, no page, for a player with six saves. Reported as
-  // the button being broken, which from the outside is exactly what it is.
-  // The saves page is where a slot gets freed and it already says ALL 6 SAVES
-  // IN USE — DELETE ONE across the bottom, so that is where this goes.
-  if (!entry) { openSaves(); return; }
+  // ...AND IF THERE IS NO ROOM, ASK. `makeSave` returns null when the mode is
+  // at the cap and every save on it has been somewhere — there is genuinely no
+  // slot to take without destroying a run.
+  //
+  // The first version of this answered that with `return`: no card, no sound,
+  // no page. Reported as the button being broken, which from the outside is
+  // what it was. The second sent the player to the saves page, on the grounds
+  // that a slot gets freed there — and a playtest reported THAT as the button
+  // being broken too, because tapping NEW RUN and landing on LOAD GAME is a
+  // button doing something else. Both were the same mistake: a control that
+  // answers a tap with somebody else's screen has not done its job.
+  //
+  // So it asks, and either answer does what the player came for.
+  if (!entry) { askFullSaves(); return; }
   if (!ask) {
     // NO DIALOGUE AND NO ARMING. Going through beginNewGame here would call
     // setTutorArmed(true) on a first launch, and `tutorArmed` is a sticky
@@ -8850,6 +8883,7 @@ const el = {
   tutorpin: document.getElementById('tutorpin'),
   saves: document.getElementById('saves'),
   newrun: document.getElementById('newrun'),
+  askFull: document.getElementById('askFull'),
   saveinfo: document.getElementById('saveinfo'),
   modebtn: document.getElementById('modebtn'),
   modepick: document.getElementById('modepick'),
