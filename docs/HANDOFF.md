@@ -753,6 +753,45 @@ dropped two of a three-man group and the door then waited for ever on a queue
 that could never empty. The rule is stated as an invariant now: **the queue is
 exactly as long as the plan still owes**.
 
+## Standing men stand still
+
+The walk cycle ran on `moveSpeed`, which is what the `advance` state WANTS to
+do — and it is non-zero for every body in that state. So a body pinned by the
+script, a body whose heading has been zeroed because it is holding the door
+approach or waiting for the player to enter its room, and a body walking into
+a wall all marched on the spot.
+
+It runs on measured displacement now: how far the body actually travelled since
+last frame, in m/s, against `GAIT_MIN` (0.35). Below that the legs settle and
+stay settled; above it the stride keeps pace with the ground actually covered
+rather than running at one rate whenever the state machine is in `advance`.
+Nothing in the arms is touched, so turning to face you and raising the gun are
+unaffected.
+
+| three pinned men, 1200 frames, player sidestepping | |
+|---|---|
+| biggest leg rotation | **0.0000 rad** |
+| biggest firing-arm rotation | 1.511 rad |
+| turn tracking the player | 360° |
+| rounds in the air, peak | 2 |
+| a walking body, control | gait 3.00 m/s, full 0.600 rad stride |
+
+> **Measure against LAST frame, not the top of this one.** A held body is
+> re-pinned AFTER the AI has had its turn (see the hold loop in `updateHall`),
+> so a start-of-frame snapshot sees the drift and misses the correction. Last
+> frame's final position is the pinned one, so the difference is zero — which
+> is the truth about a man standing still.
+
+> **A jump is a placement, not a step.** The stall watchdog re-routes a wedged
+> body by moving it bodily to the approach ahead of the player. Divided by a
+> bullet-time `sdt` that came out at **439 m/s** and sprinted his legs for a
+> frame. Anything over a metre in one frame is not walking.
+
+> The settle was a bare per-frame `* 0.9` — a different speed on every device,
+> and it never reaches zero. It closes on standing at the same rate whatever
+> the frame rate now, and takes the free arm with it so a body does not stop
+> mid-swing.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a

@@ -4000,7 +4000,36 @@ function resolveEnemyCollisions(e) {
   }
 }
 
+// HOW FAST A BODY IS ACTUALLY TRAVELLING, in m/s, measured against where it
+// stood last frame rather than against what its state machine intended. Below
+// this it is standing still and its legs stop — see the walk cycle in
+// updateEnemy. A number rather than zero because collision push-out, the
+// separation from other bodies and a strafe against a wall all produce a
+// centimetre of drift a body is not walking anywhere on.
+const GAIT_MIN = 0.35;
+
 function updateEnemy(e, sdt) {
+  // MEASURED, NOT INTENDED. `moveSpeed` is what the `advance` state WANTS to
+  // do and it is non-zero for every body in that state — including one pinned
+  // by the script (`e.hold`), one whose heading has been zeroed because it is
+  // holding the door approach or waiting for the player to enter its room, and
+  // one walking into a wall. All of them marched on the spot.
+  //
+  // AGAINST LAST FRAME, not against the top of this one: a held body is
+  // re-pinned AFTER the AI has had its turn (see the hold loop in updateHall),
+  // so a start-of-frame snapshot sees the drift and misses the correction.
+  // Last frame's final position is the pinned one, so the difference is zero,
+  // which is the truth about a man standing still.
+  const moved = e.lastX === undefined ? 0
+    : Math.hypot(e.pos.x - e.lastX, e.pos.z - e.lastZ);
+  e.lastX = e.pos.x; e.lastZ = e.pos.z;
+  // A JUMP IS A PLACEMENT, NOT A STEP. The stall watchdog re-routes a wedged
+  // body by moving it bodily to the approach ahead of the player, and the
+  // script re-pins a held one; both land metres away in a single frame, which
+  // divided by a bullet-time `sdt` came out at 439 m/s and sprinted the legs
+  // for a frame. Nobody covers a metre in one frame on foot.
+  e.gait = moved > 1 || sdt <= 1e-4 ? 0 : moved / sdt;
+
   const toPlayer = _v1.set(player.pos.x - e.pos.x, 0, player.pos.z - e.pos.z);
   const dist = toPlayer.length();
   toPlayer.normalize();
@@ -4247,10 +4276,17 @@ function updateEnemy(e, sdt) {
     }
   }
 
-  // walk cycle: legs swing at the hip, knees fold on the recovery leg (the
-  // wedge shoes are rigid at 90° to the shin, tuner-approved)
-  if (moveSpeed > 0) {
-    e.walkPhase += sdt * 9;
+  // WALK CYCLE — and only when there is a walk. Legs swing at the hip, knees
+  // fold on the recovery leg (the wedge shoes are rigid at 90° to the shin,
+  // tuner-approved), and the stride keeps pace with the ground actually
+  // covered rather than running at one speed whenever the state machine is in
+  // `advance`. A body that is turning, aiming or firing on the spot stands on
+  // its own two feet; the arms are not touched here at all, so raising the
+  // gun and slewing to face you are unaffected.
+  const gait = e.gait || 0;
+  if (gait > GAIT_MIN) {
+    const pace = Math.max(0.6, Math.min(1.25, gait / Math.max(0.5, e.speed)));
+    e.walkPhase += sdt * 9 * pace;
     const sw = Math.sin(e.walkPhase) * 0.6;
     e.legL.rotation.x = sw;
     e.legR.rotation.x = -sw;
@@ -4260,12 +4296,18 @@ function updateEnemy(e, sdt) {
     }
     if (!e.armLock) e.armL.rotation.x = -sw * 0.5;
   } else {
-    e.legL.rotation.x *= 0.9;
-    e.legR.rotation.x *= 0.9;
+    // ...AND STILL MEANS STILL. The settle was a bare per-frame `* 0.9`, which
+    // is a different speed on every device and never reaches zero; this closes
+    // on standing at the same rate whatever the frame rate, and takes the free
+    // arm with it so a body does not stop mid-swing.
+    const k = Math.min(1, sdt * 10);
+    e.legL.rotation.x += (0 - e.legL.rotation.x) * k;
+    e.legR.rotation.x += (0 - e.legR.rotation.x) * k;
     if (e.shinL) {
-      e.shinL.rotation.x += (e.kneeRest - e.shinL.rotation.x) * 0.1;
-      e.shinR.rotation.x += (e.kneeRest - e.shinR.rotation.x) * 0.1;
+      e.shinL.rotation.x += (e.kneeRest - e.shinL.rotation.x) * k;
+      e.shinR.rotation.x += (e.kneeRest - e.shinR.rotation.x) * k;
     }
+    if (!e.armLock) e.armL.rotation.x += (0 - e.armL.rotation.x) * k;
   }
   // EVERY STATE, NOT JUST THE TWO THAT MOVE. This used to be called only from
   // `advance` and `lunge`, so a body that stopped walking — to aim, to fire, to
