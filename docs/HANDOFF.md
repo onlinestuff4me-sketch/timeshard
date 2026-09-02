@@ -907,9 +907,17 @@ MENU had none — so NEW RUN opening the LOAD GAME page shipped and a playtester
 found it. If a change can be reached from a button, there should be a probe
 that presses that button.
 
-**It does not survive between sessions.** The scratchpad directory is
-per-session, so last session's 45 files were gone and this one started from
-nothing. Budget for that, or move the harness into the repo.
+**The menu probes now live in the repo, at `test/`.** `npm install` once
+(playwright is a devDependency), then `npm test`, or `bash test/runall.sh
+menu` to filter. `test/README.md` says what each one presses and carries the
+conventions below. They were moved in because the scratchpad is per-session
+and the harness kept being rebuilt from nothing — and because the menu is
+the one screen where that loss had already cost a shipped bug.
+
+**Everything else still does not survive between sessions.** The corridor,
+enemy, cue and HUD probes are still scratchpad-only: last session's 45 files
+were gone and this one started from nothing. Budget for that, or move them in
+alongside `test/menu.mjs` as you need them.
 
 What this session rebuilt, under the session scratchpad in `test/`:
 `lib.mjs` (boot/tap/done), `walk.mjs` (the leg walker), `early.mjs`,

@@ -6628,23 +6628,23 @@ function discoverData() {
     got: secs.reduce((n, x) => n + x.got, 0),
     total: secs.reduce((n, x) => n + x.total, 0) };
 }
+// ONE NUMBER AND A BAR, not a table. This was four labelled rows of pips
+// under a headline stat — 132 px of reading directly beneath CONTINUE, on a
+// screen whose job is to start the game. The per-section breakdown says the
+// same thing the Archive says, one tap away and in more detail, so the menu
+// keeps only the part that is a reason to go there: how much of the game is
+// still behind a door.
+//
+// The lifetime stat went into the Archive's own header rather than being
+// dropped — see renderArchive.
 function renderDiscover() {
   if (!el.discover) return;
   const d = discoverData();
-  const pips = (sec) => {
-    let h = '';
-    for (let i = 0; i < sec.total; i++) h += `<i class="pip${i < sec.got ? '' : ' off'}"></i>`;
-    return h;
-  };
+  const pct = d.total ? Math.round((d.got / d.total) * 100) : 0;
   el.discover.innerHTML =
-    `<div class="dstat"><b>${d.shat.toLocaleString('en-US')}</b><span>SHATTERED</span>`
-    + `<em>|</em><b class="sm">${d.doors}</b><span>DOOR${d.doors === 1 ? '' : 'S'}</span></div>`
-    + `<div class="dhead">RECOVERED SO FAR`
-    + `<span class="dmore">SEE ALL ${d.got}/${d.total} →</span></div>`
-    + d.secs.map((sec) =>
-      `<div class="drow"><span class="dlabel">${sec.title}</span>`
-      + `<span class="dpips">${pips(sec)}</span>`
-      + `<span class="dfrac">${sec.got}/${sec.total}</span></div>`).join('');
+    `<span class="rlab">ARCHIVE</span>`
+    + `<span class="rval">${d.got} / ${d.total}</span>`
+    + `<span class="rbar"><i style="width:${pct}%"></i></span>`;
 }
 
 // Each wave is a street encounter: a quota big enough to roam through, and
@@ -7028,10 +7028,11 @@ function beginNewGame(i, withTutorial) {
 // and the alternatives live one tap behind it.
 function renderAltRow() {
   if (!el.modebtn) return;
-  // NBSP: `.btn` is an inline-flex row, so the label and the name are separate
-  // flex items and the trailing space of "MODE: " is trimmed away.
+  // The label over the answer, the same shape ARCHIVE uses beside it: what
+  // the button IS, not what tapping it does.
   el.modebtn.innerHTML =
-    `MODE:&nbsp;<b>${escHtml(modeName(menuMode))}</b><span class="chev">›</span>`;
+    `<span class="rlab">MODE</span>`
+    + `<span class="rval">${escHtml(modeName(menuMode))}</span>`;
 }
 // EVERY MODE, INCLUDING THE MAIN ONE. The old row left the tunnel out on the
 // grounds that PLAY already started it — true when tapping a row started a
@@ -8970,8 +8971,27 @@ function renderArchive() {
     }
   }
   el.archlist.innerHTML = html;
-  el.archmeta.textContent =
-    `${known} OF ${total} RECOVERED · ${lifetimeDoors} DOOR${lifetimeDoors === 1 ? '' : 'S'}`;
+  // THE LIFETIME STAT LIVES HERE NOW. It used to headline the menu's discover
+  // block; that block is a button, and a button is no place for two numbers
+  // nobody is being asked to act on. They belong on the screen that is about
+  // what you have done, which is this one.
+  //
+  // FROM discoverData, NOT from `lifetimeShattered`/`lifetimeDoors`. Those
+  // two are the ACTIVE SLOT's, and this line is the only place the numbers
+  // the menu used to show still appear — reading them per-save would silently
+  // shrink a figure the player has watched go up across every run they have.
+  // The counts to their left stay per-save, because the sections below them
+  // are: the header summarises what you have done, the list is what THIS save
+  // has found.
+  const life = discoverData();
+  // One nowrap <i> per stat, with the separators OUTSIDE them: the break
+  // opportunities are the spaces around the dots, so a narrow phone wraps
+  // between whole stats and never splits a number off its own unit.
+  el.archmeta.innerHTML = [
+    `${known} OF ${total} RECOVERED`,
+    `${life.shat.toLocaleString('en-US')} SHATTERED`,
+    `${life.doors} DOOR${life.doors === 1 ? '' : 'S'}`,
+  ].map((t) => `<i>${t}</i>`).join(' · ');
   archiveDirty = false;
 }
 
