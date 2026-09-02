@@ -1,6 +1,6 @@
 # Protocols — the content system
 
-Design spec, and now partly built: the registry, the composer, the archive
+Design spec, and now partly built: the registry, the composer, the unlocks screen
 screen and the corridor / service run / vault / atrium / gauntlet / alcoves /
 dim strips / fog / **one-way seal** elements all ship. Everything still
 carrying `impl: false` in `src/protocols.js` is design only, and the composer
@@ -26,9 +26,9 @@ system; when you refuse to comply it *reconfigures itself* to contain you. A
 long open gallery is a protocol. Killing the lights is a protocol. Sending a
 grinder down the corridor behind you is a protocol. They are all the same
 kind of thing — something the building does to contain you — which is why
-they belong in one registry, one deck, and one archive.
+they belong in one registry, one deck, and one unlock list.
 
-It also gives every entry a voice: the archive lists them by the building's
+It also gives every entry a voice: UNLOCKS lists them by the building's
 own designation.
 
 > **P-07 · BLACKOUT** — *Emergency lighting only. Illumination reduced to
@@ -82,7 +82,7 @@ One flat list. Adding content = adding a row. Nothing else changes.
 ```
 
 **Tier is the only difficulty dial.** It sets cost, gates how early a
-protocol can appear in a run, and orders the whole archive.
+protocol can appear in a run, and orders the whole unlock list.
 
 ### Starting deck
 
@@ -189,7 +189,7 @@ eligible = (door >= minDoor) && (lifetimeDoors >= unlockAt)
 
 `lifetimeDoors` is every door you have ever passed, across all runs, saved
 locally. `minDoor` keeps a thing from appearing too early *within* a run;
-`unlockAt` keeps the archive from emptying itself in your first good run.
+`unlockAt` keeps UNLOCKS from emptying itself in your first good run.
 
 Suggested `unlockAt` spread (doors cleared, lifetime):
 
@@ -202,11 +202,11 @@ Suggested `unlockAt` spread (doors cleared, lifetime):
 | deep cast (laser; stairwell, flood, spiral) | 140 | runs 19–30 |
 
 With a good run reaching ~8 doors, that is **25–30 runs to fill the
-archive** — and every one of those runs is still winnable with what you
+unlock list** — and every one of those runs is still winnable with what you
 already know, because nothing gated is *required*.
 
 A veteran's run is not easier; it is **more varied**. That is the whole
-trick: the archive buys you strangeness, never strength.
+trick: unlocking buys you strangeness, never strength.
 
 ---
 
@@ -226,7 +226,7 @@ kind of thing tier 3 and 4 should be doing.
 
 ---
 
-## 7. What the archive shows
+## 7. What UNLOCKS shows
 
 One grid, three sections: **enemies**, **weapons**, **protocols**. Locked
 entries are silhouettes with the designation visible and the name hidden —
@@ -246,7 +246,7 @@ of where the run breaks down.
    plumbing is in.
 2. **`lifetimeDoors` + eligibility** — and re-gate the enemy cast through
    the same two keys, which fixes the burn-through immediately.
-3. ~~**Archive screen**~~ — built. Reads the registry, and a locked row keeps
+3. ~~**Unlocks screen**~~ — built. Reads the registry, and a locked row keeps
    its designation so the empty slots are visible from the first run.
 4. **New protocols**, cheapest first: ~~one-way seal~~ (built), then
    blackout, breach walls, then grinder.

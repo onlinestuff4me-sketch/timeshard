@@ -272,44 +272,6 @@
                 border-radius:999px; font-size:11px; font-weight:900; letter-spacing:.2em; }
   .setpill.on { border-color:#ff2d1a; color:#ff2d1a; }
 
-  /* ---- MODES, in Settings -----------------------------------------------
-     A catalogue, not a menu of buttons: every mode the game can start —
-     the main game first, then the rest oldest to newest — each with the one
-     line that says what you DO in it. Rendered from src/modes.js, which is
-     also where that ordering is argued. See docs/PILLARS.md §7.
-
-     A row is tappable only when Settings was opened from the MAIN MENU. Mid
-     run the same list is a reference: tapping a mode there would mean
-     abandoning the run you paused, which is what END RUN is for. */
-  /* A CARD TALLER THAN THE SCREEN HAS TO SCROLL, and every one of these can
-     be: the saves list grows to six entries, each a name, a depth line, a date
-     and three buttons. `#saves` centres its card with flex, and a flex-centred
-     child that overflows is cut off at BOTH ends — so the first save lost its
-     name and the CLOSE button under the last one was somewhere below the
-     bottom of the phone. There was no way back to the menu except reloading
-     the page, which is what the playtest had to do. */
-  #settings .htpcard, #saves .htpcard, #saveinfo .htpcard,
-  #askTut .htpcard, #modepick .htpcard { max-height:86vh; overflow-y:auto; }
-  .setsec { width:230px; margin:14px 0 2px; text-align:left;
-            font-size:9.5px; font-weight:800; letter-spacing:.3em; color:#9aa0a9; }
-  .setsec .secnote { display:block; margin-top:3px; letter-spacing:.14em;
-                     font-weight:600; color:#b3b8c0; text-transform:none; }
-  .moderow2 { width:230px; text-align:left; padding:9px 10px; margin:0 -10px;
-              border-radius:12px; }
-  .moderow2 b { display:block; font-size:11.5px; font-weight:900;
-                letter-spacing:.18em; color:#16181d; }
-  .moderow2 span { display:block; margin-top:3px; font-size:11px; font-weight:600;
-                   letter-spacing:.02em; line-height:1.35; color:#6b7078; }
-  /* the one you are playing, or would play with PLAY */
-  .moderow2.cur b { color:#ff2d1a; }
-  /* live rows say so by looking pressable; the reference list stays flat */
-  #modelist.live .moderow2 { background:rgba(22,24,29,.05); }
-  #modelist.live .moderow2 + .moderow2 { margin-top:6px; }
-  /* Tapping a row mid-run cannot start it, and the banner that would say so
-     lives at z-index 10 — under this card. So the answer is given inside the
-     card, on the line that already explains the list. */
-  @keyframes setsecnudge { 0%,100% { color:#b3b8c0; } 30% { color:#ff2d1a; } }
-  .setsec .secnote.nudge { animation:setsecnudge .9s ease; }
 
   /* button-mode time control: 96px hit zone, 64px visual — misses forgive.
      Tap toggles bullet time; press-and-hold slows only while held. */
@@ -725,7 +687,7 @@
   #timebtn.arrive { animation:tbarrive .62s cubic-bezier(.2,1.4,.4,1) both; }
 
   /* ---- save slots ---- */
-  #saves, #askTut, #askFull, #modepick { position:fixed; inset:0; z-index:14; display:none;
+  #saves, #askFull { position:fixed; inset:0; z-index:14; display:none;
             align-items:center; justify-content:center; background:rgba(22,24,29,.45); }
   /* above the list it was opened from, so BACK returns to it rather than to
      the menu */
@@ -754,6 +716,10 @@
   .slot { border:2px solid rgba(22,24,29,.28); border-radius:12px; padding:10px 12px; text-align:left; }
   .slot.on { border-color:#ff2d1a; }
   .slot .sname { font-size:11px; font-weight:900; letter-spacing:.2em; }
+  /* WHICH GAME. The list spans all five, so the name alone does not say. It
+     sits ABOVE the name, as the row's category rather than a footnote to it. */
+  .slot .smode { font-size:8.5px; font-weight:800; letter-spacing:.22em;
+                 color:#ff2d1a; margin-bottom:4px; }
   .slot .smeta { font-size:10px; letter-spacing:.1em; color:#5b616c; margin-top:3px; }
   .slot .smeta b { color:#16181d; font-weight:900; }
   .slot .swhen { font-size:9px; letter-spacing:.14em; color:#8b919b; margin-top:2px; }
@@ -777,9 +743,6 @@
             font-size:10px; font-weight:900; letter-spacing:.14em; }
   .sbtn.addsave.off { color:#9aa0aa; border-style:solid; }
   .askq { font-size:12px; letter-spacing:.08em; margin:2px 0 10px; color:#3d434c; }
-  #askNever { display:flex; align-items:center; gap:8px; margin-top:10px;
-            font-size:10px; letter-spacing:.14em; color:#5b616c; }
-  #askNever input { accent-color:#ff2d1a; width:16px; height:16px; }
 
   /* ---- slow-mo tint & damage flash ---- */
   #tint { position:fixed; inset:0; pointer-events:none; opacity:0;
@@ -808,7 +771,7 @@
                     letter-spacing:.12em; color:#8a9099; text-align:center;
                     text-shadow:0 0 10px rgba(232,234,238,.95); }
 
-  /* bottom row: how-to + archive + settings links, and the speaker toggle.
+  /* bottom row: how-to + unlocks + settings links, and the speaker toggle.
      It wraps: four controls is more than 390px of portrait reliably holds,
      and a wrapped second row is better than a clipped first one. */
   #menurow { display:flex; align-items:center; justify-content:center; gap:10px;
@@ -853,26 +816,25 @@
   .rbtn { width:136px; padding:16px 0; font-size:9.5px; letter-spacing:.2em;
           color:#6b717a; border:1.5px solid rgba(22,24,29,.2);
           background:rgba(238,240,243,.55); }
-  /* THE SECOND PAIR. MODE and ARCHIVE are the same shape as LOAD GAME and
-     NEW RUN, one row below them: two 136 px pills, same gap, same edges. Two
-     matched pairs is a rhythm the eye reads in one go, where the old screen
-     had a lone hairline chip and then a 132 px slab of statistics.
+  /* THE SECOND ROW. It held MODE and UNLOCKS as a matched pair; choosing a
+     game moved into the play flow, so UNLOCKS has the row to itself and takes
+     the full 286 px of it — the same width as the pair above, so the two rows
+     still line up, and the progress bar has room to read as progress rather
+     than as a detail on a small button.
 
-     ARCHIVE WAS THAT SLAB — a headline stat, a heading, and four labelled
+     UNLOCKS WAS THAT SLAB — a headline stat, a heading, and four labelled
      rows of pips with their own fractions. Nine numbers and eleven words,
      directly under the one thing the screen is for, filling the half of the
-     screen a thumb rests over. All of it is still said in the Archive, one
+     screen a thumb rests over. All of it is still said in UNLOCKS, one
      tap away and in more detail, which is where somebody who wants to read
      it is going anyway; the menu keeps the one number that is a reason to
      go there, and the bar that says how much is still behind a door. On a
      375x667 phone this is also the difference between 7 px of slack at the
      bottom of the menu and 87.
 
-     Both say what they currently ARE, not what tapping them does — the mode
-     you would play, the fraction you have found — because that is the whole
-     reason to look at either one from the menu. `.two` stacks the label over
-     that value; the row is `align-items:stretch`, so ARCHIVE's progress bar
-     makes both buttons taller rather than making them different heights. */
+     It says what it currently IS, not what tapping it does — the fraction you
+     have found — because that is the whole reason to look at it from a menu.
+     `.two` stacks the label over that value. */
   /* NO EXTRA MARGIN, unlike #runrow above it. The overlay's own 20px gap is
      what separates the two pairs, and #runrow's extra 20 is what separates
      BOTH of them from CONTINUE — 40px of air above the group, 20 inside it,
@@ -881,6 +843,8 @@
   #altwrap { display:flex; flex-direction:row; align-items:stretch; gap:14px; }
   .rbtn.two { flex-direction:column; justify-content:center; gap:5px;
           padding:10px 8px; line-height:1.05; white-space:normal; }
+  /* UNLOCKS has its row to itself, so it takes the width of the pair above */
+  .rbtn.wide { width:286px; }
   .rbtn .rlab { font-size:8px; font-weight:800; letter-spacing:.22em; color:#9aa0a9; }
   .rbtn .rval { font-size:10.5px; font-weight:900; letter-spacing:.13em; color:#3a3f47;
           font-variant-numeric:tabular-nums; }
@@ -888,6 +852,7 @@
      behind a door, which is the part that makes you tap it */
   .rbtn .rbar { width:74px; height:3px; border-radius:2px; margin-top:1px;
           background:rgba(22,24,29,.14); overflow:hidden; }
+  .rbtn.wide .rbar { width:214px; height:4px; }
   .rbtn .rbar i { display:block; height:100%; border-radius:2px; background:#6b717a; }
   .btn-2 { padding:12px 20px; font-size:11px; letter-spacing:.2em;
            color:#16181d; border:2px solid #16181d; background:rgba(238,240,243,.62); }
@@ -898,24 +863,83 @@
   .mlabel { font-size:9.5px; font-weight:800; letter-spacing:.3em; color:#9aa0a9;
             text-shadow:0 0 10px rgba(232,234,238,.95); }
   .mdiv { width:min(292px, 82vw); height:1px; background:rgba(22,24,29,.13); }
-  /* the picker's rows are the settings catalogue's rows — one look for one
-     list, wherever it is opened from */
-  /* ONE COLUMN. `.htpcard` is a flex column with no `align-items`, so a child
-     with an explicit width sits at flex-start — LEFT — while `.pbtn` centres
-     itself with `align-self`. That put every list in every card eight pixels
-     left of the button under it. These three are the fixed-width lists. */
-  #picklist, #slotlist, .sibody { align-self:center; }
-  /* ...and the button matches the list it belongs to, so the card is one
-     column and not a wide thing above a narrower thing. */
-  #modepick .pbtn, #saves .pbtn { width:246px; }
-  #picklist { width:246px; margin:6px 0 12px; }
-  /* `.moderow2` carries a -10px side margin so it can bleed past the SETTINGS
-     card's text column. Here the list IS the column, and that bleed pulled
-     every row ten pixels left of centre inside a centred card. */
-  #picklist .moderow2 { width:100%; margin:0; padding:11px 14px;
-            background:rgba(22,24,29,.05); }
-  #picklist .moderow2 + .moderow2 { margin-top:6px; }
-  #picklist .moderow2.cur { box-shadow:inset 0 0 0 2px #ff2d1a; }
+
+  /* ---- THE MODE SELECTOR -------------------------------------------------
+     Between "I want to play" and playing. It is a screen and not a list
+     because a mode is now a thing you can be shown rather than a word you
+     pick: every card carries a few seconds of the game actually being
+     played, which is the only honest way to say what STAND STILL is.
+
+     THE TUNNEL IS NOT ONE OF FIVE. It is the game — the one with the lesson,
+     the one with doors to climb, and the one that pays for the others — so
+     it is a full-width card at the top with a bigger picture, and everything
+     else is a smaller card underneath it. */
+  #modesel { position:fixed; inset:0; z-index:14; display:none;
+             align-items:center; justify-content:center; background:rgba(22,24,29,.45); }
+  .mscard { width:min(340px, 92vw); max-height:88vh; padding:22px 0 20px;
+            display:flex; flex-direction:column; gap:0; }
+  .mscard h3 { flex:none; }
+  /* the list scrolls, the heading and BACK do not */
+  #mslist { flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch;
+            touch-action:pan-y; padding:2px 20px 4px; margin-top:12px;
+            display:flex; flex-direction:column; gap:9px; }
+  /* flex:none on both — #mslist is a flex COLUMN with a capped height, so
+     without it every card is shrunk to a third of its own content and reads
+     as an empty grey box with the name clipped off the bottom. */
+  .mssec { flex:none; font-size:8.5px; font-weight:800; letter-spacing:.28em;
+           color:#9aa0a9; text-align:left; margin:7px 0 -2px; }
+  .mssec:first-child { margin-top:0; }
+
+  /* A CARD IS A PICTURE WITH A NAME UNDER IT. */
+  .mscd { flex:none; position:relative; border-radius:14px; overflow:hidden; text-align:left;
+          background:rgba(22,24,29,.05); box-shadow:inset 0 0 0 1.5px rgba(22,24,29,.14); }
+  .mscd video, .mscd .mspv { display:block; width:100%; height:104px;
+          object-fit:cover; background:#c9ced6; }
+  /* the hero gets a taller picture — same card, more of the game in it */
+  .mscd.hero video, .mscd.hero .mspv { height:150px; }
+  .mscd .msbody { padding:9px 13px 11px; }
+  .mscd .msname { font-size:12px; font-weight:900; letter-spacing:.16em; color:#16181d; }
+  .mscd.hero .msname { font-size:14px; letter-spacing:.2em; }
+  .mscd .msline { margin-top:4px; font-size:10.5px; font-weight:600; line-height:1.35;
+          letter-spacing:.02em; color:#6b7078; }
+  /* the game you are already in the middle of */
+  .mscd .mstag { position:absolute; top:8px; right:8px; padding:4px 9px; border-radius:999px;
+          font-size:7.5px; font-weight:900; letter-spacing:.2em;
+          background:#ff2d1a; color:#fff; }
+
+  /* LOCKED: dimmed, and it says what opens it. Not hidden — a gate you cannot
+     see is not a goal, and the picture is the reason to want it. */
+  .mscd.locked video, .mscd.locked .mspv { opacity:.28; filter:grayscale(1); }
+  .mscd.locked .msname, .mscd.locked .msline { color:#9aa0a9; }
+  .mscd.locked { box-shadow:inset 0 0 0 1.5px rgba(22,24,29,.09); }
+  .mscd .mskey { display:flex; align-items:center; gap:6px; margin-top:7px;
+          font-size:8.5px; font-weight:800; letter-spacing:.14em; color:#8a9099; }
+  .mscd .mskey b { color:#ff2d1a; font-weight:900; }
+  /* the padlock, drawn rather than typed: emoji locks render at wildly
+     different sizes and colours across the phones this ships to */
+  .mslk { width:9px; height:11px; flex:none; position:relative; }
+  .mslk::before { content:''; position:absolute; left:0; bottom:0; width:9px; height:6.5px;
+          border-radius:1.5px; background:#9aa0a9; }
+  .mslk::after { content:''; position:absolute; left:1.9px; top:0; width:5.2px; height:6px;
+          border-radius:3px 3px 0 0; border:1.5px solid #9aa0a9; border-bottom:0; }
+
+  /* THE REFUSAL, said where the tap happened. showBanner draws at z-index 10,
+     underneath this panel, so a locked tap answered with one is an answer
+     nobody sees. It fades itself out. */
+  #mstoast { flex:none; margin:10px 20px 0; padding:0; max-height:0; overflow:hidden;
+             border-radius:10px; background:rgba(22,24,29,.86); color:#eef0f3;
+             font-size:10px; font-weight:800; letter-spacing:.1em; line-height:1.35;
+             opacity:0; transition:opacity .18s ease, max-height .18s ease, padding .18s ease; }
+  #mstoast.on { opacity:1; max-height:64px; padding:10px 13px; }
+
+  /* the tutorial question, on the NEW RUN path only */
+  #mstut { flex:none; display:none; align-items:center; justify-content:center; gap:8px;
+           margin:12px 20px 0; padding:10px 12px; border-radius:10px;
+           background:rgba(22,24,29,.05); font-size:10px; font-weight:800;
+           letter-spacing:.1em; color:#4a4f57; }
+  #mstut.on { display:flex; }
+  #mstut input { width:17px; height:17px; accent-color:#ff2d1a; }
+  #modesel .pbtn { flex:none; width:246px; margin-top:14px; }
   /* how-to + settings ride tier 3 (.btn-3) */
   #sndbtn { width:38px; height:38px; border-radius:50%;
             display:flex; align-items:center; justify-content:center; color:#7a8089;
@@ -923,7 +947,7 @@
   #sndbtn svg { width:22px; height:22px; }
   #sndbtn.muted { opacity:.55; }
 
-  /* modals: how-to + enemies + archive */
+  /* modals: how-to + enemies + unlocks */
   #htp, #enm, #arch { position:fixed; inset:0; z-index:12; display:none; align-items:center; justify-content:center;
                background:rgba(22,24,29,.35); }
   .htpcard { background:#eef0f3; border-radius:20px; padding:30px 34px; text-align:center;
@@ -941,7 +965,7 @@
   .enmcard .enrow b { display:block; font-size:12px; letter-spacing:.18em; color:#16181d; }
   .enmcard .enrow span { font-size:12px; font-weight:600; color:#6b7078; }
 
-  /* ---- THE ARCHIVE -------------------------------------------------------
+  /* ---- UNLOCKS (the archive, in code — see src/main.js) ------------------
      A ledger, not a gallery. Every slot is visible from the first run; what
      a locked row hides is the NAME, never the fact that the row exists —
      that is the whole reason it reads as depth rather than as a list. */
@@ -969,6 +993,12 @@
                color:#6b7078; line-height:1.35; }
   .arow .redact { height:9px; border-radius:2px; background:#d5dae1; margin:4px 0 2px; }
   .arow.locked .adesig { color:#c2c8d0; }
+  /* THE GAMES SECTION carries a running count in the designation column
+     ("3/5") rather than a catalogue number, and a locked game keeps its NAME
+     — unlike an unmet element, whose name is the thing being withheld. You
+     are meant to want this one by name. */
+  .arow.locked b { color:#9aa0a9; }
+  .arow.locked span { color:#a8aeb7; }
   .archcard .htpclose { margin-top:16px; }
   #overlay .go { animation:gopulse 2.6s ease-in-out infinite; }
   @keyframes gopulse { 0%,100% { box-shadow:0 6px 20px rgba(255,45,26,.26); }
@@ -1029,8 +1059,7 @@
     <div class="btn rbtn" id="startnew">NEW RUN</div>
   </div>
   <div id="altwrap">
-    <div class="btn rbtn two" id="modebtn"></div>
-    <div class="btn rbtn two" id="discover"></div>
+    <div class="btn rbtn two wide" id="discover"></div>
   </div>
   <div class="rules"></div>
   <div class="mdiv" id="div2"></div>
@@ -1075,7 +1104,7 @@
 
 <div id="arch">
   <div class="htpcard archcard">
-    <h2>ARCHIVE</h2>
+    <h2>UNLOCKS</h2>
     <div id="archmeta"></div>
     <div id="archlist"></div>
     <div class="htpclose">TAP OUTSIDE TO CLOSE</div>
@@ -1091,10 +1120,15 @@
   </div>
 </div>
 
-<div id="modepick"><div class="htpcard">
-  <h3>CHOOSE A MODE</h3>
-  <div id="picklist"></div>
-  <div class="pbtn" id="modepickclose">CLOSE</div>
+<!-- THE MODE SELECTOR — the screen between "I want to play" and playing.
+     Scrolls, because five cards with moving pictures on them do not fit a
+     phone; the card itself is the scroller so the heading and BACK stay put. -->
+<div id="modesel"><div class="htpcard mscard">
+  <h3>CHOOSE A GAME</h3>
+  <label id="mstut"><input type="checkbox" id="mstutbox"> Start with the tutorial</label>
+  <div id="mslist"></div>
+  <div id="mstoast"></div>
+  <div class="pbtn" id="modeselclose">BACK</div>
 </div></div>
 <div id="saves"><div class="htpcard">
   <h3>SAVES</h3>
@@ -1106,13 +1140,6 @@
   <div class="sibody"></div>
   <div class="sinote">DATES AND IDENTIFIER ARE PART OF THE FILE</div>
   <div class="pbtn" id="saveinfoclose">SAVE &amp; BACK</div>
-</div></div>
-<div id="askTut"><div class="htpcard">
-  <h3>NEW GAME</h3>
-  <p class="askq">Play the tutorial first?</p>
-  <div class="pbtn" id="askYes">YES, TEACH ME</div>
-  <div class="pbtn" id="askNo">NO, JUST PLAY</div>
-  <label id="askNever"><input type="checkbox" id="askNeverBox"> Don't ask me again</label>
 </div></div>
 <div id="askFull"><div class="htpcard">
   <h3>ALL RUNS IN USE</h3>
@@ -1130,8 +1157,6 @@
     <div class="setrow"><span>TIME</span><div id="modelink" class="setpill on">BUTTON</div></div>
     <div class="setrow"><span>TEST</span><div id="condlink" class="setpill">OFF</div></div>
     <div class="setrow"><span>TUTORIAL</span><div id="tutlink" class="setpill">OFF</div></div>
-    <div class="setsec">MODES<span class="secnote" id="modenote">the main game first, then oldest to newest</span></div>
-    <div id="modelist"></div>
     <div class="htpclose">TAP OUTSIDE TO CLOSE</div>
   </div>
 </div>
@@ -1144,7 +1169,7 @@
 </script>
 <script type="module">
   // Durable storage is hydrated BEFORE the game module loads, because
-  // main.js reads bests, lifetime doors and the archive at import time. On
+  // main.js reads bests, lifetime doors and the unlock set at import time. On
   // the web hydrateStorage() is a no-op and this costs one microtask.
   const { hydrateStorage, shellSetup } = await import('./src/native.js');
   await hydrateStorage();

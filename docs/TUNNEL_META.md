@@ -50,10 +50,10 @@ Rules for anything here: **it never changes your starting loadout, your
 health, or enemy difficulty.** It changes what you *know*, what you can
 *see*, and what the game is *allowed to show you*.
 
-### 2a. The archive (discovery as the spine)
+### 2a. Unlocks (discovery as the spine)
 
 Every enemy type, weapon, and leg archetype you meet gets recorded on a
-persistent **ARCHIVE** screen — a grid of silhouettes, most of them blank.
+persistent **UNLOCKS** screen — a grid of silhouettes, most of them blank.
 Meeting one for the first time fills it in with its name, its tell, and
 one line of world-fiction. This is the primary meta.
 
@@ -83,13 +83,13 @@ that you have to go deeper to keep reading.
 Occasionally a leg has a **second, sealed door** — different colour, never
 required. Opening it costs something real *in that run*: it only opens
 while time is frozen, and it drains the whole bank. Behind it: a fragment,
-an archive entry for something that appears nowhere else, or a weapon you
+an unlock entry for something that appears nowhere else, or a weapon you
 have not seen. This is the "secret" instinct done without power creep —
 the reward is content, the cost is your safety net for that fight.
 
 ### 2e. Modifiers you choose, not earn
 
-Once the archive is meaningfully full, unlock **run modifiers** as
+Once UNLOCKS is meaningfully full, unlock **run modifiers** as
 *options*, never as upgrades: knife-only, no slow-mo, doors on a timer,
 double crowd. They make runs harder or stranger, not easier, and they give
 veterans a reason to keep starting over. Each has its own depth record.
@@ -104,12 +104,12 @@ veterans a reason to keep starting over. Each has its own depth record.
 
 ## 3. Suggested build order
 
-1. **The archive** — cheapest, and it is the spine everything else hangs on.
+1. **Unlocks** — cheapest, and it is the spine everything else hangs on.
 2. **Leg archetypes** — the single biggest change to how a run *feels*.
 3. **Fragments** on personal-record doors — gives depth a narrative payoff.
 4. **Sealed doors** — once there is content worth hiding behind them.
 5. **Lights-out legs / breach walls** — set-piece variety.
-6. **Modifiers** — last; they need a full archive to mean anything.
+6. **Modifiers** — last; they need a full unlock list to mean anything.
 
 ---
 

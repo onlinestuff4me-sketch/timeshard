@@ -128,7 +128,7 @@ second channel.
 
 The code is recoverable from `5b5b2f6` if it is ever wanted.
 
-## ~~2. The archive screen~~ — **shipped**
+## ~~2. The unlocks screen~~ — **shipped**
 
 Built. **35 slots** across three sections — enemies, protocols, weapons —
 every one visible from the first run. A locked row keeps its designation and
@@ -141,12 +141,12 @@ Three things the build had to get right that the plan didn't say:
   behind the title spawns and shatters enemies for show; filing those would
   have handed every new player the heavy before they pressed PLAY.
 - **Leg 1 was never filed.** `recordMet` only ran on crossing a door, so the
-  form you played through first was the one the archive never knew about.
+  form you played through first was the one UNLOCKS never knew about.
 - **Weapons went into the registry** with ids matching the `WEAPONS` keys, so
   a pickup files itself with no mapping table.
 
-The death screen now reports `+N FILED TO THE ARCHIVE` when a life turned
-something up, which is the only place the archive advertises itself — and
+The death screen now reports `+N FILED TO UNLOCKS` when a life turned
+something up, which is the only place UNLOCKS advertises itself — and
 dying with a find is exactly when you go and look.
 
 ## 3. Per-part shatter — **built, then removed; needs its own workstream**
@@ -253,7 +253,7 @@ varies 1.16 to one (2.12 before any of these fixes).
 
 `fog` shipped as `impl: true` and was never implemented — the leg condition
 was read once and only ever compared against `dimStrips`, so a fog leg
-rendered as a plain corridor while the archive told the player "Visibility
+rendered as a plain corridor while UNLOCKS told the player "Visibility
 twelve metres". Now a real per-leg visibility override, eased on a time
 constant, applied on leg 1 / on crossing / on retry, and guarded so the far
 plane can never fall below `LEG.spawnMin + margin`. See `docs/BALANCE.md`.

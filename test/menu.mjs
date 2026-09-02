@@ -24,7 +24,6 @@ const W = 402, H = 874;
 const go = await boxOf(page, '.go');
 const run = await boxOf(page, '#runrow');
 const alt = await boxOf(page, '#altwrap');
-const mode = await boxOf(page, '#modebtn');
 const arch = await boxOf(page, '#discover');
 const row = await boxOf(page, '#menurow');
 for (const [n, b] of [['go', go], ['runrow', run], ['altwrap', alt], ['menurow', row]]) {
@@ -36,9 +35,9 @@ for (const [n, b] of [['go', go], ['runrow', run], ['altwrap', alt], ['menurow',
 if (run && alt && (Math.abs(run.x - alt.x) > 0.6 || Math.abs(run.w - alt.w) > 0.6)) {
   bad(`runrow and altwrap are not aligned: ${run.x}/${run.w} vs ${alt.x}/${alt.w}`);
 }
-// MODE and ARCHIVE are the same size as each other
-if (mode && arch && (Math.abs(mode.w - arch.w) > 0.6 || Math.abs(mode.h - arch.h) > 0.6)) {
-  bad(`MODE and ARCHIVE differ in size: ${mode.w}x${mode.h} vs ${arch.w}x${arch.h}`);
+// UNLOCKS has its row to itself and spans the pair above it
+if (run && arch && Math.abs(run.w - arch.w) > 0.6) {
+  bad(`UNLOCKS does not span the row: ${arch.w} vs ${run.w}`);
 }
 // TAP TARGETS. 44px is what a thumb actually covers, and it is the standard
 // for the paired rows — two side-by-side targets are where a miss lands
@@ -46,15 +45,14 @@ if (mode && arch && (Math.abs(mode.w - arch.w) > 0.6 || Math.abs(mode.h - arch.h
 // deliberate 31px: they are quiet utility, tapped rarely, and they predate
 // this change. Asserted at their real size so a regression still shows.
 for (const [n, sel, min] of [['CONTINUE', '.go', 44], ['LOAD GAME', '#newrun', 44],
-                             ['NEW RUN', '#startnew', 44], ['MODE', '#modebtn', 44],
-                             ['ARCHIVE', '#discover', 44],
+                             ['NEW RUN', '#startnew', 44], ['UNLOCKS', '#discover', 44],
                              ['HOW TO PLAY', '#howtolink', 30], ['SETTINGS', '#setlink', 30]]) {
   const b = await boxOf(page, sel);
   if (!b) { bad(`${n} missing`); continue; }
   if (b.h < min) bad(`${n} is only ${b.h}px tall (wants ${min})`);
 }
 console.log('layout   go.h=' + (go && go.h) + ' altwrap=' + (alt && alt.h)
-  + ' mode="' + (mode && mode.text) + '" archive="' + (arch && arch.text) + '"');
+  + ' unlocks="' + (arch && arch.text) + '"');
 // nothing stacks on top of anything else
 if (go && run && run.y < go.bottom) bad('runrow overlaps CONTINUE');
 if (run && alt && alt.y < run.bottom) bad('altwrap overlaps runrow');
@@ -70,23 +68,22 @@ console.log('archive  button=' + JSON.stringify(dd));
 if (!dd.frac || !/^\d+ \/ \d+$/.test(dd.frac)) bad('archive button has no fraction: ' + dd.frac);
 if (!dd.width) bad('archive progress bar has no width');
 
-// ---- 3. MODE opens the picker and changes the button -----------------------
-await page.tap('#modebtn');
-await page.waitForTimeout(350);
-if (!(await boxOf(page, '#modepick'))) bad('MODE did not open the picker');
-await page.tap('#picklist [data-mode="duel"]');
+// ---- 3. NEW RUN opens the selector, with the tutorial question on it ------
+await page.tap('#startnew');
+await page.waitForTimeout(700);
+if (!(await boxOf(page, '#modesel'))) bad('NEW RUN did not open the selector');
+const tut = await boxOf(page, '#mstut');
+console.log('newrun   selector open, tutorial checkbox=' + (tut ? 'shown' : 'MISSING'));
+if (!tut) bad('the NEW RUN path is not asking about the tutorial');
+if (await page.evaluate(() => document.getElementById('mstutbox').checked)) {
+  bad('the tutorial checkbox is ticked by default');
+}
+await page.screenshot({ path: OUT + 'menu-newrun.png' });
+// BACK leaves everything as it was
+await page.tap('#modeselclose');
 await page.waitForTimeout(400);
-if (await boxOf(page, '#modepick')) bad('picking a mode did not close the picker');
-const m2 = await boxOf(page, '#modebtn');
-console.log('mode     after pick="' + (m2 && m2.text) + '"');
-if (!m2 || !/CORRIDOR DUEL/.test(m2.text)) bad('MODE button did not follow the pick');
-if (m2 && m2.right > W) bad('the longest mode name overflows the button');
-// ...and the game did NOT start
-if (await page.evaluate(() => window.__ts.game.state) !== 'menu') bad('picking a mode started a run');
-await page.screenshot({ path: OUT + 'menu-duel.png' });
-// put it back
-await page.tap('#modebtn'); await page.waitForTimeout(300);
-await page.tap('#picklist [data-mode="hall"]'); await page.waitForTimeout(400);
+if (await boxOf(page, '#modesel')) bad('BACK did not close the selector');
+if (await page.evaluate(() => window.__ts.game.state) !== 'menu') bad('BACK started a run');
 
 // ---- 4. ARCHIVE opens the archive, and the lifetime stat is in it ----------
 await page.tap('#discover');
@@ -120,13 +117,12 @@ if (deadAlt) bad('the MODE/ARCHIVE row is still up on the death screen');
 await page.tap('#menubtn');
 await page.waitForTimeout(1200);
 const alt2 = await boxOf(page, '#altwrap');
-const mode3 = await boxOf(page, '#modebtn');
 console.log('return   altwrap=' + JSON.stringify(alt2 && { x: alt2.x, w: alt2.w, h: alt2.h }));
-if (!alt2) bad('the MODE/ARCHIVE row did not come back with the menu');
+if (!alt2) bad('the UNLOCKS row did not come back with the menu');
 if (alt2 && alt && (Math.abs(alt2.x - alt.x) > 0.6 || Math.abs(alt2.h - alt.h) > 0.6)) {
   bad('the row came back a different shape');
 }
-if (!mode3 || !/THE TUNNEL/.test(mode3.text)) bad('MODE lost its name on the way back');
+if (alt2 && !/UNLOCKS/.test(alt2.text)) bad('UNLOCKS lost its label on the way back');
 
 done('menu', errs);
 await browser.close();

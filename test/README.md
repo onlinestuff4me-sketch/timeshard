@@ -12,6 +12,9 @@ npm test             # every probe
 bash test/runall.sh menu    # only probes whose name contains "menu"
 ```
 
+The selector probes need the preview clips to exist — `node tools/rec-previews.mjs`
+writes them, and they are committed, so a fresh clone has them already.
+
 `runall.sh` serves the repo root on `TS_PORT` (8321) if nothing is listening,
 and fails a probe on a non-zero exit, an `errors:` line above zero, or any
 line containing `FAIL` or `WRONG`. Screenshots land in `test/out/`, which is
@@ -24,6 +27,9 @@ gitignored.
 | `menu.mjs` | The menu with a save on it: layout and tap targets, MODE opens the picker and changes the button without starting a run, ARCHIVE opens the archive, CONTINUE starts the mode it names, and the menu comes back the same shape after END RUN. |
 | `menufirst.mjs` | The menu with **no saves** — a player's first sight of the game. PLAY rather than CONTINUE, no LOAD/NEW pair, an empty archive bar. |
 | `menusmall.mjs` | Four phone sizes down to a 375×667 iPhone SE. Nothing clipped, nothing overflowing. |
+| `modesel.mjs` | The mode selector from a standing start: PLAY opens it with no tutorial question, THE TUNNEL is the hero card, the other four are locked in unlock order and each says what opens it, a locked card refuses in place without starting anything, and the hero card starts the game. |
+| `modesel2.mjs` | The selector with a history: CONTINUE names the most recent run across games, nothing is locked at 24 doors, the recently-played band is under the hero, the clips load 4:3 and play, and the tutorial checkbox actually arms the lesson on a brand-new save. |
+| `unlocks.mjs` | LOAD GAME lists every game's runs with each row naming its game, and UNLOCKS has a GAMES section that counts the gates and shows how far off each locked one is. |
 
 ## Writing another one
 

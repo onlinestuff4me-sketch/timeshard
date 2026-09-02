@@ -23,7 +23,8 @@ import { HALL, genHallLeg } from './genleg.js';
 // Every mode the game can start: the main game first, then the rest in the
 // order they were built. The menu row and the MODES section in Settings are
 // both rendered from it.
-import { MODES, modeById, isSimple } from './modes.js';
+import { MODES, modeById, isSimple, LOCKED_MODES, unlockLine, modeUnlocked }
+  from './modes.js';
 import { loadTutorial, previewing as tutorPreviewing, NO_GRANTS } from './tutorial.js';
 import { haptic, persist, forget, hydrateStorage, shellSetup, isNative } from './native.js';
 
@@ -4748,8 +4749,8 @@ function onPointerDown(ev) {
   // and the archive's scroll pane. `touch-action:none` on <body> means an
   // un-prevented pointerdown is the only thing that lets either one work.
   const inArchScroll = ev.target && ev.target.closest && ev.target.closest('#archlist');
-  // ...and the new-game question's checkbox, for the same reason.
-  const inAsk = ev.target && ev.target.closest && ev.target.closest('#askNever');
+  // ...and the selector's tutorial checkbox, for the same reason.
+  const inAsk = ev.target && ev.target.closest && ev.target.closest('#mstut');
   // ...and the save-name field, which is the same problem: preventDefault on
   // pointerdown suppresses the compatibility mouse event, and with it focus
   // and the soft keyboard. The `return` further down stops the LIST from
@@ -4777,35 +4778,6 @@ function onPointerDown(ev) {
         if (tutorStep !== null) { showBanner('NOT DURING THE LESSON', 1400); return; }
         setTutorArmed(!tutorArmed);
         vibrate(12);
-      }
-      // MODES: tapping a row from the MAIN MENU starts that mode. From the
-      // pause menu the list is a reference — see renderModeList.
-      const mrow = ev.target.closest && ev.target.closest('#modelist [data-mode]');
-      if (mrow) {
-        // Mid run the list is a reference and a tap cannot start anything.
-        // Say so ON THE CARD: showBanner draws at z-index 10, underneath this
-        // modal, so a banner here would be an answer nobody ever sees.
-        if (game.state !== 'menu' || tutorStep !== null) {
-          if (el.modenote) {
-            el.modenote.textContent = tutorStep !== null
-              ? 'not during the lesson' : 'end the run first to switch modes';
-            el.modenote.classList.remove('nudge');
-            void el.modenote.offsetWidth;   // restart the flash on a re-tap
-            el.modenote.classList.add('nudge');
-          }
-          return;
-        }
-        // SELECT, do not launch — the same thing the menu's own row does.
-        // Starting a run from here set `game.mode` and nothing else: no
-        // `menuMode`, no `slotUse`, no save. The run then wrote its doors,
-        // its best and its runs into whatever slot happened to be active,
-        // so a city game filed itself into a tunnel save; and on a fresh
-        // profile the orphan sweep later adopted that slot as a TUNNEL save
-        // whatever mode had actually been played.
-        el.settings.style.display = 'none';
-        selectMenuMode(mrow.dataset.mode);
-        vibrate(12);
-        return;
       }
       if (ev.target.closest && ev.target.closest('#modelink')) {
         // NOT DURING THE LESSON. The onboarding only starts in button mode,
@@ -4914,7 +4886,7 @@ function onPointerDown(ev) {
         return;
       }
       if (ev.target.closest('#newsave.off')) return;   // the list is full
-      if (ev.target.closest('#newsave')) { startNewRun(); return; }
+      if (ev.target.closest('#newsave')) { closeSaves(); openModeSel('new'); return; }
       if (ev.target.closest('#savename')) return;   // typing, not tapping
       const inf = ev.target.closest('#slotlist .info');
       if (inf) { openSaveInfo(parseInt(inf.dataset.i, 10) || 0); return; }
@@ -4932,21 +4904,13 @@ function onPointerDown(ev) {
       }
       if (ev.target.closest('#fullReplace')) {
         closeAskFull();
+        // The game was already chosen on the selector, and the lesson answered
+        // there too — this only has to find the slot.
         const entry = makeSave(menuMode, '', true);
-        if (entry) askTutorial(entry.i); else openSaves();
+        if (entry) beginNewGame(entry.i, selTutorial); else openSaves();
         return;
       }
       if (ev.target.closest('#fullList')) { closeAskFull(); openSaves(); return; }
-      if (ev.target.closest('#askNever')) return;   // the checkbox takes it
-      if (ev.target.closest('#askYes') || ev.target.closest('#askNo')) {
-        const yes = !!ev.target.closest('#askYes');
-        if (el.askNeverBox && el.askNeverBox.checked) {
-          askNever = true;
-          try { persist('ts_asknever', '1'); } catch { /* private */ }
-        }
-        beginNewGame(pendingNewSlot, yes);
-        return;
-      }
       // THE STATS BLOCK IS THE ARCHIVE'S DOOR — anywhere on it opens the
       // panel. It replaced both the leaderboard and the menu row's ARCHIVE
       // link, because two doors to one screen is the mistake the SAVES link
@@ -4954,35 +4918,14 @@ function onPointerDown(ev) {
       if (ev.target.closest('#discover')) { openArchive(); return; }
       if (ev.target.closest('.rules')) return;   // reading
     }
-    // CHOOSE A GAME: the button says which one, and opens the list.
-    if (game.state === 'menu' && ev.target && ev.target.closest
-        && ev.target.closest('#modebtn')) {
-      openModePick();
-      return;
-    }
-    // ...and one handler for the whole list, whatever is in it, because the
-    // list is rendered from the registry rather than written out in the
-    // markup. A mode is added in src/modes.js and nowhere else.
-    const mbtn = game.state === 'menu' && ev.target && ev.target.closest
-      && ev.target.closest('#picklist [data-mode]');
-    if (mbtn) {
-      // SELECT, do not launch. This used to start a run on the tapped mode
-      // immediately, which meant the only way into City Streets was a button
-      // that skipped past its own saves — the mode with the leaderboard on it
-      // could not be continued at all.
-      selectMenuMode(mbtn.dataset.mode);
-      closeModePick();
-      return;
-    }
-    if (game.state === 'menu' && ev.target && ev.target.closest
-        && ev.target.closest('#modepickclose')) {
-      closeModePick();
-      return;
-    }
-    // a tap on the picker's backdrop closes it rather than falling through to
-    // the menu underneath, which would read as "I meant to start a run"
-    if (el.modepick && el.modepick.style.display === 'flex') {
-      closeModePick();
+    // THE MODE SELECTOR: its cards, its checkbox, its BACK.
+    const scd = ev.target && ev.target.closest && ev.target.closest('#mslist [data-mode]');
+    if (el.modesel && el.modesel.style.display === 'flex') {
+      if (scd) { chooseMode(scd.dataset.mode); return; }
+      if (ev.target.closest('#mstut')) return;   // the checkbox takes it
+      if (ev.target.closest('#modeselclose')) { closeModeSel(); return; }
+      if (ev.target.closest('.mscard')) return;  // scrolling, not choosing
+      closeModeSel();                            // a tap on the backdrop
       return;
     }
     // on the main menu only TAP TO BEGIN starts a run — a stray tap right
@@ -4997,24 +4940,29 @@ function onPointerDown(ev) {
       openSaves();
       return;
     }
-    // NEW RUN, promoted from the saves page to the menu: starting again is a
-    // first-class act now, and it still asks about the tutorial the way the
-    // saves page's + NEW GAME does — they are the same function.
+    // NEW RUN opens the selector, with the tutorial question on it. Choosing
+    // a game and choosing whether to be taught are the two decisions in
+    // "start again", and they now live on one screen instead of a chip on the
+    // menu and a dialogue after the fact.
     if (game.state === 'menu' && ev.target && ev.target.closest
         && ev.target.closest('#startnew')) {
-      startNewRun();
+      openModeSel('new');
       return;
     }
     if (game.state === 'menu' &&
         !(ev.target && ev.target.closest && ev.target.closest('.go'))) return;
     if (game.state === 'menu') {
-      game.mode = menuMode;   // the big button is whatever the page is showing
-      const last = latestSave();
-      if (last) { continueSave(last.i); return; }
-      // Nothing to continue: this IS a new run, and it still needs a save to
-      // live in — but without the second button's ceremony, because on a first
-      // launch there is no list and no choice to make.
-      startNewRun(false);
+      // CONTINUE DOES NOT ASK. The whole promise of the big button is one tap
+      // back into the run it names, and a selector in front of that would
+      // take the thing the button is for and put a screen on it. Choosing a
+      // game is for when there is no run to carry on with, or when the player
+      // says NEW RUN.
+      const last = latestSave(null);
+      if (last) { game.mode = last.mode || DEFAULT_MODE; continueSave(last.i); return; }
+      // Nothing to continue, so the button said PLAY, and PLAY is where a
+      // first-time player meets the games. No tutorial question on this path:
+      // the onboarding decides for itself whether it has been played.
+      openModeSel('play');
       return;
     }
     advanceFromOverlay();
@@ -6349,9 +6297,14 @@ function writeSaveIndex(list) {
 }
 // Every save of one mode, newest first — which is what "continue where I left
 // off" means, and the order you think about your own runs in.
+// `mode` null means EVERY GAME. LOAD GAME lists them all now: choosing a game
+// moved into the play flow, so the menu no longer has a control that scopes
+// this list — and a list that silently hid four fifths of somebody's runs,
+// with no visible reason why, is worse than a longer one. Each row names its
+// game instead. Callers that genuinely mean one game still pass one.
 function savesByRecent(mode = menuMode) {
   return saveIndex()
-    .filter((e) => e.mode === mode)
+    .filter((e) => mode === null || e.mode === mode)
     .map((e) => ({ ...e, ...slotRead(e.i) }))
     .sort((a, b) => b.at - a.at);
 }
@@ -6379,7 +6332,7 @@ function makeSave(mode, name, replaceOldest = false) {
     // its own leavings — every abandoned attempt is a save at DOOR 1 with
     // nought doors behind it — so the oldest of those gives way. A save with
     // real depth is never touched: for that case there is genuinely nothing
-    // to do but ask, and startNewRun opens the list.
+    // to do but ask, and the selector opens the list.
     const spent = list
       .filter((e) => e.mode === mode)
       .map((e) => ({ e, r: slotRead(e.i) }))
@@ -6387,7 +6340,7 @@ function makeSave(mode, name, replaceOldest = false) {
       .sort((a, b) => (a.r.at || 0) - (b.r.at || 0));
 
     // ...AND IF EVERY ONE OF THEM HAS BEEN SOMEWHERE, THE PLAYER DECIDES. Six
-    // real runs and no free slot is a genuine choice, and `startNewRun` puts
+    // real runs and no free slot is a genuine choice, and the selector puts
     // it to them rather than answering NEW RUN with the LOAD GAME page — which
     // is exactly the broken-button feeling the recycle above exists to avoid,
     // and which shipped: a playtest tapped NEW RUN and got the save list.
@@ -6631,18 +6584,49 @@ function discoverData() {
 // ONE NUMBER AND A BAR, not a table. This was four labelled rows of pips
 // under a headline stat — 132 px of reading directly beneath CONTINUE, on a
 // screen whose job is to start the game. The per-section breakdown says the
-// same thing the Archive says, one tap away and in more detail, so the menu
+// same thing UNLOCKS says, one tap away and in more detail, so the menu
 // keeps only the part that is a reason to go there: how much of the game is
 // still behind a door.
 //
-// The lifetime stat went into the Archive's own header rather than being
+// The lifetime stat went into the UNLOCKS header rather than being
 // dropped — see renderArchive.
+// ---------------------------------------------------------------------------
+// UNLOCKING A MODE.
+//
+// The number a gate is measured against is the deepest tunnel door the player
+// has EVER reached, across every save — unlocking belongs to the player, like
+// UNLOCKS itself, not to the run they happen to be in.
+//
+// TUNNEL DOORS ONLY. Corridor Duel and Stand Still are built on the tunnel's
+// legs (`inHall`), so they cross doors and write `rdoor` too. Counting those
+// would make "REACH DOOR 5 IN THE TUNNEL" a lie on the one card that says it,
+// and would let the modes bought with the climb pay for each other.
+// ---------------------------------------------------------------------------
+function unlockState() {
+  let doors = game.mode === 'hall' ? lifetimeDoors : 0;
+  const played = new Set();
+  for (const e of saveIndex()) {
+    const read = slotRead(e.i);
+    if (!read || !read.used) continue;
+    played.add(e.mode || DEFAULT_MODE);
+    if ((e.mode || DEFAULT_MODE) !== 'hall') continue;
+    // the ACTIVE slot's on-disk figure lags its in-memory one for a whole run
+    const own = e.i === slotIx && game.mode === 'hall' ? lifetimeDoors : 0;
+    doors = Math.max(doors, read.best || read.doors || 0, read.resumeDoor || 0, own);
+  }
+  return { doors, played };
+}
+const modeIsOpen = (id) => {
+  const u = unlockState();
+  return modeUnlocked(id, u.doors, u.played);
+};
+
 function renderDiscover() {
   if (!el.discover) return;
   const d = discoverData();
   const pct = d.total ? Math.round((d.got / d.total) * 100) : 0;
   el.discover.innerHTML =
-    `<span class="rlab">ARCHIVE</span>`
+    `<span class="rlab">UNLOCKS</span>`
     + `<span class="rval">${d.got} / ${d.total}</span>`
     + `<span class="rbar"><i style="width:${pct}%"></i></span>`;
 }
@@ -6773,26 +6757,26 @@ function closePause() {
 // --- the saves screen -----------------------------------------------------
 // Continue drops you at the deepest door the slot has reached; New Game wipes
 // it and asks, once, whether the tutorial should play.
-let askNever = false;
-try { askNever = localStorage.getItem('ts_asknever') === '1'; } catch { /* private */ }
-let pendingNewSlot = -1;
 
 function openSaves() {
   renderSlots();
-  const m = MODES.find((x) => x.id === menuMode);
   const h = el.saves.querySelector('h3');
-  // The card is a list of ONE game's runs, so it is titled with that game.
-  if (h) h.textContent = (m && m.name) || 'SAVES';
+  // EVERY GAME'S RUNS, so the card is titled with the act rather than with a
+  // game. It used to be one game's list, titled with that game, because the
+  // menu had a control that chose which — that control is in the play flow
+  // now and this page is the only way back to a run in a game you are not
+  // currently looking at.
+  if (h) h.textContent = 'LOAD GAME';
   el.saves.style.display = 'flex';
 }
 function closeSaves() { el.saves.style.display = 'none'; closeSaveInfo(); }
 function renderSlots() {
   if (!el.slotlist) return;
-  const list = savesByRecent();
+  const list = savesByRecent(null);
   el.slotlist.innerHTML = '';
   if (!list.length) {
     el.slotlist.innerHTML =
-      '<div class="snone">No saves in this game yet. Starting a run makes one.</div>';
+      '<div class="snone">No runs yet. Starting one makes a save.</div>';
   }
   for (const e of list) {
     const d = document.createElement('div');
@@ -6801,7 +6785,18 @@ function renderSlots() {
     // date unlabelled invited it to be read as when the save was MADE — which
     // is a different fact, lives behind the info button, and for most saves is
     // a different day.
-    d.innerHTML = `<div class="sname">${escHtml(saveName(e))}${e.i === slotIx ? ' · ACTIVE' : ''}</div>`
+    // WHICH GAME THIS IS. The list spans all five now, and two saves at the
+    // same depth in different games are otherwise told apart only by a
+    // default name the player may well have replaced.
+    //
+    // ...AND THE NAME DOES NOT REPEAT IT. A default name IS the game plus a
+    // number ("CORRIDOR DUEL 1"), so printing both put the same two words on
+    // two consecutive lines of every unnamed save. The row shows the number
+    // instead; `saveName` is untouched, because the rename field and the
+    // delete confirmation are not standing next to a line that says the game.
+    const shown = e.name ? saveName(e) : `RUN ${e.num || 1}`;
+    d.innerHTML = `<div class="smode">${escHtml(modeName(e.mode))}</div>`
+      + `<div class="sname">${escHtml(shown)}${e.i === slotIx ? ' · ACTIVE' : ''}</div>`
       + `<div class="smeta">${saveDepthLine(e)}</div>`
       + `<div class="swhen">LAST PLAYED ${fmtSlotWhen(e.at)}</div>`
       + '<div class="srow">'
@@ -6846,7 +6841,7 @@ function openSaveInfo(i) {
       ? row('RESUMES AT', `DOOR ${Math.max(1, e.resumeDoor)}`)
         + row('DOORS CLEARED', String(e.doors))
       : '')
-    + row('FILED TO ARCHIVE', String(e.filed))
+    + row('FILED TO UNLOCKS', String(e.filed))
     // BEST is the high-water mark of a game that does not resume. In the
     // tunnel it is never written — every tunnel save reported `BEST DOOR 1`
     // next to `RESUMES AT DOOR 13`, which reads as a contradiction and is
@@ -6918,12 +6913,6 @@ function closeAskFull() {
   if (el.askFull) el.askFull.style.display = 'none';
 }
 
-function askTutorial(i) {
-  pendingNewSlot = i;
-  if (askNever) { beginNewGame(i, false); return; }
-  el.askNeverBox.checked = false;
-  el.askTut.style.display = 'flex';
-}
 // CONTINUE, from anywhere: the menu's primary button and every row of the
 // saves list come through here. `pendingResumeDoor` is read by
 // advanceFromOverlay, which is the one place that starts a run.
@@ -6937,59 +6926,12 @@ function continueSave(i) {
   closeSaves();
   startRunFromMenu();
 }
-// ...and starting a fresh run makes a save to put it in. A run the player
-// cannot come back to is the thing this whole screen exists to prevent.
-//
-// `ask` is the difference between the two ways of getting here. Tapping the
-// big button on a first launch is not a decision about the tutorial — the
-// onboarding already decides for itself whether it has been played — so it
-// must not open a dialogue in front of somebody who has asked for one thing:
-// the game. Deliberately choosing NEW RUN or + NEW SAVE, with saves already on
-// the list, IS that decision, and gets the question.
-function startNewRun(ask = true) {
-  game.mode = menuMode;
-  // NO FALLBACK. This used to be `makeSave(...) || latestSave()`, so a mode at
-  // its save cap answered NEW GAME by handing back the player's most recent
-  // save — which beginNewGame then wipes and re-stamps, destroying the run and
-  // the creation date the details panel promises never moves.
-  const entry = makeSave(menuMode, '');
-  // ...AND IF THERE IS NO ROOM, ASK. `makeSave` returns null when the mode is
-  // at the cap and every save on it has been somewhere — there is genuinely no
-  // slot to take without destroying a run.
-  //
-  // The first version of this answered that with `return`: no card, no sound,
-  // no page. Reported as the button being broken, which from the outside is
-  // what it was. The second sent the player to the saves page, on the grounds
-  // that a slot gets freed there — and a playtest reported THAT as the button
-  // being broken too, because tapping NEW RUN and landing on LOAD GAME is a
-  // button doing something else. Both were the same mistake: a control that
-  // answers a tap with somebody else's screen has not done its job.
-  //
-  // So it asks, and either answer does what the player came for.
-  if (!entry) { askFullSaves(); return; }
-  if (!ask) {
-    // NO DIALOGUE AND NO ARMING. Going through beginNewGame here would call
-    // setTutorArmed(true) on a first launch, and `tutorArmed` is a sticky
-    // one-shot ("replay the lesson") that nothing clears until a lesson ENDS —
-    // so a first-launch PLAY left every later restart in training. The rule
-    // that has always applied still applies: `tutorSeen` is false, so
-    // initHall's own check runs the onboarding. All this has to do is make the
-    // save and start.
-    slotUse(entry.i);
-    pendingResumeDoor = 1;
-    closeSaves();
-    startRunFromMenu();
-    return;
-  }
-  askTutorial(entry.i);
-}
 // The menu's own PLAY path, so a slot button starts a run the same way the
 // big button does rather than by simulating a tap on it.
 function startRunFromMenu() {
   advanceFromOverlay();   // game.mode is already set by whoever asked for this
 }
 function beginNewGame(i, withTutorial) {
-  el.askTut.style.display = 'none';
   pendingResumeDoor = 1;   // a new game starts at the first door, always
   slotClear(i);
   stampSave(i);            // ...and it is a new save, so it is newly born
@@ -7019,35 +6961,190 @@ function beginNewGame(i, withTutorial) {
 // THE MODE LISTS, from one registry. Neither knows what modes exist —
 // src/modes.js does.
 // ---------------------------------------------------------------------------
-// ONE BUTTON, NAMING ITS OWN ANSWER. The menu used to lay all five games out
-// as chips. That is five things to READ before the one thing to DO, on a
-// screen whose job is to start the game — and at their full names the chips
-// were about 760 px wide in a 402 px viewport, so the row had to wrap into
-// three lines of alternatives stacked above the leaderboard. Choosing a game
-// is a rare act with a short answer, so the control collapses to that answer
-// and the alternatives live one tap behind it.
-function renderAltRow() {
-  if (!el.modebtn) return;
-  // The label over the answer, the same shape ARCHIVE uses beside it: what
-  // the button IS, not what tapping it does.
-  el.modebtn.innerHTML =
-    `<span class="rlab">MODE</span>`
-    + `<span class="rval">${escHtml(modeName(menuMode))}</span>`;
+// THE MODE SELECTOR — the screen between "I want to play" and playing.
+//
+// It replaced a chip on the menu that named a mode and a list behind it that
+// named four more. A name is not an answer to "what is STAND STILL": the
+// cards carry a few seconds of each game actually being played, which is.
+//
+// THREE BANDS, in this order and for this reason:
+//   1. THE TUNNEL, full width, bigger picture. It is the game — the lesson is
+//      in it, the doors are in it, and every other mode is bought with it.
+//   2. WHAT YOU PLAYED LAST, most recent first, so coming back to a game you
+//      are in the middle of is the second thing on the screen and not a hunt.
+//   3. EVERYTHING ELSE, in the order it opens (LOCKED_MODES), so the tail of
+//      the list reads as a route rather than a set.
+//
+// A locked card keeps its picture — dimmed, but there. A gate you cannot see
+// is not a goal, and the picture is the whole reason to want what is behind
+// it.
+// ---------------------------------------------------------------------------
+let selTutorial = false;      // the checkbox, on the NEW RUN path
+let selFor = 'play';          // 'play' | 'new' — which button opened this
+
+function modeCard(m, { hero = false, unlocked = true, tag = '' } = {}) {
+  // preload=none and no autoplay attribute: five clips all fetching and
+  // decoding at once is a stall on the screen whose job is to look alive.
+  // playPreviews() starts them when they scroll into view.
+  const vid = `<video class="mspv" muted loop playsinline preload="none"`
+    + ` data-src="${m.preview}"></video>`;
+  const key = unlocked ? ''
+    : `<div class="mskey"><i class="mslk"></i><b>${escHtml(unlockLine(m.id))}</b></div>`;
+  return `<div class="mscd${hero ? ' hero' : ''}${unlocked ? '' : ' locked'}"`
+    + ` data-mode="${m.id}"${unlocked ? '' : ' data-locked="1"'}>`
+    + vid
+    + (tag ? `<div class="mstag">${tag}</div>` : '')
+    + `<div class="msbody"><div class="msname">${escHtml(m.name)}</div>`
+    + `<div class="msline">${escHtml(m.line)}</div>${key}</div></div>`;
 }
-// EVERY MODE, INCLUDING THE MAIN ONE. The old row left the tunnel out on the
-// grounds that PLAY already started it — true when tapping a row started a
-// run, and wrong the moment the list decides what the page is about: with the
-// tunnel missing there was no way back to it once you had chosen something
-// else. Each row carries the mode's one line, because a name alone does not
-// tell anybody what STAND STILL is.
-function renderModePick() {
-  if (!el.picklist) return;
-  el.picklist.innerHTML = MODES.map((m) =>
-    `<div class="moderow2${m.id === menuMode ? ' cur' : ''}" data-mode="${m.id}">`
-    + `<b>${m.name}</b><span>${m.line}</span></div>`).join('');
+
+function renderModeSel() {
+  if (!el.mslist) return;
+  const u = unlockState();
+  const open = (id) => modeUnlocked(id, u.doors, u.played);
+  const tunnel = modeById(DEFAULT_MODE);
+  // Which games has this player actually touched, most recently first? Read
+  // off the saves rather than a separate "last played" key, because a save IS
+  // the record that a game was played.
+  const recent = [];
+  for (const e of saveIndex().map((x) => ({ ...x, ...slotRead(x.i) }))
+    .filter((x) => x.used).sort((a, b) => b.at - a.at)) {
+    const id = e.mode || DEFAULT_MODE;
+    if (id === tunnel.id || recent.includes(id)) continue;
+    recent.push(id);
+  }
+  let h = modeCard(tunnel, { hero: true, unlocked: true,
+    tag: u.played.has(tunnel.id) ? 'PLAYED' : '' });
+  if (recent.length) {
+    h += `<div class="mssec">PICK UP WHERE YOU LEFT OFF</div>`;
+    for (const id of recent) {
+      const m = modeById(id);
+      if (m) h += modeCard(m, { unlocked: open(id) });
+    }
+  }
+  // ...and everything not already on the screen, in the order it opens.
+  const shown = new Set([tunnel.id, ...recent]);
+  const rest = LOCKED_MODES.filter((m) => !shown.has(m.id));
+  if (rest.length) {
+    h += `<div class="mssec">MORE GAMES</div>`;
+    for (const m of rest) h += modeCard(m, { unlocked: open(m.id) });
+  }
+  el.mslist.innerHTML = h;
+  playPreviews();
 }
-function openModePick() { renderModePick(); el.modepick.style.display = 'flex'; }
-function closeModePick() { if (el.modepick) el.modepick.style.display = 'none'; }
+
+// THE CLIPS PLAY WHEN THEY ARE LOOKED AT. Five videos decoding at once on a
+// phone is a stall; an IntersectionObserver means at most the two or three on
+// screen are ever running, and a clip is not even fetched until then.
+let selObserver = null;
+function playPreviews() {
+  if (!el.mslist) return;
+  if (selObserver) selObserver.disconnect();
+  const vids = [...el.mslist.querySelectorAll('video.mspv')];
+  const start = (v) => {
+    if (!v.src && v.dataset.src) v.src = v.dataset.src;
+    const p = v.play();
+    // autoplay can still be refused; a still first frame is a fine fallback
+    if (p && p.catch) p.catch(() => {});
+  };
+  if (!('IntersectionObserver' in window)) { vids.forEach(start); return; }
+  selObserver = new IntersectionObserver((rows) => {
+    for (const r of rows) {
+      if (r.isIntersecting) start(r.target);
+      else if (r.target.src) r.target.pause();
+    }
+  }, { root: el.mslist, threshold: 0.25 });
+  for (const v of vids) selObserver.observe(v);
+}
+function stopPreviews() {
+  if (selObserver) { selObserver.disconnect(); selObserver = null; }
+  if (!el.mslist) return;
+  for (const v of el.mslist.querySelectorAll('video.mspv')) {
+    v.pause();
+    // drop the buffer: this screen can be opened and closed repeatedly and
+    // five decoded clips do not need to survive it
+    v.removeAttribute('src'); v.load();
+  }
+}
+
+let selToastT = null;
+function selToast(msg) {
+  if (!el.mstoast) return;
+  el.mstoast.textContent = msg;
+  el.mstoast.classList.add('on');
+  clearTimeout(selToastT);
+  selToastT = setTimeout(() => el.mstoast.classList.remove('on'), 2600);
+}
+
+// `how` is 'play' or 'new'. The only difference is the tutorial question:
+// choosing NEW RUN is a decision about starting over, and "with the lesson or
+// without" is part of it. Tapping the big button on a first launch is not a
+// decision about anything — the onboarding decides for itself whether it has
+// been played — so that path must not put a question in front of somebody who
+// asked for one thing: the game.
+function openModeSel(how) {
+  selFor = how;
+  selTutorial = false;
+  if (el.mstutbox) el.mstutbox.checked = false;
+  if (el.mstut) el.mstut.classList.toggle('on', how === 'new');
+  if (el.mstoast) el.mstoast.classList.remove('on');
+  renderModeSel();
+  el.modesel.style.display = 'flex';
+  if (el.mslist) el.mslist.scrollTop = 0;
+}
+function closeModeSel() {
+  if (!el.modesel) return;
+  stopPreviews();
+  el.modesel.style.display = 'none';
+}
+// CHOOSING IS STARTING, here. This screen is already downstream of "I want to
+// play", so a second confirmation would be a button that answers a tap with
+// another tap. The mode picker in Settings still only SELECTS, because that
+// one is upstream of nothing.
+function chooseMode(id) {
+  if (!modeIsOpen(id)) { selToast('You have not unlocked this game yet.'); return; }
+  selectMenuMode(id);
+  // READ THE BOX, do not remember it. `selTutorial` was set once when the
+  // screen opened and never again, so ticking it changed nothing at all: the
+  // checkbox is the state, and this is the moment its answer is needed.
+  selTutorial = !!(el.mstutbox && el.mstutbox.checked);
+  closeModeSel();
+  if (selFor === 'new') { startNewRunOn(id, selTutorial); return; }
+  // PLAY: carry on with this game's most recent run if there is one, and
+  // start a fresh one if there is not. `null` rather than `false` — see
+  // startNewRunOn: on this path nobody has been asked about the lesson and
+  // nobody should be told they declined it.
+  const last = latestSave(id);
+  if (last) { continueSave(last.i); return; }
+  startNewRunOn(id, null);
+}
+
+// A NEW RUN ON A NAMED GAME. `withTutorial` is true, false, or null:
+//
+//   true/false  the player was asked, on the NEW RUN path, and answered. That
+//               answer is sticky for the save, so it goes through
+//               beginNewGame which writes it down.
+//   null        nobody asked. This is PLAY landing on a game with no runs in
+//               it, and it must NOT go through beginNewGame: that arms
+//               `tutorArmed`, a sticky one-shot nothing clears until a lesson
+//               ENDS, so a first launch would leave every later restart in
+//               training. `tutorSeen` is already false on a fresh install and
+//               initHall's own check runs the onboarding — all this has to do
+//               is make the save and start.
+function startNewRunOn(id, withTutorial) {
+  game.mode = id;
+  const entry = makeSave(id, '');
+  if (!entry) { askFullSaves(); return; }
+  if (withTutorial === null) {
+    slotUse(entry.i);
+    pendingResumeDoor = 1;
+    closeSaves();
+    startRunFromMenu();
+    return;
+  }
+  beginNewGame(entry.i, withTutorial);
+}
+
 // SELECTING A MODE CHANGES THE PAGE, and starts nothing. Its name, its one
 // line, its CONTINUE, its saves, the world behind the menu and the board all
 // belong to the mode you are looking at — which is the whole point of a menu
@@ -7060,7 +7157,6 @@ function selectMenuMode(id) {
   // belong to the game being looked at rather than to whatever was played last.
   const last = latestSave(id);
   if (last && last.i !== slotIx) slotUse(last.i);
-  renderAltRow();
   refreshMenuPrimary();
   renderDiscover();
   // ...and so does the world behind it. Two of the five are city games and
@@ -7088,33 +7184,10 @@ function menuBackdrop() {
   if (corridor && (!hall || !hall.forMenu)) buildMenuHall();
 }
 
-// `live` = opened from the main menu, where a tap can start a run. From the
-// pause menu the same list is a reference card: starting a different mode
-// would silently throw away the run behind it, and the button for that is
-// END RUN.
-function renderModeList(live) {
-  if (!el.modelist) return;
-  // On the menu the "current" mode is whatever the big button would start,
-  // which is the game the menu is showing — not the registry's main one, since
-  // the menu can be showing any of them.
-  const cur = live ? menuMode : game.mode;
-  el.modelist.classList.toggle('live', !!live);
-  el.modelist.innerHTML = MODES.map((m) => {
-    const on = m.id === cur ? ' cur' : '';
-    return `<div class="moderow2${on}" data-mode="${m.id}"><b>${m.name}</b><span>${m.line}</span></div>`;
-  }).join('');
-  if (el.modenote) {
-    el.modenote.classList.remove('nudge');
-    el.modenote.textContent = live
-      ? 'tap one to choose it — the main game first, then oldest to newest'
-      : 'the main game first, then oldest to newest';
-  }
-}
 
 function openSettings() {
   updateCondPill();
   updateTutPill();
-  renderModeList(game.state === 'menu');
   const v = sfx.vols();
   el.setmusic.value = v.music;
   el.setsfx.value = v.sfx;
@@ -8886,12 +8959,12 @@ const el = {
   newrun: document.getElementById('newrun'),
   askFull: document.getElementById('askFull'),
   saveinfo: document.getElementById('saveinfo'),
-  modebtn: document.getElementById('modebtn'),
-  modepick: document.getElementById('modepick'),
-  picklist: document.getElementById('picklist'),
+  modesel: document.getElementById('modesel'),
+  mslist: document.getElementById('mslist'),
+  mstoast: document.getElementById('mstoast'),
+  mstut: document.getElementById('mstut'),
+  mstutbox: document.getElementById('mstutbox'),
   slotlist: document.getElementById('slotlist'),
-  askTut: document.getElementById('askTut'),
-  askNeverBox: document.getElementById('askNeverBox'),
   slowfill: document.getElementById('slowfill'),
   flash: document.getElementById('flash'),
   banner: document.getElementById('banner'),
@@ -8918,8 +8991,6 @@ const el = {
   archmeta: document.getElementById('archmeta'),
   menurow: document.getElementById('menurow'),
   moderow: document.getElementById('moderow'),
-  modelist: document.getElementById('modelist'),
-  modenote: document.getElementById('modenote'),
   altwrap: document.getElementById('altwrap'),
   timetip: document.getElementById('timetip'),
   reloadbar: document.getElementById('reloadbar'),
@@ -8927,7 +8998,15 @@ const el = {
 };
 
 // ---------------------------------------------------------------------------
-// THE ARCHIVE
+// UNLOCKS — called THE ARCHIVE everywhere in this file, and in storage.
+//
+// The screen is named UNLOCKS to the player: "archive" sounded like somewhere
+// optional you could go and read, which is the opposite of the pull it is
+// meant to have. The CODE keeps the old word on purpose, because the save key
+// is `ts_s<N>_archive` and renaming that would not migrate anybody's progress
+// — it would silently empty it. One name in storage, one name in the code
+// that reads storage, and one name on the screen; the first two agree with
+// each other and this comment is the bridge to the third.
 //
 // Depth is a number — "34 doors" — and a number is not a reason to go back in.
 // The archive turns it into a ledger of what the building has shown you, and
@@ -8952,6 +9031,23 @@ const ARCH_SECTIONS = [
 
 function renderArchive() {
   let html = '', known = 0, total = 0;
+  // GAMES FIRST, because they are the only rows on this screen you can do
+  // anything about. Everything below is filed by meeting it, which happens
+  // to you; a locked game states its price, and the price is a door number
+  // you can go and reach. It is the one section that is a to-do list.
+  {
+    const u = unlockState();
+    const got = LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors, u.played)).length;
+    html += `<div class="asec">GAMES<i>${got}/${LOCKED_MODES.length}</i></div>`;
+    for (const m of LOCKED_MODES) {
+      const on = modeUnlocked(m.id, u.doors, u.played);
+      html += `<div class="arow${on ? '' : ' locked'}">`
+        + `<div class="adesig">${on ? '✓' : `${u.doors}/${m.doors}`}</div><div>`
+        + `<b>${escHtml(m.name)}</b>`
+        + `<span>${escHtml(on ? m.line : unlockLine(m.id))}</span>`
+        + `</div></div>`;
+    }
+  }
   for (const sec of ARCH_SECTIONS) {
     const rows = ELEMENTS.filter((e) => sec.kinds.includes(e.kind));
     const got = rows.reduce((n, e) => n + (archive.has(e.id) ? 1 : 0), 0);
@@ -8972,9 +9068,9 @@ function renderArchive() {
   }
   el.archlist.innerHTML = html;
   // THE LIFETIME STAT LIVES HERE NOW. It used to headline the menu's discover
-  // block; that block is a button, and a button is no place for two numbers
-  // nobody is being asked to act on. They belong on the screen that is about
-  // what you have done, which is this one.
+  // block; that block is the UNLOCKS button, and a button is no place for two
+  // numbers nobody is being asked to act on. They belong on the screen that is
+  // about what you have done, which is this one.
   //
   // FROM discoverData, NOT from `lifetimeShattered`/`lifetimeDoors`. Those
   // two are the ACTIVE SLOT's, and this line is the only place the numbers
@@ -9039,14 +9135,11 @@ const MENU_HTML = {
 // page loads — so the primary button has to be decided here too, or a returning
 // player's first sight of the game is a button offering to start over.
 refreshMenuPrimary();
-// ...and the row that chooses a game belongs to the mode this launch
-// remembered. The WORLD behind the menu is set by menuBackdrop(), which cannot
-// be called here: setEnvironment reads `fogWant`, declared further down, and
-// touching it at module-init time is a temporal dead zone. The first paint
-// gets it from the boot path instead.
-renderAltRow();
-// ...which is this, one turn later: by the time a timeout fires every
-// top-level binding in the module exists, so setEnvironment is safe to call.
+// The WORLD behind the menu is set by menuBackdrop(), which cannot be called
+// here: setEnvironment reads `fogWant`, declared further down, and touching it
+// at module-init time is a temporal dead zone. The first paint gets it one
+// turn later — by the time a timeout fires every top-level binding in the
+// module exists, so setEnvironment is safe to call.
 setTimeout(() => { if (game.state === 'menu') menuBackdrop(); }, 0);
 
 // THE PRIMARY ACTION IS "CARRY ON", when there is anything to carry on from.
@@ -9069,7 +9162,11 @@ function goWhere(e) {
 function refreshMenuPrimary() {
   const go = el.overlay.querySelector('.go');
   if (!go) return;
-  const last = latestSave();
+  // ACROSS EVERY GAME. This read the current game's latest, back when the
+  // menu had a control that chose which game it was showing. Without that
+  // control "where you left off" can only honestly mean the last run played,
+  // whichever game it was in — and the sub-line already names it.
+  const last = latestSave(null);
   // ANY save, not just a deep one. Keying this on `resumeDoor > 1` meant that
   // starting a second run and stopping on door 1 hid NEW RUN — with a save
   // sitting at door 13 one row down in the list and no way to make another
@@ -9125,8 +9222,7 @@ function showMenu() {
   el.menurow.style.display = 'flex';
   el.moderow.style.display = 'flex';
   el.altwrap.style.display = '';
-  renderAltRow();
-  closeModePick();   // never carried back from wherever it was left open
+  closeModeSel();    // never carried back from wherever it was left open
   for (const d of document.querySelectorAll('.mdiv')) d.style.display = '';
   el.discover.style.display = '';
   menuBackdrop();
@@ -9885,7 +9981,7 @@ function hitPlayer(ended = false) {
     // A run that showed you something new says so. It is the only place the
     // archive advertises itself, and dying with a find is the moment you are
     // most likely to go and look at it.
-    const filed = runFiled ? `<div class="filed">+${runFiled} FILED TO THE ARCHIVE</div>` : '';
+    const filed = runFiled ? `<div class="filed">+${runFiled} FILED TO UNLOCKS</div>` : '';
     r.innerHTML = (game.mode === 'rush'
       ? `<div class="stats">RUSH HOUR · ${markPips} ${markPips === 1 ? 'MARK' : 'MARKS'} · ` +
         `${game.kills} SHATTERED · ${Math.round(runPlayT)}S</div>`
@@ -12365,6 +12461,9 @@ window.__ts = {
     return timeLocked;
   },
   tutorSpec: () => JSON.parse(JSON.stringify(TUTOR_SPEC)),
+  // Is a lesson running, and was one asked for? The selector's checkbox is
+  // the only way to ask now, so a probe needs to be able to see the answer.
+  tutorState: () => ({ step: tutorStep, armed: tutorArmed, seen: tutorSeen }),
   tutorOrder: () => [...tutorOrder()],
   tutorCourse: () => tutorCourse,
   tutorMeter: () => ({ on: tutorMeterOn, said: tutorMeterSaid,
