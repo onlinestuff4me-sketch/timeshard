@@ -5375,6 +5375,11 @@ const sfx = (() => {
   let faded = false;   // pause/death silence
   let muted = false;
   try { muted = localStorage.getItem('timeshard_muted') === '1'; } catch { /* private mode */ }
+  // Bus level for the music at the player's slider full. It is high because
+  // the track is shelved and voiced for a small speaker: the loudness lives
+  // in the midrange now rather than in a sub kick, so this buys audible
+  // music rather than headroom spent on frequencies a phone discards.
+  const MUSIC_GAIN = 0.78;
   let musicVol = 1, sfxVol = 1;
   try {
     const mv = parseFloat(localStorage.getItem('timeshard_musicvol'));
@@ -5538,12 +5543,33 @@ const sfx = (() => {
     echoWet = ctx.createGain();
     echoWet.gain.value = 0.06;
     damp.connect(echoWet); echoWet.connect(master);
-    // music chain: buffer -> lowpass -> gain -> master (+ echo send)
+    // music chain: buffer -> lowpass -> low shelf -> gain -> master (+ echo send)
+    //
+    // The shelf is what lets the music be LOUD. A phone speaker cannot
+    // reproduce the bottom two octaves, but the mix bus still has to carry
+    // them, so the kick's sub was eating all the headroom that the audible
+    // part of the track needed — turn the music up and you clipped on
+    // something nobody could hear. Cutting below 170Hz frees that headroom
+    // for the 500Hz-5kHz band a phone is actually loudest in. Anyone on
+    // headphones still gets the fundamental, 9dB down and no longer in the
+    // way of the tune.
     musicFilter = ctx.createBiquadFilter();
     musicFilter.type = 'lowpass'; musicFilter.frequency.value = 18000;
+    const mshelf = ctx.createBiquadFilter();
+    mshelf.type = 'lowshelf'; mshelf.frequency.value = 170; mshelf.gain.value = -9;
+    // ...and a compressor on the music alone, because the track's peak and
+    // its LOUDNESS were 21dB apart: the kick set the ceiling while the tune
+    // underneath it sat far below. A soft knee at 3:1 lifts what you listen
+    // to without moving what limits the bus. Slow release (0.2s) so it
+    // breathes with the beat rather than pumping on it, and it is on the
+    // music branch only — the gunfire must stay as sharp as it is.
+    const mcomp = ctx.createDynamicsCompressor();
+    mcomp.threshold.value = -32; mcomp.ratio.value = 3; mcomp.knee.value = 14;
+    mcomp.attack.value = 0.006; mcomp.release.value = 0.2;
     musicGain = ctx.createGain();
     musicGain.gain.value = 0;
-    musicFilter.connect(musicGain); musicGain.connect(master);
+    musicFilter.connect(mshelf); mshelf.connect(mcomp); mcomp.connect(musicGain);
+    musicGain.connect(master);
     const msend = ctx.createGain();
     msend.gain.value = 0.4;
     musicGain.connect(msend); msend.connect(echoIn);
@@ -5653,21 +5679,46 @@ const sfx = (() => {
       { root: 65.41, pad: [130.81, 164.81, 196.0], arp: [130.81, 196.0, 261.63, 329.63] },
       { root: 49.0, pad: [98.0, 123.47, 146.83], arp: [98.0, 146.83, 196.0, 246.94] },
     ];
+    // VOICED FOR A PHONE SPEAKER, which is the only speaker this game is
+    // played on. A 6mm driver rolls off hard below about 500Hz, so energy
+    // under 300Hz is energy the player never hears — and this track used to
+    // put THIRTY DECIBELS more of itself down there than in the bands a
+    // phone can reproduce. Its loudest voice by far was a 120->44Hz sine
+    // kick, the one element a phone cannot play at all, while the pad sat
+    // 23dB below it behind a 750Hz lowpass. On a desktop it was a mix. On a
+    // phone it was silence with a faint tick in it, which is exactly what it
+    // was reported as: the music is gone.
+    //
+    // So every voice now carries something in 500Hz-5kHz, the band a phone
+    // is loudest in: the pad and bass open their filters and each get an
+    // octave-up partner, the arp moves up an octave into the range where a
+    // triangle's harmonics land, and the kick — which can only ever be felt,
+    // not heard — comes down and gets a click that a small driver CAN render.
+    // Measured per band, not by ear: see test/music.mjs.
     CHORDS.forEach((c, ci) => {
       const t0 = ci * 8 * BEAT;
-      for (const f of c.pad) {       // slow detuned pad
-        note(f, t0, 8 * BEAT, { gain: 0.028, att: 1.2, lp: 750, detune: 5, pan: -0.25 });
-        note(f, t0, 8 * BEAT, { gain: 0.028, att: 1.2, lp: 750, detune: -5, pan: 0.25 });
+      for (const f of c.pad) {       // slow detuned pad, with an octave on top
+        note(f, t0, 8 * BEAT, { gain: 0.045, att: 1.2, lp: 2400, detune: 5, pan: -0.25 });
+        note(f, t0, 8 * BEAT, { gain: 0.045, att: 1.2, lp: 2400, detune: -5, pan: 0.25 });
+        note(f * 2, t0, 8 * BEAT, { gain: 0.03, att: 1.6, lp: 3200, detune: -7, pan: 0.18 });
+        note(f * 4, t0, 8 * BEAT, { gain: 0.012, att: 2.2, lp: 5000, detune: 9, pan: -0.18 });
       }
       for (let k = 0; k < 16; k++) {  // driving eighth-note bass
-        note(c.root, t0 + k * BEAT * 0.5, 0.26, { gain: k % 2 ? 0.055 : 0.1, lp: 320 });
+        const g = k % 2 ? 0.05 : 0.085;
+        note(c.root, t0 + k * BEAT * 0.5, 0.26, { gain: g, lp: 420 });
+        // the octave-up partner is what a phone actually reproduces of the
+        // bassline — the fundamental is there for anything with a woofer
+        note(c.root * 2, t0 + k * BEAT * 0.5, 0.24, { gain: g * 0.85, lp: 1400 });
+        note(c.root * 4, t0 + k * BEAT * 0.5, 0.18, { gain: g * 0.45, lp: 2600 });
       }
       for (let b = 0; b < 8; b++) {   // kick pulse + offbeat hats
-        note(120, t0 + b * BEAT, 0.13, { type: 'sine', gain: 0.42, f1: 44 });
-        hat(t0 + b * BEAT + BEAT / 2, 0.045);
+        note(120, t0 + b * BEAT, 0.13, { type: 'sine', gain: 0.2, f1: 44 });
+        note(660, t0 + b * BEAT, 0.03, { type: 'triangle', gain: 0.06, att: 0.001, f1: 180 });
+        hat(t0 + b * BEAT + BEAT / 2, 0.07);
       }
-      for (let k = 0; k < 32; k++) {  // 16th-note arpeggio
-        note(c.arp[k % 4], t0 + k * BEAT * 0.25, 0.12, { type: 'triangle', gain: 0.04, pan: k % 2 ? 0.35 : -0.35 });
+      for (let k = 0; k < 32; k++) {  // 16th-note arpeggio, an octave up
+        note(c.arp[k % 4] * 2, t0 + k * BEAT * 0.25, 0.12,
+          { type: 'triangle', gain: 0.075, pan: k % 2 ? 0.35 : -0.35 });
       }
     });
 
@@ -5689,7 +5740,7 @@ const sfx = (() => {
     musicSrc.playbackRate.value = musicRate;
     musicSrc.connect(musicFilter);
     musicSrc.start();
-    musicGain.gain.setTargetAtTime(0.26 * musicVol, ctx.currentTime, fade);
+    musicGain.gain.setTargetAtTime(MUSIC_GAIN * musicVol, ctx.currentTime, fade);
   }
 
   // --- one-shot helpers, routed through the sfx bus + echo send
@@ -5790,7 +5841,7 @@ const sfx = (() => {
     setMusicVol(v) {
       musicVol = Math.min(Math.max(v, 0), 1);
       try { localStorage.setItem('timeshard_musicvol', String(musicVol)); } catch { /* private mode */ }
-      if (ctx && musicGain) musicGain.gain.setTargetAtTime(0.26 * musicVol, ctx.currentTime, 0.1);
+      if (ctx && musicGain) musicGain.gain.setTargetAtTime(MUSIC_GAIN * musicVol, ctx.currentTime, 0.1);
     },
     setSfxVol(v) {
       sfxVol = Math.min(Math.max(v, 0), 1);   // the duck loop applies it next frame
@@ -12584,6 +12635,9 @@ window.__ts = {
   slow: () => ({ bank: +slowBank.toFixed(2), cap: SLOWMO.cap, base: SLOWMO.base,
     frac: +(slowBank / SLOWMO.cap).toFixed(3), locked: timeLocked, mode: timeMode }),
   setSlow: (v) => { slowBank = v; updateSlowMeter(); },
+  // The time button is press-and-hold, so a probe cannot reach bullet time
+  // with a tap. This is the same latch the button drives, gate and all.
+  setTimeLocked: (v) => setTimeLocked(v),
   look: applyLook,   // inject a look sample exactly as the pointer handler does
   lookStats: () => ({ ...lookStats, pending: +Math.hypot(lookPendX, lookPendY).toFixed(2) }),
   hall: () => hall,

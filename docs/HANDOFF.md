@@ -885,6 +885,62 @@ of the eight leg forms and asserts none announces PILLARS or a blank.
 > `ts_saves` to get a CONTINUE; `gait.mjs` deliberately does not, because it
 > needs the onboarding, and takes the PLAY → THE TUNNEL card path instead.
 
+## The music was never missing, it was under the speaker's floor
+
+Reported as "we seem to have lost the background music from the main menu and
+the game itself." Every flag said it was playing: `ctx.state` running,
+`music: true`, `musicRate` 1, master 0.9, and killing `setMusicVol(0)` took
+the output to digital silence — so the music was the ONLY thing making a
+sound and it still could not be heard.
+
+The number that explained it was not a level, it was a spectrum. Tapping an
+analyser onto everything that reaches `ctx.destination` and measuring peak
+energy per band:
+
+| band | before | after |
+|---|---|---|
+| 20-150 Hz (a phone cannot play this) | **-49.0 dB** | -45.1 dB |
+| 150-300 Hz (nor this) | -59.9 dB | -45.3 dB |
+| 500 Hz - 1 kHz | -79.3 dB | **-52.6 dB** |
+| 2 - 5 kHz (a phone is loudest here) | -95.1 dB | -70.2 dB |
+
+Thirty decibels more of the track lived in the two bands a 6mm phone driver
+reproduces almost nothing of. Its loudest voice by a distance was the kick —
+a 120→44 Hz sine at gain 0.42 — which is the one voice the player's hardware
+cannot make a sound with at all, while the pad sat 23 dB beneath it behind a
+750 Hz lowpass and the bass behind a 320 Hz one. On a laptop it was a mix. On
+the only device this game is played on it was silence with a faint tick in it.
+
+> **"Is it playing" is the wrong question, and every flag in the audio graph
+> answers it yes.** The right question is how loud, and in which bands. This
+> is the same failure as reading `quota` instead of the spawn queue: a number
+> that describes the system's intent rather than the thing the player meets.
+
+Three changes, all measured (`test/music.mjs`):
+
+* **The track is voiced for a small speaker.** Pad and bass open their filters
+  and each gain an octave-up partner, the arp moves up an octave into where a
+  triangle's harmonics land, and the kick drops from 0.42 to 0.2 and gets a
+  660 Hz click — the part of a kick a phone CAN render.
+* **A low shelf on the music bus** (-9 dB below 170 Hz) frees the headroom the
+  sub was hogging. Turning the music up used to clip on frequencies nobody
+  could hear.
+* **A compressor on the music branch alone** (-32 dB, 3:1, soft knee). The
+  track's peak and its loudness were 21 dB apart — the kick set the ceiling
+  while the tune sat far below it. The gunfire path is untouched and stays
+  sharp.
+
+Result: **-45.3 → -28.6 dBFS rms**, and the band a phone actually plays came
+up **26 dB**. Peak 0.25 against a 0.62 gunshot, so nothing clips, in bullet
+time either.
+
+> Two measurement traps, both mine. Calling `sfx.update(ts, dt)` from a probe
+> to fake bullet time makes the mixer fight the game's own per-frame call and
+> reported a fictional 1.85 peak — drive it through `__ts.setTimeLocked`
+> (added for this) and the real figure is 0.29. And `setTimeLocked` refuses
+> while the onboarding is running, so a probe that needs bullet time must seed
+> past the lesson AND past `SLOWMO.unlockDoor`.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
