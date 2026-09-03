@@ -34,6 +34,9 @@ gitignored.
 | `unlockbanner.mjs` | Crossing a gate with nothing else on the door (10, STAND STILL) puts the NEW MODE UNLOCKED card on screen, moves the high-water mark once, and leaves nothing queued. |
 | `selscroll.mjs` | The selector's list scrolls, and a scroll is not a choice: pointerdown inside it is not default-prevented, a wheel moves it, dragging a locked card says nothing and starts nothing, and a real tap on one says so while a real tap on an open one starts it. |
 | `unlockdefer.mjs` | Crossing the gate that collides with the slow-time school (5, CORRIDOR DUEL): the school owns the screen, so the announcement must be held in the queue rather than dropped. |
+| `waydoor.mjs` | Walks a real leg at door 12 with the way-arrow up: it must retire well before the slab, never snap sideways, and fade rather than cut. |
+| `headline.mjs` | Asks each of the eight leg forms for its banner line: none may be blank, and none may announce what the player can already see (PILLARS ARE YOUR ONLY COVER). |
+| `gait.mjs` | Bodies that are not going anywhere stand still: three men the onboarding pins have zero leg rotation while still turning to face you and raising the gun, against a control that really is walking. |
 
 ## Writing another one
 
@@ -54,3 +57,9 @@ Conventions that cost real time to learn, from `docs/HANDOFF.md`:
   loops spin forever, which reads exactly like a hung harness.
 * Long probes should serve a **frozen copy** of the repo on a second port, or
   they report half of one build and half of another.
+* **`page.tap('.go')` does not start a run on a virgin profile** any more —
+  the big button says PLAY and opens the mode board. Either seed a save
+  (`ts_s0_used`/`_mode`/`_doors`/`_rdoor`/`_at`/`_born` plus `ts_saves`) so
+  it says CONTINUE, or follow PLAY with a tap on `#mslist [data-mode="hall"]`.
+  A probe that needs the onboarding must take the second path and must NOT
+  seed `timeshard_taught`.

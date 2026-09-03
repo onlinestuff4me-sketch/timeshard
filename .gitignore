@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 native/www/
 ios/App/Pods/
 ios/App/App/public/

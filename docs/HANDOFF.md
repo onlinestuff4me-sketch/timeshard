@@ -832,12 +832,11 @@ the fix.
 > then reloading silently puts the seed back — the depth assertion read six
 > zeroes and looked like a game bug.
 
-**And there is a `runall.sh` now.** `bash runall.sh [filter]` from the
-scratchpad's `test/`: starts the server if there is not one, runs 19 probes
-fastest-first, and fails a probe on a non-zero exit, a non-zero `errors:` line,
-or any line containing FAIL or WRONG. Whole suite, about eight minutes, all
-passing. The menu ones run first on purpose — a suite whose first ten minutes
-tell you nothing is a suite nobody runs.
+**And there is a `runall.sh` now.** `bash test/runall.sh [filter]` from the
+repo root: it auto-discovers every `test/*.mjs`, runs them, and fails a probe
+on a non-zero exit, a non-zero `errors:` line, or any line containing FAIL or
+WRONG. Start `python3 -m http.server 8321` from the repo root first — it dies
+on its own, and a stalled suite looks like a hang.
 
 ## The needle finishes before the door, and the vault stops narrating itself
 
@@ -846,8 +845,8 @@ the last few metres all four lookahead samples clamp to the point the player is
 walking onto — and a bearing to a point under your feet swings a long way for a
 metre of lateral drift. `EARLY.wayDoneM` (10 m of path remaining) retires it
 instead, and the existing 0.55 s fade takes it off. Measured on a walked leg at
-door 12: it retires with **10.1 m still to the door**, biggest one-frame turn
-while up **0.0°**, **0** frames snapping more than 20°, 5 frames caught
+door 12: it retires with **10.2 m still to the door**, biggest one-frame turn
+while up **0.2°**, **0** frames snapping more than 20°, 6 frames caught
 mid-fade.
 
 **...and while proving that, the needle turned out not to appear at all.**
@@ -872,9 +871,19 @@ something you could not see for yourself. `legPromisesPlace` went with it —
 nothing in the fight read it any more, because a room is populated for BEING a
 room (`featureStretch`) rather than for having been announced as one.
 
-Two new probes, both in `runall.sh` (21 now, all passing): `waydoor.mjs` walks
-a leg and asserts the needle never snaps and never survives to the slab;
-`headline.mjs` warps 40 doors and asserts no form announces PILLARS or a blank.
+Two new probes, both in the repo's `test/` (13 there now, all passing):
+`waydoor.mjs` walks a real leg at door 12 and asserts the needle never snaps
+and never survives to the slab; `headline.mjs` asks `__ts.legPromise` for each
+of the eight leg forms and asserts none announces PILLARS or a blank.
+
+> `headline.mjs` started out walking forty doors, and rolled no vault in
+> either of two runs — it was measuring the composer's dice, not the headline.
+> Asking each form for its line directly tests the thing that changed. Where a
+> probe has to walk to what it measures, seed a save: on a virgin profile the
+> big button says PLAY and opens the mode board, so `page.tap('.go')` alone no
+> longer starts anything. `waydoor.mjs` and `headline.mjs` seed `ts_s0_*` and
+> `ts_saves` to get a CONTINUE; `gait.mjs` deliberately does not, because it
+> needs the onboarding, and takes the PLAY → THE TUNNEL card path instead.
 
 ## NEXT UP
 
@@ -959,10 +968,12 @@ tunnel depth — see `docs/MODES.md` for the gates and the three rules that
 keep them honest, the third of which is that anybody who has already played a
 mode keeps it whatever the gate says.
 
-**Everything else still does not survive between sessions.** The corridor,
+**Everything else still does not survive between sessions.** Most corridor,
 enemy, cue and HUD probes are still scratchpad-only: last session's 45 files
 were gone and this one started from nothing. Budget for that, or move them in
-alongside `test/menu.mjs` as you need them.
+alongside `test/menu.mjs` as you need them — this round moved three
+(`waydoor.mjs`, `headline.mjs`, `gait.mjs`), which is the whole cost of
+keeping one: adapt its boot to the current menu and add it to `test/`.
 
 What this session rebuilt, under the session scratchpad in `test/`:
 `lib.mjs` (boot/tap/done), `walk.mjs` (the leg walker), `early.mjs`,
