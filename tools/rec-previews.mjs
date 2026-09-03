@@ -77,10 +77,16 @@ const SEED = () => {
 // Injected BEFORE the run starts, so no frame of the recording has any of it
 // in view. `#overlay` is not in here — the menu has to stay tappable — and is
 // added separately once the run is up.
-const HIDE_HUD = `
-  #hud, #guide, #tint, #timetip, #stickbase, #sticknub, #wayarrow,
-  #banner, .lbar, #pausebtn, #slowmeter, #timebtn, #reloadbar { display:none !important; }
-`;
+//
+// TWO EXCEPTIONS FOR THE TUNNEL. `#tint` is the red wash that says time is
+// stopped, which is the one thing that mode IS — hiding it makes the tunnel
+// preview a clip of a man walking down a corridor. And `#timebtn` has to stay
+// tappable to stop time at all; it sits at y≈700, below the 286..588 window
+// this crops to, so it is never in frame either way.
+const HUD = ['#hud', '#guide', '#timetip', '#stickbase', '#sticknub', '#wayarrow',
+  '#banner', '.lbar', '#pausebtn', '#slowmeter', '#reloadbar'];
+const hideHud = (mode) => `${HUD.concat(mode === 'hall' ? [] : ['#tint', '#timebtn'])
+  .join(', ')} { display:none !important; }`;
 const HIDE_MENU = `#overlay, #modesel { display:none !important; }`;
 
 async function record(mode) {
@@ -106,7 +112,7 @@ async function record(mode) {
   page.on('pageerror', (e) => errs.push(e.message));
   await page.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => !!window.__ts, null, { timeout: 20000 });
-  await page.addStyleTag({ content: HIDE_HUD });
+  await page.addStyleTag({ content: hideHud(mode) });
 
   // Start the mode the way a player does, so the clip is of the real thing.
   if (mode === 'hall') {
@@ -127,6 +133,7 @@ async function record(mode) {
   });
   const t0 = Date.now();
   const offset = (t0 - tOpen) / 1000;            // where the gameplay begins
+  let lastBeat = -1;
   while ((Date.now() - t0) / 1000 < SECS) {
     // KEEP SOMEBODY IN FRAME. A preview of an empty corridor says nothing
     // about the game, and the natural spawn pacing is built to give a PLAYER
@@ -174,6 +181,16 @@ async function record(mode) {
         await new Promise((r) => setTimeout(r, 45));
         window.dispatchEvent(new PointerEvent('pointerup', o));
       }, tgt);
+    }
+    // STOP TIME, on the mode whose name is about it. Every other beat: press
+    // the button, take a shot inside the freeze, let it go. Without this the
+    // tunnel's card is indistinguishable from any other corridor shooter.
+    if (mode === 'hall') {
+      const n = Math.floor((Date.now() - t0) / 900);
+      if (n !== lastBeat) {
+        lastBeat = n;
+        await page.tap('#timebtn').catch(() => {});
+      }
     }
     // and move: forward down the corridor, or sideways where forward is not
     // the player's to give (the duel holds one end of its strip)
