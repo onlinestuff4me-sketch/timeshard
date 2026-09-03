@@ -841,8 +841,14 @@
      so four secondary buttons read as one block and the primary stands
      alone. */
   #altwrap { display:flex; flex-direction:row; align-items:stretch; gap:14px; }
-  .rbtn.two { flex-direction:column; justify-content:center; gap:5px;
-          padding:10px 8px; line-height:1.05; white-space:normal; }
+  .rbtn.two { position:relative; flex-direction:column; justify-content:center;
+          gap:5px; padding:10px 8px; line-height:1.05; white-space:normal; }
+  /* NEWS: a mode has opened that the player has not been shown yet. Same pill
+     as the selector's NEW, in the one place on the menu that leads to the
+     list it opened onto. It clears the moment UNLOCKS is opened. */
+  .rbtn .rnew { position:absolute; top:-7px; right:12px; padding:3px 8px;
+          border-radius:999px; font-size:7.5px; font-weight:900; letter-spacing:.2em;
+          background:#ff2d1a; color:#fff; }
   /* UNLOCKS has its row to itself, so it takes the width of the pair above */
   .rbtn.wide { width:286px; }
   .rbtn .rlab { font-size:8px; font-weight:800; letter-spacing:.22em; color:#9aa0a9; }

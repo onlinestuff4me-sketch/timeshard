@@ -87,10 +87,33 @@ and the picture is the whole reason to want what is behind it. Tapping one
 refuses on the card itself, because `showBanner` draws at z-index 10,
 underneath this panel.
 
-**NEW** marks any mode that is open and has never been played — including the
-tunnel on a first launch, which is exactly when it is true. It comes off the
-moment there is a save in that mode, so it means "this is yours now and you
-have not tried it" rather than decorating the screen forever.
+**NEW** marks a mode that has opened and has never been played, and comes off
+the moment there is a save in it. **Never the tunnel** — it has been there
+since the first launch and was not given to anybody, and a badge on the thing
+that was always available says nothing.
+
+### Telling the player something opened
+
+A gate opens in the middle of a run, three doors before you die, and the next
+thing you see is a menu that looks exactly like the last one. So the UNLOCKS
+button on the title screen carries the same red pill when a mode has opened
+that the player has not been shown yet.
+
+Two different NEWs, clearing on two different things:
+
+| | means | clears when |
+|---|---|---|
+| the badge on UNLOCKS | you have not **looked** since it opened | UNLOCKS is opened |
+| NEW on a mode card | you have not **played** it | there is a save in that mode |
+
+**Modes only, not elements.** Elements are filed constantly — every run meets
+a room form or a weapon — so badging those would put a badge up after every
+single run, which is the same as no badge at all. A mode opening is rare and
+worth crossing the room for.
+
+`ts_seen_modes` is what the player has been told. `markModesSeen` writes
+*everything currently open* rather than just what was on the badge, so a mode
+that opened before this existed does not announce itself later.
 
 The tutorial question is on this screen, on the NEW RUN path only. Choosing
 NEW RUN is a decision about starting over and "with the lesson or without" is

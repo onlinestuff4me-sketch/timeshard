@@ -6622,12 +6622,52 @@ const modeIsOpen = (id) => {
   return modeUnlocked(id, u.doors, u.played);
 };
 
+// ---------------------------------------------------------------------------
+// NEWS ON THE TITLE SCREEN.
+//
+// A gate opens in the middle of a run, three doors before you die, and the
+// next thing you see is a menu that looks exactly like the last one. So the
+// UNLOCKS button carries a badge when a mode has opened that the player has
+// not been shown yet.
+//
+// TWO DIFFERENT "NEW"S, and they clear on different things:
+//
+//   the badge here      you have not LOOKED since it opened. Clears the
+//                       moment UNLOCKS is opened.
+//   NEW on a mode card  you have not PLAYED it. Clears when there is a save
+//                       in that mode.
+//
+// MODES ONLY, not elements. Elements are filed constantly — every run meets a
+// room form or a weapon — so badging those would mean a badge after every
+// single run, which is the same as no badge at all. A mode opening is rare
+// and is worth crossing the room for.
+const SEEN_MODES_KEY = 'ts_seen_modes';
+function seenModes() {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_MODES_KEY) || '[]') || []); }
+  catch { return new Set(); }
+}
+function pendingModes() {
+  const u = unlockState();
+  const seen = seenModes();
+  return LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors, u.played) && !seen.has(m.id));
+}
+// Everything open is now accounted for, whether or not it was on the badge —
+// so a mode unlocked before this existed does not announce itself later.
+function markModesSeen() {
+  const u = unlockState();
+  const open = LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors, u.played)).map((m) => m.id);
+  try { persist(SEEN_MODES_KEY, JSON.stringify(open)); } catch { /* private */ }
+  renderDiscover();
+}
+
 function renderDiscover() {
   if (!el.discover) return;
   const d = discoverData();
   const pct = d.total ? Math.round((d.got / d.total) * 100) : 0;
+  const news = pendingModes().length;
   el.discover.innerHTML =
-    `<span class="rlab">UNLOCKS</span>`
+    (news ? `<span class="rnew">${news > 1 ? `${news} NEW` : 'NEW'}</span>` : '')
+    + `<span class="rlab">UNLOCKS</span>`
     + `<span class="rval">${d.got} / ${d.total}</span>`
     + `<span class="rbar"><i style="width:${pct}%"></i></span>`;
 }
@@ -7042,11 +7082,12 @@ function renderModeSel() {
     }
     h += `</div><div class="mssec">ALL MODES</div>`;
   }
-  // NEW is on anything open that has never been played — including the tunnel
-  // on a first launch, which is exactly when it is true. It comes off the
-  // moment there is a save in that mode, so it marks "this is yours now and
-  // you have not tried it" rather than decorating the screen forever.
-  h += modeCard(tunnel, { hero: true, unlocked: true, fresh: !u.played.has(tunnel.id) });
+  // NEW IS FOR SOMETHING YOU EARNED. It marks a mode that has opened and has
+  // never been played, and comes off the moment there is a save in it — so
+  // never the tunnel, which has been there since the first launch and was not
+  // given to anybody. A badge on the thing that was always available says
+  // nothing; on the mode that just appeared it is the whole point.
+  h += modeCard(tunnel, { hero: true, unlocked: true });
   for (const m of LOCKED_MODES) {
     const on = open(m.id);
     h += modeCard(m, { unlocked: on, fresh: on && !u.played.has(m.id) });
@@ -9119,6 +9160,7 @@ function openUnlocks() {
   if (unlocksDirty) renderUnlocks();
   el.unlockpanel.style.display = 'flex';
   el.unlocklist.scrollTop = 0;
+  markModesSeen();   // looking at it IS being told
 }
 
 renderDiscover();
