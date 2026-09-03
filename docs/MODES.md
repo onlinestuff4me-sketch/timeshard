@@ -62,8 +62,17 @@ and reach.
 ## The selector
 
 Between "I want to play" and playing. PLAY (when there is nothing to continue)
-and NEW RUN both open it; **CONTINUE never does** — the whole promise of that
-button is one tap back into the run it names.
+and START NEW RUN both open it; **CONTINUE never does** — the whole promise of
+that button is one tap back into the run it names.
+
+**A card is chosen on release, not on touch.** The list scrolls, and a scroll
+starts with a finger landing on a card — so acting on `pointerdown` meant a
+flick down the list launched whatever it started on, or answered "you have not
+unlocked this mode yet" when all the player did was scroll past it. The
+landing is remembered and the release decides, by the same net-displacement
+test tap-to-fire uses. The list also has to be exempt from the menu's blanket
+`preventDefault`, or the browser never scrolls however the CSS is set — with
+five cards it overflows by about 430 px, so a third of it was unreachable.
 
 **One vertical list, always in unlock order**, with the tunnel at the top as a
 full-width card with a bigger picture because it is the game. Where a mode

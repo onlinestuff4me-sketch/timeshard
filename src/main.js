@@ -4749,6 +4749,11 @@ function onPointerDown(ev) {
   // and the unlocks's scroll pane. `touch-action:none` on <body> means an
   // un-prevented pointerdown is the only thing that lets either one work.
   const inUnlockScroll = ev.target && ev.target.closest && ev.target.closest('#unlocklist');
+  // ...and the mode selector's, which is the same problem: five cards with
+  // moving pictures on them are twice the height of the card that holds them,
+  // so a third of the list was unreachable — preventDefault on pointerdown
+  // suppresses the scroll that `touch-action:pan-y` is asking for.
+  const inSelScroll = ev.target && ev.target.closest && ev.target.closest('#mslist');
   // ...and the selector's tutorial checkbox, for the same reason.
   const inAsk = ev.target && ev.target.closest && ev.target.closest('#mstut');
   // ...and the save-name field, which is the same problem: preventDefault on
@@ -4757,7 +4762,7 @@ function onPointerDown(ev) {
   // acting on the tap; it cannot un-prevent a default already prevented, so
   // without this line the field could be rendered and never typed into.
   const inName = ev.target && ev.target.closest && ev.target.closest('#savename');
-  if (!inSettings && !inUnlockScroll && !inAsk && !inName) ev.preventDefault();
+  if (!inSettings && !inUnlockScroll && !inSelScroll && !inAsk && !inName) ev.preventDefault();
   sfx.init();
   if (el.settings.style.display === 'flex') {   // settings modal open
     if (inSettings) {
@@ -4919,10 +4924,20 @@ function onPointerDown(ev) {
       if (ev.target.closest('.rules')) return;   // reading
     }
     // THE MODE SELECTOR: its cards, its checkbox, its BACK.
-    // both the strip's minis and the list's cards carry data-mode
-    const scd = ev.target && ev.target.closest && ev.target.closest('#mslist [data-mode]');
+    //
+    // A CARD IS CHOSEN ON RELEASE, not on touch. This list scrolls, and a
+    // scroll starts with a finger landing on a card — so acting here meant a
+    // flick down the list launched whatever it started on, or told you the
+    // mode was locked when all you did was scroll past it. The landing is
+    // remembered and `releaseModeSel` decides on the way up, by the same test
+    // the gun uses: net displacement, not intent.
     if (el.modesel && el.modesel.style.display === 'flex') {
-      if (scd) { chooseMode(scd.dataset.mode); return; }
+      const scd = ev.target && ev.target.closest && ev.target.closest('#mslist [data-mode]');
+      if (scd) {
+        selTapId = ev.pointerId;
+        selTapAt = { x: ev.clientX, y: ev.clientY, t: performance.now(), mode: scd.dataset.mode };
+        return;
+      }
       if (ev.target.closest('#mstut')) return;   // the checkbox takes it
       if (ev.target.closest('#modeselclose')) { closeModeSel(); return; }
       if (ev.target.closest('.mscard')) return;  // scrolling, not choosing
@@ -5227,6 +5242,7 @@ const TIMEBTN_SLIP_PX = 26;   // slide this far off the button = look gesture
 
 function onPointerUp(ev) {
   sfx.init();   // some browsers only allow audio resume on the gesture's END
+  if (releaseModeSel(ev)) return;
   if (ev.pointerId === timeBtnPointer) {
     // still the button's pointer, so it never slipped: this was a press, and
     // whatever the thumb wobbled is given back
@@ -5244,6 +5260,8 @@ function onPointerUp(ev) {
   releasePointer(ev, true);
 }
 function onPointerCancel(ev) {
+  // a cancelled gesture is never a choice: drop the landing and say nothing
+  if (selTapId !== null && ev.pointerId === selTapId) { selTapId = null; selTapAt = null; }
   if (ev.pointerId === timeBtnPointer) {
     timeBtnPointer = null;
     undoTimeBtnLook();
@@ -6852,7 +6870,7 @@ function openSaves() {
   // menu had a control that chose which — that control is in the play flow
   // now and this page is the only way back to a run in a mode you are not
   // currently looking at.
-  if (h) h.textContent = 'LOAD GAME';
+  if (h) h.textContent = 'CONTINUE YOUR RUNS';
   el.saves.style.display = 'flex';
 }
 function closeSaves() { el.saves.style.display = 'none'; closeSaveInfo(); }
@@ -7068,6 +7086,22 @@ function beginNewGame(i, withTutorial) {
 // ---------------------------------------------------------------------------
 let selTutorial = false;      // the checkbox, on the NEW RUN path
 let selFor = 'play';          // 'play' | 'new' — which button opened this
+// The card a finger landed on, and where. See onPointerDown: the list
+// scrolls, so nothing is chosen until the finger comes back up without
+// having travelled.
+let selTapId = null;
+let selTapAt = null;
+function releaseModeSel(ev) {
+  if (selTapId === null || ev.pointerId !== selTapId) return false;
+  const a = selTapAt;
+  selTapId = null; selTapAt = null;
+  if (!a) return true;
+  // the same test tap-to-fire uses, so a scroll never reads as a choice
+  if (performance.now() - a.t > TAP_MS) return true;
+  if (Math.hypot(ev.clientX - a.x, ev.clientY - a.y) > TAP_PX) return true;
+  chooseMode(a.mode);
+  return true;
+}
 
 function modeCard(m, { hero = false, unlocked = true, fresh = false } = {}) {
   // preload=none and no autoplay attribute: five clips all fetching and
@@ -7201,6 +7235,7 @@ function openModeSel(how) {
   if (el.mslist) el.mslist.scrollTop = 0;
 }
 function closeModeSel() {
+  selTapId = null; selTapAt = null;
   if (!el.modesel) return;
   stopPreviews();
   el.modesel.style.display = 'none';
