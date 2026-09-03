@@ -58,11 +58,13 @@ const PROBE = () => {
   window.webkitAudioContext = window.AudioContext;
 };
 
-// past the tutorial and past the slow-time gate, so bullet time is reachable
+// past the tutorial and past the slow-time gate, so bullet time is reachable.
+// `__probeMuted` decides whether the start screen's sound toggle begins off.
 const SEED = () => {
   window.__probeInstall();
   try {
     const now = Date.now();
+    localStorage.setItem('timeshard_muted', window.__probeMuted ? '1' : '0');
     localStorage.setItem('timeshard_taught', '1');
     localStorage.setItem('ts_deepest_door', '14');
     localStorage.setItem('ts_s0_used', '1'); localStorage.setItem('ts_s0_mode', 'hall');
@@ -73,10 +75,12 @@ const SEED = () => {
   } catch { /* private mode */ }
 };
 
-const { browser, page, errs } = await boot({ seed: `
+const seedFor = (muted) => `
   window.__probeInstall = ${PROBE.toString()};
+  window.__probeMuted = ${muted};
   (${SEED.toString()})();
-` });
+`;
+const { browser, page, errs } = await boot({ seed: seedFor(false) });
 const bad = (m) => console.log('FAIL ' + m);
 const db = (v) => (v > 0 ? +(20 * Math.log10(v)).toFixed(1) : -999);
 const listen = (ms) => page.evaluate(async (ms) => {
@@ -105,7 +109,7 @@ if (await page.evaluate(() => window.__ts.game.state) === 'menu') bad('CONTINUE 
 
 // ---- 1. there is music, and it is loud enough to be music ------------------
 const run = await listen(5000);
-if (!run) { bad('no audio reached the speakers at all'); done('music', errs); await browser.close(); }
+if (!run) { bad('no audio reached the speakers at all'); done('music', errs); await browser.close(); process.exit(1); }
 console.log('in a run   rms ' + db(run.rms) + ' dB   peak ' + db(run.peak)
   + ' dB (' + run.peak.toFixed(3) + ' linear)');
 // -38dB is the floor of "a player would notice this is on". The track sits
@@ -155,5 +159,44 @@ const off = await listen(2500);
 console.log('slider at 0 rms ' + db(off.rms) + ' dB');
 if (off.rms > 0.001) bad('the music slider no longer silences the music');
 
-done('music', errs);
 await browser.close();
+
+// ---- 6. and turning the sound back ON brings the music with it -------------
+//
+// Every other sound is made on demand, so unmuting is enough for all of them.
+// The music is the one LOOP, started once, and startMusic refuses to start
+// while muted — so booting with the toggle off left `musicSrc` null and
+// unmuting gave back the whole game EXCEPT the music, on a menu that then sat
+// in digital silence. It reappeared only if you started a run, because a run
+// flushes and a flush re-seats the loop.
+const b2 = await boot({ seed: seedFor(true) });
+const listen2 = (ms) => b2.page.evaluate(async (ms) => {
+  const l = []; const t0 = performance.now();
+  while (performance.now() - t0 < ms) {
+    if (window.__tap) l.push(window.__tap());
+    await new Promise((r) => requestAnimationFrame(r));
+  }
+  return l.length ? { rms: l.reduce((a, x) => a + x.rms, 0) / l.length } : { rms: 0 };
+}, ms);
+await b2.page.waitForTimeout(1600);
+if (!(await b2.page.evaluate(() => document.getElementById('sndbtn').classList.contains('muted')))) {
+  bad('booting with timeshard_muted did not show the toggle as off');
+}
+// a gesture that is NOT the toggle, so the graph builds and the music finishes
+// rendering while still muted — unmuting during the render would hide this
+await b2.page.tap('#titleblock');
+await b2.page.waitForTimeout(3000);
+if (!(await b2.page.evaluate(() => window.__ts.sfx.isMuted()))) bad('the first tap unmuted the game');
+await b2.page.tap('#sndbtn');
+await b2.page.waitForTimeout(1800);
+const back = await b2.page.evaluate(() => ({
+  muted: window.__ts.sfx.isMuted(), music: !!window.__ts.audio().music }));
+const un = await listen2(4000);
+console.log('unmuted     ' + JSON.stringify(back) + '  menu rms ' + db(un.rms) + ' dB');
+if (back.muted) bad('the sound toggle did not turn the sound back on');
+if (!back.music) bad('the music loop was never seated when the sound came back');
+if (db(un.rms) < -38) bad('sound is back on but the menu has no music: ' + db(un.rms) + ' dBFS');
+errs.push(...b2.errs);
+await b2.browser.close();
+
+done('music', errs);

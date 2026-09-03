@@ -5830,11 +5830,24 @@ const sfx = (() => {
         return key === 'shatterw' ? 'SHATTER' : 'TIME';
       } catch { return null; }
     },
+    // TURNING THE SOUND BACK ON HAS TO SEAT THE MUSIC, not just raise the
+    // master. Every other sound in the game is made on demand — a shot builds
+    // its voice when it fires, so unmuting is enough for all of them. The
+    // music is the one thing that is a LOOP, started once, and `startMusic`
+    // refuses to start it while muted. So booting with the toggle off meant
+    // `musicSrc` was never created: unmute, and you got the whole game back
+    // except the music, on a menu that then sat in digital silence. It came
+    // back only if you happened to start a run, because a run flushes, and a
+    // flush re-seats the loop. That is the bug behind "the music is gone from
+    // the main menu" — separate from the mix being voiced below the speaker.
     setMuted(m) {
       muted = m;
       try { localStorage.setItem('timeshard_muted', m ? '1' : '0'); } catch { /* private mode */ }
       if (master) master.gain.value = m ? 0 : 0.9;
       if (m) { try { speechSynthesis.cancel(); } catch { /* no TTS */ } }
+      // If the buffer has not finished rendering yet, buildMusic's own
+      // startMusic call lands after this and finds `muted` already false.
+      else if (ctx && !musicSrc) startMusic();
     },
     isMuted() { return muted; },
     running() { return !!(ctx && ctx.state === 'running'); },

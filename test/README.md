@@ -37,7 +37,7 @@ gitignored.
 | `waydoor.mjs` | Walks a real leg at door 12 with the way-arrow up: it must retire well before the slab, never snap sideways, and fade rather than cut. |
 | `headline.mjs` | Asks each of the eight leg forms for its banner line: none may be blank, and none may announce what the player can already see (PILLARS ARE YOUR ONLY COVER). |
 | `gait.mjs` | Bodies that are not going anywhere stand still: three men the onboarding pins have zero leg rotation while still turning to face you and raising the gun, against a control that really is walking. |
-| `music.mjs` | Taps the signal reaching the speakers and asks how loud the music is and **in which bands** — a track whose energy sits under 300Hz is silent on a phone however healthy the audio graph looks. Also bullet time, the menu, and the volume slider. |
+| `music.mjs` | Taps the signal reaching the speakers and asks how loud the music is and **in which bands** — a track whose energy sits under 300Hz is silent on a phone however healthy the audio graph looks. Also bullet time, the menu, the volume slider, and booting with the sound toggle off and turning it back on. |
 
 ## Writing another one
 

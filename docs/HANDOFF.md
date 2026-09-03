@@ -941,6 +941,32 @@ time either.
 > while the onboarding is running, so a probe that needs bullet time must seed
 > past the lesson AND past `SLOWMO.unlockDoor`.
 
+### ...and the sound toggle was a second, separate bug
+
+Asked directly: "was the music not playing because the audio toggle on the
+start screen was off?" It was — and not for the reason the toggle suggests.
+
+`setMuted` only moved the master gain. Every other sound in the game is made
+on demand (a shot builds its voice when it fires), so raising the master is
+genuinely enough for all of them. The music is the one thing that is a LOOP,
+started once, and `startMusic` refuses to start while muted. Boot with the
+toggle off and `musicSrc` was never created; turn the sound back on and you
+got the entire game back except the music, on a menu measuring **-999 dB —
+digital silence**. It reappeared only if you happened to start a run, because
+a run flushes and a flush re-seats the loop.
+
+> Two bugs wearing one symptom, and the mix work would have half-hidden this
+> one: after the re-voicing, a player who never touched the toggle hears music
+> and a player who did still hears nothing on the menu. Worth remembering that
+> "I fixed the thing I measured" is not "I fixed what they reported" — the
+> user's own guess found the half I had not looked at.
+
+`setMuted` seats the loop on the way back up. The race is covered too: if the
+buffer is still rendering, `buildMusic`'s own `startMusic` lands afterwards
+and finds `muted` already false. `test/music.mjs` boots a second browser with
+the toggle off, takes a gesture that is NOT the toggle so the render completes
+while muted, then unmutes — it fails on the build before the fix.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
