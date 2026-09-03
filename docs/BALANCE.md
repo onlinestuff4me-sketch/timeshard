@@ -581,7 +581,7 @@ drains the bank at a flat 0.4×. An enemy must be in view for
 | Knob | Value | Meaning |
 |---|---|---|
 | `hallNear` / `hallFar` | 14 / 55 m | the ordinary corridor |
-| `fogNear` / `fogFar` | 2 / 6 m | a **fog** leg — what its archive line promises |
+| `fogNear` / `fogFar` | 2 / 6 m | a **fog** leg — what its UNLOCKS line promises |
 | `farMargin` | 3 m | the far plane is never nearer than `spawnMin + this` |
 | `tau` | 0.45 s | eased on a time constant, so every leg change lands in ~1.3 s |
 
