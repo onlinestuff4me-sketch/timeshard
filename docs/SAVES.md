@@ -19,8 +19,9 @@ not disturb the tunnel save you were on. `MAX_SAVES` is per mode.
 > NEW RUN open — see `docs/MODES.md` — and the menu has no MODE control at
 > all. Two consequences for this document:
 >
-> * **`LOAD GAME` lists every game's runs**, titled with the act rather than
->   with a game, each row naming its own. It had to: without a control that
+> * **`LOAD GAME` lists every mode's runs**, titled `CONTINUE YOUR RUNS` —
+>   which is what it is: continuing, from a save that is not the most recent
+>   one the big button already offers — with each row naming its own mode. It had to: without a control that
 >   scopes it, a list that silently hid four fifths of somebody's runs would
 >   be the only way back to them.
 > * **`CONTINUE` names the most recently played run across all games**, not

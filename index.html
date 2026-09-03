@@ -778,7 +778,7 @@
      the corridor — and the scrim is a gradient that is only strong where
      there are words on it. */
   #overlay.menu { justify-content:space-between; gap:0;
-             padding-top:calc(env(safe-area-inset-top, 0px) + 74px);
+             padding-top:calc(env(safe-area-inset-top, 0px) + 94px);
              background:linear-gradient(180deg,
                rgba(232,234,238,.88) 0%, rgba(232,234,238,.55) 20%,
                rgba(232,234,238,.16) 42%, rgba(232,234,238,.16) 55%,
@@ -792,14 +792,35 @@
   #overlay:not(.menu) #titleblock, #overlay:not(.menu) #ctas {
           display:flex; flex-direction:column; align-items:center; gap:20px; }
 
-  /* the corners: 40px circles, hard against the safe area */
-  #menurow { position:absolute; top:calc(env(safe-area-inset-top, 0px) + 14px);
-             left:16px; right:16px; display:flex; align-items:center;
-             justify-content:space-between; }
+  /* ---- THE TOP BAR --------------------------------------------------------
+     A `?` on the left against two circles on the right read as lopsided, and
+     the odd shape at the top of the screen pulled the eye before the title
+     did. It is a BAR now: a strip with its own ground and a hairline under
+     it, so it reads as chrome the page sits below rather than as three loose
+     objects floating over the art.
+
+     HOW TO PLAY is spelled out, which is what balances it — the words are
+     about as wide as the two icons opposite, so the bar has equal weight at
+     both ends, and the one control a new player actually needs stops being a
+     punctuation mark.
+
+     The BAR is what should be visible, not the buttons in it: the strip has
+     a ground and an edge, and the controls sitting on it are drawn a shade
+     lighter than the rest of the menu so the eye passes over them on its way
+     to the title. Tried it four ways — no bar, this, and two heavier ones —
+     and the heavier the bar, the more the top of the screen competed with
+     the thing it is supposed to be introducing. */
+  #menurow { position:absolute; top:0; left:0; right:0;
+             padding:calc(env(safe-area-inset-top, 0px) + 11px) 16px 11px;
+             display:flex; align-items:center; justify-content:space-between;
+             background:rgba(232,234,238,.5);
+             box-shadow:inset 0 -1px 0 rgba(22,24,29,.09); }
   .cnrgrp { display:flex; align-items:center; gap:9px; }
   .cnr { width:40px; height:40px; padding:0; border-radius:50%; font-size:16px;
-         color:#6b717a; border:1.5px solid rgba(22,24,29,.24);
-         background:rgba(238,240,243,.62); }
+         color:#7f858e; border:1.5px solid rgba(22,24,29,.15);
+         background:rgba(238,240,243,.5); }
+  .cnr.wide { width:auto; padding:0 16px; border-radius:999px;
+         font-size:9.5px; font-weight:900; letter-spacing:.2em; }
   .cnr svg { width:21px; height:21px; }
   #overlay h1 { font-size:min(22vw,104px); font-weight:900; line-height:.82; letter-spacing:.01em; color:#16181d;
                 transform:skewX(-6deg); text-shadow:0 0 24px rgba(232,234,238,.95), 0 0 60px rgba(232,234,238,.9); }
@@ -1019,9 +1040,10 @@
   #mstut input { width:17px; height:17px; accent-color:#ff2d1a; }
   #modesel .pbtn { flex:none; width:246px; margin-top:14px; }
   /* how-to + settings ride tier 3 (.btn-3) */
-  #sndbtn { width:38px; height:38px; border-radius:50%;
-            display:flex; align-items:center; justify-content:center; color:#7a8089;
-            border:1.5px solid rgba(22,24,29,.28); background:rgba(238,240,243,.6); }
+  /* matched to `.cnr`, because it sits beside two of them in the top bar */
+  #sndbtn { width:40px; height:40px; border-radius:50%;
+            display:flex; align-items:center; justify-content:center; color:#7f858e;
+            border:1.5px solid rgba(22,24,29,.15); background:rgba(238,240,243,.5); }
   #sndbtn svg { width:22px; height:22px; }
   #sndbtn.muted { opacity:.55; }
 
@@ -1133,7 +1155,7 @@
        decisions on the way into a run, so they sit out of the column the eye
        travels down. -->
   <div id="menurow">
-    <div class="btn cnr" id="howtolink">?</div>
+    <div class="btn cnr wide" id="howtolink">HOW TO PLAY</div>
     <div class="cnrgrp">
       <div class="btn cnr" id="setlink"><svg viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2" stroke-linecap="round"><path
@@ -1150,7 +1172,7 @@
   <div id="ctas">
     <div class="go btn btn-1">PLAY</div>
     <div id="runrow"><div id="newrun">OTHER RUNS &rsaquo;</div></div>
-    <div class="btn rbtn" id="startnew">NEW RUN</div>
+    <div class="btn rbtn" id="startnew">START NEW RUN</div>
     <div id="altwrap">
       <div class="btn rbtn two wide" id="discover"></div>
     </div>
