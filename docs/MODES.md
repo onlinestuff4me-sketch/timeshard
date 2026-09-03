@@ -35,20 +35,24 @@ the two ONE-THUMB modes first — they are a rest, and they teach the dodge on
 its own — and the two full-control arena games last, because those ask for
 everything the tunnel taught at once, with no doors to pace it.
 
-Three rules the code keeps (`modeUnlocked` in the registry, `unlockState` in
-`src/main.js`):
+Three rules the code keeps (`modeUnlocked` in the registry, `deepestDoor` and
+`noteDeepestDoor` in `src/main.js`):
 
-* **The number is the player's, not the save's.** It is the deepest tunnel
-  door reached across every save, because unlocking belongs to the player the
-  same way UNLOCKS does.
+* **It is a high-water mark, kept per player, and it only goes up.**
+  `ts_deepest_door` is written when a tunnel door is crossed and read by
+  nothing else. It is deliberately NOT derived from the saves: a player who
+  earns Corridor Duel at door 5 and then deletes that run must not find it
+  locked again, and a number recomputed from whatever saves happen to exist
+  does exactly that.
 * **Tunnel doors only.** Corridor Duel and Stand Still are built on the
   tunnel's legs and cross doors too; counting those would make "REACH DOOR 5
   IN THE TUNNEL" a lie on the one card that says it, and would let the modes
   bought with the climb pay for each other.
-* **Anything you have already played stays yours.** These gates were added to
-  a game people were already playing. Somebody with twenty City Streets runs
-  must not open the app and find it locked behind a tunnel they never touched,
-  so any mode with a save in it is unlocked whatever the gate says.
+* **It counts from the launch that introduced it.** The mark starts at zero
+  for everybody. An earlier version also unlocked any mode you had a save in,
+  to protect players who had put runs into City Streets before the gates
+  existed — there are none, and the clause made "unlocked" mean two different
+  things depending on how you got there.
 
 The same four gates are a section of UNLOCKS, counted `n/4`, each locked row
 showing how far off it is (`7/10`) — the one section of that screen that is a
@@ -93,6 +97,20 @@ since the first launch and was not given to anybody, and a badge on the thing
 that was always available says nothing.
 
 ### Telling the player something opened
+
+**At the moment it happens.** Crossing the gate puts a card on the screen: the
+label small and red over the mode's name, because the name is the news.
+
+It **waits for the screen** rather than firing blind. Corridor Duel's gate is
+door 5, which is crossed on the same step that hands over slow motion — and
+that door runs the slow-time school, which owns the screen and makes
+`showBanner` a no-op for as long as it lasts. Announcing into that is
+announcing into nothing, and the first gate a player ever passes is the one
+that matters most, so the announcement queues and the frame loop lets it out
+when the lesson is over. General on purpose: a lesson on any future door gets
+the same treatment without knowing about this.
+
+**And on the title screen afterwards**, in case the moment was missed.
 
 A gate opens in the middle of a run, three doors before you die, and the next
 thing you see is a menu that looks exactly like the last one. So the UNLOCKS

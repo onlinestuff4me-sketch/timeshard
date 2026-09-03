@@ -408,6 +408,13 @@
   #banner.show { opacity:1; }
   #banner small { display:block; font-size:min(3.6vw,16px); letter-spacing:.34em; color:#ff2d1a;
                   margin-top:8px; line-height:1.5; }
+  /* A MODE OPENING. The label goes ABOVE the name — `small` sits below, and
+     here the name is the news, so it gets the big type and the label leads in
+     to it. Sized down from the banner's 58px because CORRIDOR DUEL is thirteen
+     characters and the banner does not wrap. */
+  #banner .mnew { font-size:min(8.4vw,38px); letter-spacing:.06em; line-height:1.1; }
+  #banner .mnew .lede { display:block; margin-bottom:9px; color:#ff2d1a;
+                  font-size:min(3.4vw,15px); letter-spacing:.34em; }
   /* the warn flash shares the channel, so it shares the safe zone */
   #warn { top:auto; bottom:60%; }
 
@@ -759,12 +766,54 @@
              background:rgba(232,234,238,.55); z-index:10; text-align:center;
              padding:24px 24px calc(24px + env(safe-area-inset-bottom, 0px)); }
   #overlay.hidden { display:none; }
+
+  /* ---- THE TITLE SCREEN ---------------------------------------------------
+     `.menu` only. The death screen keeps the centred stack above, which is
+     what it was built for: one card of stats and one button.
+
+     The title screen wants the opposite. It had six controls stacked down the
+     middle of it and a flat white scrim over the whole corridor, so the art
+     the game renders behind the menu may as well not have been there. Now the
+     column is title at the top, CTAs at the bottom, and the middle left to
+     the corridor — and the scrim is a gradient that is only strong where
+     there are words on it. */
+  #overlay.menu { justify-content:space-between; gap:0;
+             padding-top:calc(env(safe-area-inset-top, 0px) + 74px);
+             background:linear-gradient(180deg,
+               rgba(232,234,238,.88) 0%, rgba(232,234,238,.55) 20%,
+               rgba(232,234,238,.16) 42%, rgba(232,234,238,.16) 55%,
+               rgba(232,234,238,.62) 74%, rgba(232,234,238,.93) 100%); }
+  #titleblock { flex:none; }
+  /* THE ONE COLUMN THAT MATTERS, and it reads top to bottom in the order the
+     decisions are made: carry on, carry on with a different run, start a new
+     one, or go and look at what you have. */
+  #ctas { flex:none; display:flex; flex-direction:column; align-items:center; gap:13px;
+          padding-bottom:6px; }
+  #overlay:not(.menu) #titleblock, #overlay:not(.menu) #ctas {
+          display:flex; flex-direction:column; align-items:center; gap:20px; }
+
+  /* the corners: 40px circles, hard against the safe area */
+  #menurow { position:absolute; top:calc(env(safe-area-inset-top, 0px) + 14px);
+             left:16px; right:16px; display:flex; align-items:center;
+             justify-content:space-between; }
+  .cnrgrp { display:flex; align-items:center; gap:9px; }
+  .cnr { width:40px; height:40px; padding:0; border-radius:50%; font-size:16px;
+         color:#6b717a; border:1.5px solid rgba(22,24,29,.24);
+         background:rgba(238,240,243,.62); }
+  .cnr svg { width:21px; height:21px; }
   #overlay h1 { font-size:min(22vw,104px); font-weight:900; line-height:.82; letter-spacing:.01em; color:#16181d;
                 transform:skewX(-6deg); text-shadow:0 0 24px rgba(232,234,238,.95), 0 0 60px rgba(232,234,238,.9); }
   #overlay h1 em { font-style:normal; color:#ff2d1a; -webkit-text-stroke:2.5px #16181d; }
   #overlay h1 svg { display:block; margin:10px auto 0; overflow:visible; }
   #overlay .sub { margin-top:14px; font-size:11px; font-weight:800; letter-spacing:.3em; color:#40444c;
                   text-shadow:0 0 10px rgba(232,234,238,.95); }
+  /* OTHER RUNS is a variation on CONTINUE — the same act, a different save —
+     so it is a link under the button it varies rather than a pill beside it.
+     It only exists when there IS another run: with one save it says nothing
+     CONTINUE has not already said. */
+  #runrow { display:none; }
+  #newrun { font-size:9.5px; font-weight:800; letter-spacing:.22em; color:#7a8089;
+            padding:10px 14px; text-shadow:0 0 10px rgba(232,234,238,.9); }
   /* instructions pinned to the bottom of the menu */
   #overlay .rules { position:absolute; left:0; right:0; bottom:calc(env(safe-area-inset-bottom, 0px) + 20px);
                     display:flex; flex-direction:column; gap:7px; font-size:12px; font-weight:700;
@@ -774,8 +823,6 @@
   /* bottom row: how-to + unlocks + settings links, and the speaker toggle.
      It wraps: four controls is more than 390px of portrait reliably holds,
      and a wrapped second row is better than a clipped first one. */
-  #menurow { display:flex; align-items:center; justify-content:center; gap:10px;
-             flex-wrap:wrap; max-width:min(340px, 90vw); }
   #moderow { display:none; }   /* folded into #menurow */
 
   /* ---- ONE BUTTON FAMILY, FOUR WEIGHTS ----------------------------------
@@ -809,13 +856,16 @@
      lands between, and a tap that lands between them does nothing at all —
      reported as the button "not responding", which is exactly what a miss
      feels like when there is no miss state to see. */
-  #runrow { display:none; gap:14px; margin-top:20px; }
   /* ...AND 46px TALL. These were 39: under the 44px a thumb actually covers,
      on the one row of the menu where two targets sit side by side. The type
      stays the size it was — the padding grew, not the label. */
   .rbtn { width:136px; padding:16px 0; font-size:9.5px; letter-spacing:.2em;
           color:#6b717a; border:1.5px solid rgba(22,24,29,.2);
           background:rgba(238,240,243,.55); }
+  /* NEW RUN is how anybody finds the other modes, so it is a real button and
+     not a link — one rank under CONTINUE and one above UNLOCKS. */
+  #startnew { display:none; width:190px; color:#40444c;
+          border-color:rgba(22,24,29,.34); background:rgba(238,240,243,.72); }
   /* THE SECOND ROW. It held MODE and UNLOCKS as a matched pair; choosing a
      game moved into the play flow, so UNLOCKS has the row to itself and takes
      the full 286 px of it — the same width as the pair above, so the two rows
@@ -850,7 +900,10 @@
           border-radius:999px; font-size:7.5px; font-weight:900; letter-spacing:.2em;
           background:#ff2d1a; color:#fff; }
   /* UNLOCKS has its row to itself, so it takes the width of the pair above */
-  .rbtn.wide { width:286px; }
+  .rbtn.wide { width:236px; }
+  /* ...and OPTIONAL, so it sits a rank below NEW RUN: no border, a wash, and
+     its label the same grey as the corners. */
+  #discover { border-color:transparent; background:rgba(238,240,243,.5); }
   .rbtn .rlab { font-size:8px; font-weight:800; letter-spacing:.22em; color:#9aa0a9; }
   .rbtn .rval { font-size:10.5px; font-weight:900; letter-spacing:.13em; color:#3a3f47;
           font-variant-numeric:tabular-nums; }
@@ -1075,24 +1128,34 @@
   <div class="tt2">BULLETS FREEZE WHILE YOU MOVE</div>
 </div>
 
-<div id="overlay">
-  <h1>TIME<br><em>SHATTER</em></h1>
-  <div class="sub">STOP TIME. SHOOT. SHATTER.</div>
-  <div class="go btn btn-1">PLAY</div>
-  <div id="runrow">
-    <div class="btn rbtn" id="newrun">LOAD GAME</div>
-    <div class="btn rbtn" id="startnew">NEW RUN</div>
+<div id="overlay" class="menu">
+  <!-- THE CORNERS. How-to, settings and sound are things you go and get, not
+       decisions on the way into a run, so they sit out of the column the eye
+       travels down. -->
+  <div id="menurow">
+    <div class="btn cnr" id="howtolink">?</div>
+    <div class="cnrgrp">
+      <div class="btn cnr" id="setlink"><svg viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round"><path
+        d="M3.6 7.5h9.2M18.4 7.5h2M3.6 16.5h3.2M12.4 16.5h8"/><circle cx="15.6"
+        cy="7.5" r="2.3" fill="currentColor" stroke="none"/><circle cx="9.6"
+        cy="16.5" r="2.3" fill="currentColor" stroke="none"/></svg></div>
+      <div id="sndbtn"></div>
+    </div>
   </div>
-  <div id="altwrap">
-    <div class="btn rbtn two wide" id="discover"></div>
+  <div id="titleblock">
+    <h1>TIME<br><em>SHATTER</em></h1>
+    <div class="sub">STOP TIME. SHOOT. SHATTER.</div>
+  </div>
+  <div id="ctas">
+    <div class="go btn btn-1">PLAY</div>
+    <div id="runrow"><div id="newrun">OTHER RUNS &rsaquo;</div></div>
+    <div class="btn rbtn" id="startnew">NEW RUN</div>
+    <div id="altwrap">
+      <div class="btn rbtn two wide" id="discover"></div>
+    </div>
   </div>
   <div class="rules"></div>
-  <div class="mdiv" id="div2"></div>
-  <div id="menurow">
-    <div class="btn btn-3" id="howtolink">HOW TO PLAY</div>
-    <div class="btn btn-3" id="setlink">SETTINGS</div>
-    <div id="sndbtn"></div>
-  </div>
   <div id="moderow"></div>
   <div id="menubtn">MAIN MENU</div>
 </div>

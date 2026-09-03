@@ -117,18 +117,19 @@ export function unlockLine(id) {
   return `REACH DOOR ${m.doors} IN THE TUNNEL`;
 }
 
-// IS IT OPEN? `doors` is the deepest door the player has ever reached, across
-// every save — unlocking is the player's, like UNLOCKS itself, not the save's.
+// IS IT OPEN? `doors` is the deepest tunnel door the player has ever reached
+// — a high-water mark that only goes up, kept per PLAYER rather than per save
+// (see `deepestDoor` in main.js), so deleting the run you earned a mode on
+// cannot take the mode back.
 //
-// `played` is the grandfather clause and it is not a nicety: these gates are
-// being added to a game people are already playing, and somebody who has put
-// twenty runs into City Streets must not open the app to find it locked
-// behind a tunnel they have never touched. Any mode you have a save in is
-// yours, whatever the gate says.
-export function modeUnlocked(id, doors = 0, played = null) {
+// There is no grandfather clause. An earlier version unlocked any mode you
+// had a save in, to protect players who had put runs into City Streets before
+// these gates existed. There are none — the counter starts at zero for
+// everybody on the launch that introduces it — and the clause would have made
+// "unlocked" mean two different things depending on how you got there.
+export function modeUnlocked(id, doors = 0) {
   const m = modeById(id);
   if (!m) return false;
   if (!m.doors) return true;
-  if (played && played.has(id)) return true;
   return doors >= m.doors;
 }
