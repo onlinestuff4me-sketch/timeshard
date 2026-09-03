@@ -403,6 +403,15 @@ export const EARLY = {
   // which wayArrowShows() asks first. At 1.6 s the timer alone still let a
   // six-tenths-of-a-second flash through at door 15. This is only the debounce
   // that sits on top of it, for the gap between two releases in one stretch.
+  // ...AND IT IS FINISHED BEFORE THE DOOR IS. Metres of path left when the
+  // needle retires. The path ENDS at the door, so inside the last few metres
+  // every lookahead sample clamps to the same point — the one the player is
+  // walking onto — and a bearing to a point under your feet swings a long way
+  // for a metre of lateral drift. A playtest caught the needle spinning
+  // sideways as the player arrived. Nothing is lost by going early: the last
+  // stretch of every leg is a straight approach with the door at the end of
+  // it, which is a question already answered.
+  wayDoneM: 10,
   waySettleS: 0.7,     // seconds a CLEARED leg must stay quiet before the mark
 };
 

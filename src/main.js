@@ -9374,6 +9374,20 @@ function wayProject(pts) {
   return { i: bi, t: bt };
 }
 
+// HOW MUCH PATH IS LEFT, in metres: from where the player stands on it to the
+// door at its end. What the needle uses to know it has finished — see
+// EARLY.wayDoneM.
+function wayRemaining(pts, at) {
+  let cx = pts[at.i].x + (pts[at.i + 1].x - pts[at.i].x) * at.t;
+  let cz = pts[at.i].z + (pts[at.i + 1].z - pts[at.i].z) * at.t;
+  let d = 0;
+  for (let i = at.i; i < pts.length - 1; i++) {
+    d += Math.hypot(pts[i + 1].x - cx, pts[i + 1].z - cz);
+    cx = pts[i + 1].x; cz = pts[i + 1].z;
+  }
+  return d;
+}
+
 // ...and the point `ahead` metres further along it.
 function wayPointAt(pts, at, ahead) {
   let need = ahead, i = at.i;
@@ -9457,6 +9471,14 @@ function wayTarget() {
 
 function wayArrowShows() {
   if (!inHall() || !hall) return false;
+  // IT IS FINISHED BEFORE THE DOOR IS, whoever asked for it. The path ends AT
+  // the door, so inside the last few metres every lookahead clamps to the
+  // point the player is walking onto and the bearing swings sideways as they
+  // arrive — a playtest called it a weird turn at the end, and it is. It fades
+  // out instead. See EARLY.wayDoneM; the check is above the onboarding's own
+  // rule because a needle spinning on the spot is wrong in both.
+  const wpts = wayPath();
+  if (wpts && wayRemaining(wpts, wayProject(wpts)) < EARLY.wayDoneM) return false;
   // THE ONBOARDING ASKS FOR IT BY NAME. It is held by the three walking
   // lessons and dropped the moment STAND HERE goes up on the barrier: from
   // there the player is being sent to a PLACE that is on screen, and a needle
@@ -9482,10 +9504,21 @@ function wayArrowShows() {
   // second (arrow on at 1.6 s, first body at 2.2 s, two transitions).
   //
   // The leg knows. It still owes bodies, so there is nothing to say yet.
-  const L = hall.legs[hall.cur];
-  const owed = L && L.quota
-    ? L.quota.reduce((a, b) => a + b, 0) - (L.released || 0) : 0;
-  if (owed > 0) return false;
+  //
+  // ASK THE QUEUE. It was `sum(quota) - released`, and `quota` is the PLAN,
+  // which never moves — so the moment the forfeit rule began dropping the
+  // share of a stretch the player had walked past, that difference stopped
+  // reaching zero on any leg anybody outran and the needle stopped appearing
+  // at all. Measured: stuck at 1 from 45 m out all the way to the slab, on
+  // every leg. Trying `fill` instead was the same mistake one level down — it
+  // is where bodies will STAND, and a share can survive the body that was
+  // going to fill it.
+  //
+  // The spawn queue is the bodies themselves. Empty means this corridor has
+  // nothing left to field, which is the same test the DOOR uses to decide it
+  // may open — so the mark and the door now agree by construction rather than
+  // by two pieces of arithmetic being kept in step.
+  if (game.spawnQueue.length) return false;
   // ...and a short debounce on top, so a gap between two releases in the same
   // stretch cannot blink it either.
   return !enemies.length && wayClearT >= EARLY.waySettleS;
@@ -9651,7 +9684,15 @@ const LEG_HEADLINES = {
   grinder: 'GRINDER · KEEP MOVING',
   breachWalls: 'THEY COME THROUGH THE WALLS',
   turretDrop: 'TURRET · IT DOES NOT RELOAD',
-  vault: 'PILLARS ARE YOUR ONLY COVER',
+  // vault has NO HEADLINE. `PILLARS ARE YOUR ONLY COVER` was the same mistake
+  // dimStrips made one line up, from the other end: the columns are the most
+  // visible thing in the room, they arrive on screen before the banner does,
+  // and a card telling the player what they are already looking at is a card
+  // in the way of it. A headline earns its place by naming something you could
+  // not see for yourself. The form, its columns and its archive entry stay;
+  // only the claim goes — and nothing in the fight reads it any more either,
+  // because a room is populated for BEING a room now (`featureStretch`) rather
+  // than for having been announced as one.
   gauntlet: 'NO COVER · DO NOT STOP',
   serviceRun: 'TIGHT TURNS',
   gallery: 'THEY CAN SEE THE WHOLE RUN',
@@ -9687,12 +9728,12 @@ function legPromises(proto) {
     || (proto && proto.measures || []).map(pick).find(Boolean)
     || pick(proto && proto.form));
 }
-// ...and does it promise a PLACE? A form headline names geometry — a vault's
-// pillared hall is somewhere you stand. A condition headline (FLOODED, DEAD
-// AIR) names a quality of the whole leg and has no room to put anybody in.
-// Only the first buys an extra body; see LEG.featureFloor.
-const legPromisesPlace = (proto) =>
-  !!(proto && proto.form && LEG_HEADLINES[proto.form.id]);
+// (`legPromisesPlace` is gone. It asked whether a leg's headline named a PLACE
+// rather than a quality, and it bought that place an extra body. Both halves
+// of it have since been answered better: a room is populated for BEING a room
+// — `featureStretch`, which is the geometry itself — and the one headline that
+// named a place has been removed. A predicate nothing reads is a lie waiting
+// to happen.)
 function legHeadline(proto) {
   // A SIMPLIFIED LEG IS ALWAYS THE SAME SHAPE, so the composer's names for
   // it are all lies: every one of them describes geometry (tight turns, a
@@ -12392,8 +12433,7 @@ window.__ts = {
         el.wayarrow.getBoundingClientRect()) : null };
   },
   edgeArrowCount: () => edgeArrows.filter((a) => a.style.display === 'block').length,
-  legPromise: (proto) => ({ any: legPromises(proto), place: legPromisesPlace(proto),
-    line: legHeadline(proto) }),
+  legPromise: (proto) => ({ any: legPromises(proto), line: legHeadline(proto) }),
   tutorRescue: () => {
     const b = tutorRescueB;
     return {

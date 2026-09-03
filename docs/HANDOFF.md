@@ -839,6 +839,43 @@ or any line containing FAIL or WRONG. Whole suite, about eight minutes, all
 passing. The menu ones run first on purpose — a suite whose first ten minutes
 tell you nothing is a suite nobody runs.
 
+## The needle finishes before the door, and the vault stops narrating itself
+
+**The sideways turn at the end.** The needle's path ENDS at the door, so inside
+the last few metres all four lookahead samples clamp to the point the player is
+walking onto — and a bearing to a point under your feet swings a long way for a
+metre of lateral drift. `EARLY.wayDoneM` (10 m of path remaining) retires it
+instead, and the existing 0.55 s fade takes it off. Measured on a walked leg at
+door 12: it retires with **10.1 m still to the door**, biggest one-frame turn
+while up **0.0°**, **0** frames snapping more than 20°, 5 frames caught
+mid-fade.
+
+**...and while proving that, the needle turned out not to appear at all.**
+`wayArrowShows` asked `sum(quota) - released`, and `quota` is the PLAN, which
+never moves. The moment the forfeit rule began DROPPING the share of a stretch
+the player had walked past, that difference stopped reaching zero on any leg
+anybody outran — measured, stuck at 1 from 45 m out all the way to the slab, on
+every leg. Trying `fill` instead was the same mistake one level down: that is
+where bodies will STAND, and a share can outlive the body meant to fill it.
+
+> It asks `game.spawnQueue.length` now. The queue is the bodies themselves, and
+> empty is the same test the DOOR uses to decide it may open — so the mark and
+> the door agree by construction rather than by two pieces of arithmetic being
+> kept in step. This is the second bug in three rounds caused by two numbers
+> describing the same fact; prefer the one the rest of the game already reads.
+
+**PILLARS ARE YOUR ONLY COVER is gone.** Same mistake `dimStrips` made from the
+other end: the columns are the most visible thing in the room, they are on
+screen before the banner is, and a card naming what the player is already
+looking at is a card in the way of it. A headline earns its place by naming
+something you could not see for yourself. `legPromisesPlace` went with it —
+nothing in the fight read it any more, because a room is populated for BEING a
+room (`featureStretch`) rather than for having been announced as one.
+
+Two new probes, both in `runall.sh` (21 now, all passing): `waydoor.mjs` walks
+a leg and asserts the needle never snaps and never survives to the slab;
+`headline.mjs` warps 40 doors and asserts no form announces PILLARS or a blank.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
