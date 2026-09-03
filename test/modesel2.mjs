@@ -41,18 +41,36 @@ const cards = await page.$$eval('#mslist .mscd', (ns) => ns.map((n) => ({
   mode: n.dataset.mode, locked: n.classList.contains('locked'),
   hero: n.classList.contains('hero'), tag: (n.querySelector('.mstag') || {}).textContent || '',
 })));
+const strip = await page.$$eval('#mslist .msstrip .msmini', (ns) => ns.map((n) => n.dataset.mode));
 const secs = await page.$$eval('#mslist .mssec', (ns) => ns.map((n) => n.textContent));
-console.log('cards  ' + cards.map((c) => c.mode + (c.locked ? '(lock)' : '')).join(' '));
+console.log('cards  ' + cards.map((c) => c.mode + (c.locked ? '(lock)' : '')
+  + (c.tag ? '[' + c.tag + ']' : '')).join(' '));
+console.log('strip  ' + JSON.stringify(strip));
 console.log('bands  ' + JSON.stringify(secs));
 if (cards.some((c) => c.locked)) bad('something is still locked at 24 doors');
-if (cards[0].mode !== 'hall' || !cards[0].hero) bad('THE TUNNEL is not the hero');
-if (cards[1].mode !== 'wave') bad('the most recently played game is not directly under the hero');
-if (!secs.some((t) => /PICK UP/.test(t))) bad('no recently-played band');
+// ONE LIST, ALWAYS IN UNLOCK ORDER — the strip is laid on top rather than
+// pulling modes out, so this order never changes as modes get played.
+if (cards.map((c) => c.mode).join(',') !== 'hall,duel,stop,wave,rush') {
+  bad('the list is not in unlock order: ' + cards.map((c) => c.mode).join(','));
+}
+if (!cards[0].hero) bad('THE TUNNEL is not the hero card');
+if (!secs.includes('RECENTLY PLAYED')) bad('no recency strip with two modes played');
+if (!secs.includes('ALL MODES')) bad('the main list lost its heading');
+// most recent first: the wave save is newer than the tunnel one
+if (strip[0] !== 'wave') bad('the strip is not most-recent-first: ' + strip.join(','));
+if (!strip.includes('hall')) bad('the strip left out a played mode');
+// NEW marks open-but-never-played, and comes off what has been played
+const tagged = cards.filter((c) => c.tag).map((c) => c.mode);
+console.log('new    ' + JSON.stringify(tagged));
+if (tagged.includes('hall') || tagged.includes('wave')) bad('NEW is on a mode already played');
+for (const m of ['duel', 'stop', 'rush']) {
+  if (!tagged.includes(m)) bad(`${m} is unlocked and unplayed but not marked NEW`);
+}
 await page.screenshot({ path: OUT + 'sel-open.png' });
 
 // ---- 3. the clips actually load and run ---------------------------------
 await page.waitForTimeout(2200);
-const vids = await page.$$eval('#mslist video', (ns) => ns.map((v) => ({
+const vids = await page.$$eval('#mslist .mscd video', (ns) => ns.map((v) => ({
   mode: v.closest('.mscd').dataset.mode, src: (v.src || '').split('/').pop(),
   w: v.videoWidth, h: v.videoHeight, t: +v.currentTime.toFixed(2), paused: v.paused })));
 for (const v of vids) console.log('  clip ' + v.mode.padEnd(5) + ' ' + (v.src || '(none)').padEnd(12)

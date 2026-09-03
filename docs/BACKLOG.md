@@ -1,5 +1,23 @@
 # What's left
 
+## Game Center — ACHIEVEMENTS and LEADERBOARDS
+
+Two more buttons on the menu, once Game Center is wired up (`docs/LAUNCH.md`
+step 8). They belong beside HOW TO PLAY and SETTINGS rather than in the play
+flow: they are things you go and look at, not decisions on the way into a run.
+
+The menu's bottom row holds two tier-3 links and the speaker toggle today, and
+it already wraps at four controls on a 390 px viewport — so four links plus the
+toggle will need either a second row or the pair promoted into the row above,
+where UNLOCKS currently sits alone at full width. UNLOCKS + ACHIEVEMENTS as a
+136 px pair, with LEADERBOARDS joining HOW TO PLAY and SETTINGS below, is
+probably the shape; it restores the matched-pair rhythm that row was built for.
+
+Both are read-only screens, so neither touches the unlock gates in
+`src/modes.js` — but ACHIEVEMENTS overlaps with what UNLOCKS already shows,
+and that overlap should be settled before either is built rather than after.
+
+
 Ordered by value per unit of effort, for a game that is live on the web and
 cheap to iterate on. Everything here is web-iterable unless marked otherwise.
 

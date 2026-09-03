@@ -62,9 +62,9 @@ let lifetimeDoors = 0;
 // screen's headline stat is this counter. Run kills only: the attract fight
 // behind the title is a shop window, not a score.
 let lifetimeShattered = 0;
-let archive = new Set();
+let unlocks = new Set();
 // Progress now lives in a SAVE SLOT. The key names are the only thing that
-// changed: everything downstream still reads `lifetimeDoors` and `archive`.
+// changed: everything downstream still reads `lifetimeDoors` and `unlocks`.
 // A player who already has progress is migrated into slot 1 on first boot, so
 // nobody loses a run to this.
 let _slotIx0 = 0;
@@ -74,7 +74,7 @@ try {
   const legacy = localStorage.getItem('timeshard_doors');
   if (legacy !== null && localStorage.getItem('ts_s0_doors') === null) {
     for (const [from, to] of [['timeshard_doors', 'ts_s0_doors'],
-      ['timeshard_archive', 'ts_s0_archive'], ['timeshard_best', 'ts_s0_best'],
+      ['timeshard_archive', 'ts_s0_unlocks'], ['timeshard_best', 'ts_s0_best'],
       ['timeshard_runs', 'ts_s0_runs'], ['timeshard_timeuses', 'ts_s0_timeuses']]) {
       const v = localStorage.getItem(from);
       if (v !== null) localStorage.setItem(to, v);
@@ -83,13 +83,13 @@ try {
   }
   lifetimeDoors = parseInt(localStorage.getItem(_sk('doors')) || '0', 10) || 0;
   lifetimeShattered = parseInt(localStorage.getItem(_sk('shat')) || '0', 10) || 0;
-  archive = new Set(JSON.parse(localStorage.getItem(_sk('archive')) || '[]'));
+  unlocks = new Set(JSON.parse(localStorage.getItem(_sk('unlocks')) || '[]'));
 } catch { /* private mode */ }
 function saveProgress() {
   try {
     persist(slotKey(slotIx, 'doors'), String(lifetimeDoors));
     persist(slotKey(slotIx, 'shat'), String(lifetimeShattered));
-    persist(slotKey(slotIx, 'archive'), JSON.stringify([...archive]));
+    persist(slotKey(slotIx, 'unlocks'), JSON.stringify([...unlocks]));
     persist(slotKey(slotIx, 'at'), String(Date.now()));
   } catch { /* private mode */ }
 }
@@ -98,17 +98,17 @@ function hydrateFromSlot() {
   try {
     lifetimeDoors = parseInt(localStorage.getItem(slotKey(slotIx, 'doors')) || '0', 10) || 0;
     lifetimeShattered = parseInt(localStorage.getItem(slotKey(slotIx, 'shat')) || '0', 10) || 0;
-    archive = new Set(JSON.parse(localStorage.getItem(slotKey(slotIx, 'archive')) || '[]'));
+    unlocks = new Set(JSON.parse(localStorage.getItem(slotKey(slotIx, 'unlocks')) || '[]'));
     bestWave = Math.max(1, parseInt(localStorage.getItem(slotKey(slotIx, 'best')) || '1', 10) || 1);
   } catch { /* private mode */ }
-  archiveDirty = true;
+  unlocksDirty = true;
 }
 function recordMet(ids) {
   let fresh = 0;
-  for (const id of ids) if (id && !archive.has(id)) { archive.add(id); fresh++; }
-  if (fresh) { runFiled += fresh; saveProgress(); archiveDirty = true; }
+  for (const id of ids) if (id && !unlocks.has(id)) { unlocks.add(id); fresh++; }
+  if (fresh) { runFiled += fresh; saveProgress(); unlocksDirty = true; }
 }
-let archiveDirty = true;   // the screen is rebuilt only when something changed
+let unlocksDirty = true;   // the screen is rebuilt only when something changed
 let runFiled = 0;          // filed THIS life — the death screen reports it
 
 // Everything a leg is made of is met the moment you walk into it.
@@ -3150,7 +3150,7 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     if (!placed) { x = player.pos.x * 0.5; z = player.pos.z * 0.5; }   // mid-avenue, last resort
   }
   parts.g.position.set(x, 0, z);
-  // THE ARCHIVE FILES WHAT YOU MEET, not what you kill — but the attract loop
+  // UNLOCKS FILE WHAT YOU MEET, not what you kill — but the attract loop
   // behind the title is a shop window, not a meeting, so the menu files
   // nothing. Otherwise every player would "know" the heavy before playing.
   //
@@ -4746,9 +4746,9 @@ function onPointerDown(ev) {
   // "inside settings" means inside the CARD — the backdrop covers the screen
   const inSettings = ev.target && ev.target.closest && ev.target.closest('#settings .htpcard');
   // Two places need the browser's own touch handling: the settings sliders,
-  // and the archive's scroll pane. `touch-action:none` on <body> means an
+  // and the unlocks's scroll pane. `touch-action:none` on <body> means an
   // un-prevented pointerdown is the only thing that lets either one work.
-  const inArchScroll = ev.target && ev.target.closest && ev.target.closest('#archlist');
+  const inUnlockScroll = ev.target && ev.target.closest && ev.target.closest('#unlocklist');
   // ...and the selector's tutorial checkbox, for the same reason.
   const inAsk = ev.target && ev.target.closest && ev.target.closest('#mstut');
   // ...and the save-name field, which is the same problem: preventDefault on
@@ -4757,7 +4757,7 @@ function onPointerDown(ev) {
   // acting on the tap; it cannot un-prevent a default already prevented, so
   // without this line the field could be rendered and never typed into.
   const inName = ev.target && ev.target.closest && ev.target.closest('#savename');
-  if (!inSettings && !inArchScroll && !inAsk && !inName) ev.preventDefault();
+  if (!inSettings && !inUnlockScroll && !inAsk && !inName) ev.preventDefault();
   sfx.init();
   if (el.settings.style.display === 'flex') {   // settings modal open
     if (inSettings) {
@@ -4838,9 +4838,9 @@ function onPointerDown(ev) {
     el.enm.style.display = 'none';
     return;
   }
-  if (el.arch.style.display === 'flex') {   // archive open
-    if (ev.target && ev.target.closest && ev.target.closest('#arch .htpcard')) return;
-    el.arch.style.display = 'none';
+  if (el.unlockpanel.style.display === 'flex') {   // unlocks open
+    if (ev.target && ev.target.closest && ev.target.closest('#unlocks .htpcard')) return;
+    el.unlockpanel.style.display = 'none';
     return;
   }
   if (game.state === 'menu' || game.state === 'dead' || game.state === 'gameover') {
@@ -4911,14 +4911,15 @@ function onPointerDown(ev) {
         return;
       }
       if (ev.target.closest('#fullList')) { closeAskFull(); openSaves(); return; }
-      // THE STATS BLOCK IS THE ARCHIVE'S DOOR — anywhere on it opens the
-      // panel. It replaced both the leaderboard and the menu row's ARCHIVE
+      // THE STATS BLOCK IS THE UNLOCKS DOOR — anywhere on it opens the
+      // panel. It replaced both the leaderboard and the menu row's UNLOCKS
       // link, because two doors to one screen is the mistake the SAVES link
       // already taught us.
-      if (ev.target.closest('#discover')) { openArchive(); return; }
+      if (ev.target.closest('#discover')) { openUnlocks(); return; }
       if (ev.target.closest('.rules')) return;   // reading
     }
     // THE MODE SELECTOR: its cards, its checkbox, its BACK.
+    // both the strip's minis and the list's cards carry data-mode
     const scd = ev.target && ev.target.closest && ev.target.closest('#mslist [data-mode]');
     if (el.modesel && el.modesel.style.display === 'flex') {
       if (scd) { chooseMode(scd.dataset.mode); return; }
@@ -4941,7 +4942,7 @@ function onPointerDown(ev) {
       return;
     }
     // NEW RUN opens the selector, with the tutorial question on it. Choosing
-    // a game and choosing whether to be taught are the two decisions in
+    // a mode and choosing whether to be taught are the two decisions in
     // "start again", and they now live on one screen instead of a chip on the
     // menu and a dialogue after the fact.
     if (game.state === 'menu' && ev.target && ev.target.closest
@@ -6156,7 +6157,7 @@ const game = {
 // ---------------------------------------------------------------------------
 // SAVES — see docs/SAVES.md
 //
-// Each holds everything a player accumulates — lifetime doors, the archive,
+// Each holds everything a player accumulates — lifetime doors, the unlocks,
 // the best wave, the run board — plus a RESUME POINT: the door they reached.
 // Continuing starts the run ON that door, which is the honest version of
 // "carry on where I was": a leg is procedurally generated and a fight is live,
@@ -6297,11 +6298,11 @@ function writeSaveIndex(list) {
 }
 // Every save of one mode, newest first — which is what "continue where I left
 // off" means, and the order you think about your own runs in.
-// `mode` null means EVERY GAME. LOAD GAME lists them all now: choosing a game
+// `mode` null means EVERY MODE. LOAD GAME lists them all now: choosing a mode
 // moved into the play flow, so the menu no longer has a control that scopes
 // this list — and a list that silently hid four fifths of somebody's runs,
 // with no visible reason why, is worse than a longer one. Each row names its
-// game instead. Callers that genuinely mean one game still pass one.
+// mode instead. Callers that genuinely mean one mode still pass one.
 function savesByRecent(mode = menuMode) {
   return saveIndex()
     .filter((e) => mode === null || e.mode === mode)
@@ -6423,8 +6424,8 @@ function slotRead(i) {
   const born = parseInt(get('born', '0'), 10) || 0;
   return {
     // A SAVE THE PLAYER MADE EXISTS. `at` is only written by saveProgress()
-    // (which needs something new archived) and slotNoteDoor() (tunnel only),
-    // so a Rush Hour or duel save — where nothing archives and no door is
+    // (which needs something newly unlocked) and slotNoteDoor() (tunnel only),
+    // so a Rush Hour or duel save — where nothing unlocks and no door is
     // crossed — read as UNUSED, and saveIndex() drops unused entries. It
     // survived only while it happened to be the active slot: selecting
     // another game moved slotIx and the save vanished, then makeSave handed
@@ -6437,9 +6438,9 @@ function slotRead(i) {
     best: parseInt(get('best', '1'), 10) || 1,
     shat: parseInt(get('shat', '0'), 10) || 0,
     resumeDoor: parseInt(get('rdoor', '0'), 10) || 0,
-    archiveList: (() => { try { return JSON.parse(get('archive', '[]')) || []; }
+    unlockList: (() => { try { return JSON.parse(get('unlocks', '[]')) || []; }
       catch { return []; } })(),
-    filed: (JSON.parse(get('archive', '[]')) || []).length,
+    filed: (JSON.parse(get('unlocks', '[]')) || []).length,
   };
 }
 function slotWriteNow() {
@@ -6462,7 +6463,7 @@ function slotClear(i) {
   // `timeshard_timeuses`, so both halves of the per-slot design were talking
   // past each other and this clear had never removed anything. It is a real
   // slot key now (see slotTimeUses).
-  for (const k of ['doors', 'archive', 'best', 'runs', 'rdoor', 'at', 'timeuses',
+  for (const k of ['doors', 'unlocks', 'best', 'runs', 'rdoor', 'at', 'timeuses',
     'shat', 'born', 'id']) {
     // `forget`, not removeItem: these keys are mirrored to durable storage in
     // the app, and one removed from localStorage alone comes back on the next
@@ -6525,7 +6526,7 @@ function fmtWhen(t) {
   return `${p(d.getMonth() + 1)}.${p(d.getDate())}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
-// THE ARCHIVE'S FRONT DOOR, where the leaderboard used to stand. A board of
+// THE UNLOCKS BUTTON, where the leaderboard used to stand. A board of
 // best runs made sense when every run started at door 1 and dying was the
 // score; with CONTINUE on the menu your depth only ever rises and the rows
 // just restated the save list. What replaces it is the save's own account of
@@ -6538,7 +6539,7 @@ function fmtWhen(t) {
 // RECOVERED SO FAR was really "recovered in the run you happened to touch
 // last": start a new game and a player who had met nine enemy types was shown
 // one, and the pips they had spent hours filling emptied. Discovery is a
-// property of the PLAYER — the archive is the thing you build up across runs
+// property of the PLAYER — the unlocks is the thing you build up across runs
 // — so it is the union of every slot, plus whatever the live run has added
 // that is not written to disk yet.
 //
@@ -6547,7 +6548,7 @@ function fmtWhen(t) {
 // save. Doors is the DEEPEST reached rather than a sum — "how far in have you
 // been" is the question a door count answers, and adding two runs together
 // answers a question nobody asked.
-// THE ARCHIVE IS THE PLAYER'S, NOT THE SAVE'S AND NOT THE MODE'S. Confirmed
+// UNLOCKS ARE THE PLAYER'S, NOT THE SAVE'S AND NOT THE MODE'S. Confirmed
 // with the owner: one collection, one number, and every mode contributes to it
 // and reads it. There is no mode anywhere below on purpose — a heavy first met
 // in THE TUNNEL is still recovered when the menu is on RUSH HOUR, which is
@@ -6555,12 +6556,12 @@ function fmtWhen(t) {
 // would turn one number that only goes up into several incomplete checklists,
 // and make starting a new mode read as losing what you had found.
 function discoverData() {
-  const have = new Set(archive);          // the live run, including this door
+  const have = new Set(unlocks);          // the live run, including this door
   let shat = 0, doors = 0;
   for (const e of saveIndex()) {
     const read = slotRead(e.i);
     if (!read || !read.used) continue;
-    for (const id of read.archiveList) have.add(id);
+    for (const id of read.unlockList) have.add(id);
     // THE ACTIVE SLOT IS COUNTED FROM MEMORY, NOT FROM DISK, and so it is
     // skipped here. Its in-memory total is ahead of its stored one for the
     // whole of a run — and reconciling that with a `max` over the SUM would
@@ -6572,7 +6573,7 @@ function discoverData() {
   }
   shat += lifetimeShattered;
   doors = Math.max(doors, lifetimeDoors);
-  const secs = ARCH_SECTIONS.map((sec) => {
+  const secs = UNLOCK_SECTIONS.map((sec) => {
     const rows = ELEMENTS.filter((e) => sec.kinds.includes(e.kind));
     return { title: sec.title, got: rows.filter((e) => have.has(e.id)).length,
       total: rows.length };
@@ -6589,7 +6590,7 @@ function discoverData() {
 // still behind a door.
 //
 // The lifetime stat went into the UNLOCKS header rather than being
-// dropped — see renderArchive.
+// dropped — see renderUnlocks.
 // ---------------------------------------------------------------------------
 // UNLOCKING A MODE.
 //
@@ -6761,10 +6762,10 @@ function closePause() {
 function openSaves() {
   renderSlots();
   const h = el.saves.querySelector('h3');
-  // EVERY GAME'S RUNS, so the card is titled with the act rather than with a
-  // game. It used to be one game's list, titled with that game, because the
+  // EVERY MODE'S RUNS, so the card is titled with the act rather than with a
+  // mode. It used to be one mode's list, titled with that mode, because the
   // menu had a control that chose which — that control is in the play flow
-  // now and this page is the only way back to a run in a game you are not
+  // now and this page is the only way back to a run in a mode you are not
   // currently looking at.
   if (h) h.textContent = 'LOAD GAME';
   el.saves.style.display = 'flex';
@@ -6806,15 +6807,16 @@ function renderSlots() {
       + '</div>';
     el.slotlist.appendChild(d);
   }
-  // NEW GAME lives on this page rather than on the menu, and it is an action on
-  // the LIST rather than a third state of every row. The old screen offered
-  // NEW GAME on each of three fixed slots, which made "start a new one" and
-  // "overwrite that one" the same gesture.
+  // NEW RUN lives on this page as well as on the menu, and it is an action on
+  // the LIST rather than a third state of every row. The old screen offered it
+  // on each of three fixed slots, which made "start a new one" and "overwrite
+  // that one" the same gesture. It says RUN and not GAME because a game is
+  // what the selector chooses; this makes another run of one.
   const add = document.createElement('div');
   add.className = 'sbtn addsave' + (list.length >= MAX_SAVES ? ' off' : '');
   add.id = 'newsave';
   add.textContent = list.length >= MAX_SAVES
-    ? `ALL ${MAX_SAVES} SAVES IN USE — DELETE ONE` : '+ NEW GAME';
+    ? `ALL ${MAX_SAVES} SAVES IN USE — DELETE ONE` : '+ NEW RUN';
   el.slotlist.appendChild(add);
 }
 // WHICH ONE IS THIS. The list answers "how far did I get"; two saves at
@@ -6982,7 +6984,7 @@ function beginNewGame(i, withTutorial) {
 let selTutorial = false;      // the checkbox, on the NEW RUN path
 let selFor = 'play';          // 'play' | 'new' — which button opened this
 
-function modeCard(m, { hero = false, unlocked = true, tag = '' } = {}) {
+function modeCard(m, { hero = false, unlocked = true, fresh = false } = {}) {
   // preload=none and no autoplay attribute: five clips all fetching and
   // decoding at once is a stall on the screen whose job is to look alive.
   // playPreviews() starts them when they scroll into view.
@@ -6993,9 +6995,17 @@ function modeCard(m, { hero = false, unlocked = true, tag = '' } = {}) {
   return `<div class="mscd${hero ? ' hero' : ''}${unlocked ? '' : ' locked'}"`
     + ` data-mode="${m.id}"${unlocked ? '' : ' data-locked="1"'}>`
     + vid
-    + (tag ? `<div class="mstag">${tag}</div>` : '')
+    + (fresh ? '<div class="mstag">NEW</div>' : '')
     + `<div class="msbody"><div class="msname">${escHtml(m.name)}</div>`
     + `<div class="msline">${escHtml(m.line)}</div>${key}</div></div>`;
+}
+
+// A shortcut, not a card: the strip is for getting back to something fast,
+// so it is the picture and the name and nothing else.
+function modeMini(m) {
+  return `<div class="msmini" data-mode="${m.id}">`
+    + `<video class="mspv" muted loop playsinline preload="none" data-src="${m.preview}"></video>`
+    + `<div class="msminame">${escHtml(m.name)}</div></div>`;
 }
 
 function renderModeSel() {
@@ -7003,31 +7013,43 @@ function renderModeSel() {
   const u = unlockState();
   const open = (id) => modeUnlocked(id, u.doors, u.played);
   const tunnel = modeById(DEFAULT_MODE);
-  // Which games has this player actually touched, most recently first? Read
+  // Which modes has this player actually touched, most recently first? Read
   // off the saves rather than a separate "last played" key, because a save IS
-  // the record that a game was played.
+  // the record that a mode was played.
   const recent = [];
   for (const e of saveIndex().map((x) => ({ ...x, ...slotRead(x.i) }))
     .filter((x) => x.used).sort((a, b) => b.at - a.at)) {
     const id = e.mode || DEFAULT_MODE;
-    if (id === tunnel.id || recent.includes(id)) continue;
-    recent.push(id);
+    if (!recent.includes(id)) recent.push(id);
   }
-  let h = modeCard(tunnel, { hero: true, unlocked: true,
-    tag: u.played.has(tunnel.id) ? 'PLAYED' : '' });
-  if (recent.length) {
-    h += `<div class="mssec">PICK UP WHERE YOU LEFT OFF</div>`;
+  // THE LIST DOES NOT MOVE. One vertical run of every mode, always in the
+  // order they open, so where a thing sits is something you learn once. The
+  // recency strip is laid ON TOP of that as a shortcut rather than pulling
+  // modes out of it — the old screen promoted whatever you had played into a
+  // band of its own, which meant the list rearranged itself as you played and
+  // no mode had a home.
+  //
+  // It appears only once you have played something other than the tunnel: on
+  // a first run it would be a row with one card in it, pointing at the card
+  // directly underneath.
+  let h = '';
+  const strip = recent.some((id) => id !== tunnel.id);
+  if (strip) {
+    h += `<div class="mssec">RECENTLY PLAYED</div><div class="msstrip">`;
     for (const id of recent) {
       const m = modeById(id);
-      if (m) h += modeCard(m, { unlocked: open(id) });
+      if (m) h += modeMini(m);
     }
+    h += `</div><div class="mssec">ALL MODES</div>`;
   }
-  // ...and everything not already on the screen, in the order it opens.
-  const shown = new Set([tunnel.id, ...recent]);
-  const rest = LOCKED_MODES.filter((m) => !shown.has(m.id));
-  if (rest.length) {
-    h += `<div class="mssec">MORE GAMES</div>`;
-    for (const m of rest) h += modeCard(m, { unlocked: open(m.id) });
+  // NEW is on anything open that has never been played — including the tunnel
+  // on a first launch, which is exactly when it is true. It comes off the
+  // moment there is a save in that mode, so it marks "this is yours now and
+  // you have not tried it" rather than decorating the screen forever.
+  h += modeCard(tunnel, { hero: true, unlocked: true, fresh: !u.played.has(tunnel.id) });
+  for (const m of LOCKED_MODES) {
+    const on = open(m.id);
+    h += modeCard(m, { unlocked: on, fresh: on && !u.played.has(m.id) });
   }
   el.mslist.innerHTML = h;
   playPreviews();
@@ -7102,7 +7124,7 @@ function closeModeSel() {
 // another tap. The mode picker in Settings still only SELECTS, because that
 // one is upstream of nothing.
 function chooseMode(id) {
-  if (!modeIsOpen(id)) { selToast('You have not unlocked this game yet.'); return; }
+  if (!modeIsOpen(id)) { selToast('You have not unlocked this mode yet.'); return; }
   selectMenuMode(id);
   // READ THE BOX, do not remember it. `selTutorial` was set once when the
   // screen opened and never again, so ticking it changed nothing at all: the
@@ -7153,7 +7175,7 @@ function selectMenuMode(id) {
   if (!MODES.some((m) => m.id === id)) return;
   menuMode = id;
   try { persist('ts_menumode', id); } catch { /* private */ }
-  // The active save follows the selection, so the board and the archive counts
+  // The active save follows the selection, so the board and the unlocks counts
   // belong to the game being looked at rather than to whatever was played last.
   const last = latestSave(id);
   if (last && last.i !== slotIx) slotUse(last.i);
@@ -8986,9 +9008,9 @@ const el = {
   howtolink: document.getElementById('howtolink'),
   htp: document.getElementById('htp'),
   enm: document.getElementById('enm'),
-  arch: document.getElementById('arch'),
-  archlist: document.getElementById('archlist'),
-  archmeta: document.getElementById('archmeta'),
+  unlockpanel: document.getElementById('unlocks'),
+  unlocklist: document.getElementById('unlocklist'),
+  unlockmeta: document.getElementById('unlockmeta'),
   menurow: document.getElementById('menurow'),
   moderow: document.getElementById('moderow'),
   altwrap: document.getElementById('altwrap'),
@@ -8998,18 +9020,20 @@ const el = {
 };
 
 // ---------------------------------------------------------------------------
-// UNLOCKS — called THE ARCHIVE everywhere in this file, and in storage.
+// UNLOCKS
 //
-// The screen is named UNLOCKS to the player: "archive" sounded like somewhere
-// optional you could go and read, which is the opposite of the pull it is
-// meant to have. The CODE keeps the old word on purpose, because the save key
-// is `ts_s<N>_archive` and renaming that would not migrate anybody's progress
-// — it would silently empty it. One name in storage, one name in the code
-// that reads storage, and one name on the screen; the first two agree with
-// each other and this comment is the bridge to the third.
+// One name, everywhere: the screen, the code, and the save key. This was THE
+// ARCHIVE until "archive" was judged to sound like somewhere optional you
+// could go and read, which is the opposite of the pull it is meant to have.
+//
+// The rename went all the way through rather than stopping at the copy: the
+// save key is `ts_s<N>_unlocks` now, which abandons whatever was stored under
+// the old name. Deliberate, and signed off — the game has no players yet, and
+// a permanent split between what storage calls a thing and what the screen
+// calls it is a worse price than one wipe.
 //
 // Depth is a number — "34 doors" — and a number is not a reason to go back in.
-// The archive turns it into a ledger of what the building has shown you, and
+// UNLOCKS turns it into a ledger of what the building has shown you, and
 // what it still hasn't. Every slot is visible from the very first run: a
 // locked row hides the NAME and keeps the DESIGNATION, so you can always see
 // how much is left without being told what it is.
@@ -9022,23 +9046,23 @@ const el = {
 // TYPES as its own count — a teaser for a category the panel then didn't
 // have is a broken promise. Fills-fastest first, emptiest last, exactly as
 // the pips run, so the panel and the teaser read as one document.
-const ARCH_SECTIONS = [
+const UNLOCK_SECTIONS = [
   { title: 'ENEMY TYPES', kinds: ['enemy'] },
   { title: 'ROOM TYPES', kinds: ['form'] },
   { title: 'WEAPONS', kinds: ['weapon'] },
   { title: 'PROTOCOLS', kinds: ['condition', 'measure'] },
 ];
 
-function renderArchive() {
+function renderUnlocks() {
   let html = '', known = 0, total = 0;
-  // GAMES FIRST, because they are the only rows on this screen you can do
+  // MODES FIRST, because they are the only rows on this screen you can do
   // anything about. Everything below is filed by meeting it, which happens
-  // to you; a locked game states its price, and the price is a door number
+  // to you; a locked mode states its price, and the price is a door number
   // you can go and reach. It is the one section that is a to-do list.
   {
     const u = unlockState();
     const got = LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors, u.played)).length;
-    html += `<div class="asec">GAMES<i>${got}/${LOCKED_MODES.length}</i></div>`;
+    html += `<div class="asec">MODES<i>${got}/${LOCKED_MODES.length}</i></div>`;
     for (const m of LOCKED_MODES) {
       const on = modeUnlocked(m.id, u.doors, u.played);
       html += `<div class="arow${on ? '' : ' locked'}">`
@@ -9048,13 +9072,13 @@ function renderArchive() {
         + `</div></div>`;
     }
   }
-  for (const sec of ARCH_SECTIONS) {
+  for (const sec of UNLOCK_SECTIONS) {
     const rows = ELEMENTS.filter((e) => sec.kinds.includes(e.kind));
-    const got = rows.reduce((n, e) => n + (archive.has(e.id) ? 1 : 0), 0);
+    const got = rows.reduce((n, e) => n + (unlocks.has(e.id) ? 1 : 0), 0);
     known += got; total += rows.length;
     html += `<div class="asec">${sec.title}<i>${got}/${rows.length}</i></div>`;
     for (const e of rows) {
-      const on = archive.has(e.id);
+      const on = unlocks.has(e.id);
       // The redaction is as wide as the real name, so a long name reads as a
       // long bar — the only thing a locked row gives you, and a good hook.
       // It is drawn in CSS rather than typed as block characters: U+2588 is
@@ -9063,10 +9087,10 @@ function renderArchive() {
         Math.max(4, Math.min(11, e.name.length)) * 7.4)}px"></b>`;
       html += `<div class="arow${on ? '' : ' locked'}">` +
         `<div class="adesig">${e.designation}</div><div>` +
-        (on ? `<b>${e.name}</b><span>${e.archive}</span>` : bar) + `</div></div>`;
+        (on ? `<b>${e.name}</b><span>${e.blurb}</span>` : bar) + `</div></div>`;
     }
   }
-  el.archlist.innerHTML = html;
+  el.unlocklist.innerHTML = html;
   // THE LIFETIME STAT LIVES HERE NOW. It used to headline the menu's discover
   // block; that block is the UNLOCKS button, and a button is no place for two
   // numbers nobody is being asked to act on. They belong on the screen that is
@@ -9083,18 +9107,18 @@ function renderArchive() {
   // One nowrap <i> per stat, with the separators OUTSIDE them: the break
   // opportunities are the spaces around the dots, so a narrow phone wraps
   // between whole stats and never splits a number off its own unit.
-  el.archmeta.innerHTML = [
+  el.unlockmeta.innerHTML = [
     `${known} OF ${total} RECOVERED`,
     `${life.shat.toLocaleString('en-US')} SHATTERED`,
     `${life.doors} DOOR${life.doors === 1 ? '' : 'S'}`,
   ].map((t) => `<i>${t}</i>`).join(' · ');
-  archiveDirty = false;
+  unlocksDirty = false;
 }
 
-function openArchive() {
-  if (archiveDirty) renderArchive();
-  el.arch.style.display = 'flex';
-  el.archlist.scrollTop = 0;
+function openUnlocks() {
+  if (unlocksDirty) renderUnlocks();
+  el.unlockpanel.style.display = 'flex';
+  el.unlocklist.scrollTop = 0;
 }
 
 renderDiscover();
@@ -9760,7 +9784,7 @@ const LEG_HEADLINES = {
   // can see — so the banner announced a condition, the corridor looked
   // identical, and the player was left hunting for a difference that was not
   // perceptible. A headline has to name something you can ACT on. The
-  // condition and its archive entry stay; only the claim goes.
+  // condition and its unlocks entry stay; only the claim goes.
   flood: 'FLOODED · YOU ARE SLOW',
   deadAir: 'DEAD AIR · YOU WON\'T HEAR THEM',
   oneWaySeal: 'IT SEALS BEHIND YOU',
@@ -9979,7 +10003,7 @@ function hitPlayer(ended = false) {
       return;
     }
     // A run that showed you something new says so. It is the only place the
-    // archive advertises itself, and dying with a find is the moment you are
+    // unlocks advertises itself, and dying with a find is the moment you are
     // most likely to go and look at it.
     const filed = runFiled ? `<div class="filed">+${runFiled} FILED TO UNLOCKS</div>` : '';
     r.innerHTML = (game.mode === 'rush'
@@ -10248,7 +10272,7 @@ function buildMenuHall() {
     // ...and it says so, because "is this the menu's corridor" is a question
     // menuBackdrop has to be able to ask. See it for what went wrong without.
     forMenu: true,
-    mem: newRunMemory(archive) };
+    mem: newRunMemory(unlocks) };
   hall.legs.push(buildHallLeg(0, 0, composeProtocol(1, lifetimeDoors, hall.mem)));
   applyLegVisibility(true);
   rebuildHallObstacles();
@@ -10851,7 +10875,7 @@ function initHall(from = 1) {
   // of them you are standing in; only the last one counts as the door.
   hall = { legs: [], grid: new Set(), cur: 0, doorsPassed: door - 1,
     checkpoint: { x: 0, z: 0 },
-    legInDoor: 0, legsThisDoor: doorLegs(door), mem: newRunMemory(archive) };
+    legInDoor: 0, legsThisDoor: doorLegs(door), mem: newRunMemory(unlocks) };
   hall.legs.push(buildHallLeg(0, 0, forced(composeProtocol(door, lifetimeDoors, hall.mem))));
   recordMetProto(hall.legs[0].proto);   // leg 1 counts too; only 2+ used to
   applyLegVisibility(true);             // leg 1 starts in its own weather
@@ -11000,8 +11024,8 @@ function forced(proto) {
 //
 // `fog` shipped as `impl: true` and was never implemented: `cond` was only
 // ever compared against 'dimStrips', so a fog leg looked exactly like a plain
-// corridor while the archive told the player "Visibility twelve metres". The
-// condition was pickable from door 5, filed itself into the archive, and
+// corridor while the unlocks told the player "Visibility twelve metres". The
+// condition was pickable from door 5, filed itself into the unlocks, and
 // delivered nothing.
 //
 // The safety constraint is LEG.spawnMin. Bodies are born 9-40 m out and the
@@ -12397,7 +12421,7 @@ window.__ts = {
     geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures,
     programs: renderer.info.programs ? renderer.info.programs.length : -1,
     debrisLive: debrisPool ? debrisPool.live : -1 }),
-  progress: () => ({ lifetimeDoors, archive: [...archive], runFiled }),
+  progress: () => ({ lifetimeDoors, unlocks: [...unlocks], runFiled }),
   die: (ended) => hitPlayer(!!ended),
   // shards spawned but not yet released: the per-part cascade in one number
   seal: () => {

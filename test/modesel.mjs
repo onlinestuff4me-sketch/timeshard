@@ -21,6 +21,10 @@ console.log('cards ' + cards.map((c) => `${c.mode}${c.hero ? '*' : ''}${c.locked
 if (!cards.length) bad('the selector has no cards');
 if (!cards[0] || cards[0].mode !== 'hall' || !cards[0].hero) bad('THE TUNNEL is not the hero card at the top');
 if (cards[0].locked) bad('THE TUNNEL is locked on a fresh install');
+// no strip on a first run: it would be one card pointing at the card below it
+if (await boxOf(page, '#mslist .msstrip')) bad('the recency strip is up with nothing played');
+const secs = await page.$$eval('#mslist .mssec', (ns) => ns.map((n) => n.textContent));
+if (secs.length) bad('a first run has section headings it does not need: ' + secs.join(','));
 for (const c of cards.slice(1)) {
   if (!c.locked) bad(`${c.mode} is unlocked with no doors passed`);
   if (!/REACH DOOR \d+ IN THE TUNNEL/.test(c.key)) bad(`${c.mode} does not say what unlocks it: "${c.key}"`);
@@ -35,6 +39,7 @@ await page.tap('#mslist [data-mode="rush"]');
 await page.waitForTimeout(400);
 const toast = await page.$eval('#mstoast', (n) =>
   (n.classList.contains('on') ? n.textContent : ''));
+if (toast && /game/i.test(toast)) bad('the refusal still calls a mode a game: ' + toast);
 console.log('locked tap -> "' + toast + '"');
 if (!toast) bad('a locked card said nothing when tapped');
 if (!(await boxOf(page, '#modesel'))) bad('a locked card closed the selector');

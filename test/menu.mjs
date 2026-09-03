@@ -58,15 +58,15 @@ if (go && run && run.y < go.bottom) bad('runrow overlaps CONTINUE');
 if (run && alt && alt.y < run.bottom) bad('altwrap overlaps runrow');
 if (alt && row && row.y < alt.bottom) bad('menurow overlaps altwrap');
 
-// ---- 2. the archive fraction on the button is the real one -----------------
+// ---- 2. the unlocks fraction on the button is the real one -----------------
 const dd = await page.evaluate(() => {
   const t = document.querySelector('#discover .rval');
   const bar = document.querySelector('#discover .rbar i');
   return { frac: t && t.textContent.trim(), width: bar && bar.style.width };
 });
-console.log('archive  button=' + JSON.stringify(dd));
-if (!dd.frac || !/^\d+ \/ \d+$/.test(dd.frac)) bad('archive button has no fraction: ' + dd.frac);
-if (!dd.width) bad('archive progress bar has no width');
+console.log('unlocks  button=' + JSON.stringify(dd));
+if (!dd.frac || !/^\d+ \/ \d+$/.test(dd.frac)) bad('UNLOCKS button has no fraction: ' + dd.frac);
+if (!dd.width) bad('the UNLOCKS progress bar has no width');
 
 // ---- 3. NEW RUN opens the selector, with the tutorial question on it ------
 await page.tap('#startnew');
@@ -85,18 +85,18 @@ await page.waitForTimeout(400);
 if (await boxOf(page, '#modesel')) bad('BACK did not close the selector');
 if (await page.evaluate(() => window.__ts.game.state) !== 'menu') bad('BACK started a run');
 
-// ---- 4. ARCHIVE opens the archive, and the lifetime stat is in it ----------
+// ---- 4. UNLOCKS opens, and the lifetime stat is in it ---------------------
 await page.tap('#discover');
 await page.waitForTimeout(400);
-if (!(await boxOf(page, '#arch'))) bad('ARCHIVE did not open the archive');
-const meta = await page.evaluate(() => document.getElementById('archmeta').textContent);
-console.log('archmeta "' + meta + '"');
-if (!/SHATTERED/.test(meta)) bad('the lifetime stat did not land in the archive header');
-if (!/DOOR/.test(meta)) bad('the archive header lost its door count');
-await page.screenshot({ path: OUT + 'menu-archive.png' });
+if (!(await boxOf(page, '#unlocks'))) bad('the UNLOCKS button did not open UNLOCKS');
+const meta = await page.evaluate(() => document.getElementById('unlockmeta').textContent);
+console.log('unlockmeta "' + meta + '"');
+if (!/SHATTERED/.test(meta)) bad('the lifetime stat did not land in the UNLOCKS header');
+if (!/DOOR/.test(meta)) bad('the UNLOCKS header lost its door count');
+await page.screenshot({ path: OUT + 'menu-unlocks.png' });
 await page.tap('body', { position: { x: 200, y: 24 } });
 await page.waitForTimeout(350);
-if (await boxOf(page, '#arch')) bad('the archive would not close');
+if (await boxOf(page, '#unlocks')) bad('UNLOCKS would not close');
 
 // ---- 5. CONTINUE still starts the run it names -----------------------------
 await page.tap('.go');

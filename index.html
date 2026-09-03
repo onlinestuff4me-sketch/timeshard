@@ -903,9 +903,28 @@
   .mscd .msline { margin-top:4px; font-size:10.5px; font-weight:600; line-height:1.35;
           letter-spacing:.02em; color:#6b7078; }
   /* the game you are already in the middle of */
+  /* NEW — on a mode that is open and has never been played. It comes off the
+     moment there is a save in that mode, so it means "this is yours now and
+     you have not tried it" rather than decorating the screen forever. */
   .mscd .mstag { position:absolute; top:8px; right:8px; padding:4px 9px; border-radius:999px;
           font-size:7.5px; font-weight:900; letter-spacing:.2em;
           background:#ff2d1a; color:#fff; }
+
+  /* THE RECENCY STRIP — a shortcut laid on top of the list, not a reordering
+     of it. Horizontal, because it is a row of things you already know the
+     names of, and the vertical list underneath is the one that has to stay
+     put. It only exists once a mode other than the tunnel has been played. */
+  .msstrip { flex:none; display:flex; gap:9px; overflow-x:auto; overflow-y:hidden;
+          -webkit-overflow-scrolling:touch; touch-action:pan-x;
+          padding-bottom:3px; margin-bottom:3px; scrollbar-width:none; }
+  .msstrip::-webkit-scrollbar { display:none; }
+  .msmini { flex:0 0 auto; width:112px; border-radius:11px; overflow:hidden;
+          text-align:left; background:rgba(22,24,29,.05);
+          box-shadow:inset 0 0 0 1.5px rgba(22,24,29,.14); }
+  .msmini video { display:block; width:100%; height:66px; object-fit:cover;
+          background:#c9ced6; }
+  .msminame { padding:6px 9px 8px; font-size:8.5px; font-weight:900;
+          letter-spacing:.13em; color:#16181d; }
 
   /* LOCKED: dimmed, and it says what opens it. Not hidden — a gate you cannot
      see is not a goal, and the picture is the reason to want it. */
@@ -948,7 +967,7 @@
   #sndbtn.muted { opacity:.55; }
 
   /* modals: how-to + enemies + unlocks */
-  #htp, #enm, #arch { position:fixed; inset:0; z-index:12; display:none; align-items:center; justify-content:center;
+  #htp, #enm, #unlocks { position:fixed; inset:0; z-index:12; display:none; align-items:center; justify-content:center;
                background:rgba(22,24,29,.35); }
   .htpcard { background:#eef0f3; border-radius:20px; padding:30px 34px; text-align:center;
              width:min(330px, 86vw);
@@ -965,20 +984,20 @@
   .enmcard .enrow b { display:block; font-size:12px; letter-spacing:.18em; color:#16181d; }
   .enmcard .enrow span { font-size:12px; font-weight:600; color:#6b7078; }
 
-  /* ---- UNLOCKS (the archive, in code — see src/main.js) ------------------
+  /* ---- UNLOCKS ------------------------------------------------------------
      A ledger, not a gallery. Every slot is visible from the first run; what
      a locked row hides is the NAME, never the fact that the row exists —
      that is the whole reason it reads as depth rather than as a list. */
-  .archcard { gap:0; padding:26px 0 24px; }
-  .archcard h2 { margin-bottom:2px; }
+  .unlockcard { gap:0; padding:26px 0 24px; }
+  .unlockcard h2 { margin-bottom:2px; }
   /* THREE STATS, AND IT WRAPS ON A NARROW PHONE — so it has to wrap BETWEEN
      them. Left to itself it broke as "... · 2" / "DOORS", which reads as a
      number with no unit above a unit with no number. Each stat is a nowrap
      span and the separators are the only break points. */
-  #archmeta { font-size:9px; font-weight:800; letter-spacing:.16em; color:#9aa0ab;
+  #unlockmeta { font-size:9px; font-weight:800; letter-spacing:.16em; color:#9aa0ab;
               padding:0 28px 12px; line-height:1.5; }
-  #archmeta i { font-style:normal; white-space:nowrap; }
-  #archlist { overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y;
+  #unlockmeta i { font-style:normal; white-space:nowrap; }
+  #unlocklist { overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y;
               max-height:min(52vh, 420px); padding:0 28px;
               border-top:1px solid rgba(22,24,29,.1); border-bottom:1px solid rgba(22,24,29,.1); }
   .asec { display:flex; align-items:baseline; gap:8px; padding:15px 0 5px;
@@ -994,12 +1013,12 @@
   .arow .redact { height:9px; border-radius:2px; background:#d5dae1; margin:4px 0 2px; }
   .arow.locked .adesig { color:#c2c8d0; }
   /* THE GAMES SECTION carries a running count in the designation column
-     ("3/5") rather than a catalogue number, and a locked game keeps its NAME
+     ("3/5") rather than a catalogue number, and a locked mode keeps its NAME
      — unlike an unmet element, whose name is the thing being withheld. You
      are meant to want this one by name. */
   .arow.locked b { color:#9aa0a9; }
   .arow.locked span { color:#a8aeb7; }
-  .archcard .htpclose { margin-top:16px; }
+  .unlockcard .htpclose { margin-top:16px; }
   #overlay .go { animation:gopulse 2.6s ease-in-out infinite; }
   @keyframes gopulse { 0%,100% { box-shadow:0 6px 20px rgba(255,45,26,.26); }
                        55% { box-shadow:0 6px 30px rgba(255,45,26,.5); } }
@@ -1102,11 +1121,11 @@
   </div>
 </div>
 
-<div id="arch">
-  <div class="htpcard archcard">
+<div id="unlocks">
+  <div class="htpcard unlockcard">
     <h2>UNLOCKS</h2>
-    <div id="archmeta"></div>
-    <div id="archlist"></div>
+    <div id="unlockmeta"></div>
+    <div id="unlocklist"></div>
     <div class="htpclose">TAP OUTSIDE TO CLOSE</div>
   </div>
 </div>
@@ -1124,7 +1143,7 @@
      Scrolls, because five cards with moving pictures on them do not fit a
      phone; the card itself is the scroller so the heading and BACK stay put. -->
 <div id="modesel"><div class="htpcard mscard">
-  <h3>CHOOSE A GAME</h3>
+  <h3>CHOOSE A MODE</h3>
   <label id="mstut"><input type="checkbox" id="mstutbox"> Start with the tutorial</label>
   <div id="mslist"></div>
   <div id="mstoast"></div>

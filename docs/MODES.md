@@ -61,10 +61,24 @@ Between "I want to play" and playing. PLAY (when there is nothing to continue)
 and NEW RUN both open it; **CONTINUE never does** — the whole promise of that
 button is one tap back into the run it names.
 
-Three bands, in this order: **the tunnel**, full width with a bigger picture,
-because it is the game; **what you played last**, most recent first, so coming
-back to a game you are mid-way through is the second thing on the screen; then
-**everything else**, in the order it opens.
+**One vertical list, always in unlock order**, with the tunnel at the top as a
+full-width card with a bigger picture because it is the game. Where a mode
+sits is something you learn once and it never moves.
+
+**The recency strip is laid on top of that, not carved out of it.** Once a
+mode other than the tunnel has been played, a horizontal RECENTLY PLAYED row
+appears above the list — the modes you have played, most recent first, as
+small picture-and-name shortcuts. The list below still holds all five in the
+order it always had.
+
+An earlier version promoted whatever you had played into a band of its own and
+listed only the remainder underneath. That meant the screen rearranged itself
+as you played and no mode had a home: the thing you were looking for moved the
+moment you used it. A shortcut on top of a fixed list gives you both.
+
+The strip stays hidden until a second mode has been played, because on a first
+run it would be a row with one card in it pointing at the card directly
+underneath.
 
 Every card carries a few seconds of that mode actually being played, because a
 name is not an answer to "what is STAND STILL". A locked card keeps its
@@ -72,6 +86,11 @@ picture — dimmed — and states its gate: a gate you cannot see is not a goal,
 and the picture is the whole reason to want what is behind it. Tapping one
 refuses on the card itself, because `showBanner` draws at z-index 10,
 underneath this panel.
+
+**NEW** marks any mode that is open and has never been played — including the
+tunnel on a first launch, which is exactly when it is true. It comes off the
+moment there is a save in that mode, so it means "this is yours now and you
+have not tried it" rather than decorating the screen forever.
 
 The tutorial question is on this screen, on the NEW RUN path only. Choosing
 NEW RUN is a decision about starting over and "with the lesson or without" is
