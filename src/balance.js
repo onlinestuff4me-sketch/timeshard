@@ -640,7 +640,7 @@ export const LEG = {
 //
 // FOG was registered as shipped and was never implemented: `cond` was only
 // ever compared against 'dimStrips', so a fog leg rendered as a plain
-// corridor while the archive told the player "Visibility twelve metres".
+// corridor while UNLOCKS told the player "Visibility twelve metres".
 //
 // The first working version was then too kind to be a condition at all. A
 // body is born 9-40 m away (LEG.spawnMin/spawnMax) and the door opens only on

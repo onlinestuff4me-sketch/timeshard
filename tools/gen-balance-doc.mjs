@@ -189,7 +189,7 @@ drains the bank at a flat ${n(RAMP.rushDrain)}×. An enemy must be in view for
 | Knob | Value | Meaning |
 |---|---|---|
 | \`hallNear\` / \`hallFar\` | ${n(VIS.hallNear)} / ${n(VIS.hallFar)} m | the ordinary corridor |
-| \`fogNear\` / \`fogFar\` | ${n(VIS.fogNear)} / ${n(VIS.fogFar)} m | a **fog** leg — what its archive line promises |
+| \`fogNear\` / \`fogFar\` | ${n(VIS.fogNear)} / ${n(VIS.fogFar)} m | a **fog** leg — what its UNLOCKS line promises |
 | \`farMargin\` | ${n(VIS.farMargin)} m | the far plane is never nearer than \`spawnMin + this\` |
 | \`tau\` | ${n(VIS.tau)} s | eased on a time constant, so every leg change lands in ~1.3 s |
 

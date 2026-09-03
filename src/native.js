@@ -70,7 +70,7 @@ export function hapticTick() {
 // --- DURABLE STORAGE -------------------------------------------------------
 //
 // WKWebView's localStorage can be evicted by iOS under disk pressure, which
-// would silently wipe a player's bests and their whole archive. Preferences
+// would silently wipe a player's bests and everything they have unlocked. Preferences
 // is UserDefaults-backed and survives.
 //
 // The game reads scores synchronously in a dozen places, so localStorage

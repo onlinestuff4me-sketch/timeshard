@@ -18,45 +18,45 @@
 export const ELEMENTS = [
   // --- forms: what the leg IS ---------------------------------------------
   { id: 'corridor', name: 'CORRIDOR', kind: 'form', tier: 1, minDoor: 1, unlockAt: 0, weight: 10, impl: true,
-    archive: 'Standard service corridor. No deviation logged.' },
+    blurb: 'Standard service corridor. No deviation logged.' },
   { id: 'serviceRun', name: 'SERVICE RUN', kind: 'form', tier: 1, minDoor: 2, unlockAt: 0, weight: 7, impl: true,
-    archive: 'Maintenance route. Frequent turns. Sightlines under four metres.' },
+    blurb: 'Maintenance route. Frequent turns. Sightlines under four metres.' },
   { id: 'vault', name: 'VAULT', kind: 'form', tier: 1, minDoor: 2, unlockAt: 0, weight: 8, impl: true,
-    archive: 'Plant hall. One way in, one way out, columns between.' },
+    blurb: 'Plant hall. One way in, one way out, columns between.' },
   { id: 'atrium', name: 'ATRIUM', kind: 'form', tier: 2, minDoor: 3, unlockAt: 15, weight: 6, impl: true,
-    archive: 'Assembly volume. Columns load-bearing. Occupancy unlimited.' },
+    blurb: 'Assembly volume. Columns load-bearing. Occupancy unlimited.' },
   { id: 'gauntlet', name: 'GAUNTLET', kind: 'form', tier: 2, minDoor: 4, unlockAt: 40, weight: 5, impl: true,
-    archive: 'Transit spine. No recesses. Do not stop walking.' },
+    blurb: 'Transit spine. No recesses. Do not stop walking.' },
   { id: 'gallery', name: 'GALLERY', kind: 'form', tier: 3, minDoor: 6, unlockAt: 80, weight: 4, impl: false,
-    archive: 'Observation run. Full length sightline maintained.' },
+    blurb: 'Observation run. Full length sightline maintained.' },
   { id: 'stairwell', name: 'STAIRWELL', kind: 'form', tier: 3, minDoor: 7, unlockAt: 140, weight: 3, impl: false,
-    archive: 'Vertical circulation. Mind the level above you.' },
+    blurb: 'Vertical circulation. Mind the level above you.' },
   { id: 'spiral', name: 'SPIRAL', kind: 'form', tier: 4, minDoor: 10, unlockAt: 200, weight: 2, impl: false,
-    archive: 'Containment geometry. There is no straight line out.' },
+    blurb: 'Containment geometry. There is no straight line out.' },
 
   // --- conditions: how the leg IS -----------------------------------------
   { id: 'dimStrips', name: 'DIM STRIPS', kind: 'condition', tier: 1, minDoor: 3, unlockAt: 15, weight: 6, impl: true,
-    archive: 'Illumination at half. Power is needed elsewhere.' },
+    blurb: 'Illumination at half. Power is needed elsewhere.' },
   { id: 'fog', name: 'FOG', kind: 'condition', tier: 2, minDoor: 13, unlockAt: 120, weight: 5, impl: false,
-    archive: 'Suppressant discharged. Visibility eight metres. Stop the clock and it parts.' },
+    blurb: 'Suppressant discharged. Visibility eight metres. Stop the clock and it parts.' },
   { id: 'blackout', name: 'BLACKOUT', kind: 'condition', tier: 3, minDoor: 15, unlockAt: 180, weight: 4, impl: false,
-    archive: 'Emergency lighting only. Compliance is not required to see.' },
+    blurb: 'Emergency lighting only. Compliance is not required to see.' },
   { id: 'flood', name: 'FLOOD', kind: 'condition', tier: 4, minDoor: 11, unlockAt: 200, weight: 2, impl: false,
-    archive: 'Level breached. Movement impaired. Proceed.' },
+    blurb: 'Level breached. Movement impaired. Proceed.' },
   { id: 'deadAir', name: 'DEAD AIR', kind: 'condition', tier: 4, minDoor: 12, unlockAt: 260, weight: 2, impl: false,
-    archive: 'Acoustic dampening active. You will not hear them coming.' },
+    blurb: 'Acoustic dampening active. You will not hear them coming.' },
 
   // --- measures: what the building DOES ------------------------------------
   { id: 'alcoves', name: 'ALCOVES', kind: 'measure', tier: 1, minDoor: 2, unlockAt: 0, weight: 7, impl: true,
-    archive: 'Recessed bays. Not designed as cover. Usable as cover.' },
+    blurb: 'Recessed bays. Not designed as cover. Usable as cover.' },
   { id: 'oneWaySeal', name: 'ONE-WAY SEAL', kind: 'measure', tier: 2, minDoor: 4, unlockAt: 40, weight: 5, impl: true,
-    archive: 'Section closed behind you. Return is not authorised.' },
+    blurb: 'Section closed behind you. Return is not authorised.' },
   { id: 'breachWalls', name: 'BREACH WALLS', kind: 'measure', tier: 2, minDoor: 5, unlockAt: 40, weight: 5, impl: false,
-    archive: 'Panels rated for personnel egress. From either side.' },
+    blurb: 'Panels rated for personnel egress. From either side.' },
   { id: 'grinder', name: 'GRINDER', kind: 'measure', tier: 3, minDoor: 6, unlockAt: 80, weight: 4, impl: false,
-    archive: 'Sanitation unit dispatched. Do not remain stationary.' },
+    blurb: 'Sanitation unit dispatched. Do not remain stationary.' },
   { id: 'turretDrop', name: 'TURRET', kind: 'measure', tier: 3, minDoor: 8, unlockAt: 140, weight: 3, impl: false,
-    archive: 'Fixed emplacement lowered. It does not need to reload.' },
+    blurb: 'Fixed emplacement lowered. It does not need to reload.' },
 
   // --- enemies: same schedule, different kind ------------------------------
   // `minDoor` here and TYPE_INTRO in balance.js carry the SAME schedule and
@@ -64,45 +64,45 @@ export const ELEMENTS = [
   // headline, that one composes the wave. See TYPE_INTRO for why the opening
   // is one new thing at a time and what each door's one thing is.
   { id: 'gunner', name: 'GUNNER', kind: 'enemy', tier: 1, minDoor: 1, unlockAt: 0, weight: 10, impl: true,
-    archive: 'Compliant. Armed. The building has many.' },
+    blurb: 'Compliant. Armed. The building has many.' },
   { id: 'rusher', name: 'RUSHER', kind: 'enemy', tier: 1, minDoor: 7, unlockAt: 0, weight: 8, impl: true,
-    archive: 'Close-quarters directive. Watch the arm come back.' },
+    blurb: 'Close-quarters directive. Watch the arm come back.' },
   { id: 'shotgunner', name: 'SHOTGUNNER', kind: 'enemy', tier: 2, minDoor: 9, unlockAt: 0, weight: 6, impl: true,
-    archive: 'Wide pattern. Effective only near. Get past him.' },
+    blurb: 'Wide pattern. Effective only near. Get past him.' },
   { id: 'shieldbearer', name: 'SHIELD', kind: 'enemy', tier: 2, minDoor: 11, unlockAt: 15, weight: 5, impl: true,
-    archive: 'Plate rated for small arms. The plate only.' },
+    blurb: 'Plate rated for small arms. The plate only.' },
   { id: 'heavy', name: 'HEAVY', kind: 'enemy', tier: 2, minDoor: 13, unlockAt: 15, weight: 5, impl: true,
-    archive: 'Three rounds, in quick succession, every time.' },
+    blurb: 'Three rounds, in quick succession, every time.' },
   { id: 'sniper', name: 'SNIPER', kind: 'enemy', tier: 3, minDoor: 16, unlockAt: 40, weight: 4, impl: true,
-    archive: 'Long authorisation delay. Longer reach.' },
+    blurb: 'Long authorisation delay. Longer reach.' },
   { id: 'bomber', name: 'BOMBER', kind: 'enemy', tier: 3, minDoor: 19, unlockAt: 40, weight: 4, impl: true,
-    archive: 'Area denial. The floor is the weapon.' },
+    blurb: 'Area denial. The floor is the weapon.' },
   { id: 'armored', name: 'ARMORED', kind: 'enemy', tier: 3, minDoor: 23, unlockAt: 80, weight: 3, impl: true,
-    archive: 'Body plated. The head was not considered a risk.' },
+    blurb: 'Body plated. The head was not considered a risk.' },
   { id: 'rocketeer', name: 'ROCKETEER', kind: 'enemy', tier: 4, minDoor: 27, unlockAt: 140, weight: 3, impl: true,
-    archive: 'Guided munition. It will follow. Break the line.' },
+    blurb: 'Guided munition. It will follow. Break the line.' },
   { id: 'laser', name: 'LASER', kind: 'enemy', tier: 4, minDoor: 31, unlockAt: 200, weight: 2, impl: true,
-    archive: 'Sweep emitter. Cover is irrelevant. Kill it.' },
+    blurb: 'Sweep emitter. Cover is irrelevant. Kill it.' },
 
   // --- weapons: ids match the WEAPONS keys, so a pickup files itself --------
   { id: 'knife', name: 'KNIFE', kind: 'weapon', tier: 1, minDoor: 1, unlockAt: 0, weight: 0, impl: true,
-    archive: 'Not a service item. What is left when the count reaches zero.' },
+    blurb: 'Not a service item. What is left when the count reaches zero.' },
   { id: 'pistol', name: 'PISTOL', kind: 'weapon', tier: 1, minDoor: 1, unlockAt: 0, weight: 0, impl: true,
-    archive: 'Sidearm. Five rounds. Sufficient, in the right order.' },
+    blurb: 'Sidearm. Five rounds. Sufficient, in the right order.' },
   { id: 'shotgun', name: 'SHOTGUN', kind: 'weapon', tier: 1, minDoor: 3, unlockAt: 0, weight: 0, impl: true,
-    archive: 'Six pellets on one authorisation. Distance is the price.' },
+    blurb: 'Six pellets on one authorisation. Distance is the price.' },
   { id: 'burst', name: 'BURST RIFLE', kind: 'weapon', tier: 2, minDoor: 5, unlockAt: 15, weight: 0, impl: true,
-    archive: 'Three rounds per pull. The building prefers certainty.' },
+    blurb: 'Three rounds per pull. The building prefers certainty.' },
   { id: 'sniper', name: 'RAIL', kind: 'weapon', tier: 3, minDoor: 6, unlockAt: 40, weight: 0, impl: true,
-    archive: 'Rated to pass through three. It usually finds them.' },
+    blurb: 'Rated to pass through three. It usually finds them.' },
   { id: 'launcher', name: 'LAUNCHER', kind: 'weapon', tier: 3, minDoor: 7, unlockAt: 40, weight: 0, impl: true,
-    archive: 'Arcing charge. Mind what is between you and the arc.' },
+    blurb: 'Arcing charge. Mind what is between you and the arc.' },
   { id: 'rocket', name: 'ROCKET', kind: 'weapon', tier: 4, minDoor: 10, unlockAt: 140, weight: 0, impl: true,
-    archive: 'Direct munition. Not intended for corridors. Used in them anyway.' },
+    blurb: 'Direct munition. Not intended for corridors. Used in them anyway.' },
 ];
 
 // Every entry carries a stable designation, because a LOCKED entry has to
-// show something: the archive hides the name, never the fact that a slot
+// show something: UNLOCKS hides the name, never the fact that a slot
 // exists. Derived from registry order so adding a row needs no bookkeeping.
 const KIND_TAG = { form: 'F', condition: 'C', measure: 'M', enemy: 'E', weapon: 'W' };
 {
@@ -230,7 +230,7 @@ export function composeProtocol(door, lifetimeDoors, mem, rand = Math.random) {
   };
 }
 
-/** Fresh per-run memory. `known` is the player's archive, so anything they
+/** Fresh per-run memory. `known` is what the player has unlocked, so anything they
  *  have already met is not treated as a debut again. */
 export function newRunMemory(known) {
   return {

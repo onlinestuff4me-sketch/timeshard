@@ -10,3 +10,6 @@ DerivedData/
 
 # agent worktrees and local session state
 .claude/
+
+# probe screenshots
+test/out/

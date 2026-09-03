@@ -28,6 +28,23 @@
 // leaderboard is per mode and "WAVE 12" is a lie in a game made of doors.
 // `null` means the count does not move there and the board leaves it out
 // rather than ranking everybody equal-first.
+//
+// ---------------------------------------------------------------------------
+// UNLOCKING — `doors`, and why the order is what it is.
+//
+// The tunnel is the game: it has the lesson in it, it is the only mode with a
+// progression to climb, and every other mode is bought with that climb. So
+// `doors` is how many tunnel doors you have ever passed before a mode opens,
+// and the tunnel itself has none.
+//
+// The ORDER is by how much the mode asks of your hands, not by when it was
+// built. A player who has just been taught two thumbs and a time button gets
+// the two ONE-THUMB modes first — they are a rest, and they teach the dodge
+// on its own — and the two full-control arena games last, because those ask
+// for everything the tunnel taught at once and with no doors to pace it.
+//
+// `preview` is a short looping clip of the mode being played, shown on its
+// card in the selector. See tools/rec-previews.mjs, which makes them.
 // ---------------------------------------------------------------------------
 
 export const MODES = [
@@ -37,18 +54,24 @@ export const MODES = [
     name: 'THE TUNNEL',
     line: 'Door to door, deeper each time. The main game.',
     main: true,
+    doors: 0,          // the game itself is never locked
+    preview: 'assets/preview/hall.webm',
   },
   {
     id: 'wave',
     unit: 'WAVE',
     name: 'CITY STREETS',
     line: 'Endless waves in the white city — the original arena.',
+    doors: 15,
+    preview: 'assets/preview/wave.webm',
   },
   {
     id: 'rush',
     unit: null,
     name: 'RUSH HOUR',
     line: 'Freeze the crowd, find the one face that matters, walk out.',
+    doors: 20,
+    preview: 'assets/preview/rush.webm',
   },
   {
     id: 'duel',
@@ -58,6 +81,8 @@ export const MODES = [
     simple: true,
     // Time is not yours here: it drops on its own while a round is in the air.
     time: 'incoming',
+    doors: 5,
+    preview: 'assets/preview/duel.webm',
   },
   {
     id: 'stop',
@@ -66,6 +91,8 @@ export const MODES = [
     line: 'Time only moves while you do. Stand still and the world waits.',
     simple: true,
     time: 'motion',
+    doors: 10,
+    preview: 'assets/preview/stop.webm',
   },
 ];
 
@@ -75,3 +102,34 @@ export const modeById = (id) => MODES.find((m) => m.id === id) || null;
 // as a predicate rather than a list of ids in main.js so adding a third one
 // is a line in this file and nothing else.
 export const isSimple = (id) => !!(modeById(id) || {}).simple;
+
+// The locked modes in the order they open, which is the order the selector
+// lists them in and the order UNLOCKS counts them in. Shallowest gate first,
+// so the list reads as a route rather than a set.
+export const LOCKED_MODES = MODES.filter((m) => (m.doors || 0) > 0)
+  .sort((a, b) => a.doors - b.doors);
+
+// WHAT IT TAKES, in the player's words. One line, on the card and in UNLOCKS,
+// so the two cannot describe the same gate differently.
+export function unlockLine(id) {
+  const m = modeById(id);
+  if (!m || !m.doors) return '';
+  return `REACH DOOR ${m.doors} IN THE TUNNEL`;
+}
+
+// IS IT OPEN? `doors` is the deepest tunnel door the player has ever reached
+// — a high-water mark that only goes up, kept per PLAYER rather than per save
+// (see `deepestDoor` in main.js), so deleting the run you earned a mode on
+// cannot take the mode back.
+//
+// There is no grandfather clause. An earlier version unlocked any mode you
+// had a save in, to protect players who had put runs into City Streets before
+// these gates existed. There are none — the counter starts at zero for
+// everybody on the launch that introduces it — and the clause would have made
+// "unlocked" mean two different things depending on how you got there.
+export function modeUnlocked(id, doors = 0) {
+  const m = modeById(id);
+  if (!m) return false;
+  if (!m.doors) return true;
+  return doors >= m.doors;
+}

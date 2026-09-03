@@ -1,5 +1,23 @@
 # What's left
 
+## Game Center — ACHIEVEMENTS and LEADERBOARDS
+
+Two more buttons on the menu, once Game Center is wired up (`docs/LAUNCH.md`
+step 8). They belong beside HOW TO PLAY and SETTINGS rather than in the play
+flow: they are things you go and look at, not decisions on the way into a run.
+
+The menu's bottom row holds two tier-3 links and the speaker toggle today, and
+it already wraps at four controls on a 390 px viewport — so four links plus the
+toggle will need either a second row or the pair promoted into the row above,
+where UNLOCKS currently sits alone at full width. UNLOCKS + ACHIEVEMENTS as a
+136 px pair, with LEADERBOARDS joining HOW TO PLAY and SETTINGS below, is
+probably the shape; it restores the matched-pair rhythm that row was built for.
+
+Both are read-only screens, so neither touches the unlock gates in
+`src/modes.js` — but ACHIEVEMENTS overlaps with what UNLOCKS already shows,
+and that overlap should be settled before either is built rather than after.
+
+
 Ordered by value per unit of effort, for a game that is live on the web and
 cheap to iterate on. Everything here is web-iterable unless marked otherwise.
 
@@ -128,7 +146,7 @@ second channel.
 
 The code is recoverable from `5b5b2f6` if it is ever wanted.
 
-## ~~2. The archive screen~~ — **shipped**
+## ~~2. The unlocks screen~~ — **shipped**
 
 Built. **35 slots** across three sections — enemies, protocols, weapons —
 every one visible from the first run. A locked row keeps its designation and
@@ -141,12 +159,12 @@ Three things the build had to get right that the plan didn't say:
   behind the title spawns and shatters enemies for show; filing those would
   have handed every new player the heavy before they pressed PLAY.
 - **Leg 1 was never filed.** `recordMet` only ran on crossing a door, so the
-  form you played through first was the one the archive never knew about.
+  form you played through first was the one UNLOCKS never knew about.
 - **Weapons went into the registry** with ids matching the `WEAPONS` keys, so
   a pickup files itself with no mapping table.
 
-The death screen now reports `+N FILED TO THE ARCHIVE` when a life turned
-something up, which is the only place the archive advertises itself — and
+The death screen now reports `+N FILED TO UNLOCKS` when a life turned
+something up, which is the only place UNLOCKS advertises itself — and
 dying with a find is exactly when you go and look.
 
 ## 3. Per-part shatter — **built, then removed; needs its own workstream**
@@ -253,7 +271,7 @@ varies 1.16 to one (2.12 before any of these fixes).
 
 `fog` shipped as `impl: true` and was never implemented — the leg condition
 was read once and only ever compared against `dimStrips`, so a fog leg
-rendered as a plain corridor while the archive told the player "Visibility
+rendered as a plain corridor while UNLOCKS told the player "Visibility
 twelve metres". Now a real per-leg visibility override, eased on a time
 constant, applied on leg 1 / on crossing / on retry, and guarded so the far
 plane can never fall below `LEG.spawnMin + margin`. See `docs/BALANCE.md`.

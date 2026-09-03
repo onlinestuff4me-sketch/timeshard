@@ -94,7 +94,7 @@ touched `LEGS`, `STEPS`, the `exit` cue (which said GO TO THE NEXT ROOM
 where the next area is now a hallway), `docs/TUTORIAL.md` and one comment in
 `tool/tutorial-pane.js`.
 
-**The archive spans game modes**, confirmed with the owner and now written
+**UNLOCKS spans game modes**, confirmed with the owner and now written
 down in `discoverData()` and `docs/SAVES.md` rather than left as a question.
 Discovery is a property of the player, not of the save and not of the mode.
 
@@ -179,16 +179,16 @@ shoulder in the stone:
 **The defect: a man the floor refused was filed as met.** `recordMet([type])`
 sat on the first line of `spawnEnemy`, above everything — and last session's
 first-sight veto returns out of the middle of the function. So a placement
-the floor turned down archived the enemy type, and `recordMet` calls
+the floor turned down filed the enemy type, and `recordMet` calls
 `saveProgress`, so it went to disk — while nothing ever reached the scene.
 Measured at 0.68 refusals a leg over doors 1-10, so it was not rare, and the
 opening doors ease their floor out to door 18, which is past the first
 debuts. It now sits on the line that puts the body in the world.
 
 Proven both ways, because moving it down could just as easily have stopped
-the archive filing anything: with the floor forced to a value nothing can
+UNLOCKS filing anything: with the floor forced to a value nothing can
 satisfy, 40 of 40 calls refused, 41 refusals counted, 0 enemies in the world
-and the archive unchanged in memory AND on disk; then one heavy placed
+and the unlock set unchanged in memory AND on disk; then one heavy placed
 through `at`, in the world, filed and saved.
 
 ## The needle, after a playtest of it
@@ -944,9 +944,25 @@ MENU had none — so NEW RUN opening the LOAD GAME page shipped and a playtester
 found it. If a change can be reached from a button, there should be a probe
 that presses that button.
 
-**It does not survive between sessions.** The scratchpad directory is
-per-session, so last session's 45 files were gone and this one started from
-nothing. Budget for that, or move the harness into the repo.
+**The menu and mode-selector probes now live in the repo, at `test/`.** `npm install` once
+(playwright is a devDependency), then `npm test`, or `bash test/runall.sh
+menu` to filter. `test/README.md` says what each one presses and carries the
+conventions below. They were moved in because the scratchpad is per-session
+and the harness kept being rebuilt from nothing — and because the menu is
+the one screen where that loss had already cost a shipped bug.
+
+**The mode selector is where choosing a game lives now.** PLAY and NEW RUN
+open it, CONTINUE never does, and the menu no longer has a MODE control at
+all. Its cards carry recorded gameplay clips from `assets/preview/`, remade
+with `node tools/rec-previews.mjs`. Four of the five games are now gated on
+tunnel depth — see `docs/MODES.md` for the gates and the three rules that
+keep them honest, the third of which is that anybody who has already played a
+mode keeps it whatever the gate says.
+
+**Everything else still does not survive between sessions.** The corridor,
+enemy, cue and HUD probes are still scratchpad-only: last session's 45 files
+were gone and this one started from nothing. Budget for that, or move them in
+alongside `test/menu.mjs` as you need them.
 
 What this session rebuilt, under the session scratchpad in `test/`:
 `lib.mjs` (boot/tap/done), `walk.mjs` (the leg walker), `early.mjs`,

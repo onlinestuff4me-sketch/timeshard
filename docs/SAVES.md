@@ -13,16 +13,29 @@ A save belongs to **one mode**. The tunnel's runs are not in the city's list,
 `CONTINUE` in the city never offers a tunnel run, and starting a city game does
 not disturb the tunnel save you were on. `MAX_SAVES` is per mode.
 
-The menu is therefore a **page about one game at a time**. One button —
-`MODE: THE TUNNEL` — names the game it is showing, and opens the list that
-changes it:
+> **Superseded, in part.** The menu used to be a page about one game at a
+> time, with a `MODE: THE TUNNEL` button naming it and a picker behind that
+> button. Choosing a game now happens in the **mode selector**, which PLAY and
+> NEW RUN open — see `docs/MODES.md` — and the menu has no MODE control at
+> all. Two consequences for this document:
+>
+> * **`LOAD GAME` lists every mode's runs**, titled `CONTINUE YOUR RUNS` —
+>   which is what it is: continuing, from a save that is not the most recent
+>   one the big button already offers — with each row naming its own mode. It had to: without a control that
+>   scopes it, a list that silently hid four fifths of somebody's runs would
+>   be the only way back to them.
+> * **`CONTINUE` names the most recently played run across all games**, not
+>   the current game's. Without a selector on the menu, "where you left off"
+>   can only honestly mean the last run played; the sub-line names its game.
+>
+> Everything else below still holds: a save still belongs to one mode,
+> `MAX_SAVES` is still per mode, and `ts_menumode` still remembers the last
+> game chosen — the selector writes it, and the world behind the menu reads it.
 
 | what selecting a game changes |
 |---|
 | what the big button says and starts |
-| whether `LOAD GAME` is offered at all |
-| the list behind `LOAD GAME`, and its title |
-| the archive teaser under the buttons |
+| the UNLOCKS teaser under the buttons |
 | the world rendered behind the menu — city for City Streets and Rush Hour, corridor for the other three |
 
 The choice is remembered in `ts_menumode`: somebody who plays the city does not
@@ -96,7 +109,7 @@ there is a run to go back to, and a run on its first door is still a run.
 
 Ordered by **last played**, newest first — which is the order you think about
 your own saves in. Each row carries the door it resumes at, its doors cleared
-and archive count, and the last-played date **labelled as such**: on a list
+and unlock count, and the last-played date **labelled as such**: on a list
 sorted by recency an unlabelled date reads as "created", which is a different
 fact and usually a different day.
 
@@ -183,7 +196,7 @@ and a first launch had four enemies floating in an empty fog void.
 > the top of them — so every tunnel run left its corridor in the scene for the
 > rest of the session. `backdrop.js` §4 is the assertion.
 
-## The Archive's front door, where the leaderboard stood
+## The UNLOCKS button, where the leaderboard stood
 
 The menu's leaderboard is **gone**. A board of best runs made sense when every
 run started at door 1 and dying was the score; with CONTINUE on the menu your
@@ -202,7 +215,7 @@ In its place, the save's own account of what it has found:
   first, emptiest last, so the block closes on the emptiest line. Gray, not
   red — lit red marks outshone CONTINUE two bands up.
 * **One link out** — `SEE ALL n/35 →`, the block's single red element. The
-  whole block is a button and opens the Archive; the menu row's ARCHIVE link
+  whole block is a button and opens UNLOCKS; the menu row's UNLOCKS link
   is gone, because two doors to one screen is the mistake the SAVES link
   already taught us.
 
@@ -210,7 +223,7 @@ The block reads the save CONTINUE would start (the selected mode's latest), so
 the teaser and the panel behind it agree — and a NEW GAME's teaser starts from
 zero, which is correct: a save is its own journey of discovery.
 
-The Archive itself now has **four sections in the teaser's order**: room forms
+UNLOCKS itself now has **four sections in the teaser's order**: room forms
 used to hide inside PROTOCOLS, and a start screen advertising ROOM TYPES as
 its own count would have been promising a category the panel didn't have.
 
@@ -255,8 +268,8 @@ made seconds ago has nothing in it yet and must not vanish between being
 created and being played.
 
 > **A save the player made exists.** "Used" was `at > 0 || doors > 0`, and `at`
-> is written only by `saveProgress()` (which needs something new archived) and
-> `slotNoteDoor()` (tunnel only). A **Rush Hour** save — a game that archives
+> is written only by `saveProgress()` (which needs something newly unlocked) and
+> `slotNoteDoor()` (tunnel only). A **Rush Hour** save — a game that unlocks
 > nothing and crosses no doors — was therefore never *used*, survived only
 > while it happened to be the active slot, and was **deleted** the moment the
 > player selected another game. `born` is stamped at creation and removed by
@@ -327,9 +340,9 @@ the menu.
 | the world behind the menu | `menuBackdrop` / `menuIsCity` / `buildMenuHall` |
 | the attract fight behind the title | `demoMode` / `DEMO_CAST` / `demoCorridor` |
 | the default name of a save | `saveName` |
-| the archive teaser | `discoverData` / `renderDiscover`, `#discover` in `index.html` |
+| the UNLOCKS teaser | `discoverData` / `renderDiscover`, `#discover` in `index.html` |
 
-**The archive spans game modes**, and that is settled rather than incidental.
+**UNLOCKS spans game modes**, and that is settled rather than incidental.
 Discovery is a property of the player — not of the save, and not of the mode —
 so a heavy first met in THE TUNNEL is still recovered while the menu is on
 RUSH HOUR, and `discoverData()` has no mode in it anywhere. Tracking each mode
