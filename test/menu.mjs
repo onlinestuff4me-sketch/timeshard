@@ -8,9 +8,17 @@ const SEED = () => {
     localStorage.setItem('ts_s0_best', '2');
     localStorage.setItem('ts_s0_rdoor', '3');
     localStorage.setItem('ts_s0_shat', '15');
-    localStorage.setItem('ts_s0_archive', JSON.stringify(['gunner', 'corridor', 'pistol']));
+    localStorage.setItem('ts_s0_unlocks', JSON.stringify(['gunner', 'corridor', 'pistol']));
     localStorage.setItem('ts_s0_at', String(Date.now()));
     localStorage.setItem('ts_s0_born', String(Date.now() - 9e5));
+    // a SECOND run, so OTHER RUNS has something to be about
+    localStorage.setItem('ts_s1_used', '1');
+    localStorage.setItem('ts_s1_mode', 'hall');
+    localStorage.setItem('ts_s1_rdoor', '1');
+    localStorage.setItem('ts_s1_at', String(Date.now() - 4e5));
+    localStorage.setItem('ts_s1_born', String(Date.now() - 5e5));
+    localStorage.setItem('ts_saves', JSON.stringify([
+      { i: 0, name: '', num: 1, mode: 'hall' }, { i: 1, name: '', num: 2, mode: 'hall' }]));
     localStorage.setItem('ts_menumode', 'hall');
   } catch {}
 };
@@ -20,43 +28,52 @@ await page.waitForTimeout(1600);
 const bad = (m) => { console.log('FAIL ' + m); };
 const W = 402, H = 874;
 
-// ---- 1. the menu fits, and the pairs line up -------------------------------
+// ---- 1. the title screen fits, and reads top to bottom ---------------------
+const title = await boxOf(page, '#titleblock');
 const go = await boxOf(page, '.go');
 const run = await boxOf(page, '#runrow');
+const nrun = await boxOf(page, '#startnew');
 const alt = await boxOf(page, '#altwrap');
 const arch = await boxOf(page, '#discover');
 const row = await boxOf(page, '#menurow');
-for (const [n, b] of [['go', go], ['runrow', run], ['altwrap', alt], ['menurow', row]]) {
+for (const [n, b] of [['titleblock', title], ['go', go], ['runrow', run],
+                      ['startnew', nrun], ['altwrap', alt], ['menurow', row]]) {
   if (!b) { bad(`${n} not visible on the menu`); continue; }
   if (b.x < 0 || b.right > W) bad(`${n} runs off screen: x=${b.x} right=${b.right}`);
   if (b.y < 0 || b.bottom > H) bad(`${n} runs off screen vertically: y=${b.y} bottom=${b.bottom}`);
 }
-// the two secondary rows are a matched pair: same left edge, same width
-if (run && alt && (Math.abs(run.x - alt.x) > 0.6 || Math.abs(run.w - alt.w) > 0.6)) {
-  bad(`runrow and altwrap are not aligned: ${run.x}/${run.w} vs ${alt.x}/${alt.w}`);
-}
-// UNLOCKS has its row to itself and spans the pair above it
-if (run && arch && Math.abs(run.w - arch.w) > 0.6) {
-  bad(`UNLOCKS does not span the row: ${arch.w} vs ${run.w}`);
-}
+// THE CORNERS ARE IN THE CORNERS. menurow is absolutely positioned at the top
+// now, clear of the column the eye travels down.
+const how = await boxOf(page, '#howtolink');
+const set = await boxOf(page, '#setlink');
+if (how && how.x > 90) bad(`the how-to button is not in the left corner: x=${how.x}`);
+if (set && set.right < W - 110) bad(`settings is not in the right corner: right=${set.right}`);
+if (title && row && row.bottom > title.y) bad('the corner row runs into the title');
+// ...AND THE MIDDLE IS EMPTY, which is the whole point: the corridor shows
+// through between the title and the buttons.
+const gap = go && title ? go.y - title.bottom : 0;
+console.log('breathe  title.bottom=' + (title && title.bottom) + ' go.y=' + (go && go.y)
+  + ' gap=' + gap.toFixed(0) + 'px');
+if (gap < 90) bad(`only ${gap.toFixed(0)}px of art between the title and the buttons`);
 // TAP TARGETS. 44px is what a thumb actually covers, and it is the standard
 // for the paired rows — two side-by-side targets are where a miss lands
 // between them and does nothing. The tier-3 links at the bottom are a
 // deliberate 31px: they are quiet utility, tapped rarely, and they predate
 // this change. Asserted at their real size so a regression still shows.
-for (const [n, sel, min] of [['CONTINUE', '.go', 44], ['LOAD GAME', '#newrun', 44],
+for (const [n, sel, min] of [['CONTINUE', '.go', 44],
                              ['NEW RUN', '#startnew', 44], ['UNLOCKS', '#discover', 44],
-                             ['HOW TO PLAY', '#howtolink', 30], ['SETTINGS', '#setlink', 30]]) {
+                             ['OTHER RUNS', '#newrun', 28],
+                             ['HOW TO PLAY', '#howtolink', 38], ['SETTINGS', '#setlink', 38]]) {
   const b = await boxOf(page, sel);
   if (!b) { bad(`${n} missing`); continue; }
   if (b.h < min) bad(`${n} is only ${b.h}px tall (wants ${min})`);
 }
 console.log('layout   go.h=' + (go && go.h) + ' altwrap=' + (alt && alt.h)
   + ' unlocks="' + (arch && arch.text) + '"');
-// nothing stacks on top of anything else
-if (go && run && run.y < go.bottom) bad('runrow overlaps CONTINUE');
-if (run && alt && alt.y < run.bottom) bad('altwrap overlaps runrow');
-if (alt && row && row.y < alt.bottom) bad('menurow overlaps altwrap');
+// nothing stacks on top of anything else, in the order they are read
+if (go && run && run.y < go.bottom) bad('OTHER RUNS overlaps CONTINUE');
+if (run && nrun && nrun.y < run.bottom) bad('NEW RUN overlaps OTHER RUNS');
+if (nrun && alt && alt.y < nrun.bottom) bad('UNLOCKS overlaps NEW RUN');
 
 // ---- 2. the unlocks fraction on the button is the real one -----------------
 const dd = await page.evaluate(() => {

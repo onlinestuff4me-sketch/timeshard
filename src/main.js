@@ -6603,24 +6603,69 @@ function discoverData() {
 // would make "REACH DOOR 5 IN THE TUNNEL" a lie on the one card that says it,
 // and would let the modes bought with the climb pay for each other.
 // ---------------------------------------------------------------------------
+// THE HIGH-WATER MARK, kept per PLAYER and only ever raised. It is not
+// derived from the saves: a player who earns Corridor Duel at door 5 and then
+// deletes that run must not find it locked again, and a number recomputed
+// from whatever saves happen to exist does exactly that.
+//
+// It starts at zero for everybody on the launch that introduces it — the
+// gates count from here, not from anything played before them.
+const DEEPEST_KEY = 'ts_deepest_door';
+let deepestDoor = 0;
+try { deepestDoor = parseInt(localStorage.getItem(DEEPEST_KEY) || '0', 10) || 0; }
+catch { /* private mode */ }
+// Returns the modes this raised the gate past, so the caller can say so.
+function noteDeepestDoor(n) {
+  if (!(n > deepestDoor)) return [];
+  const before = deepestDoor;
+  deepestDoor = n;
+  try { persist(DEEPEST_KEY, String(deepestDoor)); } catch { /* private */ }
+  return LOCKED_MODES.filter((m) => m.doors > before && m.doors <= deepestDoor);
+}
+
+// SAID WHERE IT HAPPENS. A gate opens three doors before you die and the only
+// sign of it used to be a badge on a menu you had not reached yet. The moment
+// is worth marking where the player is standing: the label small and red over
+// the name, because the name is the news.
+//
+// The banner queue holds it behind whatever the door crossing is already
+// saying, so it never lands on top of the door headline.
+// IT WAITS FOR THE SCREEN. The duel's gate is door 5, which is crossed on the
+// same step that hands over slow motion — and that door runs the slow-time
+// school, which owns the screen and makes `showBanner` a no-op for as long as
+// it lasts. Announcing into that is announcing into nothing, and the first
+// gate a player ever passes is the one that matters most.
+//
+// So it queues, and the frame loop lets it out when the lesson is over and
+// the player is standing in ordinary play. General on purpose: any lesson on
+// any future door gets the same treatment without knowing about this.
+let unlockBanners = [];
+function announceUnlock(m) {
+  unlockBanners.push(m);
+  drainUnlockBanners();
+}
+function drainUnlockBanners() {
+  if (!unlockBanners.length) return;
+  if (tutorStep !== null || game.state !== 'play') return;
+  const m = unlockBanners.shift();
+  showBanner(`<div class="mnew"><span class="lede">NEW MODE UNLOCKED</span>`
+    + `${escHtml(m.name)}</div>`, 3000);
+  sfx.alert();
+  vibrate([25, 60, 25, 60, 25]);
+  if (unlockBanners.length) setTimeout(drainUnlockBanners, 3600);
+}
+
 function unlockState() {
-  let doors = game.mode === 'hall' ? lifetimeDoors : 0;
+  // `played` is not part of unlocking — it is what the NEW badge and the
+  // recency strip read, and a save IS the record that a mode was played.
   const played = new Set();
   for (const e of saveIndex()) {
     const read = slotRead(e.i);
-    if (!read || !read.used) continue;
-    played.add(e.mode || DEFAULT_MODE);
-    if ((e.mode || DEFAULT_MODE) !== 'hall') continue;
-    // the ACTIVE slot's on-disk figure lags its in-memory one for a whole run
-    const own = e.i === slotIx && game.mode === 'hall' ? lifetimeDoors : 0;
-    doors = Math.max(doors, read.best || read.doors || 0, read.resumeDoor || 0, own);
+    if (read && read.used) played.add(e.mode || DEFAULT_MODE);
   }
-  return { doors, played };
+  return { doors: deepestDoor, played };
 }
-const modeIsOpen = (id) => {
-  const u = unlockState();
-  return modeUnlocked(id, u.doors, u.played);
-};
+const modeIsOpen = (id) => modeUnlocked(id, deepestDoor);
 
 // ---------------------------------------------------------------------------
 // NEWS ON THE TITLE SCREEN.
@@ -6649,13 +6694,13 @@ function seenModes() {
 function pendingModes() {
   const u = unlockState();
   const seen = seenModes();
-  return LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors, u.played) && !seen.has(m.id));
+  return LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors) && !seen.has(m.id));
 }
 // Everything open is now accounted for, whether or not it was on the badge —
 // so a mode unlocked before this existed does not announce itself later.
 function markModesSeen() {
   const u = unlockState();
-  const open = LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors, u.played)).map((m) => m.id);
+  const open = LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors)).map((m) => m.id);
   try { persist(SEEN_MODES_KEY, JSON.stringify(open)); } catch { /* private */ }
   renderDiscover();
 }
@@ -7051,7 +7096,7 @@ function modeMini(m) {
 function renderModeSel() {
   if (!el.mslist) return;
   const u = unlockState();
-  const open = (id) => modeUnlocked(id, u.doors, u.played);
+  const open = (id) => modeUnlocked(id, u.doors);
   const tunnel = modeById(DEFAULT_MODE);
   // Which modes has this player actually touched, most recently first? Read
   // off the saves rather than a separate "last played" key, because a save IS
@@ -9102,10 +9147,10 @@ function renderUnlocks() {
   // you can go and reach. It is the one section that is a to-do list.
   {
     const u = unlockState();
-    const got = LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors, u.played)).length;
+    const got = LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors)).length;
     html += `<div class="asec">MODES<i>${got}/${LOCKED_MODES.length}</i></div>`;
     for (const m of LOCKED_MODES) {
-      const on = modeUnlocked(m.id, u.doors, u.played);
+      const on = modeUnlocked(m.id, u.doors);
       html += `<div class="arow${on ? '' : ' locked'}">`
         + `<div class="adesig">${on ? '✓' : `${u.doors}/${m.doors}`}</div><div>`
         + `<b>${escHtml(m.name)}</b>`
@@ -9247,11 +9292,14 @@ function refreshMenuPrimary() {
     ? `CONTINUE<span class="gosub">${escHtml(last.name || modeName(last.mode))}${goWhere(last)}</span>`
     : MENU_HTML.go;
   go.classList.toggle('two', !!last);
+  // NEW RUN appears once there is anything to continue: before that the big
+  // button IS the new run, and a second control saying so is noise.
+  if (el.startnew) el.startnew.style.display = last ? 'inline-flex' : 'none';
+  // OTHER RUNS appears once there is a SECOND one. With a single save it
+  // offers the list CONTINUE has already picked from — the same run, one tap
+  // further away.
   if (el.runrow) {
-    // LOAD GAME and NEW RUN only exist once continuing is possible; before
-    // that the big button IS new run and a second pair saying the same thing
-    // is noise.
-    el.runrow.style.display = last ? 'flex' : 'none';
+    el.runrow.style.display = savesByRecent(null).length > 1 ? 'flex' : 'none';
   }
 }
 
@@ -9296,6 +9344,7 @@ function showMenu() {
   updateSndBtn();
   el.menubtn.style.display = 'none';
   el.redflash.style.opacity = 0;
+  el.overlay.classList.add('menu');
   el.overlay.classList.remove('hidden');
   collectTitleFacets();   // the restore above created fresh title nodes
   shimmerAt = performance.now() / 1000 + SHIMMER_FIRST_DELAY;
@@ -10011,10 +10060,14 @@ function hitPlayer(ended = false) {
   el.reloadbar.style.display = 'none';
   // retry retries THIS mode only — the alternates leave the death screen
   el.altwrap.style.display = 'none';
-  // ...and so do LOAD GAME and NEW RUN, which nothing else ever hid. They sat
+  // ...and so do OTHER RUNS and NEW RUN, which nothing else ever hid. They sat
   // under RETRY on every death, and did nothing when tapped: their handlers
   // require the menu.
   if (el.runrow) el.runrow.style.display = 'none';
+  if (el.startnew) el.startnew.style.display = 'none';
+  // THE DEATH SCREEN IS A CARD, not the title screen: the centred stack, not
+  // title-at-top / buttons-at-bottom with the corridor between them.
+  el.overlay.classList.remove('menu');
   if (!ended) {   // a chosen exit skips the death drama
     el.redflash.style.opacity = 1;
     sfx.die();
@@ -11272,6 +11325,7 @@ function openHallDoor() {
 }
 
 function crossHallDoor() {
+  let openedModes = [];   // gates this crossing passed — see below
   const prev = hall.legs[hall.cur];
   prev.door.open = false;   // sealed behind you — no going back
   prev.door.slab.material = DOOR_SEAL_MAT;
@@ -11303,6 +11357,14 @@ function crossHallDoor() {
     hall.legsThisDoor = doorLegs(hall.doorsPassed + 1);
     slotNoteDoor(hall.doorsPassed + 1);
     saveProgress();
+    // ONLY THE TUNNEL BUYS MODES. The simplified modes run on the tunnel's
+    // legs and cross doors too; counting those would let the modes bought
+    // with the climb pay for each other.
+    // CAPTURED HERE, SAID LOWER DOWN. This function calls clearMessages()
+    // further on — deliberately, so the previous door's card cannot linger
+    // over the new one — and anything announced above that line is wiped
+    // before it is ever drawn.
+    if (game.mode === 'hall') openedModes = noteDeepestDoor(hall.doorsPassed);
   }
   recordMetProto(hall.legs[hall.cur] && hall.legs[hall.cur].proto);
   applyLegVisibility(false);   // eased, so you walk INTO the next leg's air
@@ -11353,9 +11415,17 @@ function crossHallDoor() {
       // lines the player reached door 81 with no button and no meter and the
       // whole school firing volleys at somebody who could not answer them.
       if (!taught) tutorRevealButton();
-    } else {
+    } else if (!openedModes.length) {
+      // ...and when a mode opened, the mode IS the headline: the shape of the
+      // corridor can wait for the next door.
       showBanner(legHeadline(hall.legs[hall.cur] && hall.legs[hall.cur].proto), 2000);
     }
+    // A DOOR CAN GIVE YOU TWO THINGS. The duel's gate is door 5, which is
+    // crossed on the same step that hands over slow motion — and that branch
+    // above returns without ever reaching an `else`. So this sits OUTSIDE the
+    // chain: whatever else this door was already saying, a mode opening is
+    // said too, and the banner queue puts them in order.
+    for (const m of openedModes) announceUnlock(m);
     showTimeTip();
   }
   sfx.wave();
@@ -12225,6 +12295,7 @@ function frame(now) {
     updateBullets(sdt);
     if (game.mode === 'rush') updateCrowd(sdt);
     if (inHall()) updateHall(dt);
+    drainUnlockBanners();   // held while a lesson owned the screen
     if (simple()) updateSimple(dt);
     updateMarks(sdt);
 
@@ -12530,6 +12601,8 @@ window.__ts = {
   // Is a lesson running, and was one asked for? The selector's checkbox is
   // the only way to ask now, so a probe needs to be able to see the answer.
   tutorState: () => ({ step: tutorStep, armed: tutorArmed, seen: tutorSeen }),
+  // Unlock announcements still waiting for the screen — see drainUnlockBanners.
+  pendingBanners: () => unlockBanners.map((m) => m.id),
   tutorOrder: () => [...tutorOrder()],
   tutorCourse: () => tutorCourse,
   tutorMeter: () => ({ on: tutorMeterOn, said: tutorMeterSaid,

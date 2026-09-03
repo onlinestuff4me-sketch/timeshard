@@ -6,7 +6,8 @@ const SEED = () => {
     const now = Date.now();
     localStorage.setItem('timeshard_taught', '1');
     localStorage.setItem('ts_s0_used', '1'); localStorage.setItem('ts_s0_mode', 'hall');
-    localStorage.setItem('ts_s0_doors', '7'); localStorage.setItem('ts_s0_best', '7');
+    localStorage.setItem('ts_s0_doors', '7');
+    localStorage.setItem('ts_deepest_door', '7'); localStorage.setItem('ts_s0_best', '7');
     localStorage.setItem('ts_s0_rdoor', '7'); localStorage.setItem('ts_s0_shat', '96');
     localStorage.setItem('ts_s0_unlocks', JSON.stringify(['gunner', 'corridor', 'pistol']));
     localStorage.setItem('ts_s0_at', String(now - 5e5));

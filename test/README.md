@@ -31,6 +31,8 @@ gitignored.
 | `modesel2.mjs` | The selector with a history: CONTINUE names the most recent run across games, nothing is locked at 24 doors, the recently-played band is under the hero, the clips load 4:3 and play, and the tutorial checkbox actually arms the lesson on a brand-new save. |
 | `unlocks.mjs` | LOAD GAME lists every mode's runs with each row naming its mode, and UNLOCKS has a MODES section that counts the gates and shows how far off each locked one is. |
 | `news.mjs` | The "something opened" badge on the title screen: it is up when a mode has opened unseen, opening UNLOCKS clears it, it stays cleared across a relaunch, and THE TUNNEL never wears a NEW badge. |
+| `unlockbanner.mjs` | Crossing a gate with nothing else on the door (10, STAND STILL) puts the NEW MODE UNLOCKED card on screen, moves the high-water mark once, and leaves nothing queued. |
+| `unlockdefer.mjs` | Crossing the gate that collides with the slow-time school (5, CORRIDOR DUEL): the school owns the screen, so the announcement must be held in the queue rather than dropped. |
 
 ## Writing another one
 

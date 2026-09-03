@@ -5,7 +5,8 @@ const SEED = () => { try {
   const now = Date.now();
   localStorage.setItem('timeshard_taught', '1');
   localStorage.setItem('ts_s0_used', '1'); localStorage.setItem('ts_s0_mode', 'hall');
-  localStorage.setItem('ts_s0_doors', '6'); localStorage.setItem('ts_s0_best', '6');
+  localStorage.setItem('ts_s0_doors', '6');
+  localStorage.setItem('ts_deepest_door', '6'); localStorage.setItem('ts_s0_best', '6');
   localStorage.setItem('ts_s0_rdoor', '6'); localStorage.setItem('ts_s0_at', String(now - 3e5));
   localStorage.setItem('ts_s0_born', String(now - 9e6));
   localStorage.setItem('ts_saves', JSON.stringify([{ i: 0, name: '', num: 1, mode: 'hall' }]));

@@ -8,6 +8,7 @@ const SEED = () => {
     localStorage.setItem('ts_s0_used', '1');
     localStorage.setItem('ts_s0_mode', 'hall');
     localStorage.setItem('ts_s0_doors', '24');
+    localStorage.setItem('ts_deepest_door', '24');
     localStorage.setItem('ts_s0_best', '24');
     localStorage.setItem('ts_s0_rdoor', '24');
     localStorage.setItem('ts_s0_shat', '410');
