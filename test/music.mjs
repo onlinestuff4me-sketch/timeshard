@@ -138,17 +138,17 @@ console.log('sections   part=' + part0.part + ' oneLoop=' + part0.oneLoop
   + ' stepVerb=' + part0.verb);
 if (part0.oneLoop) bad('the recorded track did not load — this is the synth fallback');
 if (!part0.verb) bad('the footsteps have no hallway to echo down');
-if (part0.part !== 'open') bad('a run did not start on the opening section');
+if (part0.part !== 'intro') bad('a run did not start on the opening section');
 
 // ask for the change at several points in the loop; every one must land on a
 // two-bar line, and none may wait longer than the two bars it is waiting for
 const cuts = await page.evaluate(async () => {
   const t = window.__ts, rows = [];
   for (let k = 0; k < 4; k++) {
-    t.sfx.musicPart('open');
+    t.sfx.musicPart('intro');
     await new Promise((r) => setTimeout(r, 5400));
     await new Promise((r) => setTimeout(r, 331 * k));   // a new phase each round
-    t.sfx.musicPart('main');
+    t.sfx.musicPart('drive');
     rows.push(t.audio().lastSwitch);
     await new Promise((r) => setTimeout(r, 5600));
   }
@@ -175,6 +175,12 @@ console.log('muffle     lowpass ' + mf.filter + ' Hz, rate ' + mf.musicRate);
 console.log('  1k-2k  ' + bandAt(fastB, 4) + ' -> ' + bandAt(slowB, 4) + ' dB');
 console.log('  2k-5k  ' + bandAt(fastB, 5) + ' -> ' + bandAt(slowB, 5) + ' dB');
 if (mf.filter > 900) bad('bullet time barely muffles the music: lowpass at ' + mf.filter + ' Hz');
+// NO PITCH BEND. Tape-slowing a recorded track reads as a broken record.
+if (Math.abs(mf.musicRate - 1) > 0.02) bad('bullet time is detuning the music: rate ' + mf.musicRate);
+// ...it ducks instead
+const duck = db(fastB.rms) - db(slowB.rms);
+console.log('  duck   ' + duck.toFixed(1) + ' dB quieter in bullet time');
+if (duck < 3) bad('bullet time does not turn the music down: ' + duck.toFixed(1) + ' dB');
 // the treble must actually go, and the bass must NOT: muffled is dull, not quiet
 if (bandAt(fastB, 5) - bandAt(slowB, 5) < 8) bad('the top end survives the muffle');
 if (bandAt(fastB, 0) - bandAt(slowB, 0) > 8) bad('the muffle is eating the bass too — that is a duck');
@@ -204,9 +210,67 @@ console.log('footsteps  walked ' + feet.walk.d + ' m -> ' + feet.walk.n + ' step
 if (feet.walk.n < 3) bad('a walking player makes no footsteps');
 if (feet.still.n > 0) bad('a standing player is walking on the spot');
 const stride = feet.walk.d / Math.max(feet.walk.n, 1);
-if (stride < 1.4 || stride > 2.4) bad('the stride is ' + stride.toFixed(2) + ' m');
+if (stride < 2.3 || stride > 3.6) bad('the stride is ' + stride.toFixed(2) + ' m');
 
-// ---- 6. it survives bullet time without vanishing or clipping --------------
+// ...AND THEY MUST NOT WALK ON THE SOUNDTRACK. Each measured alone: the
+// analyser hears the whole destination, so a boot under a bed that peaks at
+// -20dB is simply invisible in the sum, and comparing them in one pass
+// measured the music twice and called it a footstep.
+const bedAlone = await listen(2500);
+await page.evaluate(() => window.__ts.sfx.setMusicVol(0));
+await page.waitForTimeout(1000);
+const bootPk = await page.evaluate(async () => {
+  const t = window.__ts, out = [];
+  for (let k = 0; k < 6; k++) {
+    t.sfx.step(1, 1);
+    const t0 = performance.now();
+    while (performance.now() - t0 < 420) {
+      out.push(window.__tap().peak);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    await new Promise((r) => setTimeout(r, 240));
+  }
+  return Math.max(...out);
+});
+await page.evaluate(() => window.__ts.sfx.setMusicVol(1));
+await page.waitForTimeout(800);
+const under = db(bedAlone.peak) - db(bootPk);
+console.log('levels     bed peak ' + db(bedAlone.peak) + ' dB, boot ' + db(bootPk)
+  + ' dB -> the boot is ' + under.toFixed(1) + ' dB under the bed');
+if (under < 4) bad('the footsteps are walking on the soundtrack: only ' + under.toFixed(1) + ' dB under');
+if (under > 18) bad('the footsteps are inaudible under the music: ' + under.toFixed(1) + ' dB under');
+
+// ---- 6. THE TRACK NEVER RESTARTS, and fades rather than cuts --------------
+//
+// flush() used to re-seat the music at the top of its loop, which was right
+// when the music was an abstract synth pad and wrong the moment it became a
+// track with a shape: tapping PLAY re-cued the song you were already two
+// seconds into, and every retry did it again. The playhead only ever goes
+// forwards now, and pause/death take the music down on its own slow envelope
+// rather than on the master's 0.16s cut.
+const heads = [];
+const head = async (label) => {
+  const a = await page.evaluate(() => window.__ts.audio());
+  heads.push({ label, pos: a.pos, out: a.out });
+  return a;
+};
+await head('in the run');
+await page.tap('#pausebtn'); await page.waitForTimeout(1200);
+const paused = await head('paused');
+await page.waitForTimeout(1500);
+await head('still paused');
+await page.tap('#presume'); await page.waitForTimeout(1500);
+const resumed = await head('resumed');
+for (const h of heads) console.log('  ' + h.label.padEnd(14) + 'playhead ' + h.pos + 's  musicOut ' + h.out);
+for (let i = 1; i < heads.length; i++) {
+  if (heads[i].pos < heads[i - 1].pos) {
+    bad('the track restarted between "' + heads[i - 1].label + '" and "' + heads[i].label + '"');
+  }
+}
+if (paused.out > 0.3) bad('pausing did not take the music down: musicOut ' + paused.out);
+if (resumed.out < 0.7) bad('resuming did not bring the music back: musicOut ' + resumed.out);
+
+// ---- 7. it survives bullet time without vanishing or clipping --------------
 // (the muffle itself is section 4; this is only that it is still there)
 await page.evaluate(() => { window.__ts.setSlow(99); window.__ts.setTimeLocked(true); });
 await page.waitForTimeout(1500);
@@ -219,7 +283,7 @@ if (db(slow.rms) < -40) bad('the music falls apart in bullet time: ' + db(slow.r
 if (slow.peak > 0.95) bad('bullet time clips: peak ' + slow.peak.toFixed(3));
 await page.evaluate(() => window.__ts.setTimeLocked(false));
 await page.waitForTimeout(1200);
-// ---- 7. and it is still there after the run ends ---------------------------
+// ---- 8. and it is still there after the run ends ---------------------------
 await page.tap('#pausebtn');
 await page.waitForTimeout(600);
 await page.tap('#pendrun');
@@ -229,7 +293,7 @@ await page.waitForTimeout(3000);
 const menu = await listen(4000);
 console.log('on the menu rms ' + db(menu.rms) + ' dB   peak ' + db(menu.peak) + ' dB');
 if (db(menu.rms) < -38) bad('the menu lost its music: ' + db(menu.rms) + ' dBFS rms');
-// ---- 8. and the player's own slider still governs it ----------------------
+// ---- 9. and the player's own slider still governs it ----------------------
 await page.evaluate(() => window.__ts.sfx.setMusicVol(0));
 await page.waitForTimeout(1200);
 const off = await listen(2500);
@@ -239,7 +303,7 @@ await page.evaluate(() => window.__ts.sfx.setMusicVol(1));
 await page.waitForTimeout(800);
 await browser.close();
 
-// ---- 9. and turning the sound back ON brings the music with it -------------
+// ---- 10. and turning the sound back ON brings the music with it -------------
 //
 // Every other sound is made on demand, so unmuting is enough for all of them.
 // The music is the one LOOP, started once, and startMusic refuses to start
@@ -277,7 +341,7 @@ if (db(un.rms) < -38) bad('sound is back on but the menu has no music: ' + db(un
 errs.push(...b2.errs);
 await b2.browser.close();
 
-// ---- 10. a first-time player: the beat drops when the LESSON ends ---------
+// ---- 11. a first-time player: the beat drops when the LESSON ends ---------
 //
 // Not on a door — the onboarding's doors are a prologue and cost the run
 // nothing, so for a taught player the moment the opening is over is the
@@ -295,8 +359,8 @@ await b3.page.evaluate(() => { window.__ts.setTutorStep('done'); });
 await b3.page.waitForTimeout(4000);
 const taught = await b3.page.evaluate(() => window.__ts.audio().part);
 console.log('lesson     during=' + inLesson + '  after=' + taught);
-if (inLesson !== 'open') bad('the lesson is not on the opening section');
-if (taught !== 'main') bad('the beat never dropped when the lesson ended');
+if (inLesson !== 'intro') bad('the lesson is not on the opening section');
+if (taught !== 'drive') bad('the beat never dropped when the lesson ended');
 errs.push(...b3.errs);
 await b3.browser.close();
 

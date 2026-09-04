@@ -983,8 +983,9 @@ listener needs about 40 ms to hear a stumble).
 
 | section | plays | loops |
 |---|---|---|
-| `open` | from a run's first frame, and through the lesson | bars 0-5, **15.158 s** |
-| `main` | from the riser on bar 7, once | then bars 8-31, **60.632 s** |
+| **INTRO** (`intro`) | the menu, a run's opening, the whole lesson | bars 0-5, **15.158 s** |
+| **DROP** | bar 7, the riser — not a section, just the way through | once |
+| **DRIVE** (`drive`) | once the player is in the game proper | bars 8-31, **60.632 s** |
 
 > **The opening loop is six bars, not the seven the timestamps suggest.** The
 > intro is a TWO-bar pattern — heavy bar, light bar — so an odd loop length
@@ -1042,6 +1043,51 @@ would have given them almost nothing.
 Masters live in `Timeshard-sfx/`, with a README saying what was cut from what
 and the exact ffmpeg lines. The uploaded track was 7.8 MB of 320 kbps; what
 ships is 81.55 s at 112 kbps, **1.1 MB**.
+
+## The playhead only goes forwards
+
+Four notes from a playtest, and one of them was a bug I had shipped without
+noticing.
+
+**The track restarted when a run began.** `flush()` re-seated the music at the
+top of its loop. That was right when the music was an abstract eight-bar synth
+pad — a retry got a clean slate — and wrong the moment it became a track with
+a shape: tapping PLAY re-cued the song you were already two seconds into, and
+every retry did it again. flush drains the echo tail and cuts whooshes; that
+is what it is for. It no longer touches the music except to seat it if nothing
+ever did. Measured across menu -> run -> pause -> resume -> death -> menu ->
+second run, the playhead now runs **2.1s to 28.3s without once going
+backwards**, and the probe asserts exactly that: a step backwards is the
+signature of this bug.
+
+**The music came off the master.** Everything else hangs there, and the master
+is what pause and death cut in 0.16s, because a frozen world must not drone.
+The music wants the opposite — half a second out, most of a second back, into
+wherever it has got to. So it has its own path to the limiter and three
+envelopes with one job each: `musicGain` the player's slider, `musicDuck`
+bullet time, `musicOut` the pause/death fade. `setMuted` has to take both
+paths down now, which is the cost.
+
+**No pitch bend in bullet time.** Tape-slowing a recorded track reads as a
+broken record — the effect draws attention to itself and away from the thing
+it decorates. `slowRate` is 1 and the muffle keeps its job, joined by a duck
+(`MUSIC_SLOW.duck`, 0.42) so slow time takes the music down AND behind the
+wall. Measured: 5 dB quieter, 2k-5k still down 30.
+
+**One footstep sample, not two.** The uploaded pair did not match each other —
+one simply was not the same floor — so the other is both feet, and the left is
+the same recording a semitone and a half up. Two pitches off one sample is
+also what makes them a PAIR: same boot, same floor, which is what a real
+footstep pair has and two recordings do not. Light foot first. The cadence
+went from 1.85 m to **2.75 m** per boot (a step every ~0.5s at full stick,
+which is a walk rather than the jog it was), and the level from 0.42 to
+**0.04**.
+
+> **Measuring a quiet sound under a loud one measures the loud one.** I dropped
+> the footstep gain by 8.5 dB and the analyser reported it 0.4 dB quieter,
+> because the music bed peaks at -19 dB and a -28 dB boot is invisible in the
+> sum at the destination. Silence the bed, measure each alone, then compare:
+> the boot is 8-15 dB under the bed depending on which section is playing.
 
 ## NEXT UP
 

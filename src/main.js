@@ -4710,8 +4710,10 @@ function updateBullets(sdt) {
 const STICK_RADIUS = 70;        // px of thumb travel = full deflection
 const MOVE_SPEED = 5.5;         // m/s at full stick (real time)
 // One boot per this many metres covered. At full stick that is a step every
-// 0.34s, which is a jog — the pace the player actually moves at.
-const STEP_M = 1.85;
+// half second — a walk, not the jog 1.85 gave. The cadence still rises and
+// falls with how fast you are actually moving, because it is spent by
+// distance; this only sets where that scale sits.
+const STEP_M = 2.75;
 let stepDist = 0;
 // the door this run STARTED on, so "the second door of the run" means the
 // same thing whether the run is new or resumed at door 40
@@ -5379,9 +5381,10 @@ const sfx = (() => {
   let echoFb = null, echoDelay = null;
   let stepVerb = null, stepWet = null;   // the footsteps' corridor
   let musicComp = null;                  // synth-loop dynamics; see musicDynamics
+  let musicDuck = null, musicOut = null; // bullet-time duck, and the fade envelope
   let musicSrc = null, musicGain = null, musicFilter = null, musicBuf = null;
   let musicRate = 1, lastTs = 1, building = false;
-  let musicPart = 'open';      // which section is playing: 'open' or 'main'
+  let musicPart = 'intro';     // which section is playing: 'intro' or 'drive'
   let musicAt = 0;             // ctx time the current source's playhead was at `from`
   let musicSwitchAt = 0;       // a scheduled part change, so it is armed only once
   // buildSynthMusic makes a single loop with no sections; the recorded track
@@ -5396,20 +5399,28 @@ const sfx = (() => {
   // main section; 94.96 and 95.00 score identically, and the difference is
   // 25ms across a sixty-second loop), so a bar is 2.526316s.
   //
-  //   open   bars 0-5, looped. SIX bars, not the seven the eye picks out of
-  //          the waveform: the intro is a TWO-bar pattern, heavy bar then
-  //          light bar, so an odd loop length puts two heavy bars back to
-  //          back and the pattern stumbles every time it wraps.
-  //   main   starts on bar 7 — the riser, the sliding note you hear before
-  //          the beat drops — which plays ONCE, then loops bars 8-31. That
-  //          is 96 beats exactly, so the loop cannot drift; measured by
-  //          cross-correlating the two sides of the seam, it lands within
-  //          5ms, and the same test catches a deliberate 60ms error.
+  // The sections have names because we talk about them:
+  //
+  //   INTRO  bars 0-5, looped. Plays on the menu, through a run's opening,
+  //          and for the whole tutorial. SIX bars, not the seven the eye
+  //          picks out of the waveform: the intro is a TWO-bar pattern,
+  //          heavy bar then light bar, so an odd loop length puts two heavy
+  //          bars back to back and stumbles every time it wraps.
+  //   DROP   bar 7 on its own — the riser, the sliding note before the beat
+  //          lands. It is not a section you can be in; it is how you get
+  //          from INTRO to DRIVE, played once on the way through.
+  //   DRIVE  bars 8-31, looped. 96 beats exactly, so it cannot drift.
+  //          Measured by cross-correlating the two sides of the seam it
+  //          lands within 5ms, and the same test catches a 60ms error.
+  //
+  // All three live in ONE file. Splitting them would mean three decodes,
+  // three sets of encoder padding to fight, and a gap at every join; loop
+  // points inside a single buffer have none of those and are sample-exact.
   const MUSIC = {
     src: 'assets/music/electric-boost.mp3',
     bar: 2.5263158,
-    open: { from: 0, loopStart: 0, loopEnd: 15.157895 },
-    main: { from: 17.684211, loopStart: 20.210526, loopEnd: 80.842105 },
+    intro: { from: 0, loopStart: 0, loopEnd: 15.157895 },
+    drive: { from: 17.684211, loopStart: 20.210526, loopEnd: 80.842105 },
   };
   // Bullet time muffles the track, as if it were playing through the wall of
   // a room you have stepped out of. `muffleHz` is where the lowpass lands at
@@ -5421,7 +5432,11 @@ const sfx = (() => {
   // stop, which reads as an effect rather than as music. On a real recorded
   // track that is a lot, so this starts gentle. Move it toward 0.3 for more
   // drama, or to 1 if the pitch bend is distracting.
-  const MUSIC_SLOW = { muffleHz: 420, openHz: 18000, slowRate: 0.72 };
+  const MUSIC_SLOW = { muffleHz: 420, openHz: 18000, slowRate: 1, duck: 0.42 };
+  // How long the music takes to leave and come back on a pause, a death or a
+  // retry. Deliberately much slower than the master's 0.16s: the game must
+  // stop dead, the music must not.
+  const MUSIC_FADE = { out: 0.55, in: 0.9 };
   let faded = false;   // pause/death silence
   let muted = false;
   try { muted = localStorage.getItem('timeshard_muted') === '1'; } catch { /* private mode */ }
@@ -5457,11 +5472,22 @@ const sfx = (() => {
     timeslow: ['assets/sfx/timeslow.mp3', 3.4],   // very quiet master -> boosted
     time: ['assets/sfx/time.mp3', 2.6],
     shatterw: ['assets/sfx/shatterword.mp3', 1.7],
-    // the player's own boots, alternating. Trimmed to their transient and
-    // level-matched (the raw pair were 10dB apart, which reads as a limp)
-    step1: ['assets/sfx/step1.mp3', 0.5],
-    step2: ['assets/sfx/step2.mp3', 0.42],
+    // ONE BOOT, PLAYED TWICE. The uploaded pair did not match each other —
+    // one of the two simply was not the same floor — so the other one is
+    // both feet, and the left is the same recording a semitone up. Two
+    // pitches off one sample is also what makes them a PAIR: they are the
+    // same boot on the same floor, which is the thing a real footstep pair
+    // has and two different recordings do not.
+    // 0.04 puts a boot's peak about 10dB under the music bed's and nearly
+    // 30dB under a pistol: present, never competing. It was 0.42, which put
+    // footsteps level with the soundtrack and walked all over it.
+    step: ['assets/sfx/step.mp3', 0.04],
   };
+  // Light foot first, then the heavy one — that is the order a walk starts in,
+  // and it is what makes the cadence read as steps rather than as a click
+  // track. 1.09 is a semitone and a half: enough to hear as the other foot,
+  // not enough to hear as a different sound.
+  const STEP_PITCH = [1.09, 1.0];
   // announcer voicing: pitched down and echoed like the Next Wave hit
   const VOICE = { rate: 0.8, send: 0.6 };
   const sampleFetch = {};
@@ -5631,19 +5657,35 @@ const sfx = (() => {
     musicDynamics(false);
     musicGain = ctx.createGain();
     musicGain.gain.value = 0;
+    // THE MUSIC DOES NOT HANG OFF THE MASTER. Everything else does, and the
+    // master is what pause and death cut — in 0.16s, because a frozen world
+    // must not drone. The music wants the opposite of that: it should ease
+    // out over half a second and ease back into wherever it has got to, so
+    // the run you just lost and the one you are about to start are one piece
+    // of music. Two envelopes, two jobs.
+    //
+    //   musicGain   the player's slider
+    //   musicDuck   bullet time, set per frame
+    //   musicOut    pause / death / menu fades
+    //
     musicFilter.connect(mshelf); mshelf.connect(mcomp); mcomp.connect(musicGain);
-    musicGain.connect(master);
+    musicDuck = ctx.createGain();
+    musicOut = ctx.createGain();
+    musicGain.connect(musicDuck); musicDuck.connect(musicOut);
+    musicOut.connect(comp);        // past the master, into the same limiter
     // the footsteps' own hallway, ducked with the rest of the SFX
     stepVerb = ctx.createConvolver();
     try { stepVerb.buffer = buildHallIR(); } catch { stepVerb = null; }
     if (stepVerb) {
       stepWet = ctx.createGain();
-      stepWet.gain.value = 0.85;
+      // half, not most of it. The corridor should be something you notice
+      // about the boots, not the loudest thing about them.
+      stepWet.gain.value = 0.5;
       stepVerb.connect(stepWet); stepWet.connect(sfxBus);
     }
     const msend = ctx.createGain();
     msend.gain.value = 0.4;
-    musicGain.connect(msend); msend.connect(echoIn);
+    musicDuck.connect(msend); msend.connect(echoIn);
     loadMusic();
     // decode the sampled SFX now that a context exists
     for (const [name, [, gainV]] of Object.entries(SAMPLE_SRC)) {
@@ -5903,7 +5945,7 @@ const sfx = (() => {
     if (part === musicPart) return;
     musicPart = part;
     if (!ctx || !musicBuf || !musicSrc || musicOneLoop || muted) return;
-    const sec = MUSIC[part === 'main' ? 'open' : 'main'];   // the one playing now
+    const sec = MUSIC[part === 'drive' ? 'intro' : 'drive'];   // the one playing now
     const span = sec.loopEnd - sec.loopStart;
     const PAIR = MUSIC.bar * 2;
     const now = ctx.currentTime;
@@ -6029,6 +6071,8 @@ const sfx = (() => {
       muted = m;
       try { localStorage.setItem('timeshard_muted', m ? '1' : '0'); } catch { /* private mode */ }
       if (master) master.gain.value = m ? 0 : 0.9;
+      // ...and the music, which no longer rides on the master
+      if (musicOut) musicOut.gain.value = m ? 0 : (faded ? 0.0001 : 1);
       if (m) { try { speechSynthesis.cancel(); } catch { /* no TTS */ } }
       // If the buffer has not finished rendering yet, buildMusic's own
       // startMusic call lands after this and finds `muted` already false.
@@ -6042,13 +6086,13 @@ const sfx = (() => {
     // bullet time thins the cadence without anything having to ask it to.
     step(rate = 1, gainMul = 1) {
       if (!ctx || muted || game.state === 'menu') return;
-      stepFoot = 1 - stepFoot;
-      const name = stepFoot ? 'step2' : 'step1';
-      const s = samples[name];
+      const s = samples.step;
       if (!s) return;
+      const foot = STEP_PITCH[stepFoot];
+      stepFoot = (stepFoot + 1) % STEP_PITCH.length;
       const src = ctx.createBufferSource();
       src.buffer = s.buf;
-      src.playbackRate.value = rate;
+      src.playbackRate.value = rate * foot;
       const g = ctx.createGain();
       g.gain.value = s.gain * gainMul * sfxVol;
       src.connect(g);
@@ -6056,8 +6100,8 @@ const sfx = (() => {
       if (stepVerb) g.connect(stepVerb);       // ...and the hallway
       src.start(ctx.currentTime);
     },
-    // 'open' while the player is finding their feet, 'main' once they are in
-    // the game proper. The switch itself waits for a bar line.
+    // 'intro' while the player is finding their feet, 'drive' once they are
+    // in the game proper. The switch itself waits for a bar line.
     musicPart(part) { switchMusicPart(part); },
     musicNow() { return musicPart; },
     setMusicVol(v) {
@@ -6089,9 +6133,19 @@ const sfx = (() => {
       }
       // slower easing = a long, audible turntable-style pitch glide
       const k = Math.min(dt * 4.5, 1);
+      // NO PITCH BEND. Tape-slowing a recorded track reads as a broken record
+      // rather than as time stopping — the effect draws attention to itself
+      // and away from the thing it is decorating. Slow time takes the music
+      // DOWN and behind the wall instead: this duck plus the muffle below.
+      // (MUSIC_SLOW.slowRate is kept, at 1, because the shelved synth loop
+      // was built around the bend and would want it back.)
       const R = MUSIC_SLOW.slowRate;
       musicRate += ((R + (1 - R) * ts) - musicRate) * k;
       if (musicSrc) musicSrc.playbackRate.value = musicRate;
+      if (musicDuck) {
+        const want = MUSIC_SLOW.duck + (1 - MUSIC_SLOW.duck) * ts;
+        musicDuck.gain.value += (want - musicDuck.gain.value) * k;
+      }
       // THE MUFFLE SWEEPS IN OCTAVES, not in hertz. Interpolating the cutoff
       // linearly from 18kHz spends almost all of its travel above 4kHz, where
       // moving it does nothing you can hear, and only shuts in the last few
@@ -6163,6 +6217,11 @@ const sfx = (() => {
       return ctx ? { state: ctx.state, musicRate: +musicRate.toFixed(2), music: !!musicSrc,
         part: musicPart, oneLoop: musicOneLoop, verb: !!stepVerb,
         lastSwitch,   // for the probe: see switchMusicPart
+        // the playhead, in buffer seconds. It only ever goes forwards; a step
+        // BACKWARDS means something restarted the track, which is the bug
+        // that made tapping PLAY re-cue the song you were already hearing.
+        pos: musicBuf ? +(ctx.currentTime - musicAt).toFixed(3) : 0,
+        out: musicOut ? +musicOut.gain.value.toFixed(3) : 0,
         shim: !!(mediaShim && !mediaShim.paused),
         samples: Object.keys(samples).length, surface: !!surfaceBuf,
         voWords: waveWords, voWait: Math.max(0, Math.round(waveVoEndMs + 5000 - performance.now())),
@@ -6407,15 +6466,13 @@ const sfx = (() => {
         node.gain.setValueAtTime(0.0001, now);
       }
       for (const h of liveWhooshes.slice()) this.detachWhoosh(h);
-      if (musicSrc) {
-        try { musicSrc.stop(); } catch { /* already stopped */ }
-        musicSrc.disconnect();
-        musicSrc = null;
-      }
-      if (musicGain) {
-        musicGain.gain.cancelScheduledValues(now);
-        musicGain.gain.setValueAtTime(0, now);
-      }
+      // THE MUSIC IS NOT FLUSHED. It used to be: a retry re-seated the loop at
+      // the top, which was right when the music was an abstract eight-bar
+      // synth pad and wrong the moment it became a track with a shape. It
+      // meant tapping PLAY on the menu restarted the song you were already
+      // listening to, two seconds in — and every retry did it again. The
+      // echo tail below is what a flush is actually for. The music keeps its
+      // playhead and is faded, not cut; see musicFade.
       // re-arm once the line has certainly drained
       setTimeout(() => {
         if (!ctx || !echoIn) return;
@@ -6423,7 +6480,7 @@ const sfx = (() => {
         echoIn.gain.setValueAtTime(1, t);
         if (echoWet) echoWet.gain.setValueAtTime(0.06, t);
         if (echoFb) echoFb.gain.setValueAtTime(0.45, t);
-        startMusic();
+        if (!musicSrc) startMusic();   // ...unless it never got seated at all
       }, 90);
     },
     // Everything ducks to silence for pause/death and swells back on resume.
@@ -6437,6 +6494,21 @@ const sfx = (() => {
       master.gain.setValueAtTime(Math.max(master.gain.value, 0.0001), now);
       master.gain.exponentialRampToValueAtTime(target, now + Math.max(0.02, seconds));
       faded = to <= 0.001;
+      // The music follows, but on its own clock: long enough that pausing
+      // and resuming reads as the track being turned down and back up rather
+      // than as two edits. Its playhead never stops, so it comes back where
+      // it has got to instead of where it was.
+      this.musicFade(to, to > 0.5 ? MUSIC_FADE.in : MUSIC_FADE.out);
+    },
+    // ...and on its own, for anything that wants the music down without
+    // silencing the game
+    musicFade(to, seconds) {
+      if (!ctx || !musicOut || muted) return;
+      const now = ctx.currentTime;
+      musicOut.gain.cancelScheduledValues(now);
+      musicOut.gain.setValueAtTime(Math.max(musicOut.gain.value, 0.0001), now);
+      musicOut.gain.exponentialRampToValueAtTime(
+        Math.max(to, 0.0001), now + Math.max(0.02, seconds));
     },
     isFaded() { return faded; },
   };
@@ -8564,7 +8636,7 @@ function endTutorial(taught = true) {
   const slow = tutorCourse === 'slow';
   tutorCourse = 'open';
   tutorStep = null;
-  sfx.musicPart('main');   // the lesson is over; the beat drops on the next bar
+  sfx.musicPart('drive');   // the lesson is over; the beat drops on the next bar
   tutorDeadPending = false;
   tutorHardFreeze = false; tutorWorldHeld = false;
   tutorShaping = false;
@@ -9627,7 +9699,7 @@ function refreshMenuPrimary() {
 
 function showMenu() {
   sfx.fadeAll(1, 0.35);
-  sfx.musicPart('open');   // the calmest screen in the game gets the calm half
+  sfx.musicPart('intro');   // the calmest screen in the game gets the calm half
   clearMessages();
   clearField();
   el.pausebtn.style.display = 'none';
@@ -11309,7 +11381,7 @@ function initHall(from = 1) {
   // here" is counted from.
   runOpenDoor = door;
   stepDist = 0;
-  sfx.musicPart('open');
+  sfx.musicPart('intro');
   // Decided BEFORE the first leg is composed, because the onboarding shapes
   // its own two legs (a straight hallway, then a room) and `forced` runs
   // during construction.
@@ -11729,7 +11801,7 @@ function crossHallDoor() {
     // what the game is, and the track's beat drops to say so. A player who
     // took the lesson gets there sooner: endTutorial asks for the same switch,
     // because finishing the lesson IS that moment for them.
-    if (hall.doorsPassed + 1 > runOpenDoor) sfx.musicPart('main');
+    if (hall.doorsPassed + 1 > runOpenDoor) sfx.musicPart('drive');
     hall.legInDoor = 0;
     hall.legsThisDoor = doorLegs(hall.doorsPassed + 1);
     slotNoteDoor(hall.doorsPassed + 1);
@@ -12405,7 +12477,9 @@ function frame(now) {
     stepDist += Math.hypot(player.pos.x - preX, player.pos.z - preZ);
     if (stepDist >= STEP_M) {
       stepDist %= STEP_M;
-      sfx.step(0.94 + Math.random() * 0.12, 0.85 + Math.random() * 0.3);
+      // a narrow wobble: enough that two steps are never identical, not so
+      // much that the left and right feet stop sounding like a pair
+      sfx.step(0.97 + Math.random() * 0.06, 0.85 + Math.random() * 0.3);
     }
     recenterWorld();
     // a sprint grinding against a wall gives up instead of pinning you there
