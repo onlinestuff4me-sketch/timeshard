@@ -967,6 +967,82 @@ and finds `muted` already false. `test/music.mjs` boots a second browser with
 the toggle off, takes a gesture that is NOT the toggle so the render completes
 while muted, then unmutes — it fails on the build before the fix.
 
+## A recorded track, in two halves, and boots on the floor
+
+The synth loop is **shelved, not deleted** — `buildSynthMusic`, with a banner
+saying so and how to switch back. It keeps the phone-speaker voicing it was
+given last round, and it is still the fallback: `loadMusic` falls back to it if
+the mp3 will not fetch or decode, which also means the game still has music
+with the network off.
+
+**The track is 95.000 bpm exactly**, so a bar is 2.526316 s, and every loop
+point in `MUSIC` is a bar line measured off the recording rather than read off
+a clock. The tempo was fitted over the whole main section (94.96 and 95.00
+score identically; the difference is 25 ms across a sixty-second loop, and a
+listener needs about 40 ms to hear a stumble).
+
+| section | plays | loops |
+|---|---|---|
+| `open` | from a run's first frame, and through the lesson | bars 0-5, **15.158 s** |
+| `main` | from the riser on bar 7, once | then bars 8-31, **60.632 s** |
+
+> **The opening loop is six bars, not the seven the timestamps suggest.** The
+> intro is a TWO-bar pattern — heavy bar, light bar — so an odd loop length
+> puts two heavy bars back to back and the pattern stumbles every wrap. Six is
+> the nearest even count to the seven that was asked for.
+
+The main loop is 96 beats exactly, so it cannot drift. Verified by
+cross-correlating the onset envelope either side of the seam: **-4.6 ms**, and
+the same test reports +51 ms when the seam is deliberately moved 60 ms.
+
+**A section change waits for the next EVEN bar.** A cut mid-bar is the one
+thing that would make this sound like two files rather than one piece of
+music. Asked at ten different phases, every switch landed within 0.1 ms of a
+two-bar line and never waited longer than the two bars it was waiting for.
+`main` is entered on its riser — the slide before the beat drops — which plays
+once and is then looped past. It fires when the lesson ends, or on the second
+door of the run, counted from `runOpenDoor` so a save resumed at door 40 still
+gets its opening.
+
+**Levels were reset against the gunfire, not in the abstract.** A pistol runs
+about -21 dBFS rms; `MUSIC_GAIN` 0.2 puts the bed at **-34**, twelve decibels
+under the shooting. The synth loop keeps its own 0.78 — it is far quieter per
+unit gain — and the music-bus compressor is now transparent for the recording
+(`musicDynamics`): it existed to close the synth loop's 21 dB crest, and a
+mastered track arrives with that job done.
+
+**Bullet time muffles the track geometrically.** The lowpass sweeps
+`muffleHz * (openHz/muffleHz)^ts`, not linearly: a linear sweep from 18 kHz
+spends nearly all its travel above 4 kHz where moving it does nothing you can
+hear, and with the world stopped it was still sitting at **3.8 kHz** — duller,
+not muffled. Geometric lands on 420 Hz where the button does (507 Hz at the
+ts=0.05 floor). Measured on the music alone: 2k-5k drops **30 dB**, 1k-2k
+drops 14, and the bass is untouched — muffled means dull, not quiet, and the
+bass staying is what makes it sound like music through a wall.
+
+> `MUSIC_SLOW.slowRate` (0.72) is the tape-slow, and it is the judgement call
+> in here. The synth loop ran at 0.3 — a full turntable stop, which reads as
+> an effect. On a recorded track that is a lot. 1 leaves it at pitch and
+> muffles only.
+
+> **What I nearly shipped for nothing.** The music read 6 dB LOUDER in bullet
+> time, so I made its echo send fall as time slowed — principled, and it
+> changed the measurement by 0.6 dB. Measuring the music ALONE showed it holds
+> level and the swell was the game's other sounds. Reverted. The echo send is
+> 13 dB down; nothing routed that quietly is worth a per-frame write.
+
+**Footsteps are spent by distance covered**, measured after the collision
+solver — the same lesson as the enemies' walk cycle, from the other end. A
+player grinding along a wall is not walking, and bullet time thins the cadence
+without anything having to ask it to. One boot per 1.85 m; measured, 1.87.
+They get their own convolver (two early reflections at 19 and 37 ms, then a
+dark tail) rather than the global echo bus, which is 6% wet at full speed and
+would have given them almost nothing.
+
+Masters live in `Timeshard-sfx/`, with a README saying what was cut from what
+and the exact ffmpeg lines. The uploaded track was 7.8 MB of 320 kbps; what
+ships is 81.55 s at 112 kbps, **1.1 MB**.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
