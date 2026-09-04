@@ -578,7 +578,7 @@ by `1 + rushT / 25`, so everything ramps on the run clock instead.
 | door 98 | 21.6 | 0.52× | 1× |
 
 Slow time unlocks on **door 10** — the door after the first
-one that asks for a group of 4 (see the encounter table) —
+one that asks for a group of 5 (see the encounter table) —
 and the 10-door school runs from there. The staircase above is
 a separate schedule: it reaches 13 m/s on door 46,
 holds there, and then climbs again to a ceiling of 21.6 m/s. Rush Hour

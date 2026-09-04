@@ -1150,6 +1150,67 @@ DRAG TO LOOK back on that first shot, and the new `aimed` event (a sixth of a
 turn of look, or a metre of walk) takes them down — so a player who already
 knew never sees them.
 
+## The whole track is the loop, and the rooms have people in them
+
+**The menu played the quietest fifteen seconds of the song forever.** INTRO
+and DRIVE were two separate loops, so the start screen looped six sparse bars
+and the game looped twenty-four busy ones and neither ever heard the other.
+Both go round the full thirty-two now — `loopStart` 0, `loopEnd` 80.842 — and
+DRIVE falls back into INTRO, which works because bar 31 is a fill and arriving
+at bar 0 off the back of it is the resolution the fill already pointed at. A
+section is now only a place to come IN:
+
+| | comes in at | loops |
+|---|---|---|
+| `intro` | bar 0 | bars 0-5 — the tutorial, and only the tutorial |
+| `full` | bar 0 | all 32 — the menu |
+| `drive` | bar 7, the DROP | all 32 — a run |
+
+> `musicPart` defaults to `full` rather than being set by `showMenu`, because
+> `showMenu` is not called on a cold boot — the overlay is already up. The
+> default IS the menu's setting.
+
+**Starting a run does not rewind the track.** `full` and `drive` are the same
+loop, so switching between them past the drop needs no edit at all — and
+making one would rewind, which is precisely what read as "the soundtrack
+restarted" the last time. Coming from INTRO, or from anywhere before the drop,
+still gets the riser. Measured: a menu left running to 23.9s and then started
+reads 30.9s five seconds later, not 20.
+
+## More to shoot at, without more being shot at
+
+The doors after the lesson measured **one or two bodies met across a whole
+walked door**. The encounter table roughly doubled — door 1 from 3 bodies to
+5, door 8 from 12 to 18, most-at-once from 1 to 2 at the start and 3 to 4 by
+door 8.
+
+The rule that was supposed to make that free is that the room shares ONE shot
+clock (`lastEnemyShotAt`, `shotGap`), so five men fire no more often than one
+— they each wait longer for a turn. It did not hold, twice, and neither would
+have been visible without measuring the rate directly:
+
+* **The hold ceiling was a stopwatch, not a queue.** A man who had waited
+  longer than `gap + holdSlack` fired regardless of the clock, so a fuller
+  room leaked shots past the thing meant to be spacing them. Door 8 went from
+  **13.9 to 28.9 rounds a minute** with no difficulty dial touched. The
+  allowance scales with how many men are actually waiting now: with four
+  ahead of you, waiting four turns is taking your turn.
+* **The clock was set to a ceiling the old rooms never reached.** `gapFrom` 3s
+  permits 20 rounds a minute; the sparse early doors delivered about **14**,
+  and 14 is the pace the game was actually played at. Filling the rooms found
+  the ceiling for the first time. `gapFrom` is 4.3s now — 60/4.3 is 14 — so
+  the dial says what the game was already doing.
+
+Measured after both: **11.4 rounds a minute across doors 1-8** against 12.1
+when the doors were near-empty, with bodies met up from 1-2 to 3-4.
+`test/fire.mjs` watches the two numbers together, because either alone is
+easy to satisfy and useless.
+
+> `OPENING.unlockGroup` moved 4 to 5 at the same time, and that is bookkeeping
+> rather than a decision: the time-button door is derived from "the first door
+> that asks for a group this big", so a more generous table drags the whole
+> slow-time lesson earlier unless the threshold keeps pace. Door 10 either way.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a

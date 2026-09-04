@@ -4234,7 +4234,24 @@ function updateEnemy(e, sdt) {
         // the gap never actually applies. See OPENING.holdSlack.
         const gap = shotGap();
         const held = e.holdFireT || 0;
-        if (worldT - lastEnemyShotAt < gap && held < gap + OPENING.holdSlack) {
+        // THE CEILING IS A QUEUE, NOT A STOPWATCH.
+        //
+        // It exists so a crowd cannot hold each other into never firing, and
+        // it used to be a flat `gap + holdSlack` — which is fine for two men
+        // and wrong for five. Everyone who has been waiting longer than that
+        // fires REGARDLESS of the shot clock, so the bigger the room the more
+        // shots leak past the clock that is supposed to be spacing them.
+        // Measured, doubling the encounter table doubled the rate a player is
+        // shot at (door 8: 13.9 to 28.9 rounds a minute) without a single
+        // difficulty dial moving, which is exactly the thing the shared clock
+        // is there to prevent.
+        //
+        // So the allowance scales with how many men are actually waiting: with
+        // four ahead of you, waiting four turns is taking your turn, not
+        // deadlock. Nobody waits forever — the clock always advances — and a
+        // room of one behaves exactly as it did.
+        const queued = Math.max(1, schoolAiming());
+        if (worldT - lastEnemyShotAt < gap && held < gap * queued + OPENING.holdSlack) {
           e.holdFireT = held + sdt;
         } else {
           e.holdFireT = 0;
@@ -5419,7 +5436,10 @@ const sfx = (() => {
   let musicDuck = null, musicOut = null; // bullet-time duck, and the fade envelope
   let musicSrc = null, musicGain = null, musicFilter = null, musicBuf = null;
   let musicRate = 1, lastTs = 1, building = false;
-  let musicPart = 'intro';     // which section is playing: 'intro' or 'drive'
+  // WHERE THE TRACK COMES IN, and it starts on the menu because that is where
+  // the game starts. `showMenu` is not called on a cold boot — the overlay is
+  // already up — so this default is the menu's setting, not a placeholder.
+  let musicPart = 'full';      // 'intro' | 'full' | 'drive'
   let musicAt = 0;             // ctx time the current source's playhead was at `from`
   let musicSwitchAt = 0;       // a scheduled part change, so it is armed only once
   // buildSynthMusic makes a single loop with no sections; the recorded track
@@ -5451,11 +5471,29 @@ const sfx = (() => {
   // All three live in ONE file. Splitting them would mean three decodes,
   // three sets of encoder padding to fight, and a gap at every join; loop
   // points inside a single buffer have none of those and are sample-exact.
+  // THE WHOLE TRACK IS THE LOOP, and a section is a place to enter it.
+  //
+  // These used to be two separate loops — a six-bar intro and a
+  // twenty-four-bar body — which meant the menu played the sparse half over
+  // and over and the game played the busy half over and over, and neither ever
+  // heard the other. Both loop the FULL thirty-two bars now, INTRO included,
+  // and DRIVE ends by falling back into INTRO: bar 31 is a fill, so arriving
+  // at bar 0 off the back of it is the resolution the fill was already
+  // pointing at. What differs between them is only where you come IN.
+  //
+  //   intro   bars 0-5 on their own. The tutorial, and only the tutorial:
+  //           a lesson wants the same quiet six bars under it throughout.
+  //   full    in at bar 0, round the whole thirty-two. The menu.
+  //   drive   in at bar 7 — the DROP, the riser before the beat lands — and
+  //           then round the same thirty-two. A run.
+  const FULL_END = 80.842105;   // bar 32: the end of the loop, back to bar 0
   const MUSIC = {
     src: 'assets/music/electric-boost.mp3',
     bar: 2.5263158,
+    drop: 17.684211,
     intro: { from: 0, loopStart: 0, loopEnd: 15.157895 },
-    drive: { from: 17.684211, loopStart: 20.210526, loopEnd: 80.842105 },
+    full: { from: 0, loopStart: 0, loopEnd: FULL_END },
+    drive: { from: 17.684211, loopStart: 0, loopEnd: FULL_END },
   };
   // Bullet time muffles the track, as if it were playing through the wall of
   // a room you have stepped out of. `muffleHz` is where the lowpass lands at
@@ -5978,9 +6016,22 @@ const sfx = (() => {
   // is over.
   function switchMusicPart(part) {
     if (part === musicPart) return;
+    const was = musicPart;
     musicPart = part;
     if (!ctx || !musicBuf || !musicSrc || musicOneLoop || muted) return;
-    const sec = MUSIC[part === 'drive' ? 'intro' : 'drive'];   // the one playing now
+    const sec = MUSIC[was] || MUSIC.full;   // the one playing now
+    // ALREADY THERE IS NOT WORTH A CUT. `full` and `drive` are the same
+    // thirty-two-bar loop and differ only in where you come in, so starting a
+    // run off a menu whose playhead has already passed the drop needs no edit
+    // at all — and making one would rewind the track, which is the exact
+    // thing that read as "the soundtrack restarted" when a run began. Relabel
+    // and let it play. Coming from INTRO, or from anywhere before the drop,
+    // still gets the riser it was asked for.
+    if (was !== 'intro' && part !== 'intro' && sec.loopEnd === MUSIC[part].loopEnd) {
+      let at = (ctx.currentTime - musicAt) % (sec.loopEnd - sec.loopStart);
+      if (at < 0) at += sec.loopEnd - sec.loopStart;
+      if (at >= MUSIC.drop) { lastSwitch = null; return; }
+    }
     const span = sec.loopEnd - sec.loopStart;
     const PAIR = MUSIC.bar * 2;
     const now = ctx.currentTime;
@@ -6252,6 +6303,7 @@ const sfx = (() => {
       return ctx ? { state: ctx.state, musicRate: +musicRate.toFixed(2), music: !!musicSrc,
         part: musicPart, oneLoop: musicOneLoop, verb: !!stepVerb,
         lastSwitch,   // for the probe: see switchMusicPart
+        loop: musicSrc ? [+musicSrc.loopStart.toFixed(3), +musicSrc.loopEnd.toFixed(3)] : null,
         // the playhead, in buffer seconds. It only ever goes forwards; a step
         // BACKWARDS means something restarted the track, which is the bug
         // that made tapping PLAY re-cue the song you were already hearing.
@@ -9803,7 +9855,10 @@ function refreshMenuPrimary() {
 
 function showMenu() {
   sfx.fadeAll(1, 0.35);
-  sfx.musicPart('intro');   // the calmest screen in the game gets the calm half
+  // THE MENU PLAYS THE WHOLE TRACK. It used to loop the sparse opening six
+  // bars, so a player sitting on the start screen heard the quietest fifteen
+  // seconds of the song forever and never learned it had a chorus.
+  sfx.musicPart('full');
   clearMessages();
   clearField();
   el.pausebtn.style.display = 'none';
@@ -11490,7 +11545,6 @@ function initHall(from = 1) {
   // here" is counted from.
   runOpenDoor = door;
   stepDist = 0;
-  sfx.musicPart('intro');
   // Decided BEFORE the first leg is composed, because the onboarding shapes
   // its own two legs (a straight hallway, then a room) and `forced` runs
   // during construction.
@@ -11501,6 +11555,11 @@ function initHall(from = 1) {
   // would be the rudest possible welcome back.
   tutorShaping = door === 1
     && (!tutorSeen || tutorArmed) && timeMode === 'toggle' && !simple();
+  // WHERE THE TRACK COMES IN. Decided here rather than at the top of the
+  // function because it depends on `tutorShaping`, which is decided on the
+  // line above: a lesson wants the quiet six bars held under it, and a real
+  // run wants the drop. See MUSIC.
+  sfx.musicPart(tutorShaping ? 'intro' : 'drive');
   // ...and the slow lesson's flag comes back off the disk with it, so a run
   // abandoned halfway through that lesson is taught it again rather than
   // silently skipped for the rest of the browser session.
@@ -11905,11 +11964,10 @@ function crossHallDoor() {
     hall.doorsPassed++;
     game.wave++;
     lifetimeDoors++;
-    // INTO THE GAME PROPER. Crossing into the second door of this run is the
-    // moment the opening is over — the player has cleared a door, they know
-    // what the game is, and the track's beat drops to say so. A player who
-    // took the lesson gets there sooner: endTutorial asks for the same switch,
-    // because finishing the lesson IS that moment for them.
+    // INTO THE GAME PROPER. A run that skipped the lesson came in on the drop
+    // already (see initHall) so this is a no-op for it; what it still covers
+    // is the taught player, whose lesson may end mid-door — and a run that
+    // somehow opened on the quiet section has one guaranteed way back.
     if (hall.doorsPassed + 1 > runOpenDoor) sfx.musicPart('drive');
     hall.legInDoor = 0;
     hall.legsThisDoor = doorLegs(hall.doorsPassed + 1);

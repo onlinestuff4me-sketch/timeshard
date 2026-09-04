@@ -138,7 +138,13 @@ console.log('sections   part=' + part0.part + ' oneLoop=' + part0.oneLoop
   + ' stepVerb=' + part0.verb);
 if (part0.oneLoop) bad('the recorded track did not load — this is the synth fallback');
 if (!part0.verb) bad('the footsteps have no hallway to echo down');
-if (part0.part !== 'intro') bad('a run did not start on the opening section');
+if (part0.part !== 'drive') bad('a run that skips the lesson did not come in on the drop');
+// THE WHOLE TRACK IS THE LOOP. Both the menu and a run go round all
+// thirty-two bars — DRIVE falls back into INTRO — and only the tutorial holds
+// the six-bar opening on its own.
+if (!part0.loop || Math.abs(part0.loop[1] - 80.842) > 0.1) {
+  bad('a run is not looping the full track: loop ' + JSON.stringify(part0.loop));
+}
 
 // ask for the change at several points in the loop; every one must land on a
 // two-bar line, and none may wait longer than the two bars it is waiting for
@@ -354,13 +360,41 @@ await b3.page.tap('#mslist [data-mode="hall"]');
 await b3.page.waitForFunction(() => window.__ts.tutor && __ts.tutor().step !== null,
   null, { timeout: 30000 });
 await b3.page.waitForTimeout(2500);
-const inLesson = await b3.page.evaluate(() => window.__ts.audio().part);
+const inLesson = await b3.page.evaluate(() => window.__ts.audio());
 await b3.page.evaluate(() => { window.__ts.setTutorStep('done'); });
 await b3.page.waitForTimeout(4000);
-const taught = await b3.page.evaluate(() => window.__ts.audio().part);
-console.log('lesson     during=' + inLesson + '  after=' + taught);
-if (inLesson !== 'intro') bad('the lesson is not on the opening section');
-if (taught !== 'drive') bad('the beat never dropped when the lesson ended');
+const taught = await b3.page.evaluate(() => window.__ts.audio());
+console.log('lesson     during=' + inLesson.part + ' loop ' + JSON.stringify(inLesson.loop)
+  + '  after=' + taught.part + ' loop ' + JSON.stringify(taught.loop));
+if (inLesson.part !== 'intro') bad('the lesson is not on the opening section');
+if (!inLesson.loop || inLesson.loop[1] > 20) bad('the lesson is looping the whole track');
+if (taught.part !== 'drive') bad('the beat never dropped when the lesson ended');
+if (!taught.loop || Math.abs(taught.loop[1] - 80.842) > 0.1) {
+  bad('the run after the lesson is not looping the full track');
+}
+
+// ---- 12. the MENU plays the whole track, and a run does not rewind it -----
+const b4 = await boot({ seed: seedFor(false) });
+await b4.page.waitForTimeout(1600);
+// a gesture that is NOT the big button: with a save present that button is
+// CONTINUE and starts a run, so waking the audio with it never sees the menu
+await b4.page.tap('#titleblock');
+await b4.page.waitForTimeout(2000);
+const onMenu = await b4.page.evaluate(() => window.__ts.audio());
+console.log('menu       part=' + onMenu.part + ' loop ' + JSON.stringify(onMenu.loop));
+if (onMenu.part !== 'full') bad('the menu is not playing the whole track: ' + onMenu.part);
+if (!onMenu.loop || Math.abs(onMenu.loop[1] - 80.842) > 0.1) bad('the menu loop is not 32 bars');
+await b4.page.waitForTimeout(22000);           // let it get well past the drop
+const before = await b4.page.evaluate(() => window.__ts.audio());
+await b4.page.tap('.go');
+await b4.page.waitForTimeout(5000);
+const after = await b4.page.evaluate(() => window.__ts.audio());
+console.log('  past the drop ' + before.pos + 's -> after CONTINUE ' + after.pos + 's');
+if (after.pos < before.pos) {
+  bad('starting a run rewound a track that had already passed the drop');
+}
+errs.push(...b4.errs);
+await b4.browser.close();
 errs.push(...b3.errs);
 await b3.browser.close();
 

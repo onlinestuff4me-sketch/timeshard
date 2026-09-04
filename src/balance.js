@@ -267,17 +267,28 @@ export const OPENING = {
   // `doorEncounters` below is the only reader. The bodies in a door is the sum
   // of this; how many may be up at once is the largest group in it; and how
   // often you meet somebody is how many entries there are.
+  // MORE TO SHOOT AT, NOT MORE BEING SHOT AT. The doors after the lesson were
+  // measured at one or two bodies met across a whole walked door, which is a
+  // corridor with nothing in it — and shattering people is the thing players
+  // said they enjoy. Every entry below is bigger than it was.
+  //
+  // This costs no difficulty, and that is not a hope, it is how the firing
+  // works: the room shares ONE shot clock (`lastEnemyShotAt` and `shotGap`),
+  // so five men in a room fire no more often than one does, they just each
+  // wait longer for a turn. `gapFrom` 3s is held flat to door 10, so the rate
+  // a player is shot at through all of this is unchanged. What changes is how
+  // many silhouettes are standing there while it happens.
   encounters: [
-    [1, 1, 1],                  // 1
-    [1, 1, 1],                  // 2
-    [2, 1, 1],                  // 3
-    [2, 1, 1],                  // 4
-    [3, 2, 1],                  // 5
-    [3, 3, 2, 1, 1],            // 6
-    [3, 3, 2, 2, 1, 1],         // 7
-    [3, 3, 2, 2, 1, 1],         // 8
-    [4, 3, 3, 2, 2, 1],         // 9
-    [4, 3, 3, 2, 2, 1, 1],      // 10
+    [2, 2, 1],                  // 1   5 bodies
+    [2, 2, 2, 1],               // 2   7
+    [3, 2, 2, 1],               // 3   8
+    [3, 3, 2, 1],               // 4   9
+    [4, 3, 2, 2, 1],            // 5  12
+    [4, 3, 3, 2, 2],            // 6  14
+    [4, 4, 3, 2, 2, 1],         // 7  16
+    [4, 4, 3, 3, 2, 2],         // 8  18
+    [5, 4, 4, 3, 2, 2],         // 9  20
+    [5, 5, 4, 3, 3, 2],         // 10 22
   ],
   encCap: 6,           // the biggest group the game ever asks for
   encMax: 10,          // ...and the most encounters one door may hold
@@ -288,15 +299,14 @@ export const OPENING = {
   // the power answers being outnumbered, so it lands the door after being
   // outnumbered first happens.
   //
-  // FOUR, NOT THREE. Three put it on door 6, which is BEFORE the rusher
-  // (TYPE_INTRO says 7) — so the answer arrived before the question. A player
-  // handed a way out of being crowded has not yet been crowded: they had met
-  // one enemy type, in groups of up to three, with three seconds between
-  // shots. Four lands it on door 10, after the rusher has taught them what
-  // closing distance feels like and the shotgunner (9) what a room that
-  // punishes standing still feels like. The mechanic is a relief now rather
-  // than a gadget.
-  unlockGroup: 4,
+  // FIVE, and it is five because the TABLE moved, not because the door did.
+  // The unlock is meant to land after the rusher (TYPE_INTRO 7) and the
+  // shotgunner (9), which is door 10; this number is only the size of group
+  // that counts as being outnumbered, and it has to keep pace with the
+  // encounters above or the whole lesson slides earlier every time the curve
+  // gets more generous. Three used to mean door 6 — before the rusher, the
+  // answer arriving ahead of the question. Five means door 10 again.
+  unlockGroup: 5,
   corridorDoors: 3,    // no rooms at all before this: one shape to learn first
   legsCap: 5,
   // THE ROOM'S SHOT FLOOR, in world seconds. Three seconds between one enemy
@@ -304,7 +314,21 @@ export const OPENING = {
   // each round as its own event — then closing to the reflex gap the deep
   // game runs on.
   gapDoors: 10,        // ...held flat until here
-  gapFrom: 3.0,
+  // 4.3s, NOT 3s, and the number moved because the ROOMS did.
+  //
+  // This is the whole room's clock, not each man's: it is how often the
+  // player is shot at, however many people are standing there. At 3s a
+  // SATURATED room fires 20 rounds a minute — but the early doors were never
+  // saturated, they held one or two men, and measured they delivered about
+  // 14. That sparse 14 is the pace the game was played at and liked at.
+  // Doubling the encounter table fills those rooms, and a filled room at 3s
+  // finds the ceiling the empty one never reached: same dial, half again as
+  // many bullets, purely because there is now somebody there to fire them.
+  //
+  // So the clock is set to what a room ACTUALLY delivered rather than to what
+  // it was permitted: 60/4.3 is 14 a minute. More silhouettes, the same
+  // amount of incoming.
+  gapFrom: 4.3,
   gapTo: 0.28,
   gapBy: 25,           // ...and all the way down by this door
   // HOW LONG A MAN WILL ACTUALLY WAIT HIS TURN, past the gap, before firing
