@@ -37,6 +37,8 @@ gitignored.
 | `waydoor.mjs` | Walks a real leg at door 12 with the way-arrow up: it must retire well before the slab, never snap sideways, and fade rather than cut. |
 | `headline.mjs` | Asks each of the eight leg forms for its banner line: none may be blank, and none may announce what the player can already see (PILLARS ARE YOUR ONLY COVER). |
 | `gait.mjs` | Bodies that are not going anywhere stand still: three men the onboarding pins have zero leg rotation while still turning to face you and raising the gun, against a control that really is walking. |
+| `dodge.mjs` | DODGE THE BULLET is about a bullet that is going to hit you: a player standing in the lane is taught, a player already clear is left alone, and stepping out ends it. Plus the shooting lesson putting the drag prompts back for a player who only ever taps. |
+| `behind.mjs` | Walks doors 1-15 and asserts every body is released **ahead of the player along the path** (spine index, not z — a corridor that turns makes those different things), and that a body standing behind you lights its edge mark. |
 | `music.mjs` | The whole audio surface. Taps the signal reaching the speakers and asks how loud the music is and **in which bands** — a track whose energy sits under 300Hz is silent on a phone however healthy the audio graph looks. Then: the track's two sections and that a change between them lands on a bar line; that bullet time muffles it (treble gone, bass kept) rather than ducking it; that footsteps are spent by distance covered and never by a player standing still; the menu, the volume slider, booting with the sound toggle off, and that the beat drops when the tutorial ends. ~2.5 min. |
 
 ## Writing another one

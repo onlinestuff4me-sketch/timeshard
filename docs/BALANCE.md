@@ -148,10 +148,18 @@ have a staircase, a school or an unlock:
 Slow time is not unlocked on a door number somebody picked, and it is not
 unlocked by a speed either any more. It is unlocked by **being outnumbered**:
 `powerUnlockDoor()` walks the encounter curve and returns the door *after* the
-first door that asks for a group of `OPENING.unlockGroup` (three). On the
-shipped table that is **door 6**. Everything keys off that one answer — the
+first door that asks for a group of `OPENING.unlockGroup` (four). On the
+shipped table that is **door 10**. Everything keys off that one answer — the
 button, the meter, the STAND HERE corridor that teaches it, and the school that
 follows — so moving the encounter table moves the whole lesson with it.
+
+**Why four and not three.** Three put the unlock on door 6, which is *before*
+the rusher (`TYPE_INTRO` says 7) — the answer arriving ahead of the question. A
+player handed a way out of being crowded had not yet been crowded: one enemy
+type, groups of at most three, three seconds between shots. Four lands it on
+door 10, after the rusher has taught them what closing distance feels like and
+the shotgunner (9) what a room that punishes standing still feels like. The
+mechanic reads as a relief rather than as a gadget.
 
 **Why it moved.** It used to be the door the speed staircase reaches
 `SPEED.unlockM` on: door 46, about an hour of play, and most players would never
@@ -569,8 +577,8 @@ by `1 + rushT / 25`, so everything ramps on the run clock instead.
 | door 50 | 13 | 0.854× | 0.761× |
 | door 98 | 21.6 | 0.52× | 1× |
 
-Slow time unlocks on **door 6** — the door after the first
-one that asks for a group of 3 (see the encounter table) —
+Slow time unlocks on **door 10** — the door after the first
+one that asks for a group of 4 (see the encounter table) —
 and the 10-door school runs from there. The staircase above is
 a separate schedule: it reaches 13 m/s on door 46,
 holds there, and then climbs again to a ceiling of 21.6 m/s. Rush Hour

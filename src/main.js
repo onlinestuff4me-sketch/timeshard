@@ -2836,6 +2836,31 @@ function firstSightDist(px, pz) {
   return Infinity;
 }
 
+// HOW FAR ALONG THE CORRIDOR A POINT IS, in spine cells.
+//
+// "Ahead of the player" was a comparison of z, which is exactly right in a
+// straight corridor and wrong the moment one turns. A leg that jogs leaves the
+// player facing along x with the rest of the corridor beside them rather than
+// in front, and a body four metres further down z is then four metres past
+// their shoulder — behind them, by the only definition that matters, while
+// passing a test named `aheadMin`. That is the corner enemies were appearing
+// behind the player on.
+//
+// The spine is the walked path in order, so an INDEX into it is progress along
+// the route regardless of which way the route is pointing. Comparing indices
+// asks the question the rule meant to ask.
+function spineIx(x, z) {
+  const L = hall && hall.legs[hall.cur];
+  if (!L || !L.spine || !L.spine.length) return -1;
+  const C = HALL.cell;
+  let best = -1, bestD = Infinity;
+  for (let i = 0; i < L.spine.length; i++) {
+    const d = Math.hypot(L.spine[i][0] * C - x, L.spine[i][1] * C - z);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+
 // `at` PLACES THE BODY BEFORE IT IS BUILT, and that ordering is the whole
 // point of the argument rather than a convenience. Everything below bakes the
 // assemble animation into ABSOLUTE world coordinates at whatever point is
@@ -3012,6 +3037,11 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     // thing the player is being taught to point the power at.
     const anchor = inSchool() ? schoolAnchor() : null;
     const sightFloor = paced ? firstSightFloor() : 0;
+    // Where the player is along the route, and how far along it a body has to
+    // be to count as in front of them. Resolved once: the scan below runs
+    // forty times and the spine can be a hundred cells long.
+    const myIx = spineIx(player.pos.x, player.pos.z);
+    const aheadCells = Math.max(1, Math.round(PACING.aheadMin / HALL.cell));
     for (let tries = 0; tries < 40 && !placed; tries++) {
       const src = tries < 26 || !poolWide || !poolWide.length ? pool : poolWide;
       const [cgx, cgz] = src[Math.floor(Math.random() * src.length)];
@@ -3022,8 +3052,13 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       // cluster that cannot be placed must still become a body somewhere.
       if (anchor && tries < 32
         && Math.hypot(px - anchor.x, pz - anchor.z) > SCHOOL.clusterM) continue;
-      // NEVER behind you: the tunnel's whole promise is forward momentum
+      // NEVER behind you: the tunnel's whole promise is forward momentum.
+      // Measured ALONG THE PATH, not down z — see spineIx. A corridor that
+      // turns puts "further down z" behind the player's shoulder, and this
+      // rule was letting bodies out there while reading as if it had not.
       if (pz < player.pos.z + PACING.aheadMin) continue;
+      const ci = myIx >= 0 ? spineIx(px, pz) : -1;
+      if (ci >= 0 && ci < myIx + aheadCells) continue;
       if (finale) {
         // no 12m floor here: if you are already deep in the approach the
         // stage still has to happen, and it has to happen where you can see
@@ -7833,6 +7868,13 @@ let tutorSlowedHere = false, tutorResumedHere = false;
 // step, and a training area IS a step — so the reminders start again in the
 // next room and nowhere else.
 let tutorSpent = new Set();
+// Which men have already had DODGE THE BULLET said about them, this area.
+// The prompt is a statement about a SHOOTER, not about a room: three men in a
+// room is three separate first rounds and three separate lessons, and being
+// told a fourth time by the man who already taught you is nagging.
+let tutorDodgeTaught = new Set();
+// The look and the walk this step started from — see the `aimed` event.
+let tutorAimYaw = 0, tutorAimX = 0, tutorAimZ = 0;
 // ...and which of them have ever actually been on screen, because a cue can
 // only be spent by the action it asked for if it got as far as asking.
 let tutorShown = new Set();
@@ -8047,6 +8089,32 @@ function tutorRenderCues() {
   // line has to come and go WITH the prompt rather than hang over the whole
   // room.
   tutorLine(!!sp.divider || any((c) => c.divider));
+}
+
+// IS THIS ROUND ACTUALLY GOING TO HIT ME?
+//
+// DODGE THE BULLET used to be said about any round in the air that had flown
+// far enough, which meant it was said to a player who had already stepped out
+// of the way — the words sat there while the round sailed harmlessly down the
+// far side of the corridor, and then STAYED, because the only thing that
+// retired them was stepping sideways AGAIN from wherever they were standing
+// when it froze. Somebody who dodged early could not satisfy that without
+// dodging a second time, for a bullet that was never going to touch them.
+//
+// So the question is asked properly: project the round forward along its own
+// velocity, find where it passes closest to the player, and answer whether
+// that is inside the lane. Nothing else is a threat, and the moment it stops
+// being true the player HAS dodged, whether or not they moved the distance
+// some other rule wanted.
+function tutorRoundThreatens(b) {
+  if (!b) return false;
+  const vx = b.vel.x, vz = b.vel.z;
+  const sp2 = vx * vx + vz * vz;
+  if (sp2 < 1e-6) return false;
+  const dx = player.pos.x - b.pos.x, dz = player.pos.z - b.pos.z;
+  const t = (dx * vx + dz * vz) / sp2;    // when it passes closest, in seconds
+  if (t <= 0) return false;               // it is already past: nothing to dodge
+  return Math.hypot(dx - vx * t, dz - vz * t) <= TUTOR.dodgeLaneM;
 }
 
 // How far the player is from the nearest cell of the leg's walked path. A
@@ -8722,8 +8790,12 @@ const tutorAfter = (id) => {
 // find the line that used to place him.
 function tutorNext(step) {
   tutorStep = step; tutorT = 0; tutorSub = 0;
+  // Where they were looking and standing when this step began, so "have they
+  // dragged since?" has something to be measured from.
+  tutorAimYaw = player.yaw; tutorAimX = player.pos.x; tutorAimZ = player.pos.z;
   tutorFired = new Set();
   tutorSpent = new Set();
+  tutorDodgeTaught = new Set();
   tutorShown = new Set();
   tutorSlowedHere = false; tutorResumedHere = false;
   tutorHardFreeze = false;
@@ -9104,7 +9176,15 @@ function updateTutorial(dtReal, movedM, yawDelta) {
   if (tutorHardFreeze && tutorRound && !tutorRound.counted && !tutorRound.let
       && bullets.indexOf(tutorRound.b) >= 0) {
     const flown = tutorRound.from - tutorRound.b.pos.z;
-    if (!tutorWorldHeld && flown >= tutorRound.span * TUTOR.freezeAfter) {
+    // THE BARRIER BEAT TEACHES ON EVERY ROUND. It is three shots from one man
+    // at a player who has no gun yet and nothing to do but step aside, and
+    // repeating the instruction is the whole exercise. Everywhere after it,
+    // one man teaches this once.
+    const owner = tutorRound.b.turnOwner;
+    const drill = tutorStep === 'dodge';
+    const fresh = drill || !owner || !tutorDodgeTaught.has(owner);
+    if (!tutorWorldHeld && flown >= tutorRound.span * TUTOR.freezeAfter
+        && fresh && tutorRoundThreatens(tutorRound.b)) {
       tutorWorldHeld = true;
       tutorEverHeld = true;
       // WHERE THEY WERE STANDING WHEN IT STOPPED, so "have they stepped out of
@@ -9116,7 +9196,14 @@ function updateTutorial(dtReal, movedM, yawDelta) {
       // began — by the tap that answered the first one, two rounds ago.
       tutorFroze = false;
       if (tutorMay('timebtn')) tutorRevealButton();
+      if (owner) tutorDodgeTaught.add(owner);
       tutorEmit('held');
+    } else if (!tutorWorldHeld && flown >= tutorRound.span * TUTOR.freezeAfter) {
+      // Flown far enough, but it is going to miss, or this man has already
+      // made the point. Let it go by without a word — the round is still real
+      // and can still hit somebody who wanders into it, it just is not a
+      // lesson. Marking it `let` stops the check re-running every frame.
+      tutorRound.let = true;
     }
   } else if (!tutorHardFreeze || !tutorRound) {
     tutorWorldHeld = false;
@@ -9148,8 +9235,13 @@ function updateTutorial(dtReal, movedM, yawDelta) {
     // INTO the round is not dodging it.
     const acrossM = Math.abs(player.pos.x - tutorHeldFrom.x);
     const downM = Math.abs(player.pos.z - tutorHeldFrom.z);
+    // OUT OF THE LANE IS DODGED, however far that took. The distance rule
+    // below is the fallback for a round with no velocity left to project;
+    // being clear of the round is the real answer, and it is the one that
+    // matches what the words asked for.
     const byMoving = !tutorMay('timebtn')
-      && acrossM >= TUTOR.dodgeStepM && acrossM > downM;
+      && (!tutorRoundThreatens(tutorRound && tutorRound.b)
+        || (acrossM >= TUTOR.dodgeStepM && acrossM > downM));
     if (byButton || byMoving) {
       tutorWorldHeld = false;
       if (tutorRound) tutorRound.let = true;   // this round has been let go
@@ -9167,6 +9259,18 @@ function updateTutorial(dtReal, movedM, yawDelta) {
   // WHO IS ABOUT TO SHOOT. The training rooms' trigger reminder answers it.
   if (enemies.some((e) => e.alive && (e.state === 'aim' || e.state === 'burst'))
       && !tutorFired.has('threat')) tutorEmit('threat');
+  // HAVE THEY DRAGGED, EITHER THUMB, SINCE THIS STEP BEGAN? Aiming this game
+  // is turning and stepping — there is no aim control — so a player who taps
+  // and taps without moving is not missing the trigger, they have not
+  // connected "where the shot goes" to "where I am facing". The shooting
+  // lesson puts the two drag prompts back up for exactly that player, and
+  // this is what takes them down again.
+  if (!tutorFired.has('aimed')) {
+    let dy = Math.abs(player.yaw - tutorAimYaw);
+    while (dy > Math.PI) dy = Math.abs(dy - Math.PI * 2);
+    const moved = Math.hypot(player.pos.x - tutorAimX, player.pos.z - tutorAimZ);
+    if (dy >= TUTOR.aimedYaw || moved >= TUTOR.aimedM) tutorEmit('aimed');
+  }
   // ...and the clock, for the DEFERRED slow-time lessons. `freeze`/`resume` on
   // the frame the player's thumb changes it, `low` when the tank is half gone
   // — half of what they HAD when they reached for it, because a wave starts
@@ -10197,11 +10301,16 @@ function updateEdgeArrows(playing) {
   // the empty-leg case this used to cover — and it holds off for a beat after
   // a crossing rather than flashing on the frame you walk in.
   //
-  // ...AND NO PER-ENEMY MARKS WHILE THE PLAYER IS STILL BEING LED. They mean
-  // "somebody is over there", which is worth saying once a room holds several
-  // men; through the onboarding and the opening doors there is one man at a
-  // time and one mark on screen.
-  if (playing && player.alive && !beingLed()) {
+  // ...AND NO PER-ENEMY MARKS DURING THE LESSON, but every door after it.
+  //
+  // These used to be off for the whole of `beingLed()` — the onboarding AND
+  // the first eight doors — on the reasoning that the opening has one man at a
+  // time so a mark is noise. That reasoning expired when the encounter table
+  // did: door 5 puts three men up at once and door 6 puts up ten across the
+  // door, and a body you cannot see is exactly the case a mark exists for.
+  // The lesson still owns its own screen; after that, if somebody is behind
+  // you, you get told.
+  if (playing && player.alive && tutorStep === null) {
     for (const e of enemies) {
       let dYaw = Math.atan2(-(e.pos.x - player.pos.x), -(e.pos.z - player.pos.z)) - player.yaw;
       while (dYaw > Math.PI) dYaw -= Math.PI * 2;

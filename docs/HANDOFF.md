@@ -1089,6 +1089,67 @@ which is a walk rather than the jog it was), and the level from 0.42 to
 > sum at the destination. Silence the bed, measure each alone, then compare:
 > the boot is 8-15 dB under the bed depending on which section is playing.
 
+## Four notes, and two of them were the same mistake
+
+**DODGE THE BULLET was said about rounds that were going to miss.** From a
+clip: the round tracks down the far left of the corridor, the player is well
+clear, and the words sit there for its whole flight and past it. Two faults
+stacked. The prompt fired on any round that had flown `TUTOR.freezeAfter` of
+its span — distance from the muzzle, nothing about where it was GOING. And the
+only thing that retired it was stepping sideways `dodgeStepM` from wherever the
+player stood when it froze, so somebody who dodged early had to dodge a second
+time to clear a warning about a bullet that was never a threat.
+
+`tutorRoundThreatens` projects the round along its own velocity, finds the
+closest approach to the player and asks whether that is inside
+`TUTOR.dodgeLaneM` (0.75 m — wider than the 0.32 m hit radius, because the
+prompt has to arrive while there is still time to act on it). Nothing else
+holds the world. Leaving the lane is what ends it, however far that took.
+
+| | before | after |
+|---|---|---|
+| stands in the lane | taught | taught (896 of 900 frames) |
+| steps clear early, round 1.2 m wide | **still told to dodge** | 0 frames |
+| steps out mid-round | needs a second dodge | gone in 13 frames |
+
+It is also once per SHOOTER now (`tutorDodgeTaught`), not once per area —
+three men in a room is three first rounds — except at the barrier, where three
+shots from one man at a player with no gun is the whole exercise.
+
+**"Never behind you" was measuring the wrong axis.** The spawn rule read
+`pz < player.pos.z + PACING.aheadMin`, which is exactly right in a straight
+corridor and wrong the moment one turns: a leg that jogs leaves the player
+facing along x with the rest of the corridor beside them, and a body four
+metres further down z is then four metres past their shoulder — behind them,
+while passing a test called `aheadMin`. `spineIx` compares progress along the
+walked path instead, which is the question the rule meant to ask. Measured
+across doors 1-15: **2 bodies of 64 released behind the player at door 9,
+about 20 m away round a corner. Now 0 of 47.**
+
+> Both of those are the same mistake: a cheap proxy standing in for the real
+> quantity, correct in the case it was written for and quietly wrong outside
+> it. Distance flown for "will it hit me". A z comparison for "is it in front
+> of me". Neither announces itself, because the proxy keeps agreeing with the
+> truth right up until the geometry changes.
+
+**The edge marks are back for the main game.** They were off for the whole of
+`beingLed()` — the lesson AND doors 1-8 — because the opening met one man at a
+time. The encounter table outgrew that: door 5 puts three up at once. Off
+during the lesson, on afterwards.
+
+**The time button moved from door 6 to door 10** by changing one number —
+`OPENING.unlockGroup` 3 to 4 — because the door is derived from the encounter
+curve, not typed. Door 6 was BEFORE the rusher (7): the answer arriving ahead
+of the question. Door 10 is after the rusher and the shotgunner (9).
+
+**Aiming is facing, and nothing said so.** There is no aim control; you aim by
+turning, which is the same drag that walks you. TAP ANYWHERE TO SHOOT retires
+on the first shot, so a player who tapped at three men off the centre line was
+left with a blank screen and a miss. The shooting lesson puts DRAG TO MOVE and
+DRAG TO LOOK back on that first shot, and the new `aimed` event (a sixth of a
+turn of look, or a metre of walk) takes them down — so a player who already
+knew never sees them.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a

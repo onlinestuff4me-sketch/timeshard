@@ -286,8 +286,17 @@ export const OPENING = {
   // THE DOOR THE TIME BUTTON ARRIVES ON is the door AFTER the first one that
   // asks for a group this size. It is not a speed and not a hand-typed number:
   // the power answers being outnumbered, so it lands the door after being
-  // outnumbered first happens. With the table above, that is door 6.
-  unlockGroup: 3,
+  // outnumbered first happens.
+  //
+  // FOUR, NOT THREE. Three put it on door 6, which is BEFORE the rusher
+  // (TYPE_INTRO says 7) — so the answer arrived before the question. A player
+  // handed a way out of being crowded has not yet been crowded: they had met
+  // one enemy type, in groups of up to three, with three seconds between
+  // shots. Four lands it on door 10, after the rusher has taught them what
+  // closing distance feels like and the shotgunner (9) what a room that
+  // punishes standing still feels like. The mechanic is a relief now rather
+  // than a gadget.
+  unlockGroup: 4,
   corridorDoors: 3,    // no rooms at all before this: one shape to learn first
   legsCap: 5,
   // THE ROOM'S SHOT FLOOR, in world seconds. Three seconds between one enemy

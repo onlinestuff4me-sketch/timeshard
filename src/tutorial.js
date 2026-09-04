@@ -87,6 +87,17 @@ export const TUTOR = {
   // is released by MOVING, not by a button — the slow-time control does not
   // exist yet — so this is the whole answer to "have they done it".
   dodgeStepM: 0.85,
+  // HALF THE WIDTH OF THE LANE a round has to be passing through for it to be
+  // worth saying DODGE about. The player's own hit radius is 0.32m; this is
+  // wider because the prompt has to arrive while there is still time to act on
+  // it, and a round that will shave past at half a metre is one you want to
+  // have moved for. Anything outside it is a round going somewhere else.
+  dodgeLaneM: 0.75,
+  // What counts as having dragged, for the `aimed` event: a sixth of a turn
+  // of look, or a metre of walk. Either is unmistakably deliberate; neither is
+  // reachable by a thumb that only ever taps.
+  aimedYaw: 0.52,
+  aimedM: 1.0,
 
   // --- THE DEFERRED SLOW-TIME LESSONS --------------------------------------
   // Nothing in the shipped sequence reads anything below this line. It is the
@@ -702,9 +713,21 @@ export const STEPS = [
     grants: { gun: true, fire: true, ammo: true },
     bodies: 3, raiseGun: true,
     hud: 'CLEAR THE HALLWAY',
+    // AND IF THEY SHOOT WITHOUT EVER TURNING, SAY IT AGAIN. There is no aim
+    // control in this game: you aim by facing, which is the same drag that
+    // walks you down the corridor. A player who taps and taps at three men
+    // standing off the centre line has understood the trigger and not the
+    // thing the trigger needs, and nothing on screen was telling them —
+    // TAP ANYWHERE TO SHOOT retires on the first shot and left them with a
+    // blank screen and a miss. These come up on that first shot and go the
+    // moment either thumb drags, so a player who already knew never sees them.
     cues: [
       { text: 'TAP ANYWHERE TO SHOOT', slot: 'mid', arrow: 'none',
         hand: 'none', pulse: true, on: 'enter', off: 'shot' },
+      { text: 'DRAG TO MOVE', slot: 'left', arrow: 'none', hand: 'up',
+        pulse: false, on: 'shot', off: 'aimed' },
+      { text: 'DRAG TO LOOK', slot: 'right', arrow: 'none', hand: 'side',
+        pulse: false, on: 'shot', off: 'aimed' },
     ],
   },
   // --- 9. THE DOOR ---------------------------------------------------------
