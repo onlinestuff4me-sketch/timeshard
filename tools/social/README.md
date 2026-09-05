@@ -1,12 +1,12 @@
 # The link preview
 
-`assets/social/og-card.jpg` is what Messages, Slack, WhatsApp and the rest
+`assets/social/og-card-v2.jpg` is what Messages, Slack, WhatsApp and the rest
 show when somebody sends the link. It is generated from the running game, not
 drawn:
 
 ```sh
 python3 -m http.server 8321        # in another shell, from the repo root
-node tools/social/make-card.mjs    # -> assets/social/og-card.jpg
+node tools/social/make-card.mjs    # -> assets/social/og-card-v2.jpg
 ```
 
 Two steps in one script. It plays the game — warps to a corridor door, finds
@@ -19,9 +19,10 @@ stripped — then composites that frame under the wordmark using
 ## Two things that are easy to get wrong
 
 **Change the filename, not the file.** Every previewer caches these hard;
-Apple in particular will keep serving a card for days. If the picture is
-replaced, rename it and update the four `og:image` / `twitter:image` tags in
-`index.html` together.
+Apple in particular will keep serving a card for days. The name is versioned
+for exactly that reason — bump `OUT` at the foot of `make-card.mjs` and the
+four `og:image` / `twitter:image` tags in `index.html` together. Overwriting
+`og-card-v2.jpg` in place ships a picture nobody will see for a week.
 
 **The image chooses the layout, not the tags.** A square or small image gets
 the one-line compact row however many tags are present — which is what the

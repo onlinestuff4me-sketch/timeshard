@@ -1286,7 +1286,7 @@ and with none Apple's link previewer falls back to the `apple-touch-icon` —
 whose square shape is exactly what makes it choose the compact layout.
 
 The full Open Graph and Twitter set is in the head now, and
-`assets/social/og-card.jpg` is 1200×630 at an absolute `https` URL, which is
+`assets/social/og-card-v2.jpg` is 1200×630 at an absolute `https` URL, which is
 what gets the large card. Two things worth keeping in mind:
 
 * **The image chooses the layout, not the card type.** `summary_large_image`
@@ -1296,13 +1296,22 @@ what gets the large card. Two things worth keeping in mind:
   will serve a stale card for days. Rename and update all four image tags
   together.
 
-The card is generated from the running game rather than drawn —
-`node tools/social/make-card.mjs` warps to a corridor door, finds the longest
-straight run of the leg's spine, stands three men down it close enough to read
-at thumbnail size, shatters the nearest, screenshots 260 ms into the burst with
-the HUD stripped, and composites that under the wordmark. `test/social.mjs`
-guards the tags and fetches the file to check it really is 1200×630, because
-nothing inside the game changes when any of this breaks.
+The card is generated from the running game rather than drawn, and the
+wordmark on it is the app's own: `make-card.mjs` lifts the faceted SHATTER
+polygons straight off the live menu (`buildWordSVG`, coloured from `TONES`)
+rather than re-deriving them, so the card cannot drift from the title screen.
+
+**The corridor is generated per run, so the generator cannot take the first
+thing it is given.** One draw produced a wide atrium with the men
+twenty-five metres off and no pistol in frame — a true picture of the game and
+a poor picture OF it. The staging is a search now: try doors until one yields
+a corridor with a straight run of eight cells or more, stand three men at
+fixed distances down it, and only accept the frame if the nearest is 6–15 m
+away and within 15° of the centre line. It fails loudly rather than shipping a
+bad frame.
+
+`test/social.mjs` guards the tags and fetches the file to check it really is
+1200×630, because nothing inside the game changes when any of this breaks.
 
 ## NEXT UP
 
