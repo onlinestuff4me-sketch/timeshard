@@ -78,6 +78,10 @@ fragments across the whole depth range, assembling the answer to *what
 this building is and why the crowd complies.* Missable only in the sense
 that you have to go deeper to keep reading.
 
+**What they say, and the rest of the story the walls tell, is
+`docs/STORY.md`.** This section is the delivery mechanism; that file is the
+content, the voices, and the fence around them.
+
 ### 2d. Keys and sealed doors
 
 Occasionally a leg has a **second, sealed door** — different colour, never
