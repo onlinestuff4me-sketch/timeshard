@@ -254,6 +254,10 @@ height and a register (stencil / scrawl), and Act I is done:
 | the leg designation | beside the door | `L-06 · P-31` |
 | the induction stencil | leg 1 only | `INDUCTION` |
 
+**The system that paints these, the closed vocabulary they are drawn from,
+the colour law behind them and the tutorial sequence they open with are
+specified in `docs/MARKS.md`.**
+
 That last one is one word and it answers *why is there a tutorial*: because
 this is the induction, and the building inducts people. It also retroactively
 makes `STAND HERE` — which is already painted on a barrier in the onboarding —
