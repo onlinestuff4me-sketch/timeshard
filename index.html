@@ -424,10 +424,18 @@
 
   /* virtual move-stick (left thumb) */
   #stickbase, #sticknub { position:fixed; display:none; pointer-events:none; z-index:4;
-                          border-radius:50%; transform:translate(-50%,-50%); }
+                          border-radius:50%; transform:translate(-50%,-50%);
+                          opacity:1; transition:opacity .28s ease; }
   #stickbase { width:110px; height:110px; border:2px solid rgba(22,24,29,.25);
                background:rgba(22,24,29,.05); }
   #sticknub { width:44px; height:44px; background:rgba(22,24,29,.35); }
+  /* ...LEFT ON SCREEN WHERE THE THUMB LET GO. The stick floats — it appears
+     under whichever thumb starts dragging — which is what makes it
+     comfortable and also what makes it invisible: a control that only exists
+     while it is already being used cannot be found by somebody looking for
+     it. Dimmed, with the nub back at its centre, it stops being a control and
+     becomes a note saying where the control was. */
+  #stickbase.ghost, #sticknub.ghost { opacity:.5; }
 
   /* ---- kill words: faceted polygon wordmark, flashed per kill ---- */
   #flash { position:absolute; left:0; right:0; top:22%; text-align:center; pointer-events:none; }

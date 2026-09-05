@@ -4808,12 +4808,42 @@ const input = {
 let sprintTo = null;            // pickup currently being sprinted to
 let sprintStuckT = 0;           // time spent blocked against a wall mid-sprint
 
+// WHERE THE STICK WAS, LEFT ON THE GLASS. The move stick floats: it appears
+// under whichever thumb starts dragging, anywhere on the left half. That is
+// what makes it comfortable and it is also what makes it invisible — a
+// control that only exists while it is already being used is not findable by
+// somebody who is looking for it, which is what playtesters reported.
+//
+// So the ring stays where the thumb let go, dimmed, with the nub back at its
+// centre: not a live control, a note saying where the control was. It moves
+// the next time they drag, because the stick still floats — this is a
+// reminder of the last one, not a fixed position they now have to hit.
+let stickHome = null;
 function stickUI(show, ox, oy, x, y) {
   const base = el.stickBase, nub = el.stickNub;
   base.style.display = nub.style.display = show ? 'block' : 'none';
+  base.classList.remove('ghost'); nub.classList.remove('ghost');
   if (!show) return;
+  stickHome = { x: ox, y: oy };
   base.style.left = `${ox}px`; base.style.top = `${oy}px`;
   nub.style.left = `${x}px`; nub.style.top = `${y}px`;
+}
+// The thumb came off, but the run is still going: leave the mark.
+function stickRelease() {
+  const base = el.stickBase, nub = el.stickNub;
+  if (!stickHome) { base.style.display = nub.style.display = 'none'; return; }
+  base.style.display = nub.style.display = 'block';
+  base.classList.add('ghost'); nub.classList.add('ghost');
+  base.style.left = `${stickHome.x}px`; base.style.top = `${stickHome.y}px`;
+  // the nub sits back at the middle of its ring — a stick at rest
+  nub.style.left = `${stickHome.x}px`; nub.style.top = `${stickHome.y}px`;
+}
+// ...and this screen is over. `keep` is for the pause menu, which comes back
+// to the same run and the same thumb: forgetting the spot there would punish
+// somebody for pausing.
+function stickHide(keep) {
+  if (!keep) stickHome = null;
+  stickUI(false);
 }
 
 
@@ -5353,7 +5383,7 @@ function releasePointer(ev, isTapEligible) {
   for (const q of input.pointers.values()) if (q.role === 'move') stillMoving = true;
   if (!stillMoving && p.role === 'move') {
     input.stickX = input.stickY = 0;
-    stickUI(false);
+    stickRelease();
   }
   input.holding = input.pointers.size > 0;
 }
@@ -5420,7 +5450,10 @@ function dropAllPointers() {
   input.pointers.clear();
   input.stickX = input.stickY = 0;
   input.holding = false;
-  stickUI(false);
+  // ...AND THIS IS AN ORDINARY LIFT TOO. It fires on the touchend that takes
+  // the last finger off the glass, which is every lift of a single thumb —
+  // so hiding here wiped the mark a frame after pointerup had left it.
+  stickRelease();
 }
 window.addEventListener('touchend', (ev) => { if (ev.touches.length === 0) dropAllPointers(); }, { passive: true });
 window.addEventListener('touchcancel', (ev) => { if (ev.touches.length === 0) dropAllPointers(); }, { passive: true });
@@ -7423,13 +7456,14 @@ function openPause() {
   input.pointers.clear();
   input.stickX = input.stickY = 0;
   input.holding = false;
-  stickUI(false);
+  stickHide(true);   // the same run is behind this menu; remember the spot
 }
 function closePause() {
   if (game.state !== 'paused') return;
   game.state = game.pausedFrom || 'play';
   el.pausemenu.style.display = 'none';
   sfx.fadeAll(1, 0.22);   // and back up as the world resumes
+  stickRelease();         // ...and the stick's mark comes back with it
   // THE HUD IS DECIDED WHILE PAUSED AND APPLIED WHEN RUNNING. Settings > TIME
   // calls updateModeUI() from inside the pause menu, where `inRun` is false,
   // so switching to BUTTON mid-run hid the button and the meter and nothing
@@ -10158,7 +10192,7 @@ function showMenu() {
   input.pointers.clear();
   input.stickX = input.stickY = 0;
   input.holding = false;
-  stickUI(false);
+  stickHide();          // a fresh screen: the last thumb's spot is not this run's
   sprintTo = null;
   setWeapon('pistol');
   game.state = 'menu';
@@ -11097,7 +11131,7 @@ function advanceFromOverlay() {
     input.pointers.clear();
     input.stickX = input.stickY = 0;
     input.holding = false;
-    stickUI(false);
+    stickHide();        // a fresh screen: the last thumb's spot is not this run's
     sprintTo = null;
     setWeapon('pistol');
     if (game.mode === 'rush') initRush();
