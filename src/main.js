@@ -13664,6 +13664,10 @@ window.__ts = {
       // them used to be visible from outside.
       taught: (L.proto && L.proto.tutorLeg && L.proto.tutorLeg.id) || null,
       stretches: (L.stretches || []).map((s) => ({ z0: s.z0, z1: s.z1, n: s.cells.length })),
+      // THE TWO DIALS THAT DECIDE WHAT A ROOM FEELS LIKE, and neither was
+      // readable from outside: how many may stand there at once, and how long
+      // everybody waits after one of them fires.
+      alive: maxAlive(), gap: +shotGap().toFixed(2),
       doorZ: L.door.z };
   },
   slowLook: () => ({ look: +slowLook.toFixed(3), scale: +timeScale.toFixed(4),

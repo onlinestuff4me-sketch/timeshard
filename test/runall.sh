@@ -36,6 +36,11 @@ for f in test/*.mjs; do
   # would fire on a clean walk and a 135-degree one would not. Re-run it by
   # name if the corridors change shape — `bash test/runall.sh facing`.
   [ "$name" = "facing" ] && [ -z "$FILTER" ] && continue
+  # ...and `duelwalk`, which is walk.mjs for CORRIDOR DUEL: it stands in each
+  # of the first twelve rooms and records the strip, every man who arrives,
+  # what he is and when. It is the data behind docs/DUEL.md and the published
+  # plan page. `bash test/runall.sh duelwalk` re-captures it.
+  [ "$name" = "duelwalk" ] && [ -z "$FILTER" ] && continue
   [ -n "$FILTER" ] && [[ "$name" != *"$FILTER"* ]] && continue
   echo "── $name"
   out="$(TS_PORT="$PORT" node "$f" 2>&1)"
