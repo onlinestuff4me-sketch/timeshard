@@ -446,6 +446,24 @@ export const EARLY = {
   // it, which is a question already answered.
   wayDoneM: 10,
   waySettleS: 0.7,     // seconds a CLEARED leg must stay quiet before the mark
+  // ...AND WHENEVER THEY HAVE TURNED THEIR BACK ON IT, fight or no fight. A
+  // player who is facing the way they came has no way of telling this corridor
+  // from the one behind them, and that is the one moment "which way now" is a
+  // real question even in a room with somebody still in it.
+  //
+  // 135, AND NOT 90. Measured over 1072 frames of ordinary walking — facing
+  // the direction of travel, the most innocent thing a player does — down
+  // doors 3, 6 and 10:
+  //
+  //     0-30 deg  61%   30-60  11%   60-90  23%   90-120  6%   over 120  0%
+  //
+  // A corridor that turns takes you to 117 degrees off the next segment just
+  // by walking round the corner, so a 90 degree rule would fire on 5.5% of a
+  // clean walk — a mark that appears while you are doing everything right. At
+  // 120 nothing in that sample fires at all; 135 keeps the margin and matches
+  // what was asked for, which is facing the OPPOSITE way, not merely across.
+  wayBackDeg: 135,
+  wayBackOffDeg: 105,  // ...and it lets go before it came on, so it cannot flicker
 };
 
 // ---------------------------------------------------------------------------

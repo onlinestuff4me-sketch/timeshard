@@ -10575,6 +10575,22 @@ function wayTarget() {
   return wayPointAt(pts, wayProject(pts), EARLY.wayLookM);
 }
 
+// HAVE THEY TURNED THEIR BACK ON IT? Latched, like the per-enemy marks: it
+// comes on at `wayBackDeg` and does not let go until `wayBackOffDeg`, so a
+// player standing near the boundary and breathing does not make it blink.
+let wayBack = false;
+function wayFacingAway() {
+  const want = wayBearing();
+  if (want === null) { wayBack = false; return false; }
+  let off = want - player.yaw;
+  while (off > Math.PI) off -= Math.PI * 2;
+  while (off < -Math.PI) off += Math.PI * 2;
+  const deg = Math.abs(off) * 180 / Math.PI;
+  if (wayBack) wayBack = deg > EARLY.wayBackOffDeg;
+  else wayBack = deg >= EARLY.wayBackDeg;
+  return wayBack;
+}
+
 function wayArrowShows() {
   if (!inHall() || !hall) return false;
   // IT IS FINISHED BEFORE THE DOOR IS, whoever asked for it. The path ends AT
@@ -10596,6 +10612,19 @@ function wayArrowShows() {
   // to look down the straight — so keying the hand-off to the step took the
   // mark away while there was still nothing on screen to replace it.
   if (tutorStep !== null) return !!tutorMay('way') && !tutorSignSeen;
+  // ...AND WHENEVER THEY HAVE TURNED THEIR BACK ON THE WAY OUT, cleared leg
+  // or not. Everything below this line is about a corridor with nothing left
+  // in it, which is one of the two times "which way now" is a real question.
+  // The other is this: a player facing the way they came, who cannot tell
+  // this corridor from the one behind them, and who is in that state whether
+  // or not somebody is still standing in the room.
+  //
+  // NOT WHILE THE ENEMY MARKS ARE UP. Those are the same red, at the same
+  // edge of the same screen, and two reds meaning two different things is
+  // worse than either one alone: the marks are about somebody who can shoot
+  // you, and they win. So this is the mark you get when the screen is
+  // otherwise quiet and you are simply lost.
+  if (wayFacingAway() && !enemies.some((e) => e.edgeArrow)) return true;
   // ...and past the onboarding it is the empty-leg mark: only on a leg with
   // nobody left in it, which is the one place "which way now" is a real
   // question — a corridor with no sound, no fight, and two directions that
@@ -10635,6 +10664,7 @@ function updateWayArrow(playing, dt) {
   if (!a) return;
   if (hall && hall.cur !== wayLegSeen) {
     wayLegSeen = hall.cur; wayClearT = 0; wayWorld = null; wayPathIx = 0;
+    wayBack = false;   // a new corridor is not one you have your back to yet
   }
   wayClearT = enemies.length ? 0 : wayClearT + dt;
   const show = playing && player.alive && wayArrowShows();
@@ -13593,6 +13623,13 @@ window.__ts = {
     const t = wayTarget();
     return { on: el.wayarrow ? el.wayarrow.classList.contains('on') : false,
       led: beingLed(), clearT: +wayClearT.toFixed(2), doors: EARLY.wayDoors,
+      back: wayBack, edge: enemies.some((e) => e.edgeArrow),
+      // THE BEARING THE GAME ITSELF USES, not one a probe re-derives from
+      // `target`. `wayBearing` is a weighted blend of four lookaheads and
+      // `target` is only the furthest of them, so near a corner the two
+      // disagree by tens of degrees — enough for a probe to report an angle
+      // the game never saw and then fail the game for it. Pure read.
+      bearing: (() => { const b = wayBearing(); return b === null ? null : +b.toFixed(4); })(),
       look: EARLY.wayLookM,
       // the bearing in the WORLD, and the one actually drawn on the glass
       world: wayWorld === null ? null : +wayWorld.toFixed(4),

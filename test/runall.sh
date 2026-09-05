@@ -30,6 +30,12 @@ for f in test/*.mjs; do
   # exists to redraw the floor-plan page. Run it by name when the maps need
   # remaking — `bash test/runall.sh walk` still finds it.
   [ "$name" = "walk" ] && [ -z "$FILTER" ] && continue
+  # ...and so is `facing`: it is where EARLY.wayBackDeg comes from. It walks
+  # doors 3, 6 and 10 facing the direction of travel and reports how far off
+  # the way out that puts you, which is the number that says a 90-degree rule
+  # would fire on a clean walk and a 135-degree one would not. Re-run it by
+  # name if the corridors change shape — `bash test/runall.sh facing`.
+  [ "$name" = "facing" ] && [ -z "$FILTER" ] && continue
   [ -n "$FILTER" ] && [[ "$name" != *"$FILTER"* ]] && continue
   echo "── $name"
   out="$(TS_PORT="$PORT" node "$f" 2>&1)"
