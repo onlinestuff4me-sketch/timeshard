@@ -156,5 +156,56 @@ const dragged = await read();
 console.log('after dragging       ' + JSON.stringify(dragged));
 if (/DRAG TO/.test(dragged.left + dragged.right)) bad('the drag reminders did not retire once they dragged');
 
+// ---- 5. ...AND THE SQUAD SHOOTS BACK, ONE AT A TIME ----------------------
+//
+// Measured before this existed: three men stood in this hallway for thirty
+// seconds and fired NOTHING — every frame in `advance`, held by the script.
+// The first beat where the player is asked to do something TO somebody was a
+// shooting gallery. They take turns now, the same way the barrier's man does:
+// the next arm goes up as the last round clears you.
+const turns = await page.evaluate(async () => {
+  const t = window.__ts;
+  t.setTutorStep('shoot');
+  t.bullets.length = 0;
+  for (let i = 0; i < 120; i++) { await new Promise((r) => requestAnimationFrame(r)); t.player.iframes = 999; }
+  t.bullets.length = 0;
+  const seen = new WeakSet(); const fired = []; const owners = [];
+  let peakAir = 0;
+  const home = t.player.pos.x;
+  const t0 = performance.now();
+  while (performance.now() - t0 < 24000) {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999; t.input.stickX = 0; t.input.stickY = 0;
+    // ONE COMING AT YOU, not one in the level. A spent round keeps travelling
+    // down the corridor behind you until it hits a wall, so counting every
+    // bullet in the array calls the tail of the last turn an overlap with the
+    // start of the next one. What "taking turns" means is that there is never
+    // more than one round still on its way to you.
+    const air = t.bullets.filter((b) => !b.fromPlayer && b.pos.z > t.player.pos.z - 0.3);
+    // step aside while a round is up, so it goes past and the next turn comes
+    t.player.pos.x = air.length ? home + 1.6 : home;
+    peakAir = Math.max(peakAir, air.length);
+    for (const b of t.bullets) {
+      if (b.fromPlayer || seen.has(b)) continue;
+      seen.add(b);
+      fired.push(+((performance.now() - t0) / 1000).toFixed(2));
+      owners.push(t.enemies.findIndex((e) => e === b.turnOwner));
+    }
+  }
+  return { fired, owners, peakAir, bodies: t.enemies.filter((e) => e.alive).length };
+});
+console.log('shoot step, they fire ' + turns.fired.length + ' rounds in 24s at '
+  + turns.fired.join('s, ') + 's');
+console.log('  which of the ' + turns.bodies + ' men fired each: ' + JSON.stringify(turns.owners)
+  + '   most on their way to you at once: ' + turns.peakAir);
+if (turns.fired.length < 2) bad('the shooting lesson is a gallery: ' + turns.fired.length
+  + ' rounds fired at the player in 24s');
+if (turns.peakAir > 1) bad('they are firing over each other, not taking turns: '
+  + turns.peakAir + ' rounds on their way to the player at once');
+// ...and it is not the same man every time
+if (new Set(turns.owners.filter((o) => o >= 0)).size < 2) {
+  bad('one man is taking every turn: ' + JSON.stringify(turns.owners));
+}
+
 done('dodge', errs);
 await browser.close();

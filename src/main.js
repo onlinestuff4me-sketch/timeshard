@@ -4251,10 +4251,24 @@ function updateEnemy(e, sdt) {
         // deadlock. Nobody waits forever — the clock always advances — and a
         // room of one behaves exactly as it did.
         const queued = Math.max(1, schoolAiming());
-        if (worldT - lastEnemyShotAt < gap && held < gap * queued + OPENING.holdSlack) {
+        // A SCRIPTED TURN IS NOT SUBJECT TO THE ROOM'S CLOCK. The clock exists
+        // to stop a crowd firing over each other; in a lesson the script is
+        // already handing out one turn at a time and waiting for each round to
+        // clear the player before the next arm goes up, so the clock is a
+        // second queue behind the first and all it adds is standing still.
+        //
+        // Found by measuring after a change rather than before: cutting the
+        // script's own gap from 0.4s to 0.05s moved the arm up 0.5s earlier
+        // and did not move the round-to-round time AT ALL — the man simply
+        // held the pose longer, because what he was waiting for was `gap`
+        // (4.3s at door 1), not the script. The dial I could see was not the
+        // one that was binding.
+        if (!e.scriptShot && worldT - lastEnemyShotAt < gap
+            && held < gap * queued + OPENING.holdSlack) {
           e.holdFireT = held + sdt;
         } else {
           e.holdFireT = 0;
+          e.scriptShot = false;   // one turn, one round
           enemyFire(e, toPlayer);
           setEgunFlash(e, MAT_BLACK);
           if (spec.burst) {   // heavies always fire exactly spec.burst rounds
@@ -8740,6 +8754,10 @@ function tutorAim(e) {
   const dx = player.pos.x - e.pos.x, dz = player.pos.z - e.pos.z;
   e.g.rotation.y = Math.atan2(dx, dz) + Math.PI;
   e.state = 'aim'; e.stateT = 0; e.holdFireT = 0; e.fireCd = 0;
+  // THIS TURN IS THE SCRIPT'S, so it does not queue behind the room's shared
+  // shot clock as well — see the fire gate in the `aim` case. The script is
+  // already the queue here: it waits for each round to clear the player.
+  e.scriptShot = true;
   tutorAwaitShot = true;
   return true;
 }
@@ -9704,6 +9722,15 @@ function updateTutorial(dtReal, movedM, yawDelta) {
       break;
 
     case 'cleared':
+      // ...AND THEY TAKE TURNS SHOOTING BACK, on the steps that ask for it.
+      // Same driver as the barrier beat below: one round in the air at a
+      // time, and the next man's arm goes up as the last round clears the
+      // player. Declared on the step (`turns`) rather than keyed on its
+      // name, so a step is free to be called whatever the person editing the
+      // script wants — the same rule the advance conditions follow.
+      if (sp && sp.turns && !tutorRound && !tutorAwaitShot && tutorSub <= 0) {
+        tutorSub = tutorAimNext() ? TUTOR.reshoot : 1;
+      }
       // never let them run dry while they are learning to pull the trigger
       if (player.mag <= 0 && player.reloadT <= 0) {
         // the PISTOL back, not just rounds for whatever is in hand: emptying a

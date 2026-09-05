@@ -125,12 +125,21 @@ export const TUTOR = {
   // over. One second: long enough to see the round leave, short enough that
   // three of them are one exercise rather than three waits.
   //
-  // 0.4, NOT 1.0, because this is the countdown BEFORE the telegraph and the
-  // player is timing the round. Measured: the arm-raise adds ~0.6 s between
-  // the beat ending and the round existing, so 0.4 puts the next bullet in
-  // the air one second after the last one went past — which is the ask.
-  // (It was 2.6, and with the telegraph that was 3.2 s of standing still.)
-  dodgeGap: 0.4,
+  // 0.05, NOT 0.4: THE ARM STARTS UP AS THE ROUND GOES BY. This is the
+  // countdown BEFORE the telegraph, and the telegraph is the tell the player
+  // is here to learn, so it is the only part of the wait that is teaching
+  // anything. Measured on the barrier beat, one round to the next:
+  //
+  //     round goes past -> arm rises     0.61-0.71 s   <- this constant
+  //     arm rises       -> round leaves  0.66-0.77 s   <- the tell; untouched
+  //     round leaves    -> goes past     3.75-4.41 s   <- the flight
+  //
+  // so the gap was the only second of the five-and-a-half a player spends per
+  // round that was pure waiting. At 0.05 the next arm comes up on the frame
+  // the last round clears you and the beat reads as one man working rather
+  // than three separate events. (It was 2.6 before that, which with the
+  // telegraph was 3.2 s of standing still.)
+  dodgeGap: 0.05,
   // THE DODGE PROMPT, OUT IN THE TRAINING ROOMS. Lesson 5 teaches the dodge
   // against a round that is fired to be dodged; after the barrier the rooms
   // are real fights, and a player who has not internalised it just stands in
@@ -712,6 +721,21 @@ export const STEPS = [
     advance: { kind: 'cleared' },
     grants: { gun: true, fire: true, ammo: true },
     bodies: 3, raiseGun: true,
+    // AND THEY SHOOT BACK, ONE AT A TIME. Measured before this existed: three
+    // men stood in this hallway for thirty seconds and fired nothing — every
+    // frame of it in `advance`, held by the script, no rounds at all. So the
+    // first thing the player is asked to DO to somebody was a shooting
+    // gallery, and the beat that follows the barrier taught nothing the
+    // barrier had not.
+    //
+    // `turns` runs the same driver the barrier beat does: whoever is next in
+    // the rotation raises his arm as the last round clears the player, so
+    // this is three men taking it in turn rather than a volley. There is no
+    // freeze here — that was lesson 5's, and its job is done — so what is
+    // being asked is the two things together, step aside and shoot back.
+    // `volleyGap` still buys the beat before the first of them aims, which is
+    // the beat TAP ANYWHERE TO SHOOT is read in.
+    turns: true,
     hud: 'CLEAR THE HALLWAY',
     // AND IF THEY SHOOT WITHOUT EVER TURNING, SAY IT AGAIN. There is no aim
     // control in this game: you aim by facing, which is the same drag that
@@ -1021,6 +1045,12 @@ function normalise(steps) {
     openDoor: !!s.openDoor,
     raiseGun: !!s.raiseGun,
     hardFreeze: !!s.hardFreeze,
+    // ONE AT A TIME, AND THE SCRIPT HANDS OUT THE TURNS — see the `shoot`
+    // step. Named here because this normaliser rebuilds a step field by
+    // field and a key it does not name is silently dropped, which is the
+    // same trap the cue loop below documents: the flag was set in the spec,
+    // arrived as undefined, and three men stood in a hallway firing nothing.
+    turns: !!s.turns,
     checkpoint: !!s.checkpoint,
     divider: !!s.divider,
     cues: (s.cues || []).map((c) => ({
