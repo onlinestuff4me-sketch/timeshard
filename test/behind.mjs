@@ -88,16 +88,42 @@ const marks = await page.evaluate(async () => {
   // single sweep sometimes reaches the door before the corridor has let
   // anyone go, and the check then reports "nothing to measure" on a build
   // where nothing is wrong. Cross into the next leg and carry on.
-  for (let leg = 0; leg < 4 && !t.enemies.some((e) => e.alive); leg++) {
+  //
+  // WALK IT, DO NOT TELEPORT IT. This used to jump a whole 4m cell every
+  // 70ms — about fifteen times a running pace — and the corridor releases
+  // against PROGRESS, which is not something it can see happening at that
+  // speed. So on a slow machine the sweep reached the end of the leg with
+  // nobody out and the probe reported "nothing to measure" on a build where
+  // nothing was wrong. Quarter-cell steps with a beat at each, the same
+  // movement the map walker uses. (The door will not open either while the
+  // leg still has men queued for it — see openHallDoor — so crossing on is
+  // a fallback, not the plan.)
+  const alive = () => t.enemies.some((e) => e.alive);
+  for (let leg = 0; leg < 4 && !alive(); leg++) {
     const L = t.hall().legs[t.hall().cur];
     if (!L || !L.spine) break;
-    for (let i = 0; i < L.spine.length && !t.enemies.some((e) => e.alive); i++) {
-      t.player.pos.x = L.spine[i][0] * C;
-      t.player.pos.z = L.spine[i][1] * C;
-      t.player.iframes = 999;
-      await new Promise((r) => setTimeout(r, 70));
+    let px = L.spine[0][0] * C, pz = L.spine[0][1] * C;
+    t.player.pos.x = px; t.player.pos.z = pz;
+    for (let i = 0; i < L.spine.length && !alive(); i++) {
+      const tx = L.spine[i][0] * C, tz = L.spine[i][1] * C;
+      for (let k = 1; k <= 4 && !alive(); k++) {
+        t.player.pos.x = px + (tx - px) * (k / 4);
+        t.player.pos.z = pz + (tz - pz) * (k / 4);
+        const hold = performance.now();
+        while (performance.now() - hold < 90 && !alive()) {
+          await new Promise((r) => requestAnimationFrame(r));
+          t.player.iframes = 999;
+        }
+      }
+      px = tx; pz = tz;
     }
-    if (!t.enemies.some((e) => e.alive) && L.door && L.door.open) {
+    // ...and stand at the end while the group held for the door arrives
+    const wait = performance.now();
+    while (performance.now() - wait < 3000 && !alive()) {
+      await new Promise((r) => requestAnimationFrame(r));
+      t.player.iframes = 999;
+    }
+    if (!alive() && L.door && L.door.open) {
       t.crossDoor();
       await new Promise((r) => setTimeout(r, 240));
     }
