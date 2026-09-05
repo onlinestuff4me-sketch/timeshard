@@ -1278,6 +1278,32 @@ the rest of the corridor.
 > where the door is in frame. The climax of a corridor is a smaller share of
 > it than when corridors held three men.
 
+## The link preview
+
+Texting the link produced a one-line row with the 192px app icon in it. The
+cause was not a bad tag, it was **no tags**: `index.html` had no `og:image`,
+and with none Apple's link previewer falls back to the `apple-touch-icon` —
+whose square shape is exactly what makes it choose the compact layout.
+
+The full Open Graph and Twitter set is in the head now, and
+`assets/social/og-card.jpg` is 1200×630 at an absolute `https` URL, which is
+what gets the large card. Two things worth keeping in mind:
+
+* **The image chooses the layout, not the card type.** `summary_large_image`
+  with a square image still renders the compact row. Size and aspect are the
+  lever; the tags only describe them.
+* **Change the filename, not the file.** Every previewer caches hard and Apple
+  will serve a stale card for days. Rename and update all four image tags
+  together.
+
+The card is generated from the running game rather than drawn —
+`node tools/social/make-card.mjs` warps to a corridor door, finds the longest
+straight run of the leg's spine, stands three men down it close enough to read
+at thumbnail size, shatters the nearest, screenshots 260 ms into the burst with
+the HUD stripped, and composites that under the wordmark. `test/social.mjs`
+guards the tags and fetches the file to check it really is 1200×630, because
+nothing inside the game changes when any of this breaks.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a

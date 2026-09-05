@@ -11,6 +11,43 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 <link rel="canonical" href="https://timeshatter.app/">
+
+<!-- ===================================================================
+     THE LINK PREVIEW.
+     Texting the link used to produce a one-line row with the 192px app
+     icon in it, because there was nothing here at all: with no og:image,
+     Apple's link previewer falls back to the apple-touch-icon above, and
+     a small square image is what makes it choose the compact layout.
+     The large card wants a landscape image of its own — 1200x630 is the
+     size every previewer is built around — at an ABSOLUTE https URL,
+     with the width and height declared so the layout is chosen before
+     the bytes arrive.
+     assets/social/og-card.jpg is generated, not drawn: test/ogcard.mjs
+     stages a real corridor, stands three men in it, shatters one, and
+     screenshots the frame under the wordmark. Re-run it when the game
+     stops looking like that.
+     Previews are cached hard by Apple, Slack and the rest — if this is
+     ever replaced, change the FILENAME rather than the file, or the old
+     card will keep being served for days.
+     =================================================================== -->
+<meta name="description" content="Stop time. Shoot. Shatter. A first-person time-manipulation arcade shooter you play in the browser — no install, no account.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="TIME SHATTER">
+<meta property="og:url" content="https://timeshatter.app/">
+<meta property="og:title" content="TIME SHATTER">
+<meta property="og:description" content="Stop time. Shoot. Shatter. A first-person time-manipulation arcade shooter — free in your browser.">
+<meta property="og:image" content="https://timeshatter.app/assets/social/og-card.jpg">
+<meta property="og:image:secure_url" content="https://timeshatter.app/assets/social/og-card.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A white corridor in one-point perspective, two red figures at the end of it and a third shattering into red shards, under the words TIME SHATTER.">
+<meta property="og:locale" content="en_GB">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TIME SHATTER">
+<meta name="twitter:description" content="Stop time. Shoot. Shatter. A first-person time-manipulation arcade shooter — free in your browser.">
+<meta name="twitter:image" content="https://timeshatter.app/assets/social/og-card.jpg">
+<meta name="twitter:image:alt" content="A white corridor in one-point perspective, two red figures at the end of it and a third shattering into red shards, under the words TIME SHATTER.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230c0d10'/><rect x='4' y='4' width='8' height='8' fill='%23ff2d1a'/></svg>">
 <title>TIME SHATTER</title>
 <style>

@@ -82,14 +82,25 @@ const marks = await page.evaluate(async () => {
   const C = 4;
   t.warpDoor(3);
   await new Promise((r) => setTimeout(r, 500));
-  // walk the corridor until somebody is actually out — a warp alone releases
-  // nobody, so a probe that only warps measures an empty room
-  const L = t.hall().legs[t.hall().cur];
-  for (let i = 0; i < (L.spine || []).length && !t.enemies.some((e) => e.alive); i++) {
-    t.player.pos.x = L.spine[i][0] * C;
-    t.player.pos.z = L.spine[i][1] * C;
-    t.player.iframes = 999;
-    await new Promise((r) => setTimeout(r, 60));
+  // WALK UNTIL SOMEBODY IS ACTUALLY OUT, and keep walking. A warp alone
+  // releases nobody, so a probe that only warps measures an empty room — and
+  // ONE pass of the spine is not enough either: the release is paced, so a
+  // single sweep sometimes reaches the door before the corridor has let
+  // anyone go, and the check then reports "nothing to measure" on a build
+  // where nothing is wrong. Cross into the next leg and carry on.
+  for (let leg = 0; leg < 4 && !t.enemies.some((e) => e.alive); leg++) {
+    const L = t.hall().legs[t.hall().cur];
+    if (!L || !L.spine) break;
+    for (let i = 0; i < L.spine.length && !t.enemies.some((e) => e.alive); i++) {
+      t.player.pos.x = L.spine[i][0] * C;
+      t.player.pos.z = L.spine[i][1] * C;
+      t.player.iframes = 999;
+      await new Promise((r) => setTimeout(r, 70));
+    }
+    if (!t.enemies.some((e) => e.alive) && L.door && L.door.open) {
+      t.crossDoor();
+      await new Promise((r) => setTimeout(r, 240));
+    }
   }
   let armed = 0, saw = 0;
   for (let f = 0; f < 260; f++) {
