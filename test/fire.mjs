@@ -124,6 +124,13 @@ const rows = await page.evaluate(async (doors) => {
     let shots = 0, bodies = 0, peakAlive = 0;
     const seenBodies = new WeakSet();
     const t0 = performance.now();
+    // ...AND THE WORLD CLOCK, WHICH IS THE ONE THE GAP IS KEPT IN. `shotGap`
+    // spaces rounds in world seconds; a loaded machine advances that clock
+    // more slowly than the wall, so rounds-per-wall-minute reads high for a
+    // room that is obeying the rule exactly. This probe failed at 30.9 under
+    // the full suite and passed at 9.4 on the same commit run alone, which is
+    // the denominator moving, not the game.
+    const w0 = t.worldClock().now;
     const L = t.hall().legs[t.hall().cur];
     if (L && L.spine) {
       for (let i = 0; i < L.spine.length; i++) {
@@ -142,18 +149,22 @@ const rows = await page.evaluate(async (doors) => {
       }
     }
     const ms = performance.now() - t0;
+    const wsec = Math.max(0.001, t.worldClock().now - w0);
     out.push({ door, bodies, peakAlive, shots,
-      perMin: +(shots / (ms / 60000)).toFixed(1), secs: Math.round(ms / 1000) });
+      perMin: +(shots / (wsec / 60)).toFixed(1),
+      wallMin: +(shots / (ms / 60000)).toFixed(1),
+      secs: Math.round(ms / 1000), wsec: +wsec.toFixed(1) });
   }
   return out;
 }, DOORS);
 
 console.log('');
-console.log('first leg, nobody killed —   bodies   most at once   shots   shots/min');
+console.log('first leg, nobody killed —   bodies   most at once   shots   per world min   (per wall min)');
 for (const r of rows) {
   console.log('  door ' + String(r.door).padStart(2) + '                    '
     + String(r.bodies).padStart(3) + '           ' + String(r.peakAlive).padStart(2)
-    + '        ' + String(r.shots).padStart(3) + '      ' + r.perMin + '   (' + r.secs + 's)');
+    + '        ' + String(r.shots).padStart(3) + '        ' + String(r.perMin).padStart(6)
+    + '         (' + r.wallMin + ')   ' + r.wsec + 's of world in ' + r.secs + 's of wall');
 }
 const rate = rows.map((r) => r.perMin);
 const mean = rate.reduce((a, b) => a + b, 0) / rate.length;
