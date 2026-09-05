@@ -55,7 +55,10 @@ const games = await page.evaluate(() => {
   const rows = [];
   for (let n = g.nextElementSibling; n && n.classList.contains('arow'); n = n.nextElementSibling) {
     rows.push({ desig: n.querySelector('.adesig').textContent,
-      name: (n.querySelector('b') || {}).textContent || '',
+      // the name WITHOUT its NEW pill — that pill is a child of the <b>, so
+      // textContent glues it onto the end of the mode's name
+      name: ((n.querySelector('b') || {}).textContent || '').replace(/NEW$/, '').trim(),
+      fresh: !!n.querySelector('.anew'),
       line: (n.querySelector('span') || {}).textContent || '',
       locked: n.classList.contains('locked') });
   }

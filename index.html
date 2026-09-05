@@ -719,7 +719,49 @@
   #savename:focus { outline:none; border-color:#ff2d1a; background:#fff; }
   .sinote { font-size:9px; letter-spacing:.12em; color:#8b919b; text-align:center;
             margin:2px 0 10px; }
-  #slotlist { display:flex; flex-direction:column; gap:8px; width:246px; margin:4px 0 10px; }
+  /* THE LIST SCROLLS; THE CARD DOES NOT GROW.
+     Six saves made a card taller than the phone, so the top of it went up
+     behind the address bar and the CLOSE button went down behind the tab bar
+     — a page you could neither read the title of nor leave. The card is
+     capped and its middle is the only part that moves. */
+  #saves .htpcard { max-height:min(84vh, 700px); overflow:hidden; padding:22px 22px 18px; }
+  #slotlist { display:flex; flex-direction:column; gap:8px; width:246px;
+            margin:4px 0 8px; overflow-y:auto; -webkit-overflow-scrolling:touch;
+            min-height:0; flex:1 1 auto; padding-right:2px; }
+  /* HOW THE LIST IS ORDERED, said on the page rather than assumed. Six runs
+     is enough that "which is my worst one" stops being answerable at a
+     glance, and that is the question a player is asked when the slots fill. */
+  #sortbar { display:flex; gap:6px; width:246px; margin:2px 0 2px; }
+  #sortbar .sortb { flex:1; text-align:center; padding:6px 0; border-radius:999px;
+            border:2px solid rgba(22,24,29,.18); font-size:9px; font-weight:900;
+            letter-spacing:.14em; color:#5b616c; white-space:nowrap; }
+  #sortbar .sortb.on { border-color:#16181d; color:#16181d; }
+  #sortbar .sortb i { font-style:normal; opacity:.75; }
+  /* SELECTION. The checkbox is the row's left edge rather than a control
+     inside it, so a thumb going down the list hits a column of targets. */
+  .slot { position:relative; }
+  .slot.pick { padding-left:40px; }
+  .slot .sck { position:absolute; left:10px; top:50%; transform:translateY(-50%);
+            width:22px; height:22px; border-radius:6px; border:2px solid rgba(22,24,29,.30); }
+  .slot.sel { border-color:#ff2d1a; }
+  .slot.sel .sck { background:#ff2d1a; border-color:#ff2d1a; }
+  .slot.sel .sck::after { content:'✓'; position:absolute; inset:0; color:#fff;
+            font-size:13px; line-height:18px; text-align:center; font-weight:900; }
+  /* WORST FIRST is the whole point of the fill-up flow, so the rows it is
+     pointing at say so rather than leaving the player to work it out. */
+  .slot .stag { position:absolute; right:10px; top:8px; font-size:8px; font-weight:900;
+            letter-spacing:.14em; color:#ff2d1a; }
+  #bulkbar { width:246px; display:none; gap:6px; }
+  #bulkbar.on { display:flex; }
+  #bulkdel { flex:1; text-align:center; padding:9px 0; border-radius:999px;
+            border:2px solid #ff2d1a; color:#ff2d1a; font-size:10px; font-weight:900;
+            letter-spacing:.14em; }
+  #bulkcancel { flex:0 0 74px; text-align:center; padding:9px 0; border-radius:999px;
+            border:2px solid rgba(22,24,29,.18); color:#5b616c; font-size:10px;
+            font-weight:900; letter-spacing:.14em; }
+  #savesfull { width:246px; font-size:10px; font-weight:800; letter-spacing:.1em;
+            color:#ff2d1a; text-align:center; margin:0 0 2px; display:none; }
+  #savesfull.on { display:block; }
   .slot { border:2px solid rgba(22,24,29,.28); border-radius:12px; padding:10px 12px; text-align:left; }
   .slot.on { border-color:#ff2d1a; }
   .slot .sname { font-size:11px; font-weight:900; letter-spacing:.2em; }
@@ -920,6 +962,31 @@
   .rbtn .rnew { position:absolute; top:-7px; right:12px; padding:3px 8px;
           border-radius:999px; font-size:7.5px; font-weight:900; letter-spacing:.2em;
           background:#ff2d1a; color:#fff; }
+  /* THE OTHER DOOR. A mode you have not played is something to go and PLAY,
+     and the button that leads to the mode board says so too — badging only
+     the archive told the player where to READ about it. */
+  #startnew { position:relative; }
+  #startnew .rnew { top:-8px; right:14px; }
+  /* the tap the PLAY THE NEW MODES link performs on the player's behalf */
+  @keyframes ghosttap { 0%,100% { transform:scale(1); }
+    38% { transform:scale(.955); } 70% { transform:scale(1.012); } }
+  .ghosttap { animation:ghosttap .42s ease; }
+  /* WHAT IS NEW, said once at the top instead of left to be spotted. */
+  #unlocknew { display:none; margin:0 0 10px; padding:8px 12px; border-radius:10px;
+          background:rgba(255,45,26,.10); border:1.5px solid rgba(255,45,26,.35);
+          font-size:9.5px; font-weight:900; letter-spacing:.14em; color:#ff2d1a;
+          text-align:center; line-height:1.5; }
+  #unlocknew.on { display:block; }
+  /* ...and the rows it is about carry the same mark, so the summary points
+     at something rather than just announcing a number. */
+  .arow.fresh { background:rgba(255,45,26,.09); border-radius:8px; }
+  .arow .anew { margin-left:6px; padding:2px 5px; border-radius:999px; font-size:6.5px;
+          font-weight:900; letter-spacing:.16em; background:#ff2d1a; color:#fff;
+          vertical-align:middle; }
+  #playnew { margin:6px 0 12px; text-align:center; padding:9px 0; border-radius:999px;
+          border:2px solid #ff2d1a; color:#ff2d1a; font-size:10px; font-weight:900;
+          letter-spacing:.16em; display:none; }
+  #playnew.on { display:block; }
   /* UNLOCKS has its row to itself, so it takes the width of the pair above */
   .rbtn.wide { width:236px; }
   /* ...and OPTIONAL, so it sits a rank below NEW RUN: no border, a wash, and
@@ -1216,6 +1283,7 @@
   <div class="htpcard unlockcard">
     <h2>UNLOCKS</h2>
     <div id="unlockmeta"></div>
+    <div id="unlocknew"></div>
     <div id="unlocklist"></div>
     <div class="htpclose">TAP OUTSIDE TO CLOSE</div>
   </div>
@@ -1242,7 +1310,17 @@
 </div></div>
 <div id="saves"><div class="htpcard">
   <h3>SAVES</h3>
+  <div id="savesfull">ALL SLOTS FULL — DELETE A RUN TO START A NEW ONE</div>
+  <div id="sortbar">
+    <div class="sortb" data-sort="at">RECENT</div>
+    <div class="sortb" data-sort="depth">DEEPEST</div>
+    <div class="sortb" id="sortdir" title="Reverse"><i>▼</i></div>
+  </div>
   <div id="slotlist"></div>
+  <div id="bulkbar">
+    <div id="bulkdel">DELETE SELECTED</div>
+    <div id="bulkcancel">CANCEL</div>
+  </div>
   <div class="pbtn" id="savesclose">CLOSE</div>
 </div></div>
 <div id="saveinfo"><div class="htpcard">
@@ -1253,10 +1331,10 @@
 </div></div>
 <div id="askFull"><div class="htpcard">
   <h3>ALL RUNS IN USE</h3>
-  <p class="askq">Every save slot has a run in it. Start a new one over the
-    oldest, or go and look at the list?</p>
-  <div class="pbtn" id="fullReplace">REPLACE THE OLDEST</div>
-  <div class="pbtn" id="fullList">SEE MY RUNS</div>
+  <p class="askq">Every save slot has a run in it. Pick the ones you have
+    finished with and a new run has somewhere to go.</p>
+  <div class="pbtn" id="fullList">CHOOSE RUNS TO DELETE</div>
+  <div class="pbtn" id="fullBack">NOT NOW</div>
 </div></div>
 <div id="settings">
   <div class="htpcard">

@@ -4905,6 +4905,24 @@ function onPointerDown(ev) {
     return;
   }
   if (el.unlockpanel.style.display === 'flex') {   // unlocks open
+    // PLAY THE NEW MODES, and it has to be answered HERE rather than down in
+    // the menu handler: a tap inside this card is swallowed two lines below,
+    // which is what makes the card a card. Close the archive and press NEW
+    // RUN for them, visibly — the ghost tap is not decoration, it names the
+    // button they will press themselves next time, which is the reason to
+    // route them through it rather than open the board from here.
+    if (ev.target && ev.target.closest && ev.target.closest('#playnew')) {
+      el.unlockpanel.style.display = 'none';
+      const b = document.getElementById('startnew');
+      if (b) {
+        b.classList.remove('ghosttap');
+        void b.offsetWidth;              // restart the animation
+        b.classList.add('ghosttap');
+        setTimeout(() => b.classList.remove('ghosttap'), 460);
+      }
+      setTimeout(() => openModeSel('new'), 330);
+      return;
+    }
     if (ev.target && ev.target.closest && ev.target.closest('#unlocks .htpcard')) return;
     el.unlockpanel.style.display = 'none';
     return;
@@ -4968,19 +4986,59 @@ function onPointerDown(ev) {
         refreshMenuPrimary();
         return;
       }
-      if (ev.target.closest('#fullReplace')) {
-        closeAskFull();
-        // The game was already chosen on the selector, and the lesson answered
-        // there too — this only has to find the slot.
-        const entry = makeSave(menuMode, '', true);
-        if (entry) beginNewGame(entry.i, selTutorial); else openSaves();
-        return;
-      }
-      if (ev.target.closest('#fullList')) { closeAskFull(); openSaves(); return; }
+      // A FULL LIST IS NOT OVERWRITTEN, IT IS PRUNED. This used to offer
+      // REPLACE THE OLDEST, which destroys a run on one tap of a button whose
+      // label names no run in particular — the player cannot see what they
+      // are agreeing to. Both answers now leave every save intact; one of
+      // them opens the list set up to make the choice easy.
+      if (ev.target.closest('#fullList')) { closeAskFull(); openSaves(true); return; }
+      if (ev.target.closest('#fullBack')) { closeAskFull(); return; }
       // THE STATS BLOCK IS THE UNLOCKS DOOR — anywhere on it opens the
       // panel. It replaced both the leaderboard and the menu row's UNLOCKS
       // link, because two doors to one screen is the mistake the SAVES link
       // already taught us.
+      // --- the saves list's own controls -------------------------------
+      const sortb = ev.target.closest('#sortbar .sortb[data-sort]');
+      if (sortb) {
+        // tapping the column you are already sorted by reverses it, which is
+        // what every list anybody has ever used does
+        if (saveSort === sortb.dataset.sort) saveSortDesc = !saveSortDesc;
+        else { saveSort = sortb.dataset.sort; saveSortDesc = true; }
+        renderSlots();
+        return;
+      }
+      if (ev.target.closest('#sortdir')) { saveSortDesc = !saveSortDesc; renderSlots(); return; }
+      if (savePickMode) {
+        const row = ev.target.closest('.slot');
+        if (row && el.slotlist && el.slotlist.contains(row)) {
+          const ck = row.querySelector('.sck');
+          const i = ck ? parseInt(ck.dataset.pick, 10) : NaN;
+          if (!Number.isNaN(i)) {
+            if (savePicked.has(i)) savePicked.delete(i); else savePicked.add(i);
+            renderSlots();
+          }
+          return;
+        }
+      }
+      // CANCEL leaves the checkbox column, it does not leave the page — CLOSE
+      // is right there and two buttons doing one thing is one too many.
+      if (ev.target.closest('#bulkcancel')) {
+        savePickMode = false; savePicked.clear();
+        saveSort = 'at'; saveSortDesc = true;
+        renderSlots();
+        return;
+      }
+      if (ev.target.closest('#bulkdel')) {
+        if (!savePicked.size) return;   // the button says so; do not act on nothing
+        for (const i of [...savePicked]) deleteSave(i);
+        savePicked.clear();
+        // ...and once there is room, the page has done its job
+        const left = savesByRecent(null).length;
+        if (left < MAX_SAVES) savePickMode = false;
+        renderSlots();
+        refreshMenuPrimary();
+        return;
+      }
       if (ev.target.closest('#discover')) { openUnlocks(); return; }
       if (ev.target.closest('.rules')) return;   // reading
     }
@@ -6787,43 +6845,23 @@ function latestSave(mode = menuMode) {
   const all = savesByRecent(mode);
   return all.length ? all[0] : null;
 }
-function makeSave(mode, name, replaceOldest = false) {
+function makeSave(mode, name) {
   const list = saveIndex();
-  if (list.filter((e) => e.mode === mode).length >= MAX_SAVES) {
-    // AT THE CAP, RECYCLE A RUN THAT NEVER WENT ANYWHERE. NEW RUN has one
-    // job and it is to start a new run; a button that answers a tap by
-    // showing you a different page has not done it. What fills the list is
-    // its own leavings — every abandoned attempt is a save at DOOR 1 with
-    // nought doors behind it — so the oldest of those gives way. A save with
-    // real depth is never touched: for that case there is genuinely nothing
-    // to do but ask, and the selector opens the list.
-    const spent = list
-      .filter((e) => e.mode === mode)
-      .map((e) => ({ e, r: slotRead(e.i) }))
-      .filter((x) => x.r && !(x.r.doors > 0))
-      .sort((a, b) => (a.r.at || 0) - (b.r.at || 0));
-
-    // ...AND IF EVERY ONE OF THEM HAS BEEN SOMEWHERE, THE PLAYER DECIDES. Six
-    // real runs and no free slot is a genuine choice, and the selector puts
-    // it to them rather than answering NEW RUN with the LOAD GAME page — which
-    // is exactly the broken-button feeling the recycle above exists to avoid,
-    // and which shipped: a playtest tapped NEW RUN and got the save list.
-    const pool = spent.length ? spent
-      : (replaceOldest ? list.filter((e) => e.mode === mode)
-        .map((e) => ({ e, r: slotRead(e.i) }))
-        .sort((a, b) => ((a.r && a.r.at) || 0) - ((b.r && b.r.at) || 0)) : []);
-    if (!pool.length) return null;
-    const take = pool[0].e;
-    slotClear(take.i);
-    stampSave(take.i);
-    const kept = list.filter((e) => e.i !== take.i);
-    const mineN = new Set(kept.filter((e) => e.mode === mode).map((e) => e.num || 0));
-    let n2 = 1;
-    while (mineN.has(n2)) n2++;
-    const reused = { i: take.i, name: String(name || '').slice(0, 24), num: n2, mode };
-    writeSaveIndex([...kept, reused]);
-    return reused;
-  }
+  // AT THE CAP, NOTHING IS TAKEN. The player is asked.
+  //
+  // This used to recycle "a run that never went anywhere" — the oldest save
+  // still sitting at DOOR 1 with nought doors behind it — on the reasoning
+  // that an abandoned attempt is its own leavings and NEW RUN has one job.
+  // The job is right and the method was not: recycling is still overwriting a
+  // file the player never chose, and a save at door 1 might be the run they
+  // started thirty seconds ago. Nothing on screen said which one went.
+  //
+  // What made that trade look necessary was that the alternative used to be
+  // answering NEW RUN with the LOAD GAME page, which is the broken-button
+  // feeling this whole area has been fixing. It is not the alternative any
+  // more: the ask leads to a list built for exactly this question — worst
+  // first, the two likeliest called out by name, checkboxes, one delete.
+  if (list.filter((e) => e.mode === mode).length >= MAX_SAVES) return null;
   const used = new Set(list.map((e) => e.i));
   let i = 0;
   while (used.has(i) && i < MAX_SLOTS) i++;
@@ -7154,6 +7192,48 @@ function seenModes() {
   try { return new Set(JSON.parse(localStorage.getItem(SEEN_MODES_KEY) || '[]') || []); }
   catch { return new Set(); }
 }
+// ...AND THE SAME FOR EVERYTHING ELSE THAT OPENS. A mode is something to go
+// and play and the badge has always been about those; a weapon, a room, an
+// enemy or a protocol is something to go and LOOK at, and finding one is the
+// other half of what the badge is for — the game telling you it grew.
+const SEEN_UNLOCKS_KEY = 'ts_seen_unlocks';
+function seenUnlocks() {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_UNLOCKS_KEY) || '[]') || []); }
+  catch { return new Set(); }
+}
+function pendingUnlocks() {
+  const seen = seenUnlocks();
+  return ELEMENTS.filter((e) => unlocks.has(e.id) && !seen.has(e.id));
+}
+function markUnlocksSeen() {
+  try { persist(SEEN_UNLOCKS_KEY, JSON.stringify([...unlocks])); } catch { /* private */ }
+}
+// What the badges count, and what the summary line says. One function, so the
+// number on the button and the sentence on the page can never disagree.
+function unlockNews() {
+  const modes = pendingModes();
+  const rows = pendingUnlocks();
+  const byKind = {};
+  for (const e of rows) byKind[e.kind] = (byKind[e.kind] || 0) + 1;
+  return { modes, rows, byKind, total: modes.length + rows.length };
+}
+const KIND_WORD = { enemy: 'ENEMY TYPE', form: 'ROOM TYPE', weapon: 'WEAPON',
+  condition: 'PROTOCOL', measure: 'PROTOCOL' };
+function newsLine() {
+  const n = unlockNews();
+  const bits = [];
+  const say = (c, w) => `${c} NEW ${w}${c > 1 ? 'S' : ''} UNLOCKED`;
+  if (n.modes.length) bits.push(say(n.modes.length, 'MODE'));
+  // PROTOCOLS come from two kinds, so they are counted as one thing
+  const merged = {};
+  for (const [k, c] of Object.entries(n.byKind)) {
+    const w = KIND_WORD[k] || 'ITEM';
+    merged[w] = (merged[w] || 0) + c;
+  }
+  for (const [w, c] of Object.entries(merged)) bits.push(say(c, w));
+  return bits.join(' · ');
+}
+
 function pendingModes() {
   const u = unlockState();
   const seen = seenModes();
@@ -7172,7 +7252,23 @@ function renderDiscover() {
   if (!el.discover) return;
   const d = discoverData();
   const pct = d.total ? Math.round((d.got / d.total) * 100) : 0;
-  const news = pendingModes().length;
+  // BOTH DOORS CARRY THE NEWS. The archive button counts everything that has
+  // opened; NEW RUN counts only the MODES, because that is the half of the
+  // news you can act on from there — a badge on it promising a weapon and
+  // then handing you a mode board would be a lie.
+  const n = unlockNews();
+  const startnew = document.getElementById('startnew');
+  if (startnew) {
+    const old = startnew.querySelector('.rnew');
+    if (old) old.remove();
+    if (n.modes.length) {
+      const pill = document.createElement('span');
+      pill.className = 'rnew';
+      pill.textContent = n.modes.length > 1 ? `${n.modes.length} NEW` : 'NEW';
+      startnew.appendChild(pill);
+    }
+  }
+  const news = n.total;
   el.discover.innerHTML =
     (news ? `<span class="rnew">${news > 1 ? `${news} NEW` : 'NEW'}</span>` : '')
     + `<span class="rlab">UNLOCKS</span>`
@@ -7307,7 +7403,37 @@ function closePause() {
 // Continue drops you at the deepest door the slot has reached; New Game wipes
 // it and asks, once, whether the tutorial should play.
 
-function openSaves() {
+// HOW THE LIST IS ORDERED, AND WHAT IS TICKED. Both live outside renderSlots
+// because both survive a re-render — deleting one of four ticked runs must
+// leave the other three ticked.
+let saveSort = 'at';        // 'at' (last played) | 'depth' (how far it got)
+let saveSortDesc = true;    // newest / deepest first
+const savePicked = new Set();
+let savePickMode = false;   // the checkbox column is on
+
+// A run's depth, as one comparable number across games that measure different
+// things. The tunnel counts doors; the others count their own unit and keep it
+// in `best`. Whichever a save has, more of it is further.
+const saveDepth = (e) => Math.max(e.resumeDoor || 0, e.doors || 0, e.best || 0);
+
+function savesSorted() {
+  const list = savesByRecent(null);
+  const key = saveSort === 'depth' ? saveDepth : (e) => e.at || 0;
+  list.sort((a, b) => (saveSortDesc ? key(b) - key(a) : key(a) - key(b)));
+  return list;
+}
+
+function openSaves(pick = false) {
+  savePickMode = !!pick;
+  savePicked.clear();
+  if (pick) {
+    // ARRIVING FROM A FULL LIST, the question is "which of these am I done
+    // with", so the list answers it: worst first, and the two at the top are
+    // labelled. Nothing is ticked for them — deleting a run is theirs to
+    // choose, and a pre-ticked list is a page you can agree to without
+    // reading.
+    saveSort = 'depth'; saveSortDesc = false;
+  }
   renderSlots();
   const h = el.saves.querySelector('h3');
   // EVERY MODE'S RUNS, so the card is titled with the act rather than with a
@@ -7318,18 +7444,43 @@ function openSaves() {
   if (h) h.textContent = 'CONTINUE YOUR RUNS';
   el.saves.style.display = 'flex';
 }
-function closeSaves() { el.saves.style.display = 'none'; closeSaveInfo(); }
+function closeSaves() {
+  el.saves.style.display = 'none';
+  savePickMode = false; savePicked.clear();
+  closeSaveInfo();
+}
 function renderSlots() {
   if (!el.slotlist) return;
-  const list = savesByRecent(null);
+  const list = savesSorted();
+  const full = list.length >= MAX_SAVES;
+  // the sort bar reflects what the list is actually doing
+  for (const b of document.querySelectorAll('#sortbar .sortb[data-sort]')) {
+    b.classList.toggle('on', b.dataset.sort === saveSort);
+  }
+  const dir = document.getElementById('sortdir');
+  if (dir) {
+    dir.innerHTML = '<i>' + (saveSortDesc ? '▼' : '▲') + '</i>';
+    dir.title = saveSortDesc
+      ? (saveSort === 'depth' ? 'Deepest first' : 'Most recent first')
+      : (saveSort === 'depth' ? 'Shallowest first' : 'Oldest first');
+  }
+  if (el.savesfull) el.savesfull.classList.toggle('on', full);
   el.slotlist.innerHTML = '';
   if (!list.length) {
     el.slotlist.innerHTML =
       '<div class="snone">No runs yet. Starting one makes a save.</div>';
   }
+  // WORST FIRST, AND SAID SO. When the list is being used to make room, the
+  // two runs the player is most likely to want gone are named rather than
+  // merely placed at the top: oldest, and least far.
+  const oldest = list.reduce((a, b) => (!a || (b.at || 0) < (a.at || 0) ? b : a), null);
+  const shallow = list.reduce((a, b) => (!a || saveDepth(b) < saveDepth(a) ? b : a), null);
   for (const e of list) {
     const d = document.createElement('div');
-    d.className = 'slot' + (e.i === slotIx ? ' on' : '');
+    const tag = savePickMode && list.length > 1
+      ? (e === shallow ? 'LEAST FAR' : (e === oldest ? 'OLDEST' : '')) : '';
+    d.className = 'slot' + (e.i === slotIx ? ' on' : '')
+      + (savePickMode ? ' pick' : '') + (savePicked.has(e.i) ? ' sel' : '');
     // LAST PLAYED, said out loud. The list is ordered by it, so leaving the
     // date unlabelled invited it to be read as when the save was MADE — which
     // is a different fact, lives behind the info button, and for most saves is
@@ -7344,15 +7495,17 @@ function renderSlots() {
     // instead; `saveName` is untouched, because the rename field and the
     // delete confirmation are not standing next to a line that says the game.
     const shown = e.name ? saveName(e) : `RUN ${e.num || 1}`;
-    d.innerHTML = `<div class="smode">${escHtml(modeName(e.mode))}</div>`
+    d.innerHTML = (savePickMode ? `<div class="sck" data-pick="${e.i}"></div>` : '')
+      + (tag ? `<div class="stag">${tag}</div>` : '')
+      + `<div class="smode">${escHtml(modeName(e.mode))}</div>`
       + `<div class="sname">${escHtml(shown)}${e.i === slotIx ? ' · ACTIVE' : ''}</div>`
       + `<div class="smeta">${saveDepthLine(e)}</div>`
       + `<div class="swhen">LAST PLAYED ${fmtSlotWhen(e.at)}</div>`
-      + '<div class="srow">'
-      + `<div class="sbtn cont" data-i="${e.i}">CONTINUE</div>`
-      + `<div class="sbtn info" data-i="${e.i}" title="Details">i</div>`
-      + `<div class="sbtn del" data-i="${e.i}">DELETE</div>`
-      + '</div>';
+      + (savePickMode ? '' : '<div class="srow">'
+        + `<div class="sbtn cont" data-i="${e.i}">CONTINUE</div>`
+        + `<div class="sbtn info" data-i="${e.i}" title="Details">i</div>`
+        + `<div class="sbtn del" data-i="${e.i}">DELETE</div>`
+        + '</div>');
     el.slotlist.appendChild(d);
   }
   // NEW RUN lives on this page as well as on the menu, and it is an action on
@@ -7360,12 +7513,24 @@ function renderSlots() {
   // on each of three fixed slots, which made "start a new one" and "overwrite
   // that one" the same gesture. It says RUN and not GAME because a game is
   // what the selector chooses; this makes another run of one.
-  const add = document.createElement('div');
-  add.className = 'sbtn addsave' + (list.length >= MAX_SAVES ? ' off' : '');
-  add.id = 'newsave';
-  add.textContent = list.length >= MAX_SAVES
-    ? `ALL ${MAX_SAVES} SAVES IN USE — DELETE ONE` : '+ NEW RUN';
-  el.slotlist.appendChild(add);
+  if (!savePickMode) {
+    const add = document.createElement('div');
+    add.className = 'sbtn addsave' + (full ? ' off' : '');
+    add.id = 'newsave';
+    add.textContent = full
+      ? `ALL ${MAX_SAVES} SAVES IN USE — DELETE ONE` : '+ NEW RUN';
+    el.slotlist.appendChild(add);
+  }
+  // ...and the bulk bar counts what is ticked, so DELETE SELECTED never fires
+  // on nothing and never has to be guessed at
+  const bar = document.getElementById('bulkbar');
+  const del = document.getElementById('bulkdel');
+  if (bar) bar.classList.toggle('on', savePickMode);
+  if (del) {
+    del.textContent = savePicked.size
+      ? `DELETE ${savePicked.size} RUN${savePicked.size > 1 ? 'S' : ''}` : 'SELECT RUNS TO DELETE';
+    del.style.opacity = savePicked.size ? '1' : '.45';
+  }
 }
 // WHICH ONE IS THIS. The list answers "how far did I get"; two saves at
 // similar depth are told apart by when they were started and by an id that
@@ -7454,8 +7619,8 @@ function askDelete(i) {
     `<div class="sbtn red delyes" data-i="${i}">DELETE ${escHtml(saveName(e))}</div>`
     + '<div class="sbtn delno">KEEP</div>';
 }
-// SIX RUNS AND NOWHERE TO PUT A SEVENTH. Two answers, both of them an answer
-// to the tap: take the oldest run's slot, or go and manage the list.
+// SIX RUNS AND NOWHERE TO PUT A SEVENTH. Both answers leave every save intact:
+// one opens the list set up to make the pruning easy, the other backs out.
 function askFullSaves() {
   if (el.askFull) el.askFull.style.display = 'flex';
 }
@@ -9641,6 +9806,7 @@ const el = {
   runrow: document.getElementById('runrow'),
   startnew: document.getElementById('startnew'),
   sndbtn: document.getElementById('sndbtn'),
+  savesfull: document.getElementById('savesfull'),
   howtolink: document.getElementById('howtolink'),
   htp: document.getElementById('htp'),
   enm: document.getElementById('enm'),
@@ -9691,6 +9857,13 @@ const UNLOCK_SECTIONS = [
 
 function renderUnlocks() {
   let html = '', known = 0, total = 0;
+  // WHAT IS NEW, decided ONCE at the top of the render and used all the way
+  // down — the summary, the row marks and the PLAY link all have to be about
+  // the same set, and `markUnlocksSeen` empties it the moment the page has
+  // been looked at.
+  const news = unlockNews();
+  const freshMode = new Set(news.modes.map((m) => m.id));
+  const freshRow = new Set(news.rows.map((e) => e.id));
   // MODES FIRST, because they are the only rows on this screen you can do
   // anything about. Everything below is filed by meeting it, which happens
   // to you; a locked mode states its price, and the price is a door number
@@ -9701,11 +9874,19 @@ function renderUnlocks() {
     html += `<div class="asec">MODES<i>${got}/${LOCKED_MODES.length}</i></div>`;
     for (const m of LOCKED_MODES) {
       const on = modeUnlocked(m.id, u.doors);
-      html += `<div class="arow${on ? '' : ' locked'}">`
+      const nu = freshMode.has(m.id);
+      html += `<div class="arow${on ? '' : ' locked'}${nu ? ' fresh' : ''}">`
         + `<div class="adesig">${on ? '✓' : `${u.doors}/${m.doors}`}</div><div>`
-        + `<b>${escHtml(m.name)}</b>`
+        + `<b>${escHtml(m.name)}${nu ? '<i class="anew">NEW</i>' : ''}</b>`
         + `<span>${escHtml(on ? m.line : unlockLine(m.id))}</span>`
         + `</div></div>`;
+    }
+    // ...AND A WAY TO GO AND PLAY THEM. The archive is a page about things
+    // that have happened; a mode that just opened is the one row on it that
+    // is an invitation, and reading about it is not what the player wants to
+    // do next. This closes the page and presses NEW RUN for them.
+    if (news.modes.length) {
+      html += `<div id="playnew" class="on">PLAY THE NEW MODE${news.modes.length > 1 ? 'S' : ''}</div>`;
     }
   }
   for (const sec of UNLOCK_SECTIONS) {
@@ -9721,9 +9902,11 @@ function renderUnlocks() {
       // missing from plenty of system stacks and falls back to tofu.
       const bar = `<b class="redact" style="width:${Math.round(
         Math.max(4, Math.min(11, e.name.length)) * 7.4)}px"></b>`;
-      html += `<div class="arow${on ? '' : ' locked'}">` +
+      const nu = freshRow.has(e.id);
+      html += `<div class="arow${on ? '' : ' locked'}${nu ? ' fresh' : ''}">` +
         `<div class="adesig">${e.designation}</div><div>` +
-        (on ? `<b>${e.name}</b><span>${e.blurb}</span>` : bar) + `</div></div>`;
+        (on ? `<b>${e.name}${nu ? '<i class="anew">NEW</i>' : ''}</b><span>${e.blurb}</span>`
+          : bar) + `</div></div>`;
     }
   }
   el.unlocklist.innerHTML = html;
@@ -9748,14 +9931,28 @@ function renderUnlocks() {
     `${life.shat.toLocaleString('en-US')} SHATTERED`,
     `${life.doors} DOOR${life.doors === 1 ? '' : 'S'}`,
   ].map((t) => `<i>${t}</i>`).join(' · ');
+  const nl = document.getElementById('unlocknew');
+  if (nl) {
+    const line = newsLine();
+    nl.textContent = line;
+    nl.classList.toggle('on', !!line);
+  }
   unlocksDirty = false;
 }
 
 function openUnlocks() {
-  if (unlocksDirty) renderUnlocks();
+  // ALWAYS RE-RENDER. `unlocksDirty` tracks whether the CONTENTS changed, and
+  // what changed here is which rows count as new — a page opened twice must
+  // show the marks the first time and not the second.
+  renderUnlocks();
   el.unlockpanel.style.display = 'flex';
   el.unlocklist.scrollTop = 0;
-  markModesSeen();   // looking at it IS being told
+  // LOOKING AT IT IS BEING TOLD, for both halves of the news. The marks stay
+  // up for this viewing — they were baked into the html above — and are gone
+  // the next time the page is built.
+  markModesSeen();
+  markUnlocksSeen();
+  renderDiscover();
 }
 
 renderDiscover();

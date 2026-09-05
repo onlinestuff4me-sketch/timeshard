@@ -124,7 +124,12 @@ const phone = Math.max(...run.bands.slice(3));   // 500Hz and up: a phone plays 
 const sub = Math.max(...run.bands.slice(0, 2));  // under 300Hz: a phone does not
 console.log('phone can play ' + phone + ' dB, cannot play ' + sub + ' dB, skew '
   + (sub - phone).toFixed(1) + ' dB  (was 30.3 when the music was reported missing)');
-if (sub - phone > 14) {
+// 18, NOT 14. The bar has to clear the track's OWN spread or it fails on a
+// Tuesday: sampled every four seconds right round the thirty-two-bar loop the
+// skew runs 11.2 to 14.4 dB, because the sparse INTRO bars and the full DRIVE
+// bars are differently balanced and a five-second window lands wherever it
+// lands. 14 sat inside that. The bug this catches measured 30.3.
+if (sub - phone > 18) {
   bad('the music is ' + (sub - phone).toFixed(1) + ' dB louder in bands a phone speaker drops');
 }
 // ---- 3. the track plays its OPENING section, and switches on a bar line ----

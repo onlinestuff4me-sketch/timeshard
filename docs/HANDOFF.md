@@ -1211,6 +1211,44 @@ easy to satisfy and useless.
 > that asks for a group this big", so a more generous table drags the whole
 > slow-time lesson earlier unless the threshold keeps pace. Door 10 either way.
 
+## A full save list, and news that reaches both doors
+
+**Six saves made a card taller than the phone.** The title went up behind the
+address bar and CLOSE went down behind the tab bar — a page you could neither
+read the top of nor leave. The card is capped at `min(84vh, 700px)` and the
+list is the only part that moves. Measured at 402x874: card 87 to 787, CLOSE
+at 769, list 487 tall over 783 of content.
+
+**Nothing is overwritten without being chosen.** `makeSave` used to recycle
+"a run that never went anywhere" — the oldest save still at door 1 — when the
+list was full. The reasoning was sound (NEW RUN must start a new run, and the
+alternative was answering it with the LOAD GAME page, which is the
+broken-button bug this area has been fixing) and the method was not: a save at
+door 1 might be the run you started thirty seconds ago, and nothing on screen
+said which one went. It returns null now and the player is asked.
+
+That is only tolerable because the ask leads somewhere useful: the list opens
+**worst first**, with the two likeliest called out by name (LEAST FAR,
+OLDEST), a checkbox column, and one delete for the lot. Nothing is pre-ticked
+— a pre-ticked list is a page you can agree to without reading. Sorting is
+RECENT / DEEPEST with a direction toggle, and tapping the column you are
+already sorted by reverses it.
+
+**The news now reaches both doors and covers everything.** It counted MODES
+only and sat on the archive button only, so finding a weapon said nothing
+anywhere, and the badge you did get pointed at the page you READ about modes
+on rather than the one you PLAY them from. `unlockNews()` is the single
+source: the archive button counts everything, NEW RUN counts only the modes
+(a badge promising a weapon and then handing you a mode board is a lie), the
+page says what is new at the top, and the rows it means carry the mark.
+PLAY THE NEW MODES closes the archive and presses NEW RUN — with a visible
+ghost tap, which names the button the player will press themselves next time.
+
+> **A tap inside the archive card is swallowed by the handler that makes it a
+> card.** The PLAY link had to be answered above that early return, not down
+> in the menu handler where every other button lives. It rendered, it looked
+> right, and it did nothing.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a
