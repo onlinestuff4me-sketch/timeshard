@@ -337,6 +337,28 @@
   #timebtn.locked::before { background:#fff; }
   #timebtn.empty::after { border-color:#9aa0ab; opacity:.55; }
 
+  /* ---- THE DUEL'S BUTTON IS ITS OWN METER --------------------------------
+     A bar across the top of the screen is not where the thumb is looking, and
+     in this mode the meter is the whole of what is being learned. So the
+     button fills: red rises from the bottom as the bank refills, empty is the
+     inverse of full (white face, red glyph), and a full one is solid red and
+     pulses — the button saying "spend me". `--juice` is set per frame in
+     updateSlowMeter. Scoped to `.juice` so the tunnel's button, which has a
+     lesson built around exactly how it looks today, is untouched. */
+  #timebtn.juice::after {
+    background:linear-gradient(to top, #ff2d1a var(--juice, 0%),
+               rgba(238,240,243,.92) var(--juice, 0%));
+    border-color:#ff2d1a; opacity:1; animation:none; }
+  /* The glyph flips once there is not enough red behind it to read against.
+     It straddles the fill line for part of the refill — the glyph occupies
+     roughly 43-57% of the face's height and the flip is at 50% — so the red
+     one carries a white halo: red on white above the line, red-with-an-edge
+     on red below it, legible either side of wherever the line happens to be. */
+  #timebtn.juice::before { background:#fff; }
+  #timebtn.juice.lowjuice::before { background:#ff2d1a;
+             filter:drop-shadow(0 0 2.5px rgba(255,255,255,.95)); }
+  #timebtn.juice.full::after { animation:tpulse 1.5s ease-out infinite; }
+
   /* onboarding pointer at the time button (button mode only) */
   #gtime { position:absolute; right:124px;
            bottom:calc(env(safe-area-inset-bottom, 0px) + 11vh + 40px);
@@ -374,6 +396,11 @@
      draining is the thing you are spending */
   body.slowmo #slowmeter { height:13px; top:calc(env(safe-area-inset-top, 0px) + 34px);
                box-shadow:0 0 18px rgba(255,45,26,.5); }
+  /* ...and in the duel it is that size ALWAYS. The tunnel's bar is thin until
+     you spend, because there it is one resource among several; here it is the
+     only one, and the mode is three rooms long — it has to be readable from
+     the first frame, not from the first time you press the button. */
+  body.duelmeter #slowmeter { height:13px; top:calc(env(safe-area-inset-top, 0px) + 34px); }
   body.slowmo #slowfill { background:#ff4a35; }
   body.slowmo #slowmeter { background:rgba(238,240,243,.25); }
   /* RUNNING DRY. The bank emptying is the only thing that can kill you in a

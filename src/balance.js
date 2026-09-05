@@ -1032,12 +1032,16 @@ export const TIME = {
 // They differ in exactly one rule — WHO OWNS TIME — so playing one after the
 // other is a controlled comparison and not two unrelated games:
 //
-//   CORRIDOR DUEL  the world slows itself, whenever a round is in the air
+//   CORRIDOR DUEL  room 1: the world slows itself when a round is in the air.
+//                  Room 2 on: a button, and a meter you spend and refill.
 //   STAND STILL    the world moves at your thumb's speed, and nothing else's
 //
-// Neither has a time bank, so neither can price the freeze the way the tunnel
-// does (docs/PILLARS.md §1, §2). What replaces the price is different in each
-// and is the thing being tested — see docs/MODES.md.
+// STAND STILL has no time bank, so it cannot price the freeze the way the
+// tunnel does (docs/PILLARS.md §1, §2); what replaces the price is the thing
+// being tested — see docs/MODES.md. CORRIDOR DUEL now does have one, from its
+// second room: the automatic slowdown was unreadable as a rule, so it keeps
+// the first room as a demonstration and hands the control over after it.
+// See SIMPLE.duel.buttonRoom.
 // ---------------------------------------------------------------------------
 export const SIMPLE = {
   legWide: 1,           // cells either side of the spine: 1 = a 12 m strip
@@ -1047,10 +1051,23 @@ export const SIMPLE = {
     // Time is not the player's here. It drops on its own the moment a round
     // is on its way and comes back when the air is clear, so the rhythm of
     // the fight is set by the enemy firing rather than by a button.
-    slow: 0.13,         // world speed while a round is inbound
+    slow: 0.13,         // world speed while slow time is on
     ease: 9,            // crossing between slow and full (per second)
     lead: 1.1,          // a round counts as inbound this many seconds out
     miss: 2.6,          // ...and only if it passes within this many metres
+    // ...AND THEN IT IS YOURS. The automatic version above answers "what
+    // triggers this?" with a rule the player cannot see — a round arriving
+    // inside `lead` seconds and passing within `miss` metres — so from the
+    // outside the world just slows down at random. It survives as the FIRST
+    // ROOM, where it is a demonstration: this is what slow time looks like,
+    // and you did not have to do anything to get it.
+    //
+    // From room 2 the button does it, on the tunnel's own bank (TIME): tap to
+    // slow, it counts down while you are in it, every body you shatter puts
+    // some back. Nobody is taught to toggle it off to conserve — it runs out
+    // on its own, or it keeps going for as long as you keep shattering, which
+    // is the whole bargain stated in one sentence.
+    buttonRoom: 2,
     // SHORTER THAN THE TUNNEL'S, because you never walk it while it matters.
     // The strip is the arena, not a journey: its length is the range the
     // fight opens at, and everything past the last body is a corridor you

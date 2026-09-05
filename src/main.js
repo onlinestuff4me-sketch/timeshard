@@ -5195,11 +5195,19 @@ function onPointerDown(ev) {
     // travelled 26 px, then replay all of it at once. That is the residual
     // jump. The threshold still decides whether this was a button press or a
     // look gesture (below); it no longer decides whether the camera moves.
-    input.pointers.set(ev.pointerId, {
-      sx: ev.clientX, sy: ev.clientY, x: ev.clientX, y: ev.clientY,
-      ox: ev.clientX, oy: ev.clientY, role: 'look',
-      downT: performance.now(), t: performance.now(),
-    });
+    // ...BUT NOT IN THE DUEL, WHICH HAS NO LOOK AXIS. The camera there may
+    // not turn at all (see simpleLegPlan: the corridor is straight because
+    // nothing can look round a corner), so registering the button's thumb as
+    // a look pointer would swing the view for as long as it was held and then
+    // snap it back on release. The residual-jump problem this solves is a
+    // tunnel problem, and so is the fix.
+    if (!simple()) {
+      input.pointers.set(ev.pointerId, {
+        sx: ev.clientX, sy: ev.clientY, x: ev.clientX, y: ev.clientY,
+        ox: ev.clientX, oy: ev.clientY, role: 'look',
+        downT: performance.now(), t: performance.now(),
+      });
+    }
     input.holding = true;
     return;   // the button never fires the gun
   }
@@ -8100,7 +8108,16 @@ function updateModeUI() {
   // that is not where your shot lands is worse than no sight at all.
   document.body.classList.toggle('simple', !!simple());
   // ...and the tunnel shows them from the door slow motion is UNLOCKED on.
-  const on = timeMode === 'toggle' && inRun && !simple() && timeUnlocked();
+  // ...AND THE DUEL SHOWS BOTH, from its second room. The line above used to
+  // read `!simple()` flat, which was true of the whole family; it is now true
+  // of STAND STILL, whose time is its movement and has nothing to spend.
+  const duelBtn = duelButtonOn();
+  const on = timeMode === 'toggle' && inRun && (!simple() || duelBtn) && timeUnlocked();
+  // The duel's button carries its own charge — see updateSlowMeter — and its
+  // meter is the big one from the first frame rather than only while spending,
+  // because in this mode the meter IS the resource being learned.
+  el.timebtn.classList.toggle('juice', duelBtn);
+  document.body.classList.toggle('duelmeter', duelBtn);
   el.timebtn.style.display = (on && tutorMay('timebtn')) ? 'flex' : 'none';
   // during the lesson the bar only appears once the meter beat has started,
   // even on a step that grants it: it is introduced, not just switched on
@@ -8109,8 +8126,17 @@ function updateModeUI() {
   el.gtime.style.display = (timeMode === 'toggle' && !simple()) ? '' : 'none';
 }
 function updateSlowMeter() {
-  el.slowfill.style.width = Math.max(0, Math.min(1, slowBank / SLOWMO.cap)) * 100 + '%';
+  const juice = Math.max(0, Math.min(1, slowBank / SLOWMO.cap));
+  el.slowfill.style.width = juice * 100 + '%';
   el.timebtn.classList.toggle('empty', slowBank <= 0);
+  // HOW MUCH IS LEFT, ON THE THING YOU PRESS. A bar at the top of the screen
+  // is not where the thumb is looking, so the duel's button is its own gauge:
+  // red fills it from the bottom as the bank refills, and the glyph flips to
+  // red once there is not enough red left behind it to read against. Full is
+  // solid red and pulses — which is the button saying "spend me".
+  el.timebtn.style.setProperty('--juice', (juice * 100).toFixed(1) + '%');
+  el.timebtn.classList.toggle('full', juice >= 0.999);
+  el.timebtn.classList.toggle('lowjuice', juice < 0.5);
   // Running dry is measured in SECONDS LEFT, not in fraction of the bar: the
   // bar's full height is the cap, which you rarely hold, so a fraction of it
   // would warn at wildly different real times. These are seconds of frozen
@@ -12656,13 +12682,14 @@ function simpleLegPlan() {
 
 // Duel state. `walk` is the corridor carrying you to the open door: the mode
 // gives the player no forward control, so progress cannot be theirs to make.
-const duel = { walk: false };
+const duel = { walk: false, room: -1 };
 // Dead-stop state: seconds of full-speed world time owed by shots already
 // fired. See SIMPLE.stop.shotTime.
 let stopDebt = 0;
 
 function resetSimpleState() {
   duel.walk = false;
+  duel.room = -1;
   stopDebt = 0;
 }
 
@@ -12692,10 +12719,27 @@ function roundInbound() {
 // cross to it. Returned together because the two are one decision: duel eases
 // (a window opening), stand still tracks the thumb almost rigidly (the world
 // is an extension of your hand, and lag there reads as input lag).
+// THE DUEL'S TIME BUTTON, AND WHICH ROOM IT ARRIVES IN. Room 1 is the
+// introduction — they come to you, drag to sidestep, and the world slows
+// itself so you can see what slow time IS. From room 2 it is yours to press.
+// See SIMPLE.duel.buttonRoom.
+function duelButtonOn() {
+  return game.mode === 'duel' && timeMode === 'toggle' && !!hall
+    && hall.doorsPassed + 1 >= SIMPLE.duel.buttonRoom;
+}
+
 function simpleTime() {
   const m = simple();
   if (m === 'duel') {
-    return { target: roundInbound() ? SIMPLE.duel.slow : TIME_FULL, ease: SIMPLE.duel.ease };
+    // WHOSE TIME IS IT? In room 1, nobody's: the world slows itself the moment
+    // a round is on its way. That is a demonstration and it is deliberately
+    // free — but as a RULE it is invisible (a round arriving inside 1.1s and
+    // passing within 2.6m), so played on it reads as the world slowing down at
+    // random, which is what was reported. From room 2 the button owns it, and
+    // the bank underneath is the tunnel's: it drains while you are in it and
+    // every body you shatter puts some back.
+    const on = duelButtonOn() ? timeLocked : roundInbound();
+    return { target: on ? SIMPLE.duel.slow : TIME_FULL, ease: SIMPLE.duel.ease };
   }
   const s = Math.min(Math.hypot(input.stickX, input.stickY), 1);
   let target = SIMPLE.stop.still +
@@ -12746,6 +12790,16 @@ function updateSimple(dt) {
   if (m !== 'duel') return;
   const L = hall.legs[hall.cur];
   duel.walk = !!(L && L.door.open && game.state === 'play');
+  // THE BUTTON ARRIVES ON A ROOM, AND NOTHING ELSE WOULD NOTICE. `updateModeUI`
+  // runs when a wave starts, when the pause menu closes, when a setting
+  // changes — none of which happen when the corridor carries you through a
+  // door. So the room the button is due in came and went with the HUD still
+  // showing room 1's. Watched here, where the mode's own per-frame update
+  // already is, and only re-asked when the number actually changes.
+  if (duel.room !== hall.doorsPassed) {
+    duel.room = hall.doorsPassed;
+    updateModeUI();
+  }
 }
 
 function updateHall(dt) {
