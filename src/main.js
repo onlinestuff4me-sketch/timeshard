@@ -2944,10 +2944,37 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       // of the player, so it overflows into the next stretch.
       if (ownIx < 0) ownIx = Math.min(here + 1, finLast);
     }
-    const finale = ownIx >= 0
-      ? !!(ownIx === finLast && L.approach && L.approach.length)
-      : !!(L.approach && L.approach.length && L.doorSeen
-        && playerStretch(L) + LEG.lookahead >= finLast);
+    // CORRIDOR DUEL HAS ONE PLACE TO COME FROM, AND IT IS THE FAR END.
+    //
+    // Everything here places a body in the stretch that is PAYING for him,
+    // which is right in the tunnel: you walk the leg, so the stretch you are
+    // standing in becomes corridor behind you and the next one is ahead. The
+    // duel gives the player no forward control at all — the strip is an
+    // arena, they come to you — so the stretch paying for a body is the one
+    // the player is standing in, for ever.
+    //
+    // And that stretch cannot hold anybody. Measured: the duel's strip is 6
+    // cells, which splits into a body stretch spanning z 0-8 m and a 4-cell
+    // approach at 12-24 m. The player stands at z 0. A placement needs
+    // `LEG.spawnMin` (9 m) and the first-sight floor wants 13 — so every
+    // candidate in the only stretch that owes anything is between 0 and 8 m
+    // away and is refused, every time, for ever. Two men came out, three sat
+    // in the queue, and because the door waits on an empty queue it never
+    // opened: a run that could neither end nor continue, which is what was
+    // reported as "nothing happens".
+    //
+    // A stretch shorter than the sight floor is unfillable in any mode. In
+    // the tunnel nobody notices, because you walk past it and the share moves
+    // on. Here there is nowhere to walk, so the arena is the ground in front
+    // of the door and every release is the finale. The stretch that owes him
+    // is still charged for him — `fill` stays honest — he simply stands where
+    // there is room to answer him.
+    const finale = game.mode === 'duel'
+      ? !!(L.approach && L.approach.length)
+      : ownIx >= 0
+        ? !!(ownIx === finLast && L.approach && L.approach.length)
+        : !!(L.approach && L.approach.length && L.doorSeen
+          && playerStretch(L) + LEG.lookahead >= finLast);
     // Everyone else comes out of the stretch the player is walking THROUGH,
     // or the next one — never the whole remaining corridor. Bodies therefore
     // travel with you down the leg instead of accumulating in whatever is
