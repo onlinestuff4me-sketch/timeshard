@@ -71,13 +71,28 @@ if (behind.length) {
   for (const r of behind.slice(0, 8)) console.log(`    door ${r.door}: ${r.ahead} cells behind, ${r.m} m away`);
   console.log('FAIL bodies are being released behind the player');
 }
+await browser.close();
+
 // ---- ...AND THE MARK IS BACK ON, once the lesson is over -----------------
 //
 // The per-enemy edge marks were off for the whole of `beingLed()` — the
 // onboarding AND the first eight doors — on the reasoning that the opening
 // meets one man at a time. The encounter table outgrew that: door 5 puts three
 // up at once. A body you cannot see is the case a mark exists for.
-const marks = await page.evaluate(async () => {
+//
+// A FRESH RUN, NOT THE ONE ABOVE. This half used to inherit whatever state a
+// fifteen-door rampage left behind, and it failed intermittently — under the
+// full suite but never on its own — with "nothing to measure". A probe whose
+// second question depends on the wreckage of its first cannot tell you which
+// of the two is broken, and this one kept blaming the game. It gets its own
+// browser at door 3.
+const b2 = await boot({ seed: SEED });
+await b2.page.waitForTimeout(1600);
+await b2.page.tap('.go');
+await b2.page.waitForFunction(() => document.getElementById('overlay').classList.contains('hidden'),
+  null, { timeout: 20000 });
+await b2.page.waitForTimeout(2600);
+const marks = await b2.page.evaluate(async () => {
   const t = window.__ts;
   const C = 4;
   t.warpDoor(3);
@@ -139,14 +154,20 @@ const marks = await page.evaluate(async () => {
     armed++;
     if (e.edgeArrow) saw++;
   }
-  return { armed, saw, door: t.hall().doorsPassed + 1 };
+  return { armed, saw, door: t.hall().doorsPassed + 1,
+    // so a future "nothing to measure" says WHY rather than just failing
+    state: t.game.state, queued: t.game.spawnQueue.length, bodies: t.enemies.length };
 });
 console.log('edge marks at door ' + marks.door + ': a body stood behind for '
   + marks.armed + ' frames, the arrow lit on ' + marks.saw);
-if (!marks.armed) console.log('FAIL no body to stand in front of — this measured nothing');
+if (!marks.armed) {
+  console.log('  state=' + marks.state + ' bodies=' + marks.bodies + ' queued=' + marks.queued);
+  console.log('FAIL no body to stand in front of — this measured nothing');
+}
 if (marks.armed && marks.saw === 0) {
   console.log('FAIL nothing marks a body standing behind the player in the main game');
 }
 
+errs.push(...b2.errs);
 done('behind', errs);
-await browser.close();
+await b2.browser.close();
