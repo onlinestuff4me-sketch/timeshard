@@ -26,6 +26,10 @@ fails=0
 for f in test/*.mjs; do
   name="$(basename "$f" .mjs)"
   [ "$name" = "lib" ] && continue
+  # `walk` is a capture, not a check: it takes minutes, asserts nothing, and
+  # exists to redraw the floor-plan page. Run it by name when the maps need
+  # remaking — `bash test/runall.sh walk` still finds it.
+  [ "$name" = "walk" ] && [ -z "$FILTER" ] && continue
   [ -n "$FILTER" ] && [[ "$name" != *"$FILTER"* ]] && continue
   echo "── $name"
   out="$(TS_PORT="$PORT" node "$f" 2>&1)"

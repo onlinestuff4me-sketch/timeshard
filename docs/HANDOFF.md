@@ -1249,6 +1249,35 @@ ghost tap, which names the button the player will press themselves next time.
 > in the menu handler where every other button lives. It rendered, it looked
 > right, and it did nothing.
 
+## The walker is in the repo now
+
+`test/walk.mjs` is a **capture, not a check**: it walks doors 1-5 leg by leg,
+kills each body 0.7s after it appears, and writes the geometry, the plan and
+every body's arrival distance to JSON. That JSON draws the published
+floor-plan page. `runall.sh` skips it unless you name it (`bash
+test/runall.sh walk`) because it takes minutes and asserts nothing.
+
+It is in the repo because the previous capture was scratchpad-only — so when
+the encounter table doubled there was no way to redraw the maps without
+writing the walker again from nothing. Re-measured, doors 1-5, two runs, 12
+legs, 67 bodies:
+
+| | first pass | after the spacing work | now |
+|---|---|---|---|
+| men met per corridor | 1.3 | 3.2 | **5.6** |
+| empty run to the door | 85 m | 31 m | 29 m |
+| empty share of the walk | 73% | 25% | 25% |
+
+The empty share stopped moving two passes ago and that is right — the walk to
+the door is the breath before the door group. What changed is density inside
+the rest of the corridor.
+
+> Worth watching from that capture: **door 3 is the busiest thing in the
+> opening** (eight men in a single corridor, in both samples), and the door
+> group is now only **7 of 67** bodies — a tenth arrive in the last 25 m,
+> where the door is in frame. The climax of a corridor is a smaller share of
+> it than when corridors held three men.
+
 ## NEXT UP
 
 1. **Play the needle again.** The turn profile is now a ramp instead of a

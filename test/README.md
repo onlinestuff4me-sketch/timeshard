@@ -44,6 +44,21 @@ gitignored.
 | `fire.mjs` | The two numbers that must move in opposite directions: bodies met per door must go **up**, rounds fired per minute must **not**. Either alone is easy to satisfy and useless. |
 | `music.mjs` | The whole audio surface. Taps the signal reaching the speakers and asks how loud the music is and **in which bands** — a track whose energy sits under 300Hz is silent on a phone however healthy the audio graph looks. Then: the track's two sections and that a change between them lands on a bar line; that bullet time muffles it (treble gone, bass kept) rather than ducking it; that footsteps are spent by distance covered and never by a player standing still; the menu, the volume slider, booting with the sound toggle off, and that the beat drops when the tutorial ends. ~2.5 min. |
 
+## The one that is not a check
+
+`walk.mjs` is a **capture**, not a probe: it walks doors 1-5 leg by leg and
+writes the geometry, the plan and every body's arrival distance to JSON. That
+JSON is what draws the published floor-plan page. It asserts nothing, takes
+minutes, and `runall.sh` skips it unless you name it:
+
+```sh
+OUT_JSON=/tmp/walk-a.json bash test/runall.sh walk
+```
+
+It is in the repo because the previous capture was scratchpad-only, so when
+the encounter table moved there was no way to redraw the maps without writing
+the walker again from nothing.
+
 ## Writing another one
 
 `lib.mjs` has `boot()`, `boxOf()` and `done()`. Every probe must print an
