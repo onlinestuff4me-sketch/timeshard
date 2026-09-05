@@ -3671,6 +3671,7 @@ function enemyFire(e, toPlayer) {
     return;
   }
   schoolNoteShot();           // ...counted into the volley before the clock moves
+  duelNoteShot();             // ...and the duel's button lesson waits on the first one
   lastEnemyShotAt = worldT;   // the room's shot floor: everyone else waits
   const origin = _v2.set(e.pos.x, 1.35, e.pos.z).addScaledVector(toPlayer, 0.45);
   // shots go where you ARE — if you don't slide out of the way, they connect
@@ -5187,6 +5188,7 @@ function onPointerDown(ev) {
     timeBtnWasLocked = timeLocked;
     timeBtnYaw = player.yaw; timeBtnPitch = player.pitch;
     if (!timeLocked) setTimeLocked(true);
+    duelCoachTapped();   // the duel's lesson is over the moment it is answered
     vibrate(8);
     // AND it is a look pointer from this instant. The button is 146 px in
     // the bottom-right corner, which is half of where a right thumb
@@ -9954,6 +9956,7 @@ const el = {
   modesel: document.getElementById('modesel'),
   mslist: document.getElementById('mslist'),
   mssum: document.getElementById('mssum'),
+  duelcoach: document.getElementById('duelcoach'),
   mstoast: document.getElementById('mstoast'),
   mstut: document.getElementById('mstut'),
   mstutbox: document.getElementById('mstutbox'),
@@ -12682,7 +12685,12 @@ function simpleLegPlan() {
 
 // Duel state. `walk` is the corridor carrying you to the open door: the mode
 // gives the player no forward control, so progress cannot be theirs to make.
-const duel = { walk: false, room: -1 };
+// `coach` is the one-time introduction of the time button in room 2, and it is
+// a small state machine because it has three beats that each wait on something
+// different: 'wait' is armed and watching for the first round anyone fires,
+// 'tap' has the world stopped with the prompt on the button, 'refill' is the
+// line about the meter, and 'done' never runs again this run.
+const duel = { walk: false, room: -1, coach: 'wait', coachT: 0 };
 // Dead-stop state: seconds of full-speed world time owed by shots already
 // fired. See SIMPLE.stop.shotTime.
 let stopDebt = 0;
@@ -12690,6 +12698,9 @@ let stopDebt = 0;
 function resetSimpleState() {
   duel.walk = false;
   duel.room = -1;
+  duel.coach = 'wait';
+  duel.coachT = 0;
+  duelCoachSay('');
   stopDebt = 0;
 }
 
@@ -12723,6 +12734,65 @@ function roundInbound() {
 // introduction — they come to you, drag to sidestep, and the world slows
 // itself so you can see what slow time IS. From room 2 it is yours to press.
 // See SIMPLE.duel.buttonRoom.
+// THE COACH. Three beats, and every one of them waits on the player rather
+// than on a clock — except the last resort below, which exists because a
+// stopped world nobody knows how to un-stop is the deadlock this mode has
+// already had once.
+//
+//   1. The first round anyone fires in room 2 stops the world, and the prompt
+//      sits ON the button. Not in the middle of the screen: the instruction is
+//      "press this", and a sentence that names a control should be next to it.
+//   2. Pressing it releases into ordinary slow time — the thing they just
+//      asked for happens, immediately, which is the whole of the lesson.
+//   3. ...and then the second line, at the meter that is now visibly draining,
+//      because "it refills when you shatter" is only meaningful while the
+//      player can see it going down.
+function duelCoachSay(text, where) {
+  const el2 = el.duelcoach;
+  if (!el2) return;
+  el2.firstChild.textContent = text || '';
+  el2.classList.toggle('on', !!text);
+  el2.classList.toggle('atbtn', where === 'btn');
+  el2.classList.toggle('atmeter', where === 'meter');
+}
+// Called from enemyFire, on every enemy shot in the game — so the first thing
+// it does is decide this is none of its business.
+function duelNoteShot() {
+  if (duel.coach !== 'wait' || !duelButtonOn() || game.state !== 'play') return;
+  duel.coach = 'tap';
+  duel.coachT = 0;
+  duelCoachSay('TAP TO SLOW TIME', 'btn');
+  el.timebtn.classList.add('hint');
+  vibrate([12, 40, 12]);
+}
+// The button was pressed while the world was held for it: that IS the lesson,
+// so it ends here and the meter line takes over.
+function duelCoachTapped() {
+  if (!duelButtonOn()) return;              // the tunnel's button is not this
+  if (duel.coach !== 'tap' && duel.coach !== 'wait') return;
+  // FOUND IT THEMSELVES? Then the first line has nothing left to say, and
+  // saying it anyway — stopping the world to teach a control they are already
+  // holding — is the most annoying thing a tutorial can do. Skip to the half
+  // they have not been told.
+  duel.coach = 'refill';
+  duel.coachT = 0;
+  duelCoachSay('SHATTER ENEMIES TO REFILL YOUR METER', 'meter');
+  el.timebtn.classList.remove('hint');
+}
+function updateDuelCoach(dtReal) {
+  if (duel.coach === 'tap') {
+    duel.coachT += dtReal;
+    // A STOPPED WORLD HAS TO HAVE A WAY OUT THAT IS NOT THE PLAYER. They may
+    // not understand the prompt, or may have put the phone down. Twelve
+    // seconds is long past reading it, and letting go into the ordinary fight
+    // is strictly better than a screen that never moves again.
+    if (duel.coachT > 12) { duel.coach = 'done'; duelCoachSay(''); el.timebtn.classList.remove('hint'); }
+  } else if (duel.coach === 'refill') {
+    duel.coachT += dtReal;
+    if (duel.coachT > 4.5) { duel.coach = 'done'; duelCoachSay(''); }
+  }
+}
+
 function duelButtonOn() {
   return game.mode === 'duel' && timeMode === 'toggle' && !!hall
     && hall.doorsPassed + 1 >= SIMPLE.duel.buttonRoom;
@@ -12731,15 +12801,21 @@ function duelButtonOn() {
 function simpleTime() {
   const m = simple();
   if (m === 'duel') {
-    // WHOSE TIME IS IT? In room 1, nobody's: the world slows itself the moment
-    // a round is on its way. That is a demonstration and it is deliberately
-    // free — but as a RULE it is invisible (a round arriving inside 1.1s and
-    // passing within 2.6m), so played on it reads as the world slowing down at
-    // random, which is what was reported. From room 2 the button owns it, and
-    // the bank underneath is the tunnel's: it drains while you are in it and
-    // every body you shatter puts some back.
-    const on = duelButtonOn() ? timeLocked : roundInbound();
-    return { target: on ? SIMPLE.duel.slow : TIME_FULL, ease: SIMPLE.duel.ease };
+    // TIME IS THE PLAYER'S HERE, OR IT IS NOBODY'S BUSINESS.
+    //
+    // The mode used to slow itself whenever a round was on its way. That is a
+    // real rule — inside `lead` seconds, passing within `miss` metres — and an
+    // invisible one: nothing states it and the player cannot cause it, so from
+    // the outside the world slowed down at random. Room 1 kept it briefly as a
+    // demonstration and that was worse, not better: a mode whose time rule
+    // changes between its first room and its second teaches the player
+    // something in room 1 that is not true in room 2.
+    //
+    // So room 1 runs at full speed and is simply the fight; the button arrives
+    // in room 2 with a coach, and from there slow time is a thing you do.
+    if (duel.coach === 'tap') return { target: 0, ease: 30 };   // the held beat
+    return { target: (duelButtonOn() && timeLocked) ? SIMPLE.duel.slow : TIME_FULL,
+      ease: SIMPLE.duel.ease };
   }
   const s = Math.min(Math.hypot(input.stickX, input.stickY), 1);
   let target = SIMPLE.stop.still +
@@ -12788,6 +12864,7 @@ function updateSimple(dt) {
   if (!m || !hall) return;
   if (stopDebt > 0) stopDebt = Math.max(0, stopDebt - dt * timeScale);
   if (m !== 'duel') return;
+  updateDuelCoach(dt);
   const L = hall.legs[hall.cur];
   duel.walk = !!(L && L.door.open && game.state === 'play');
   // THE BUTTON ARRIVES ON A ROOM, AND NOTHING ELSE WOULD NOTICE. `updateModeUI`
@@ -12998,7 +13075,10 @@ function frame(now) {
   // nothing creeps while the player reads the prompt. Their own controls keep
   // working throughout — they can look around at the man about to shoot them,
   // which is rather the point.
-  if (tutorWorldHeld && timeScale < 0.004) timeScale = 0;   // ...and it does stop
+  // ...and it does stop. The duel's one held beat wants the same true zero: a
+  // world creeping at 0.003 while somebody reads three words is a world that
+  // arrives at them mid-sentence.
+  if ((tutorWorldHeld || duel.coach === 'tap') && timeScale < 0.004) timeScale = 0;
   const sdt = dt * timeScale;   // scaled dt: the world's clock
   worldT += sdt;                // ...and its running total, for world-time gaps
 
@@ -13798,6 +13878,7 @@ window.__ts = {
   // a shot still owes it.
   simpleState: () => ({ mode: simple(), inbound: simple() === 'duel' ? roundInbound() : null,
     debt: +stopDebt.toFixed(3), walk: duel.walk, timeScale: +timeScale.toFixed(3),
+    coach: duel.coach, room: duel.room,
     stick: +Math.hypot(input.stickX, input.stickY).toFixed(3) }),
   tapAim: (x, y) => { const v = tapAim(x, y); return { x: +v.x.toFixed(2), y: +v.y.toFixed(2), z: +v.z.toFixed(2) }; },
   modes: () => MODES.map((m) => m.id),

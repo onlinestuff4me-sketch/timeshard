@@ -1032,16 +1032,15 @@ export const TIME = {
 // They differ in exactly one rule — WHO OWNS TIME — so playing one after the
 // other is a controlled comparison and not two unrelated games:
 //
-//   CORRIDOR DUEL  room 1: the world slows itself when a round is in the air.
-//                  Room 2 on: a button, and a meter you spend and refill.
+//   CORRIDOR DUEL  room 1 is the fight at full speed; from room 2 a button,
+//                  and a meter you spend and refill by shattering.
 //   STAND STILL    the world moves at your thumb's speed, and nothing else's
 //
 // STAND STILL has no time bank, so it cannot price the freeze the way the
 // tunnel does (docs/PILLARS.md §1, §2); what replaces the price is the thing
 // being tested — see docs/MODES.md. CORRIDOR DUEL now does have one, from its
-// second room: the automatic slowdown was unreadable as a rule, so it keeps
-// the first room as a demonstration and hands the control over after it.
-// See SIMPLE.duel.buttonRoom.
+// second room: the automatic slowdown was unreadable as a rule and is gone
+// outright. See SIMPLE.duel.buttonRoom.
 // ---------------------------------------------------------------------------
 export const SIMPLE = {
   legWide: 1,           // cells either side of the spine: 1 = a 12 m strip
@@ -1053,16 +1052,19 @@ export const SIMPLE = {
     // the fight is set by the enemy firing rather than by a button.
     slow: 0.13,         // world speed while slow time is on
     ease: 9,            // crossing between slow and full (per second)
-    lead: 1.1,          // a round counts as inbound this many seconds out
-    miss: 2.6,          // ...and only if it passes within this many metres
-    // ...AND THEN IT IS YOURS. The automatic version above answers "what
-    // triggers this?" with a rule the player cannot see — a round arriving
-    // inside `lead` seconds and passing within `miss` metres — so from the
-    // outside the world just slows down at random. It survives as the FIRST
-    // ROOM, where it is a demonstration: this is what slow time looks like,
-    // and you did not have to do anything to get it.
-    //
-    // From room 2 the button does it, on the tunnel's own bank (TIME): tap to
+    // WHAT "A ROUND IS ON ITS WAY" MEANS — inside `lead` seconds and passing
+    // within `miss` metres. This used to DRIVE the mode: the world slowed
+    // itself whenever it was true. It is a real rule and an invisible one —
+    // nothing states it and the player cannot cause it — so from the outside
+    // the world slowed down at random, which is what was reported. It no
+    // longer touches time; `roundInbound` survives as a question the probes
+    // and the debug hook can ask.
+    lead: 1.1,
+    miss: 2.6,
+    // TIME IS THE PLAYER'S, FROM ROOM 2. Room 1 runs at full speed and is
+    // simply the fight — an introduction that behaved differently from every
+    // room after it would be teaching something untrue. The button arrives in
+    // room 2 with a coach and runs on the tunnel's own bank (TIME): tap to
     // slow, it counts down while you are in it, every body you shatter puts
     // some back. Nobody is taught to toggle it off to conserve — it runs out
     // on its own, or it keeps going for as long as you keep shattering, which

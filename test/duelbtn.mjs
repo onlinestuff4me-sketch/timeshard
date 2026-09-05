@@ -42,6 +42,33 @@ const r1 = await look();
 console.log('room 1: ' + JSON.stringify(r1));
 if (r1.btn) bad('the button is up in room 1, which is the introduction');
 
+// ---- room 1 runs at FULL SPEED: no automatic slow, ever -------------------
+// The mode used to slow itself whenever a round was inbound. That rule is
+// invisible from the outside — inside 1.1s, passing within 2.6m — so it read
+// as the world slowing at random, and a room that behaves differently from
+// every room after it teaches something untrue.
+const room1 = await page.evaluate(async () => {
+  const t = window.__ts;
+  let slowest = 1, rounds = 0;
+  const seen = new WeakSet();
+  const t0 = performance.now();
+  while (performance.now() - t0 < 18000) {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999;
+    for (const b of t.bullets) {
+      if (!b.fromPlayer && !seen.has(b)) { seen.add(b); rounds++; }
+    }
+    slowest = Math.min(slowest, t.simpleState().timeScale);
+  }
+  return { slowest: +slowest.toFixed(3), rounds, room: t.hall().doorsPassed + 1 };
+});
+console.log('room 1, ' + room1.rounds + ' rounds fired at the player: slowest world speed '
+  + room1.slowest);
+if (!room1.rounds) console.log('  (nobody fired — that check measured nothing)');
+if (room1.rounds && room1.slowest < 0.9) {
+  bad('room 1 still slows itself: world speed fell to ' + room1.slowest);
+}
+
 // ---- walk the run to room 2 ----------------------------------------------
 await page.evaluate(async () => {
   const t = window.__ts;
@@ -61,6 +88,51 @@ if (!r2.juice) bad('the button is not wearing its own meter');
 if (!r2.meter) bad('the bank meter is not shown');
 if (r2.meterH < 10) bad('the meter is the thin tunnel bar, not the big one: ' + r2.meterH + 'px');
 await page.screenshot({ path: OUT + 'duel-button.png' });
+
+// ---- the coach: the first round fired stops the world and names the button -
+const READ = `() => {
+  const c = document.getElementById('duelcoach');
+  const t = window.__ts;
+  return { text: c.textContent.trim(), on: c.classList.contains('on'),
+    atbtn: c.classList.contains('atbtn'), atmeter: c.classList.contains('atmeter'),
+    scale: t.simpleState().timeScale, coach: t.simpleState().coach };
+}`;
+const readCoach = () => page.evaluate('(' + READ + ')()');
+const before = await readCoach();
+// let the room fire at them — nobody is killed, so a round is coming
+await page.evaluate(async () => {
+  const t = window.__ts;
+  const t0 = performance.now();
+  while (performance.now() - t0 < 25000 && t.simpleState().coach !== 'tap') {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999;
+  }
+  // ...and let the freeze settle to a true stop
+  for (let i = 0; i < 40; i++) { await new Promise((r) => requestAnimationFrame(r)); t.player.iframes = 999; }
+});
+const held = await readCoach();
+await page.screenshot({ path: OUT + 'duel-coach-tap.png' });
+// answer it the way a player does
+await page.evaluate(async () => {
+  document.getElementById('timebtn').dispatchEvent(new PointerEvent('pointerdown',
+    { pointerId: 99, clientX: 340, clientY: 700, bubbles: true }));
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => requestAnimationFrame(r)); window.__ts.player.iframes = 999;
+  }
+});
+const answered = await readCoach();
+console.log('coach before:   ' + JSON.stringify(before));
+console.log('coach held:     ' + JSON.stringify(held));
+console.log('coach answered: ' + JSON.stringify(answered));
+if (before.on) bad('the coach is up before anybody has fired');
+if (held.coach !== 'tap') bad('the first round fired did not start the button lesson');
+if (!held.on || !held.atbtn) bad('the prompt is not on the button');
+if (!/TAP TO SLOW/.test(held.text)) bad('the prompt does not say what to do: ' + held.text);
+if (held.scale > 0.001) bad('the world did not actually stop: scale ' + held.scale);
+if (!answered.on || !answered.atmeter) bad('the meter line did not follow the tap');
+if (!/REFILL/.test(answered.text)) bad('the second line is not about refilling: ' + answered.text);
+if (answered.scale <= 0.001) bad('answering the prompt did not let the world move again');
+await page.screenshot({ path: OUT + 'duel-coach.png' });
 
 // ---- spend it: it drains while in use, and time really does slow ----------
 const spend = await page.evaluate(async () => {

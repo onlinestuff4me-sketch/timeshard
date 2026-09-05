@@ -384,6 +384,23 @@
   #timetip .tt2 { margin-top:6px; font-size:11px; font-weight:800; letter-spacing:.2em;
                   color:#16181d; text-shadow:0 0 10px rgba(232,234,238,.95); }
 
+  /* the duel's two coach lines: one at the button, one at the meter */
+  #duelcoach { position:fixed; z-index:10; pointer-events:none; opacity:0;
+               transition:opacity .22s ease; text-align:center; }
+  #duelcoach.on { opacity:1; }
+  #duelcoach b { display:inline-block; padding:9px 14px; border-radius:11px;
+               background:rgba(22,24,29,.9); color:#fff;
+               font-size:10.5px; font-weight:900; letter-spacing:.16em; line-height:1.45;
+               box-shadow:0 6px 22px rgba(22,24,29,.35); }
+  /* ON the button — above it and clear of the thumb, with the red the button
+     is wearing so the eye joins the two without a drawn arrow. */
+  #duelcoach.atbtn { right:14px; bottom:calc(env(safe-area-inset-bottom, 0px) + 13vh + 152px);
+               max-width:216px; }
+  #duelcoach.atbtn b { background:#ff2d1a; }
+  /* ...and under the meter it is about */
+  #duelcoach.atmeter { left:16px; right:16px;
+               top:calc(env(safe-area-inset-top, 0px) + 58px); }
+
   /* slow-mo bank meter (button mode): drains while locked, kills refill it */
   #slowmeter { display:none; position:fixed; left:16px; right:16px;
                top:calc(env(safe-area-inset-top, 0px) + 38px); height:4px;
@@ -1295,6 +1312,11 @@
   <div class="gfire">TAP ANYWHERE TO SHOOT</div>
   <div id="gtime">TAP THIS<br>TO STOP TIME &#9654;</div>
 </div>
+<!-- THE DUEL'S BUTTON LESSON. Two lines, one at a time, each next to the
+     thing it is about — the prompt sits on the button because the instruction
+     is "press this", and the second sits under the meter because "it refills
+     when you shatter" only means anything while you can watch it fall. -->
+<div id="duelcoach"><b></b></div>
 <div id="timetip">
   <div class="tt1"><span>TAP</span><span class="ttbtn"><i></i></span><span>TO STOP TIME</span></div>
   <div class="tt2">BULLETS FREEZE WHILE YOU MOVE</div>
