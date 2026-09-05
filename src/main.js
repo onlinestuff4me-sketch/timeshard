@@ -5497,7 +5497,7 @@ const sfx = (() => {
   // WHERE THE TRACK COMES IN, and it starts on the menu because that is where
   // the game starts. `showMenu` is not called on a cold boot — the overlay is
   // already up — so this default is the menu's setting, not a placeholder.
-  let musicPart = 'full';      // 'intro' | 'full' | 'drive'
+  let musicPart = 'drive';     // 'intro' | 'full' | 'drive'
   let musicAt = 0;             // ctx time the current source's playhead was at `from`
   let musicSwitchAt = 0;       // a scheduled part change, so it is armed only once
   // buildSynthMusic makes a single loop with no sections; the recorded track
@@ -5541,9 +5541,20 @@ const sfx = (() => {
   //
   //   intro   bars 0-5 on their own. The tutorial, and only the tutorial:
   //           a lesson wants the same quiet six bars under it throughout.
-  //   full    in at bar 0, round the whole thirty-two. The menu.
   //   drive   in at bar 7 — the DROP, the riser before the beat lands — and
-  //           then round the same thirty-two. A run.
+  //           then round the same thirty-two. THE MENU AND A RUN BOTH. The
+  //           menu used to come in at bar 0, which spent the first fifteen
+  //           seconds of every start screen on the sparsest music in the
+  //           file; nobody sits on a title screen for fifteen seconds, so
+  //           for most players that WAS the soundtrack. Coming in on the
+  //           riser puts the beat under the title almost at once, and the
+  //           loop still rounds all thirty-two bars, so bar 0 is heard on
+  //           the way past rather than skipped.
+  //   full    in at bar 0, round the same thirty-two. Nothing enters here
+  //           any more. It stays because it is the name for the loop itself
+  //           — what `drive` and `full` share and `intro` does not — and
+  //           because it is what a part change falls back to when handed a
+  //           part it does not know.
   const FULL_END = 80.842105;   // bar 32: the end of the loop, back to bar 0
   const MUSIC = {
     src: 'assets/music/electric-boost.mp3',
@@ -7217,21 +7228,33 @@ function unlockNews() {
   for (const e of rows) byKind[e.kind] = (byKind[e.kind] || 0) + 1;
   return { modes, rows, byKind, total: modes.length + rows.length };
 }
-const KIND_WORD = { enemy: 'ENEMY TYPE', form: 'ROOM TYPE', weapon: 'WEAPON',
+// ONE WORD PER KIND, and the plural is that word plus an S. The line used to
+// be built out of whole sentences — "1 NEW MODE UNLOCKED · 2 NEW WEAPONS
+// UNLOCKED · 1 NEW ROOM TYPE UNLOCKED" — which said NEW three times and
+// UNLOCKED three times to deliver four numbers, and wrapped onto three lines
+// on a phone doing it. Say the header once and let the rest be a list.
+const KIND_WORD = { enemy: 'ENEMY', form: 'ROOM', weapon: 'WEAPON',
   condition: 'PROTOCOL', measure: 'PROTOCOL' };
+// The reading order of the sections further down the page, so the summary and
+// the list it summarises run the same way. MODES are not a kind — they are
+// the section above all of them — so they lead.
+const KIND_ORDER = ['MODE', 'ENEMY', 'ROOM', 'WEAPON', 'PROTOCOL'];
+// the one word here that does not pluralise by adding an S
+const KIND_PLURAL = { ENEMY: 'ENEMIES' };
 function newsLine() {
   const n = unlockNews();
-  const bits = [];
-  const say = (c, w) => `${c} NEW ${w}${c > 1 ? 'S' : ''} UNLOCKED`;
-  if (n.modes.length) bits.push(say(n.modes.length, 'MODE'));
+  const count = {};
+  if (n.modes.length) count.MODE = n.modes.length;
   // PROTOCOLS come from two kinds, so they are counted as one thing
-  const merged = {};
   for (const [k, c] of Object.entries(n.byKind)) {
     const w = KIND_WORD[k] || 'ITEM';
-    merged[w] = (merged[w] || 0) + c;
+    count[w] = (count[w] || 0) + c;
   }
-  for (const [w, c] of Object.entries(merged)) bits.push(say(c, w));
-  return bits.join(' · ');
+  // anything KIND_ORDER has not heard of still gets said, on the end
+  const order = KIND_ORDER.concat(Object.keys(count).filter((w) => !KIND_ORDER.includes(w)));
+  const bits = order.filter((w) => count[w]).map((w) => `${count[w]} `
+    + (count[w] > 1 ? (KIND_PLURAL[w] || w + 'S') : w));
+  return bits.length ? `NEW UNLOCKS: ${bits.join(', ')}` : '';
 }
 
 function pendingModes() {
@@ -7737,9 +7760,38 @@ function modeMini(m) {
     + `<div class="msminame">${escHtml(m.name)}</div></div>`;
 }
 
+// WHAT THIS BOARD IS FOR, said once at the top instead of left to be spotted
+// among six cards with moving pictures on them — the same courtesy the archive
+// page gets from `newsLine`.
+//
+// It is about MODES ONLY, and deliberately: this screen cannot take you to a
+// weapon or a room, so a line here counting them would be an announcement
+// pointing somewhere else. It reads the same set the NEW tags on the cards do
+// — open, and never played — so the summary and the marks below it can never
+// disagree. With no news it still says something true: how much of the board
+// is still shut, which is the other question you open it with.
+function modeSelSummary() {
+  const u = unlockState();
+  const open = LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors));
+  const fresh = open.filter((m) => !u.played.has(m.id));
+  if (fresh.length) {
+    return { news: true, text: (fresh.length > 1 ? `${fresh.length} NEW MODES` : 'NEW MODE')
+      + ': ' + fresh.map((m) => m.name).join(', ') };
+  }
+  const shut = LOCKED_MODES.length - open.length;
+  return { news: false, text: shut
+    ? `${shut} MORE MODE${shut > 1 ? 'S' : ''} TO UNLOCK`
+    : 'ALL MODES UNLOCKED' };
+}
+
 function renderModeSel() {
   if (!el.mslist) return;
   const u = unlockState();
+  if (el.mssum) {
+    const sum = modeSelSummary();
+    el.mssum.textContent = sum.text;      // textContent: a mode name is content
+    el.mssum.classList.toggle('news', sum.news);
+  }
   const open = (id) => modeUnlocked(id, u.doors);
   const tunnel = modeById(DEFAULT_MODE);
   // Which modes has this player actually touched, most recently first? Read
@@ -7843,6 +7895,13 @@ function openModeSel(how) {
   renderModeSel();
   el.modesel.style.display = 'flex';
   if (el.mslist) el.mslist.scrollTop = 0;
+  // OPENING THE BOARD IS BEING TOLD. The NEW badge on the NEW RUN button
+  // exists to send you here; now that the top of this screen names what
+  // opened, arriving and reading it is the whole of the errand, and a badge
+  // still up afterwards is a notification about something you have just been
+  // shown. The cards keep their own NEW tags, which come off when a mode has
+  // been PLAYED rather than merely seen.
+  markModesSeen();
 }
 function closeModeSel() {
   selTapId = null; selTapAt = null;
@@ -9784,6 +9843,7 @@ const el = {
   saveinfo: document.getElementById('saveinfo'),
   modesel: document.getElementById('modesel'),
   mslist: document.getElementById('mslist'),
+  mssum: document.getElementById('mssum'),
   mstoast: document.getElementById('mstoast'),
   mstut: document.getElementById('mstut'),
   mstutbox: document.getElementById('mstutbox'),
@@ -10052,10 +10112,17 @@ function refreshMenuPrimary() {
 
 function showMenu() {
   sfx.fadeAll(1, 0.35);
-  // THE MENU PLAYS THE WHOLE TRACK. It used to loop the sparse opening six
-  // bars, so a player sitting on the start screen heard the quietest fifteen
-  // seconds of the song forever and never learned it had a chorus.
-  sfx.musicPart('full');
+  // THE MENU COMES IN ON THE DROP and then loops the whole track. It looped
+  // the sparse opening six bars once, so a player on the start screen heard
+  // the quietest fifteen seconds of the song forever and never learned it had
+  // a chorus; playing the whole thing from bar 0 fixed the never-learning but
+  // still opened on those fifteen seconds. Entering at the riser is the whole
+  // track AND the good part first. See MUSIC.
+  //
+  // Coming back here from a run is now a no-op rather than a section change:
+  // both are `drive`, so the track carries on across the death or the pause
+  // instead of being re-cued at a boundary the player did not ask for.
+  sfx.musicPart('drive');
   clearMessages();
   clearField();
   el.pausebtn.style.display = 'none';

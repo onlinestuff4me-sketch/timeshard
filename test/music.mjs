@@ -378,7 +378,12 @@ if (!taught.loop || Math.abs(taught.loop[1] - 80.842) > 0.1) {
   bad('the run after the lesson is not looping the full track');
 }
 
-// ---- 12. the MENU plays the whole track, and a run does not rewind it -----
+// ---- 12. the MENU comes in ON THE DROP, and a run does not rewind it -----
+//
+// The start screen is a few seconds long for most people, so where the track
+// comes IN is most of what they hear of it. It enters at bar 7 — the riser —
+// and loops the whole thirty-two from there, so the playhead must never be
+// found in the pre-drop bars on a menu that has only just started playing.
 const b4 = await boot({ seed: seedFor(false) });
 await b4.page.waitForTimeout(1600);
 // a gesture that is NOT the big button: with a save present that button is
@@ -386,10 +391,15 @@ await b4.page.waitForTimeout(1600);
 await b4.page.tap('#titleblock');
 await b4.page.waitForTimeout(2000);
 const onMenu = await b4.page.evaluate(() => window.__ts.audio());
-console.log('menu       part=' + onMenu.part + ' loop ' + JSON.stringify(onMenu.loop));
-if (onMenu.part !== 'full') bad('the menu is not playing the whole track: ' + onMenu.part);
+console.log('menu       part=' + onMenu.part + ' loop ' + JSON.stringify(onMenu.loop)
+  + ' playhead ' + onMenu.pos + 's  (drop is at 17.684s)');
+if (onMenu.part !== 'drive') bad('the menu is not coming in on the drop: ' + onMenu.part);
 if (!onMenu.loop || Math.abs(onMenu.loop[1] - 80.842) > 0.1) bad('the menu loop is not 32 bars');
-await b4.page.waitForTimeout(22000);           // let it get well past the drop
+// two seconds of play from bar 7 puts it just under 20s in; anything below
+// the drop means it started at bar 0 again
+if (onMenu.pos < 17.6) bad('the menu started before the drop: ' + onMenu.pos + 's');
+if (onMenu.pos > 24) bad('the menu playhead is nowhere near the drop: ' + onMenu.pos + 's');
+await b4.page.waitForTimeout(22000);           // and let it run well past it
 const before = await b4.page.evaluate(() => window.__ts.audio());
 await b4.page.tap('.go');
 await b4.page.waitForTimeout(5000);

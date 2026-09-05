@@ -40,7 +40,14 @@ const summary = await page.evaluate(() => {
 });
 console.log('summary: "' + summary + '"');
 if (!summary) bad('the page does not say what is new');
-if (!/NEW MODE/.test(summary)) bad('the summary does not count the modes');
+// ONE HEADER AND A LIST, not a sentence per kind. It used to read
+// "1 NEW MODE UNLOCKED \u00b7 2 NEW WEAPONS UNLOCKED \u00b7 ..." — four numbers
+// wrapped in twelve words, over three lines on a phone.
+if (!/^NEW UNLOCKS: /.test(summary)) bad('the summary is not one headed list: ' + summary);
+if (!/\bMODES?\b/.test(summary)) bad('the summary does not count the modes');
+if (!/\bWEAPONS?\b/.test(summary)) bad('the summary does not count the kit');
+if (/UNLOCKED/.test(summary)) bad('the summary still says UNLOCKED for every kind');
+if (summary.length > 64) bad('the summary is not concise: ' + summary.length + ' chars');
 const fresh = await page.$$eval('.arow.fresh b', (ns) => ns.map((n) => n.textContent.replace('NEW', '').trim()));
 console.log('rows marked NEW: ' + JSON.stringify(fresh));
 if (!fresh.length) bad('nothing in the list is marked as new');
@@ -56,6 +63,31 @@ const panelGone = !(await boxOf(page, '#unlocks'));
 console.log('after PLAY: selector ' + (sel ? 'open' : 'CLOSED') + ', archive ' + (panelGone ? 'closed' : 'STILL OPEN'));
 if (!sel) bad('PLAY THE NEW MODES did not open the mode board');
 if (!panelGone) bad('the archive stayed open behind it');
+
+// ---- ...and the BOARD says what is new on it too -------------------------
+// The badge on NEW RUN sends you here; the top of this screen has to name
+// what it sent you for, or arriving tells you nothing.
+const msum = await page.evaluate(() => {
+  const n = document.getElementById('mssum');
+  return n ? { text: n.textContent.trim(), news: n.classList.contains('news') } : null;
+});
+console.log('board summary: ' + JSON.stringify(msum));
+if (!msum || !msum.text) bad('the mode board has no summary line');
+else {
+  if (!msum.news) bad('the board summary is not marked as news when a mode just opened');
+  if (!/NEW MODE/.test(msum.text)) bad('the board summary does not say a mode is new');
+  // it must NAME it, not just count it: the point of the line is knowing
+  // which card to look for
+  const named = await page.$$eval('#mslist .mscd .msname', (ns) => ns.map((n) => n.textContent));
+  if (!named.some((nm) => msum.text.includes(nm))) {
+    bad('the board summary names no mode on the board: ' + msum.text);
+  }
+  // ...and it is about MODES only. This screen cannot take you to a weapon.
+  if (/WEAPON|PROTOCOL|ENEMY|ROOM/.test(msum.text)) {
+    bad('the board summary announces things this screen cannot open: ' + msum.text);
+  }
+}
+await page.screenshot({ path: OUT + 'news-board.png' });
 await page.tap('#modeselclose'); await page.waitForTimeout(500);
 
 // ...and the badges are gone, and stay gone across a reload
