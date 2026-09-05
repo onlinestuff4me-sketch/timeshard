@@ -7760,28 +7760,24 @@ function modeMini(m) {
     + `<div class="msminame">${escHtml(m.name)}</div></div>`;
 }
 
-// WHAT THIS BOARD IS FOR, said once at the top instead of left to be spotted
-// among six cards with moving pictures on them — the same courtesy the archive
-// page gets from `newsLine`.
+// NEWS, OR NOTHING. A banner at the top of this screen is worth the space it
+// takes only when it is announcing something; a permanent status strip saying
+// how much of the board is still shut is a line you stop reading after the
+// second visit, and it makes the one visit where there IS news look the same
+// as all the others.
 //
-// It is about MODES ONLY, and deliberately: this screen cannot take you to a
-// weapon or a room, so a line here counting them would be an announcement
-// pointing somewhere else. It reads the same set the NEW tags on the cards do
-// — open, and never played — so the summary and the marks below it can never
-// disagree. With no news it still says something true: how much of the board
-// is still shut, which is the other question you open it with.
+// It counts rather than names. The names are on the cards, in their own red
+// tags, four inches below — spelling them out up here says the same thing
+// twice and grows a line that has to fit a phone.
+//
+// MODES ONLY, deliberately: this screen cannot take you to a weapon or a
+// room, so a count of those would be an announcement pointing somewhere else.
+// It reads the same set the NEW tags do — open, and never played — so the
+// banner and the marks under it can never disagree.
 function modeSelSummary() {
   const u = unlockState();
-  const open = LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors));
-  const fresh = open.filter((m) => !u.played.has(m.id));
-  if (fresh.length) {
-    return { news: true, text: (fresh.length > 1 ? `${fresh.length} NEW MODES` : 'NEW MODE')
-      + ': ' + fresh.map((m) => m.name).join(', ') };
-  }
-  const shut = LOCKED_MODES.length - open.length;
-  return { news: false, text: shut
-    ? `${shut} MORE MODE${shut > 1 ? 'S' : ''} TO UNLOCK`
-    : 'ALL MODES UNLOCKED' };
+  const fresh = LOCKED_MODES.filter((m) => modeUnlocked(m.id, u.doors) && !u.played.has(m.id));
+  return fresh.length ? `${fresh.length} NEW MODE${fresh.length > 1 ? 'S' : ''} UNLOCKED` : '';
 }
 
 function renderModeSel() {
@@ -7789,8 +7785,8 @@ function renderModeSel() {
   const u = unlockState();
   if (el.mssum) {
     const sum = modeSelSummary();
-    el.mssum.textContent = sum.text;      // textContent: a mode name is content
-    el.mssum.classList.toggle('news', sum.news);
+    el.mssum.textContent = sum;
+    el.mssum.classList.toggle('on', !!sum);
   }
   const open = (id) => modeUnlocked(id, u.doors);
   const tunnel = modeById(DEFAULT_MODE);

@@ -23,6 +23,15 @@ if (!cards[0] || cards[0].mode !== 'hall' || !cards[0].hero) bad('THE TUNNEL is 
 if (cards[0].locked) bad('THE TUNNEL is locked on a fresh install');
 // no strip on a first run: it would be one card pointing at the card below it
 if (await boxOf(page, '#mslist .msstrip')) bad('the recency strip is up with nothing played');
+// ...AND NO BANNER. The news row at the top exists to announce a mode that
+// has opened; with nothing open it must not be in the layout at all, saying
+// how much is still shut. A permanent strip is a line you stop reading.
+const sum = await page.evaluate(() => {
+  const n = document.getElementById('mssum');
+  return n ? { text: n.textContent.trim(), shown: !!(n.offsetWidth || n.offsetHeight) } : null;
+});
+console.log('news row: ' + JSON.stringify(sum));
+if (sum && sum.shown) bad('the board is showing a news row with no news: "' + sum.text + '"');
 const secs = await page.$$eval('#mslist .mssec', (ns) => ns.map((n) => n.textContent));
 if (secs.length) bad('a first run has section headings it does not need: ' + secs.join(','));
 for (const c of cards.slice(1)) {

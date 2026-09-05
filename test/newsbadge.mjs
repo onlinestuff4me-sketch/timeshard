@@ -69,18 +69,19 @@ if (!panelGone) bad('the archive stayed open behind it');
 // what it sent you for, or arriving tells you nothing.
 const msum = await page.evaluate(() => {
   const n = document.getElementById('mssum');
-  return n ? { text: n.textContent.trim(), news: n.classList.contains('news') } : null;
+  return n ? { text: n.textContent.trim(), on: n.classList.contains('on'),
+    shown: !!(n.offsetWidth || n.offsetHeight) } : null;
 });
-console.log('board summary: ' + JSON.stringify(msum));
+const tagged = await page.$$eval('#mslist .mscd .mstag', (ns) => ns.length);
+console.log('board summary: ' + JSON.stringify(msum) + '  cards wearing NEW: ' + tagged);
 if (!msum || !msum.text) bad('the mode board has no summary line');
 else {
-  if (!msum.news) bad('the board summary is not marked as news when a mode just opened');
-  if (!/NEW MODE/.test(msum.text)) bad('the board summary does not say a mode is new');
-  // it must NAME it, not just count it: the point of the line is knowing
-  // which card to look for
-  const named = await page.$$eval('#mslist .mscd .msname', (ns) => ns.map((n) => n.textContent));
-  if (!named.some((nm) => msum.text.includes(nm))) {
-    bad('the board summary names no mode on the board: ' + msum.text);
+  if (!msum.on || !msum.shown) bad('the board summary is not shown when a mode just opened');
+  // IT COUNTS, IT DOES NOT NAME. The names are on the cards below it in their
+  // own tags; saying them twice grows a line that has to fit a phone.
+  if (msum.text !== tagged + ' NEW MODES UNLOCKED') {
+    bad('the board summary does not count the NEW cards under it: "' + msum.text
+      + '" with ' + tagged + ' tagged');
   }
   // ...and it is about MODES only. This screen cannot take you to a weapon.
   if (/WEAPON|PROTOCOL|ENEMY|ROOM/.test(msum.text)) {

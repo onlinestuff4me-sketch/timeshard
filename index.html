@@ -1135,17 +1135,16 @@
              opacity:0; transition:opacity .18s ease, max-height .18s ease, padding .18s ease; }
   #mstoast.on { opacity:1; max-height:64px; padding:10px 13px; }
 
-  /* WHAT IS NEW HERE, or how much of the board is still shut. The card is a
-     LIGHT panel, so the quiet state is a grey off the same ramp the section
-     headings use — a pale tint would be invisible on it. It goes red only
-     when it is naming a mode you can go and play, and that is the same red
-     the NEW tags on the cards below it are. */
-  #mssum { flex:none; margin:11px 20px 0; padding:7px 11px; border-radius:10px;
-           font-size:8.5px; font-weight:900; letter-spacing:.14em; line-height:1.5;
-           text-align:center; color:#9aa0a9;
-           border:1.5px solid rgba(22,24,29,.10); }
-  #mssum.news { color:#ff2d1a; background:rgba(255,45,26,.10);
-           border-color:rgba(255,45,26,.35); }
+  /* WHAT IS NEW HERE — and NOTHING when nothing is. The row is not in the
+     layout at all until it has an announcement to make, so the screen a
+     player sees on almost every visit is the one they came for. Same red as
+     #unlocknew on the archive page and as the NEW tags on the cards below,
+     because it is the same news. */
+  #mssum { display:none; flex:none; margin:11px 20px 0; padding:7px 11px;
+           border-radius:10px; font-size:8.5px; font-weight:900; letter-spacing:.14em;
+           line-height:1.5; text-align:center; color:#ff2d1a;
+           background:rgba(255,45,26,.10); border:1.5px solid rgba(255,45,26,.35); }
+  #mssum.on { display:block; }
 
   /* the tutorial question, on the NEW RUN path only */
   #mstut { flex:none; display:none; align-items:center; justify-content:center; gap:8px;
