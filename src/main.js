@@ -3751,7 +3751,11 @@ function diffT() {
 // Everything below is a read of it; nothing here decides anything.
 // ---------------------------------------------------------------------------
 // How many corridors and rooms stand behind one door.
-const doorLegs = (d) => Math.min(OPENING.legsCap, ramp(d, OPENING.legsEvery));
+// HOW MANY CORRIDORS STAND BEHIND ONE DOOR. One, always, in the duel: a room
+// there is a self-contained fight that ends with a door, and splitting a
+// door's plan across two of them is what made the headcount saw-tooth.
+const doorLegs = (d) => (game.mode === 'duel' ? 1
+  : Math.min(OPENING.legsCap, ramp(d, OPENING.legsEvery)));
 // ...how many bodies the WHOLE door holds, across all of them: the sum of its
 // encounters. See OPENING.encounters — a door is a list of GROUPS, not a count.
 const doorBodies = (d) => doorEncounters(d).reduce((a, b) => a + b, 0);
@@ -3763,7 +3767,22 @@ const doorAlive = (d) => Math.max(1, ...doorEncounters(d));
 // HOW ONE DOOR'S ENCOUNTERS ARE SPLIT BETWEEN ITS LEGS. Dealt round-robin from
 // the largest down, so every corridor behind a door gets a mix: one leg does
 // not take all the threes and leave the next a row of singles.
+// THE DUEL'S ROOMS ARE ITS OWN, largest group LAST. See SIMPLE.duel.encounters
+// for the table and the rule that continues it.
+function duelEncounters(d) {
+  const T = SIMPLE.duel.encounters;
+  const n = Math.max(1, d | 0);
+  const cap = SIMPLE.duel.encCap;
+  const clamp = (g) => g.map((v) => Math.min(cap, v));
+  if (n <= T.length) return clamp(T[n - 1].slice());
+  const k = Math.ceil(n / 2);
+  return clamp(n % 2 ? [k, k + 1, k + 1] : [k + 1, k + 1, k + 2]);
+}
+
 function legEncounters(d, i) {
+  // ONE ROOM, ONE PLAN. The duel has a single leg per door (see doorLegs), so
+  // there is nothing to deal out and the room simply is the door's fight.
+  if (game.mode === 'duel') return duelEncounters(d);
   const all = doorEncounters(d).slice().sort((a, b) => b - a);
   const legs = Math.max(1, doorLegs(d)), out = [];
   for (let k = 0; k < all.length; k++) if (k % legs === i) out.push(all[k]);
@@ -11021,8 +11040,18 @@ function maxAlive() {
   if (inHall()) {
     // A condition thins the crowd as well as the loot: two bodies met
     // separately are two searches, where a clump is one problem solved once.
-    return Math.max(1, schoolFloor(game.wave), Math.round(doorAlive(game.wave)
+    const n = Math.max(1, schoolFloor(game.wave), Math.round(doorAlive(game.wave)
       * condTax(legCondition(), 'groupSize')));
+    // ...BUT A GROUP MUST BE ABLE TO STAND UP TOGETHER. The duel's rooms are
+    // written as groups (SIMPLE.duel.encounters) and a group arriving together
+    // is the whole point of one — a three dealt out one man at a time is three
+    // singles a beat apart, which is the easier fight and not the one the room
+    // was written to be. So the crowd ceiling never sits under the room's
+    // biggest group.
+    if (game.mode === 'duel') {
+      return Math.max(n, ...duelEncounters(hall ? hall.doorsPassed + 1 : 1));
+    }
+    return n;
   }
   return Math.min(PACING.cityAliveBase + Math.floor(game.wave / 2), PACING.cityAliveCap);
 }
@@ -11893,6 +11922,14 @@ function hallWave(n) {
     }
     hallWant = want;
   }
+  // THE DUEL'S GROUPS, IN THE ORDER THEY WERE WRITTEN. Everywhere else the
+  // encounter list only sets the leg's TOTAL and the groups are re-derived per
+  // stretch — which is fine in a corridor you walk down, where the stretch you
+  // are standing in is what decides the next arrival. The duel has one stretch
+  // you can reach and a room that is meant to BUILD, so its list has to
+  // survive as a list: 3, 3, 4 is a room that ends on its biggest fight, and
+  // 4, 4, 2 is the same ten men arriving in the wrong order.
+  if (game.mode === 'duel' && hall) hall.duelGroups = duelEncounters(n).slice();
   // ...and the CAST is composed the same way it always was — the ramp decides
   // how many, never who. A door that debuts a type still leads with it.
   const sub = { laser: 'rusher', sniper: 'gunner', rocketeer: 'heavy', bomber: 'shotgunner' };
@@ -13410,8 +13447,14 @@ function frame(now) {
           // separate searches — the harder and more interesting version of a
           // corridor you cannot see down.
           const LG = hall.legs[hall.cur];
-          const owes = !legCondition() && LG && LG.fill && LG.lastOwn >= 0
-            ? LG.fill[LG.lastOwn] || 0 : 0;
+          // THE DUEL TAKES ITS GROUP OFF THE ROOM'S LIST, in order, so the
+          // room builds. One man is already born on the line above, so the
+          // group owes the rest of itself.
+          const owes = game.mode === 'duel'
+            ? ((hall.duelGroups && hall.duelGroups.length
+              ? hall.duelGroups.shift() : 1) - 1)
+            : (!legCondition() && LG && LG.fill && LG.lastOwn >= 0
+              ? LG.fill[LG.lastOwn] || 0 : 0);
           let extra = Math.min(owes, game.spawnQueue.length,
             maxAlive() - enemies.length);
           while (extra-- > 0) spawnEnemy(game.spawnQueue.shift(), null, true);

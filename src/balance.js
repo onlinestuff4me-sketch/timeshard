@@ -1070,6 +1070,30 @@ export const SIMPLE = {
     // on its own, or it keeps going for as long as you keep shattering, which
     // is the whole bargain stated in one sentence.
     buttonRoom: 2,
+    // ---- WHAT A ROOM HOLDS ------------------------------------------------
+    // ITS OWN TABLE, because a duel room is not a tunnel door. The tunnel
+    // deals a door's encounters round-robin across the legs behind it, and
+    // `doorLegs` gives door 1-4 one leg and doors 5-9 two — so in a mode where
+    // one room IS one leg, rooms 5 and 6 each inherited half a door's plan.
+    // Measured across twelve rooms, the headcount came out 5 7 8 9 7 5 5 7 9
+    // 9 8 8: it climbed to room 4, fell back to a room-1 sized fight at 6 and
+    // 7, and climbed again. Nobody designed that rest; it is an artefact of
+    // reading a per-door plan one leg at a time.
+    //
+    // A GROUP ARRIVES TOGETHER, and the groups within a room now ASCEND:
+    // a room opens with its smallest and closes with its largest, so clearing
+    // one is a build rather than a fade. The rule under the table, from room 5
+    // on: an odd room 2k-1 is (k, k+1, k+1) and an even room 2k is
+    // (k+1, k+1, k+2) — the totals therefore climb 5, 7, 8, 10, 11, 13, 14 …
+    // rising by two and then one, for ever, capped by `encCap`.
+    encounters: [
+      [1, 2, 2],   // room 1 —  5
+      [2, 2, 3],   // room 2 —  7
+      [2, 3, 3],   // room 3 —  8
+      [3, 3, 4],   // room 4 — 10
+      [3, 4, 4],   // room 5 — 11
+    ],
+    encCap: 6,     // no group is ever bigger than this
     // SHORTER THAN THE TUNNEL'S, because you never walk it while it matters.
     // The strip is the arena, not a journey: its length is the range the
     // fight opens at, and everything past the last body is a corridor you
