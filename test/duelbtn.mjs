@@ -160,7 +160,11 @@ console.log('spending: bank ' + spend.before.bank + ' -> ' + spend.during.bank
 if (spend.during.bank >= spend.before.bank) {
   bad('the bank did not drain while slow time was on');
 }
-if (spend.slowest > 0.3) bad('pressing the button did not slow the world: ' + spend.slowest);
+// A BAND, NOT A NUMBER. What matters is that the world genuinely slows and
+// that it stays playable: 0.13 shipped once, and at that speed a room-1 round
+// takes 23 seconds to cross the strip against a bank that holds ten.
+if (spend.slowest > 0.45) bad('pressing the button did not slow the world: ' + spend.slowest);
+if (spend.slowest < 0.15) bad('slow time is slower than the meter can pay for: ' + spend.slowest);
 
 // ---- shattering puts it back ---------------------------------------------
 const refill = await page.evaluate(async () => {
@@ -216,5 +220,29 @@ if (half.full) bad('a half-full button is claiming to be full');
 await page.screenshot({ path: OUT + 'duel-button-half.png' });
 if (dry.locked) bad('the bank emptied and slow time did not let go on its own');
 if (!dry.low) bad('an empty button is not showing itself as empty');
+// ---- and it never hands you a knife you cannot reach anybody with ---------
+// There is no forward control here: the drops fall 15-24 m away on the spine
+// and the corridor only carries you once the room is CLEAR, which needs the
+// gun you just ran out of. So running dry is not a hard beat, it is a room
+// that cannot be finished.
+const dry2 = await page.evaluate(async () => {
+  const t = window.__ts;
+  t.player.clips = 0;
+  let fired = 0;
+  const t0 = performance.now();
+  // empty the magazine and keep pulling
+  while (performance.now() - t0 < 14000 && fired < 40) {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999;
+    t.fire(); fired++;
+  }
+  await new Promise((r) => setTimeout(r, 2500));
+  return { weapon: t.player.weapon, mag: t.player.mag, clips: t.player.clips,
+    hud: (document.getElementById('ammo') || {}).textContent || '' };
+});
+console.log('after emptying the gun: ' + JSON.stringify(dry2));
+if (dry2.weapon === 'knife') bad('the duel dropped the player to a knife they cannot reach anybody with');
+if (/\+/.test(dry2.hud)) bad('the duel is counting spare clips it does not spend: ' + dry2.hud);
+
 done('duelbtn', errs);
 await browser.close();

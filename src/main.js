@@ -1233,8 +1233,23 @@ function startReload() {
   if (player.reloadT > 0 || spec.mag === Infinity) return;
   if (player.mag >= spec.mag) return;
   if (player.clips <= 0) {
-    if (player.mag <= 0) dropToKnife();
-    return;
+    // THE DUEL HAS NO WAY TO GO AND GET MORE, so running dry there is not a
+    // hard beat, it is a dead end. Everywhere else the knife is a real choice
+    // — it is lethal, and it asks you to close the distance. Here you cannot:
+    // there is no forward control, the drops fall fifteen to twenty-four
+    // metres away on the spine, and the corridor only carries you once the
+    // room is CLEAR, which needs the gun you have just run out of. A player
+    // handed a knife in a strip they cannot cross is holding an unwinnable
+    // room, which is the same shape as the deadlock this mode already had.
+    //
+    // The reload stays — those seconds where all you can do is dodge are the
+    // risk, and they are worth keeping. What is not a resource here is the
+    // RESERVE. See updateReload, which does not spend one, and updateAmmoHud,
+    // which does not count them.
+    if (game.mode !== 'duel') {
+      if (player.mag <= 0) dropToKnife();
+      return;
+    }
   }
   player.reloadT = spec.reload;
   sfx.pickup();
@@ -1251,7 +1266,7 @@ function updateReload(dt) {
   player.reloadT -= dt;
   if (player.reloadT <= 0) {
     player.reloadT = 0;
-    player.clips--;
+    if (game.mode !== 'duel') player.clips--;   // the duel reloads off a belt
     player.mag = spec.mag;
     vibrate(12);
   }
@@ -4570,7 +4585,11 @@ function playerFire(aimAt = null) {
   player.mag--;
   updateAmmoHud();
   if (player.mag <= 0) {
-    if (player.clips > 0) startReload();   // auto-rack the moment it goes dry
+    // THE SECOND WAY TO THE KNIFE, and the one that actually fires: the shot
+    // that empties the magazine racks the next clip, or hands you the blade.
+    // The duel always racks — see startReload for why a knife is a dead end
+    // in a strip you cannot cross.
+    if (player.clips > 0 || game.mode === 'duel') startReload();
     else dropToKnife();                    // nothing left to rack
   }
 }
@@ -10316,7 +10335,11 @@ function updateAmmoHud() {
       + '<i class="pip out"></i>'.repeat(Math.max(spec.mag - live, 0));
     // ...and during the lesson the magazine does not run down, so the count
     // of spare clips is a number about a system nobody has met.
-    const spare = tutorStep === null && player.clips > 0 ? ' · +' + player.clips : '';
+    // ...and the duel has no reserve to count: the magazine is the whole of
+    // the resource there, so a spare tally would be a number about a system
+    // that mode does not have.
+    const spare = tutorStep === null && player.clips > 0 && game.mode !== 'duel'
+      ? ' · +' + player.clips : '';
     el.ammo.innerHTML = `${name} · <b class="mag">${pips}</b>${spare}`;
   }
   el.ammo.classList.remove('shotgun');   // the HUD stays ink; red is the bank

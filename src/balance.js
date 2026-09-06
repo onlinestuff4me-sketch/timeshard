@@ -1050,7 +1050,22 @@ export const SIMPLE = {
     // Time is not the player's here. It drops on its own the moment a round
     // is on its way and comes back when the air is clear, so the rhythm of
     // the fight is set by the enemy firing rather than by a button.
-    slow: 0.13,         // world speed while slow time is on
+    // WORLD SPEED WHILE SLOW TIME IS ON, and 0.13 was far too slow to play.
+    //
+    // The arithmetic: a room-1 round travels at 5.4 m/s and is fired from 16
+    // to 24 m away. At 0.13 that is an effective 0.70 m/s, so a round takes
+    // TWENTY-THREE SECONDS to cross the strip — against a bank that holds ten.
+    // You could not watch a single round arrive on a full meter, which makes
+    // the button something you regret pressing.
+    //
+    // 0.3 is not a taste: it is the tunnel's own `TIME.moveScale`, the speed
+    // the world runs at there when the player is at FULL DRAG. The tunnel
+    // ranges from 0.05 standing still up to that, because moving costs you
+    // time — and in the duel sidestepping is the only verb there is, so the
+    // player is always at the moving end of that range. Same number, same
+    // reason. A round from 6 m out now takes 3.2 s of slowed time instead of
+    // 8.5, which is a beat you can act inside.
+    slow: 0.3,
     ease: 9,            // crossing between slow and full (per second)
     // WHAT "A ROUND IS ON ITS WAY" MEANS — inside `lead` seconds and passing
     // within `miss` metres. This used to DRIVE the mode: the world slowed
