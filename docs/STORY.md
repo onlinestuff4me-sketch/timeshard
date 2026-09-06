@@ -93,28 +93,60 @@ agents, and still, officially, nobody sends them. **They have been
 transmitting since the forties and no government has ever claimed them,
 because they are not from any government.**
 
-### 3.4 What the player hears, and when
+### 3.4 Audio only plays in downtime
 
-Three tiers, so that the body of a message is something you have to *go and
-listen for*, while nothing story-critical can be missed.
+**Never during a fight, and never in slowed time.** Slow time is used in the
+most concentrated moments a player has — reading a round, picking a target,
+deciding where to step. Putting story audio there interrupts the thing it is
+interrupting for, and it makes delivery unpredictable: a player who freezes
+rarely would hear almost nothing.
 
-| tier | when it plays | why |
-|---|---|---|
-| **The tone** — the interval signal that opens a transmission | always, at normal speed | you always know a message is being sent, even if you cannot hear a word of it |
-| **The groups** — the five-digit body | in slowed time only | the bulk of the script. Caught in pieces, across many freezes |
-| **Keystones** — a handful of scripted transmissions | in full, at normal speed, at fixed moments | the beats the story cannot afford to have missed |
+So there are two channels, and both are quiet moments the game already has.
 
-The middle tier is the one that ties the fiction to the mechanic: the world is
-quiet during a freeze, the player has attention to spare, and the same
-technology that slows time is what makes them a receiver. The one moment in
-this game already reserved for thinking becomes the moment the story arrives
-in.
+| | channel | carries | when |
+|---|---|---|---|
+| **1** | **the corridor** | the transmission — the numbers | walking a hallway between encounters, on first entry to the door it is assigned to |
+| **2** | **the way back to the menu** | the cipher — the pad | at the end of a run, before the start screen, with the text on screen |
 
-**Keystones are rare.** Four or five in the whole game — the first
-transmission, the slow-time unlock, the clone, the ending. If everything
-important plays at normal speed, the freeze stops being where the story lives.
+Nothing plays over combat, nothing competes with a coach line, and nothing
+can be missed by playing a particular way.
 
-### 3.5 The audio is eleven files
+**This retires the three-tier model** (tone always / body in freeze /
+scripted keystones). Keystones existed to guarantee that critical audio was
+heard; guaranteed downtime delivery does that for everything, so the tiers
+collapse into the two channels above.
+
+### 3.5 The corridor channel, and the leg it needs
+
+The transmission plays while the player walks a hallway. The leg has to last
+long enough to finish it, and then the way on appears at the next turn.
+
+**Build the leg for sprint speed, up front.** A leg long enough to cover the
+audio at a *sprint* cannot be outrun, and a player who walks simply gets some
+quiet corridor at the end. The alternative — extending the leg while it is
+being walked — means building geometry at runtime, which `PILLARS` §8
+forbids, and blocking the door until the audio ends is a stall the player can
+feel.
+
+Two content constraints fall out of that:
+
+- **A transmission is 20–30 seconds.** That is the longest an empty corridor
+  stays interesting, and it is what sets the leg length. Real numbers
+  stations run for minutes and repeat everything twice; this is a compressed
+  version — tone, eight or ten groups, done.
+- **Roughly one door in five carries one.** A long empty leg is a welcome
+  change of rhythm and a bad default.
+
+### 3.6 Every transmission is replayable
+
+From the archive, at any time, in full.
+
+A decode puzzle you cannot re-listen to is unfair — a player who missed one
+group is permanently stuck on that message. It also means the corridor
+delivery only has to work *once*, on first entry, which is what makes the
+one-off leg length acceptable.
+
+### 3.7 The audio is eleven files
 
 Ten digit readings and one interval tone. Every message in the game is a
 sequence of those. A twenty-message script costs no more to record than a
@@ -122,26 +154,38 @@ one-message script.
 
 ---
 
-## 4. Dying is how you learn to read
+## 4. The pad arrives when a run ends
 
-**Every door owns one fragment of the pad. You get a door's fragment by dying
-on that door**, in the gap between the death and the next attempt at it.
+**The problem with tying the pad to death:** a player who does not die does
+not get it, and the pad is not optional — without it the messages never
+decode and the ending is unreachable. A skill gate on the critical path is a
+bug, not a difficulty setting.
 
-This is the central loop and it is the answer to *why should I keep playing*:
-the failure state is the progression system.
+**The fix is one word.** The pad does not arrive when you *die*, it arrives
+when a **run ends** — on the way back to the menu, however you got there.
+Death is by far the most common way a run ends in a one-hit-kill game, so in
+practice it plays exactly as intended, and the fiction is unchanged: the run
+ending is the moment you are briefly outside the simulation, and that is when
+you remember more of the primer.
 
-### 4.1 Why it is keyed to the door
+### 4.1 What you get
 
-- **It cannot be farmed.** Dying at door 1 twenty times gives you door 1's
-  fragment twenty times. The only way to get more of the pad is to get deeper.
-- **It paces itself against depth** without a second difficulty curve. The
-  pad fills at exactly the rate the player is actually advancing.
-- **Nothing is permanently missable.** Every run passes back through the
-  shallow doors, so a fragment skipped by surviving a door can always be
-  collected later.
-- **The delivery surface already exists.** The death screen carries the run
-  stats and `RETRY FROM LAST DOOR`; the fragment goes there, where the player
-  is already reading.
+**Every door owns one fragment.** At the end of a run you receive the
+fragments for every door you reached that you did not already hold — in
+order, with the decoded text on screen while the audio plays.
+
+- **It cannot be farmed.** Door 1's fragment arrives once.
+- **It paces itself against depth.** A deeper run pays more pad, with no
+  second difficulty curve to tune.
+- **It cannot be gated by skill.** Every run ends eventually.
+- **Nothing is permanently missable.** Later runs pass back through the same
+  doors.
+- **The surface exists.** The end-of-run screen already carries the stats
+  line and the retry button.
+
+A player on a long survival streak simply accumulates a backlog and is paid
+all of it at once, which makes the end of a good run a bigger event rather
+than a smaller one.
 
 ### 4.2 Partial pad, partial message
 
@@ -159,7 +203,7 @@ it is exactly what the arithmetic in §3.2 does.
 
 `TUNNEL_META` §2 says the meta never grants power, only knowledge and access.
 The pad is knowledge in the most literal sense available: it changes nothing
-anywhere in the game except what you can read.
+anywhere in the game except what the player can read.
 
 ---
 
@@ -184,7 +228,7 @@ Believed the first time. Doubted by the third.
 | the rule | the reason |
 |---|---|
 | time slows when you stand still | you are the prototype |
-| the numbers are audible in a freeze | the tech that slows time is what receives them |
+| you only hear the numbers in empty corridors | the sim jams the signal wherever it is watching you closely |
 | one hit kills you | the simulation is not there to keep you alive |
 | one hit kills them | neither are they |
 | the doors never end | it was not built to be completed |
@@ -254,25 +298,34 @@ re-litigated.
 
 | # | question | why it matters |
 |---|---|---|
-| **Q1** | **Where does the clone live?** | The tunnel is endless by design. A finale needs a fixed depth, and picking it is a design decision. |
-| **Q2** | **Does the third act fit inside the depth people actually reach?** | Slow time unlocks at door 46 on shipped numbers. If the full stop extends it and the clone is the finale, the whole third act sits past door 46 — deeper than most players will ever get. Either the reveals move shallower or the unlock does. |
+| **Q1** | **Where does the clone live?** | The tunnel is endless by design. A finale needs a fixed depth. |
+| **Q2** | **Does the third act fit inside the depth people reach?** | Slow time unlocks at door 46 on shipped numbers. If the full stop extends it and the clone is the finale, the third act sits past door 46 — deeper than most players get. Either the reveals move shallower or the unlock does. |
 | **Q3** | **How many questions at the end, and what are they?** | The ending only works if each answer is worth a whole replay. Three or four, not twenty. |
-| **Q4** | **Does the pad survive the ending's wipe?** | Recommended yes (§9.1) — knowledge is the thing they cannot take back, and it makes a second run an invitation instead of a punishment. Not yet confirmed. |
-| **Q5** | **How many fragments and messages in total?** | Sets the length of the whole arc, and how deep a player must get to finish reading. One fragment per door means the count is decided by Q1. |
-| **Q6** | **Recorded voice or synthesised?** | Eleven files either way, but a real voice is the entire texture of this device and a synthesised one may undercut it. |
-| **Q7** | **What does the death screen show when the door's fragment is already held?** | Every death after the first on a given door lands on this. Showing it again, showing nothing, or showing the next locked one are all different games. |
-| **Q8** | **Does the tutorial door carry a fragment?** | The onboarding is `countsAsDoor: false` and its deaths are lesson retries, not run failures. Probably not — but it is the first place a player will die. |
+| **Q4** | **Does the pad survive the ending's wipe?** | Recommended yes (§9.1). Not yet confirmed. |
+| **Q5** | **How many transmissions and fragments in total?** | One fragment per door means the count is decided by Q1. |
+| **Q6** | **Recorded voice or synthesised?** | Eleven files either way, but a real voice is the whole texture of this device. |
+| **Q9** | **How long is a transmission, exactly?** | It sets the corridor leg length. §3.5 proposes 20–30 s; the real number wants a walk-through at sprint speed before it is fixed. |
+| **Q10** | **What fraction of doors carry a transmission?** | §3.5 proposes one in five. Too many and the long empty leg stops being a change of rhythm. |
+| **Q11** | **Can a transmission leg hold enemies at all?** | Specified as empty. If that reads as dead air rather than as relief, the alternative is one body at the far end, after the audio. |
+| **Q12** | **Where does the archive live?** | Replay (§3.6) and the decode view need a home. UNLOCKS is the obvious candidate, and it is already a screen about what the building has shown you. |
 
 ### Answered
 
 | # | question | answer |
 |---|---|---|
-| **A1** | When does the station play? | Three tiers (§3.4). The opening tone always, at normal speed. The five-digit body in slowed time only. Four or five scripted keystones in full at normal speed. |
-| **A2** | How often does a pad fragment arrive? | Not per death and not per run — **per door**. Each door owns one fragment, released in the gap between dying on that door and retrying it (§4). |
-| **A3** | Can the pad be farmed? | No. Dying at door 1 twenty times yields door 1's fragment twenty times; the only way to get more pad is to get deeper. |
-| **A4** | Can a fragment be permanently missed? | No. Every run passes back through the shallow doors. |
-| **A5** | Does the boss break the one-hit pillar? | No (§7). The clone dies in one hit like everything else; the difficulty is landing it. |
-| **A6** | Does the pad break the "meta is never power" rule? | No (§4.3). It changes nothing in the game except what the player can read. |
+| **A1** | When does audio play? | **Superseded.** Not in slowed time — that is the player's most concentrated moment and delivery there is unpredictable. Two downtime channels instead: transmissions in empty corridors, the pad on the way back to the menu (§3.4). |
+| **A2** | How often does a pad fragment arrive? | Per door, paid out at the end of a run (§4). |
+| **A3** | Can the pad be farmed? | No. Each door's fragment arrives once. |
+| **A4** | Can a fragment be permanently missed? | No — and no longer skill-gated either, since every run ends eventually (§4). |
+| **A5** | Does the boss break the one-hit pillar? | No (§7). It dies in one hit; the difficulty is landing it. |
+| **A6** | Does the pad break the "meta is never power" rule? | No (§4.3). |
+| **A7** | What if the player never dies? | They still get the pad. It is keyed to a run *ending*, not to dying (§4). |
+| **A8** | Can a player outrun a transmission by sprinting? | No. The leg is built for sprint speed up front, so it cannot be outrun and nothing is generated at runtime (§3.5). |
+| **A9** | What if a player missed a group? | Every transmission is replayable in full from the archive (§3.6). |
+
+*(Q7 and Q8 are retired — both were about the death screen's behaviour on a
+door whose fragment was already held, and the run-end payout in §4 removes
+the case.)*
 
 ---
 
