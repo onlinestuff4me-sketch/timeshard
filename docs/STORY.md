@@ -104,7 +104,7 @@ You wake in a corridor with no memory of arriving. On the wall ahead, before
 you have moved a step, stencilled at a size you can read from the far end:
 
 ```
-EXIT ▶ 8
+EXIT →
 ```
 
 That single sign answers *why am I here* (I am getting out), *why this
@@ -113,14 +113,14 @@ the first coach line has to say anything at all. It is also the reason the
 opening corridor can stay as empty as `TUTORIAL-GOALS` demands: a sign is not
 an obstacle, an enemy, or a HUD element. It is architecture.
 
-The number goes down. `EXIT ▶ 7`. `EXIT ▶ 6`. The building is being helpful,
-and being helpful is what makes it frightening later.
+Every door is marked `EXIT`. The building is being helpful, and being helpful
+is what makes it frightening later.
 
 **Act II — roughly doors 11–30. The signs stop agreeing with each other.**
 
-The count stalls. Two doors in a row both say `EXIT ▶ 2`. Then a leg says
-`EXIT ▶ 5` and it is not a mistake. Nobody points this out. The player catches
-the building lying, on their own, which is worth ten lines of dialogue.
+They go through a door marked `EXIT` and arrive in another corridor with
+another door marked `EXIT`. Nobody points this out. The player catches the
+building lying, on their own, which is worth ten lines of dialogue.
 
 And the corridor starts carrying evidence that it has been walked before:
 
@@ -141,14 +141,14 @@ says "the person coaching you is in here with you." They work it out.
 The stencils stop reading as wayfinding and start reading as instrumentation.
 
 ```
-L-41 · P-19 · SUBJECT 4409 · TRIAL 118 · RESPONSE NOMINAL
+TEST IN PROGRESS
+DO NOT ASSIST THE SUBJECT
+THIS IS NOT AN EXIT
 ```
 
-`TRIAL 118` is the sentence that does the most work in this document, and it
-costs one `localStorage` integer. It goes up every run. A player on their
-fourth run reads `TRIAL 4` and thinks *fair enough, that's my run counter*. A
-player who finds the fragment that quotes a trial number in the hundreds
-realises the counter did not start with them.
+Three plain signs, and between them they say: this is an experiment, you are
+the subject of it, the men in the corridors were told not to help you, and
+the door you have been walking toward for an hour was never a door out.
 
 **And one man in the corridor does not raise his arm.**
 
@@ -197,8 +197,8 @@ You are not a person being trained. You are a controller being trained *to
 convergence*, and the corridor is the environment. The coach text is reward
 shaping. Time slows when you stand still because the substrate throttles
 fidelity to what your decisions require — the freeze is not your power, it is
-the simulation being cheap. `TRIAL 118` means 117 previous instances did not
-converge.
+the simulation being cheap, and the runs before yours did not converge
+either.
 
 Pays the time mechanic outright, which nothing else here does, and makes the
 amnesia mandatory rather than decorative: an instance starts clean because
@@ -250,9 +250,9 @@ height and a register (stencil / scrawl), and Act I is done:
 
 | Sign | Where | Says |
 |---|---|---|
-| the exit arrow | approach wall, above the door | `EXIT ▶ 6` |
-| the leg designation | beside the door | `L-06 · P-31` |
-| the induction stencil | leg 1 only | `INDUCTION` |
+| the exit arrow | corridor walls, before turns | `EXIT →` |
+| the door sign | above every door | `EXIT` |
+| the deep signs | past door 25 | `TEST IN PROGRESS` |
 
 **The system that paints these, the closed vocabulary they are drawn from,
 the colour law behind them and the tutorial sequence they open with are
@@ -263,8 +263,6 @@ That last one is one word and it answers *why is there a tutorial*: because
 this is the induction, and the building inducts people. It also retroactively
 makes `STAND HERE` — which is already painted on a barrier in the onboarding —
 read as something the building put there, rather than as UI.
-
-`P-31` is not invented for this. `composeProtocol` already computes it.
 
 ### 3.2 The trial counter — *one integer*
 
@@ -328,9 +326,9 @@ handful of oscillators.
 
 | Playtest question | Answered by | When |
 |---|---|---|
-| why am I here | `EXIT ▶ 8` on the wall in front of you | before the first input |
+| why am I here | `EXIT →` on the wall in front of you | before the first input |
 | why this corridor | `L-01 · SECTOR 1` beside the door | door 1 |
-| why is there a tutorial | `INDUCTION` stencilled on leg 1 | door 1 |
+| why is there a tutorial | it is the first corridor, signed like every other | door 1 |
 | who are these enemies | *Compliant. Armed. The building has many.* — moved out of the menu and onto the world; then the man who does not fire | first meeting; ~door 30 |
 | why should I keep playing | the sign is lying and you want to catch it; the blanks in UNLOCKS; a fragment on every personal record | continuous |
 
@@ -342,49 +340,43 @@ to deserve it.
 
 ## 5. Sample fragments
 
-Tone target: the existing `blurb` voice in `src/protocols.js`. Flat,
-institutional, never explains itself, never says anything a form would not
-have room for. The horror is entirely in what is treated as routine.
+Plain sentences a bored administrator would actually write. No codes, no
+jargon. The horror is entirely in what is treated as routine.
 
-> **F-01 · INTAKE**
-> Subject presents no contraindication. Consent recorded, witnessed, and
-> filed. Subject was advised of the duration and did not ask about it.
+> **INTAKE**
+> He signed the form. He was told how long it would take. He did not ask
+> what would happen after.
 
-> **F-04 · MAINTENANCE**
-> Sector 3 wayfinding re-sequenced per directive. Signage now reads to the
-> notional egress rather than to the actual one. No further action.
+> **MAINTENANCE**
+> The exit signs on level 3 now point to the test route, not the way out.
+> Nothing else to do here.
 
-> **F-07 · ROSTER**
-> Personnel modelled from the current staffing return. Where a likeness could
-> not be obtained the entry has been left at default. Default is acceptable.
+> **STAFF**
+> The men in the corridors are copied from the real building's staff list.
+> Where we had no photograph we used the default face. That is fine.
 
-> **F-09 · SURFACES**
-> Interior finishes unavailable below level 12. Geometry retained. Finish
-> pass deferred indefinitely; the exercise does not require it.
+> **SURFACES**
+> We had no pictures of the inside below level 12, so there is nothing on
+> the walls down there. The test does not need them.
 
-> **F-12 · TRIAL LOG**
-> 117 concluded. Response outside tolerance at the ninth door. Instance
-> cleared. 118 initiated on schedule.
+> **LOG**
+> The last one stopped at the ninth door. Cleared and restarted the same
+> morning.
 
-> **F-15 · CORRESPONDENCE**
-> He keeps writing on the walls. Repainting is not cost-effective at this
-> depth. He is not telling them anything they can act on.
+> **NOTE**
+> He keeps writing on the walls. Painting over it costs more than leaving
+> it. Nobody who reads it can do anything about it.
 
-> **F-18 · SCOPE**
-> Below the reconstructed section the environment is generated. Subjects who
-> reach it are past the point the exercise was designed to measure. Continue
-> to observe.
+> **INTAKE, LATER**
+> He asked whether he would remember any of it. We told him the truth. He
+> signed anyway.
 
-> **F-20 · INTAKE (CONT.)**
-> Subject asked whether they would remember. Subject was told the truth.
-> Consent was not withdrawn.
+And the handwriting, for contrast — the same world, the other voice:
 
-And the scrawl, for contrast — the same world, the other voice:
-
-> `don't follow the arrows`
-> `i counted. it goes back up`
-> `the ones who stop are the ones they keep`
-> `i'm sorry`
+> `there is no exit`
+> `i have been here before`
+> `don't believe the signs`
+> `keep going anyway`
 
 ---
 
@@ -392,7 +384,7 @@ And the scrawl, for contrast — the same world, the other voice:
 
 **Amnesia is a cliché.** It is only excusable here because the fiction
 *requires* it rather than leaning on it — an instance starts clean by design,
-and F-20 says so. If we ever have to hand-wave why the player does not
+and the intake note says so. If we ever have to hand-wave why the player does not
 remember, the premise has failed and it should be cut.
 
 **"It was a simulation" voids stakes.** The mitigation is that the stakes are
@@ -417,7 +409,7 @@ door costs your time bank and pays a fragment. It never pays a gun.
    list. Everything else in this document is downstream of it.
 2. **Exit arrows and leg designations** — Act I, and four of the five
    playtest questions.
-3. **`INDUCTION`** — one word, on leg 1.
+3. **`EXIT` above every door** — the hook, one string.
 4. **The trial counter** — one integer, title screen.
 5. **The lie** — the authored countdown table.
 6. **Fragments** on personal-record doors, per `TUNNEL_META` §2c.
@@ -440,8 +432,8 @@ are the three cheapest things on the list.
   addressing the player from outside the world.
 - **Collectible audio logs.** They require standing still and listening, which
   is a mechanic this game has assigned to something else entirely.
-- **A named protagonist.** `SUBJECT 4409` is a better name than any name, and
-  it is the building's, which is the point.
+- **A named protagonist.** The signs say `THE SUBJECT`. Nothing needs to say
+  more than that.
 - **An ending.** The tunnel is endless by design. The story should run out of
   fragments and leave the player in a corridor that keeps going, because that
   is the honest shape of what they are playing.

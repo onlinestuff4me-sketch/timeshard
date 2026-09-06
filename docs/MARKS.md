@@ -63,7 +63,7 @@ thirty metres.
 
 The tutorial is going to spend ninety seconds teaching a player that orange is
 trustworthy. `docs/STORY.md` §2.1 then spends the rest of the game betraying
-that trust: the exit counts stall, repeat, and start addressing somebody else.
+that trust: every door is marked `EXIT` and none of them is one.
 
 **You cannot betray a signal the player never learned to trust.** So the
 onboarding is not merely onboarding here — it is the setup for the lie, and
@@ -137,44 +137,29 @@ stop you. It also needs no arrow to be understood, which is the test of a sign.
 
 ## 4. The vocabulary is closed
 
-A closed set is what lets orange mean one thing. Five entries, and adding a
-sixth is a design decision:
+Ten stencilled strings and four handwritten ones, listed in `docs/BEATS.md`
+§2. Adding one is a design decision.
 
-| mark | where | means |
-|---|---|---|
-| `STAND HERE` | a place on the path | arrive, and stop |
-| `EXIT TO THE LEFT` / `RIGHT` | the wall a turn faces | the way out is this way |
-| `EXIT ▶ 6` | the approach, above the door | how many are left (and, later, a lie) |
-| `DO NOT STOP` | the mouth of a gauntlet | this leg has no cover |
-| `KEEP MOVING` | wherever a grinder is dispatched | the building is coming |
+Two rules govern the words:
 
-### 4.1 The tutorial spells it out; the tunnel compresses it
+- **Plain English, five words or fewer.** No codes, no designations, no
+  jargon. A sign is read once, at speed, on a phone.
+- **The meaning carries the weight, never the wording.** `DO NOT ASSIST THE
+  SUBJECT` is five ordinary words that land instantly.
 
-`EXIT TO THE LEFT` is words because a first-time player on a portrait phone at
-thirty metres should not have to decode a glyph. By door 6 the same instruction
-is `EXIT ◀` and by door 30 it is a number with no verb at all.
+### 4.1 `LEG_HEADLINES` moves onto the walls
 
-**The building stops explaining itself as you go deeper**, which costs nothing
-to build and is the cheapest characterisation available anywhere in this game.
+`NO COVER · DO NOT STOP`, `GRINDER · KEEP MOVING`, `IT SEALS BEHIND YOU`,
+`THEY COME THROUGH THE WALLS` are centre-screen cards shown for two seconds
+today. Every one is a control instruction displayed over the fight it is
+about.
 
-### 4.2 The headline table should move onto the walls
-
-`LEG_HEADLINES` in `src/main.js` is a table of cards shown in the middle of the
-screen for two seconds: `NO COVER · DO NOT STOP`, `GRINDER · KEEP MOVING`,
-`IT SEALS BEHIND YOU`. Every one of those is better as a stencil at the mouth
-of the leg:
-
-- it is where the player is already looking, instead of over the top of it
-- it persists instead of timing out, which is `TUTORIAL-GOALS` goal 2's entire
-  complaint about prompts, applied to the rest of the game
-- it is the building talking rather than the UI, which is `docs/STORY.md`'s
-  whole argument
-
-And the two rows that table deliberately has **no** headline for — `dimStrips`
-and `vault` — stay silent for exactly the reason recorded there: *"a card
-telling the player what they are already looking at is a card in the way of
-it."* A wall does not need to announce columns you can see either. The
-discipline transfers with the content.
+On a wall at the mouth of the leg they persist, sit where the player is
+already looking, and read as the building rather than the UI. **The words do
+not change** — they are already plain — and the two rows the table
+deliberately leaves silent (`dimStrips`, `vault`) stay silent, for the reason
+recorded there: a sign telling the player what they can already see is a sign
+in the way.
 
 ---
 
@@ -189,8 +174,8 @@ The requested sequence, specified.
 3. They reach it. They stop.
 4. **The picture tears for less than a second.** When it settles, the endless
    straight is a wall, and there is a turn to the left that was not there.
-5. On that new wall, orange: **`EXIT TO THE LEFT`**.
-6. They turn. Another stretch, another wall, **`EXIT TO THE RIGHT`**.
+5. On the wall the turn faces, orange: **`EXIT →`**.
+6. They turn. Another stretch, another wall, another **`EXIT →`**.
 7. They turn, and there is the barrier, with **`STAND HERE`** painted on it.
 
 The first thing that ever happens to this player is the world being caught
@@ -219,9 +204,9 @@ So **both configurations exist from the first frame**, and the glitch toggles
 const TEACH_MOVES = [
   ['f', 8],    // 1. MOVE. The mark is at cell 5; the turn is at cell 8 and
                //    is capped until the glitch opens it.
-  ['l', 3],    // 2. LOOK — EXIT TO THE LEFT, on the decoy's cap
+  ['l', 3],    // 2. LOOK — EXIT -> on the decoy's cap
   ['f', 3],
-  ['r', 3],    // 3. CORNERS — EXIT TO THE RIGHT
+  ['r', 3],    // 3. CORNERS — EXIT -> again
   ['f', 13],   // 4-9. barrier, dodge, shoot, door
 ];
 
@@ -236,7 +221,7 @@ extra: [[0, 9], [0, 10], /* … */ [0, 22]],
 | cap on the **left turn** at cell 8 | visible | hidden |
 | cap on the **decoy** at cell 9 | hidden | visible |
 
-The sign `EXIT TO THE LEFT` is painted on the decoy's cap — **the wall that was
+The `EXIT →` sign is painted on the decoy's cap — **the wall that was
 open air a second ago.** That is the best-placed sign in the sequence and it
 falls out of the geometry for free.
 
@@ -348,46 +333,29 @@ rather than inventing a bespoke effect for it later.
 
 ## 7. When the marks start lying
 
-The schedule, from `docs/STORY.md` §2.1, stated in terms of this system:
+The schedule is in `docs/BEATS.md` §6. The short version: every door is
+marked `EXIT` and none of them is one, which the player works out for
+themselves by the third door.
 
-| doors | the marks |
-|---|---|
-| tutorial – 10 | always true. Every one is a deposit. |
-| 11 – 30 | counts stall, repeat, go back up. Nobody points it out. |
-| 30+ | they are addressing somebody who is not you. |
-
-One rule about *which* mark gets to lie first:
-
-**Betray `EXIT`, not `STAND HERE` — at least not first.** `EXIT` is a claim
-about somewhere you cannot see, and catching it out is detective work. `STAND
-HERE` is a claim about the ground under your feet, and it has been safe every
-single time.
-
-Which is exactly why `STAND HERE` is the more frightening one to break, and it
-is available — standing still is how you survive this game, so a mark that
-puts you in a firing line is the deepest cut the system can make. It is fair
-only if the corridor is readable at the moment it happens, and it should be
-spent once, late, and never twice.
+One rule about which sign is allowed to be wrong. **`EXIT` may lie; `STAND
+HERE` may not.** `EXIT` is a claim about somewhere the player cannot see, and
+catching it out is the hook. `STAND HERE` is a claim about the ground under
+their feet, and standing still is how you survive this game — a mark that puts
+somebody in a firing line is a betrayal of the one signal they have to trust
+to play at all.
 
 ---
 
 ## 8. Build order
 
 1. **The mark painter.** Generalise `tutorPlaceWorldCue` from one barrier
-   string to a list of world-anchored signs with a register and an anchor.
-   Everything else is downstream.
-2. **`turnLead[]` in `marksFromPlan`**, and marks anchored to named places.
-3. **The tutorial sequence** — decoy corridor, the two caps, the three marks.
+   string to a list of world-anchored signs. Everything else is downstream.
+2. **`turnLead[]` in `marksFromPlan`**, so signs anchor to named places.
+3. **`EXIT` above every door**, and the tutorial's three marks.
 4. **The glitch** — the grade variant in `warmUp()`, and the cap toggle.
-5. **Resolve the orange conflict** (§2.2) before any of the above ships.
+5. **Resolve the orange conflict** (§2.2). Small, and it blocks the rest.
 6. **Move `LEG_HEADLINES` onto the walls.**
-7. **`EXIT ▶ N` on approaches**, honest — which is `docs/STORY.md` §3.1.
-8. **The lie** (§7), which is only worth anything after 1–7 have run for a
-   while.
-
-Items 1–4 are the requested sequence. Item 5 is small and blocks them. Item 6
-is the largest single improvement to the rest of the game in this document and
-is independent of the tutorial work.
+7. **The handwriting**, then the deep signs.
 
 ---
 
