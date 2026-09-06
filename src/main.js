@@ -3641,6 +3641,10 @@ function killEnemy(i, impulseDir) {
 // room holds a single floor: whoever is second waits his turn.
 let lastEnemyShotAt = -1e9;
 let worldT = 0;
+// How many times anybody has pulled a trigger, and the world-seconds between
+// the last sixty of them. See enemyFire.
+let enemyShots = 0;
+const shotGaps = [];
 // Measured in WORLD seconds, not real ones: in bullet time the gap has to
 // stretch with everything else or the stagger collapses the moment you freeze.
 // It is a RAMP now rather than a constant — see shotGap().
@@ -3687,6 +3691,17 @@ function enemyFire(e, toPlayer) {
   }
   schoolNoteShot();           // ...counted into the volley before the clock moves
   duelNoteShot();             // ...and the duel's button lesson waits on the first one
+  // THE ROOM'S FIRING, AS THE ROOM SEES IT. Counting BULLETS from outside is
+  // not the same measurement: a shot may be several pellets, and a probe that
+  // scans once a frame reads two shots fired on consecutive frames as one
+  // event. Both errors were live in the fire probe at once, which is how it
+  // reported gaps of `0 0 0 0` — some of those were one shotgun blast and
+  // some were two rounds it never saw apart. The game knows exactly when it
+  // pulled a trigger, so it says so.
+  enemyShots++;
+  // ...and the first shot of a room has nothing to be a gap from
+  if (lastEnemyShotAt > 0) shotGaps.push(+(worldT - lastEnemyShotAt).toFixed(3));
+  if (shotGaps.length > 60) shotGaps.shift();
   lastEnemyShotAt = worldT;   // the room's shot floor: everyone else waits
   const origin = _v2.set(e.pos.x, 1.35, e.pos.z).addScaledVector(toPlayer, 0.45);
   // shots go where you ARE — if you don't slide out of the way, they connect
@@ -13931,7 +13946,8 @@ window.__ts = {
   // THE ROOM'S SHOT CLOCK, in world seconds. `shotGap` is measured in world
   // time, so a harness asking "how far apart do they actually fire" has to
   // read the same clock rather than a wall one.
-  worldClock: () => ({ now: worldT, last: lastEnemyShotAt }),
+  worldClock: () => ({ now: worldT, last: lastEnemyShotAt,
+    shots: enemyShots, gaps: shotGaps.slice() }),
   // The slow-time school, from the outside.
   school: () => ({ door: schoolDoor(), volley: schoolVolley(), calm: schoolCalm,
     shots: schoolShots, volleys: schoolVolleys, gap: shotGap(),
