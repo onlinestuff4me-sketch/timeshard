@@ -59,164 +59,187 @@ Act 5 resolves when the player works out the full stop and takes the shot.
 
 ## 3. How the messages are coded
 
-**The simulation rewrites each transmission before it reaches the player.**
+**The engineers cannot read what is being sent. So they write over it.**
 
-That is the whole mechanism, and it is the same joke the corridors already
-tell: every door says EXIT and none of them is one; now every message says one
-thing and means another.
+The builders transmit on a channel that has always been open. The programme
+found the channel decades ago, could never decode it, and settled for
+**overwriting** it — injecting their own reassuring text so that subjects
+hear something calm instead of something they might act on.
+
+That is what "rewritten" means, and it is people doing it, not a machine.
 
 | | what the player gets |
 |---|---|
-| **Heard first** | a complete, sensible, reassuring sentence — the facility's version |
-| **After the page** | the same sentence with **one or two words replaced** by what was actually sent |
+| **Heard** | a complete, sensible sentence — which may be the engineers' copy, or may be what was actually sent |
+| **After a page** | one or two words replaced by the truth |
 
-### 3.1 Why this and not blanks
+### 3.1 Not every message is a lie
 
-- **The coded version is worth reading on its own.** A player who never
-  decodes a single message still gets a coherent story. It is just false.
-- **The reveal is one legible step.** `AHEAD` becomes `A LIE`. Nothing to
-  reconstruct, nothing to remember.
-- **It is dramatic rather than administrative.** You watch a lie get crossed
-  out and replaced with the truth.
-- **It is explained inside the fiction** — by M5, which is one of the
-  messages.
+**Most transmissions are clean.** The engineers overwrite selectively, and
+what they leave alone is genuinely from the builders.
+
+This is the point of the whole system:
+
+- **Early messages read as honest world-building**, because they are. The
+  channel earns the player's trust before it is used against them.
+- **Pages exist only for rewritten messages.** There are twenty-five
+  transmissions and eleven pages. A page always changes something, so every
+  reveal is a payoff and none is an anticlimax.
+- **The player cannot tell which is which.** A sentence they accepted at door
+  6 may still be sitting there, true. Or a page at door 40 may come back and
+  overturn it.
+- **The share of rewrites climbs with depth** — roughly a third in Act 1,
+  two thirds by Act 5 — because the closer the messages get to the truth, the
+  more the engineers touch them.
+
+A player who never collects a page still gets a coherent, mostly-true story.
+It just has eleven load-bearing lies in it.
 
 ### 3.2 On screen
 
-The sentence is on the wall. The rewritten words are marked. During the
-reveal they are struck through and the true words take their place, one at a
-time, in time with the voice reading the groups.
+The sentence is on the wall. During a reveal the rewritten words are struck
+through and the true words take their place, one at a time, in time with the
+voice.
+
+### 3.3 Message length sets leg length
+
+At 4.6 m/s, every second of audio costs 4.6 m of empty corridor, so messages
+are written short and only the big beats run long.
+
+| words | audio | corridor | cells |
+|---|---|---|---|
+| 3–6 | 8 s | 37 m | 9 |
+| 7 | 12 s | 55 m | 14 |
+| 8+ | 15 s | 69 m | 17 |
 
 ---
 
-## 4. The ten messages
+## 4. The lore, settled
 
-One per transmission door, roughly every five doors. Six to eight words each,
-one word per spoken group.
+Written down so the messages can be consistent, and so nothing in the game
+ever has to say most of it out loud.
 
----
+**The place.** Not software. A structure, found in 1947, already running.
+Inside it a person can slow time; nobody has ever found out why. The
+programme calls it a simulation because a training simulator is the only use
+they have managed to put it to.
 
-**M1 · door 4 — the exit**
+**The engineers.** The programme's technical staff. They maintain what they
+can, understand none of it, and write the overwrite copy.
 
-> heard: `KEEP WALKING · THE EXIT IS AHEAD`
-> true: `KEEP WALKING · THE EXIT IS A LIE`
+**The channel.** The builders' return path, open since before the programme
+existed. It is not part of the corridors — it runs underneath them, which is
+why the engineers can jam it but not read it. Being inside the structure is
+what makes a person able to receive it, and it is the same property that lets
+them slow time.
 
-The first decode teaches the whole system in one word, and confirms what the
-player has already started to suspect from the doors.
+**The builders.** They are not present. They left the structure running and
+they listen. **It is not a weapon and not a prison — it is an examination**,
+and anyone who passes gets spoken to. The programme has spent eighty years
+feeding soldiers into an entrance exam it mistook for a treadmill.
 
----
-
-**M2 · door 9 — what they measure**
-
-> heard: `THE FACILITY IS COUNTING YOUR PROGRESS`
-> true: `THE FACILITY IS COUNTING YOUR DEATHS`
-
-Recasts every death the player has had so far as data somebody wanted.
-
----
-
-**M3 · door 14 — the others**
-
-> heard: `YOU ARE THE FIRST TO REACH THIS DEPTH`
-> true: `YOU ARE THE NINTH TO REACH THIS DEPTH`
-
-The best single word in the script. It arrives around the point the player
-starts seeing evidence somebody has been here.
+**The other eight.** All reached the last door. None ever heard the channel,
+so none ever passed. A subject who has spent a year inside and cannot be
+used is a liability, and the programme removed them.
 
 ---
 
-**M4 · door 19 — what happened to them**
+## 5. The twenty-five transmissions
 
-> heard: `THE OTHERS WERE RELEASED WHEN THEY FINISHED`
-> true: `THE OTHERS WERE ERASED WHEN THEY FINISHED`
+One every two doors, doors 2 to 50. **`(page)` marks a rewritten message —
+eleven of them.** The rest are true as heard.
 
-And now finishing is not obviously the thing to want.
+### Act 1 · The Test — doors 2–12
 
----
+| | door | heard | true |
+|---|---|---|---|
+| T1 | 2 | `SOMEONE IS SENDING THIS · KEEP LISTENING` | — |
+| T2 | 4 | `KEEP WALKING · THE EXIT IS AHEAD` **(page)** | `KEEP WALKING · THE EXIT IS A LIE` |
+| T3 | 6 | `THE MEN IN THE CORRIDORS ARE NOT REAL` | — |
+| T4 | 8 | `YOU SLOW TIME BECAUSE YOU ARE INSIDE THIS PLACE` | — |
+| T5 | 10 | `THE FACILITY IS COUNTING YOUR PROGRESS` **(page)** | `THE FACILITY IS COUNTING YOUR DEATHS` |
+| T6 | 12 | `THEY CALL IT A SIMULATION · IT IS A PLACE` | — |
 
-**M5 · door 24 — the mechanism**
+T1 exists to prove the channel can be believed. T6 is the first fact that
+should make a player uneasy without a page being involved at all.
 
-> heard: `THIS CHANNEL IS MONITORED FOR YOUR SAFETY`
-> true: `THIS CHANNEL IS REWRITTEN BEFORE YOU HEAR IT`
+### Act 2 · The Others — doors 14–22
 
-The system explaining itself, at the point the player has seen four swaps and
-is ready for the answer. Everything before this is retroactively sinister;
-everything after is read with suspicion.
+| | door | heard | true |
+|---|---|---|---|
+| T7 | 14 | `YOU ARE THE FIRST TO REACH THIS DEPTH` **(page)** | `YOU ARE THE NINTH TO REACH THIS DEPTH` |
+| T8 | 16 | `THE EIGHT BEFORE YOU ALL REACHED THE LAST DOOR` | — |
+| T9 | 18 | `THE OTHERS WERE RELEASED WHEN THEY FINISHED` **(page)** | `THE OTHERS WERE ERASED WHEN THEY FINISHED` |
+| T10 | 20 | `NONE OF THEM EVER HEARD THIS CHANNEL` | — |
+| T11 | 22 | `THIS CHANNEL IS MONITORED FOR YOUR SAFETY` **(page)** | `THIS CHANNEL IS OVERWRITTEN BY THE ENGINEERS` |
 
----
+T8 arrives clean and reads as hope — the doors *do* end. T9 turns it. T10
+says why the player is different, which is the first reason to keep going
+that is not just curiosity.
 
-**M6 · door 29 — where it came from**
+### Act 3 · The Anomaly — doors 24–34
 
-> heard: `THIS FACILITY WAS BUILT IN NINETEEN FORTY SEVEN`
-> true: `THIS FACILITY WAS FOUND IN NINETEEN FORTY SEVEN`
+| | door | heard | true |
+|---|---|---|---|
+| T12 | 24 | `THE ENGINEERS CANNOT READ WHAT WE SEND` | — |
+| T13 | 26 | `THEY WRITE THEIR WORDS ON TOP OF OURS` | — |
+| T14 | 28 | `THIS PLACE WAS BUILT IN NINETEEN FORTY SEVEN` **(page)** | `THIS PLACE WAS FOUND IN NINETEEN FORTY SEVEN` |
+| T15 | 30 | `IT WAS COMMISSIONED AFTER THE WAR` **(page)** | `IT WAS ALREADY RUNNING WHEN THEY FOUND IT` |
+| T16 | 32 | `THE ENGINEERS CONTROL WHAT HAPPENS IN HERE` **(page)** | `THE ENGINEERS UNDERSTAND NOTHING IN HERE` |
+| T17 | 34 | `YOU ARE BEING TRAINED FOR A REAL WAR` **(page)** | `YOU ARE BEING TESTED FOR SOMETHING ELSE` |
 
-`BUILT` to `FOUND`. The date does the rest without anybody having to say a
-word about what was found.
+T12 and T13 arrive clean and explain the mechanism the player has been
+living with for twenty doors. Everything after them is read with suspicion,
+which is exactly when the four heaviest rewrites land.
 
----
+### Act 4 · The Watchers — doors 36–44
 
-**M7 · door 34 — who is in charge**
+| | door | heard | true |
+|---|---|---|---|
+| T18 | 36 | `THIS MESSAGE COMES FROM YOUR HANDLERS OUTSIDE` **(page)** | `THIS MESSAGE COMES FROM THE ONES WHO MADE IT` |
+| T19 | 38 | `WE DID NOT BUILD A WEAPON · WE BUILT A TEST` | — |
+| T20 | 40 | `ANYONE WHO PASSES IT WE WILL SPEAK WITH` | — |
+| T21 | 42 | `YOUR HANDLERS WILL BRING YOU OUT AT THE END` **(page)** | `YOUR HANDLERS WILL NOT LET YOU LEAVE ALIVE` |
+| T22 | 44 | `WE HAVE RUN THIS TEST ELEVEN TIMES` **(page)** | `WE HAVE RUN THIS TEST ELEVEN THOUSAND TIMES` |
 
-> heard: `THE ENGINEERS CONTROL WHAT HAPPENS IN HERE`
-> true: `THE ENGINEERS GUESS AT WHAT HAPPENS IN HERE`
+T19 and T20 are the answer to *why* and they arrive clean, because they are
+the two the engineers would never have thought worth touching. T22's swap is
+one word and it is the largest number in the game.
 
-The people running the experiment are not on top of it. Which means the
-corridors are not entirely their doing either.
+### Act 5 · The Copy — doors 46–50
 
----
+| | door | heard | true |
+|---|---|---|---|
+| T23 | 46 | `THE LAST DOOR OPENS WHEN YOU ARE READY` **(page)** | `THE LAST DOOR HOLDS SOMETHING WEARING YOUR FACE` |
+| T24 | 48 | `IT WILL FIGHT LIKE A MACHINE` **(page)** | `IT KNOWS EVERY MOVE YOU HAVE MADE` |
+| T25 | 50 | `HOLD THE MOMENT · IT WILL SLOW FOR YOU` **(page)** | `HOLD COMPLETELY STILL · IT WILL STOP FOR YOU` |
 
-**M8 · door 39 — who is talking**
-
-> heard: `THIS MESSAGE COMES FROM YOUR HANDLERS OUTSIDE`
-> true: `THIS MESSAGE COMES FROM THE ONES WHO BUILT IT`
-
-The voice the player has been listening to for forty doors is not from the
-programme, and never was.
-
----
-
-**M9 · door 44 — what is at the end**
-
-> heard: `THE LAST DOOR OPENS WHEN YOU ARE READY`
-> true: `THE LAST DOOR HOLDS SOMETHING WEARING YOUR FACE`
-
-Arrives before the clone, so the fight is dread rather than surprise.
-
----
-
-**M10 · door 49 — how to win**
-
-> heard: `HOLD THE MOMENT · IT WILL SLOW FOR YOU`
-> true: `HOLD COMPLETELY STILL · IT WILL STOP FOR YOU`
-
-The instruction, in plain words, and it rhymes with `STAND HERE` — the first
-thing the game ever taught. A player who has M10 knows what to do; a player
-who does not can still find it, because standing still is the game's own
-first rule taken to its limit.
-
----
-
-## 5. What this settles, and what it costs
-
-Ten messages at one every five doors puts the last at **door 49** and the
-clone at **door 50**. That answers three open questions at once — Q1 (where
-the clone lives), Q5 (how many messages), and most of Q17 (70 words is
-enough, because the swaps do the work rather than the sentences).
-
-**It does not answer Q2, it sharpens it.** Slow time currently unlocks at
-door 46, which leaves four doors for the school, the discovery of the full
-stop, and the finale. That is not enough room. **The unlock wants to move to
-roughly door 30** — which is a change to `SPEED.unlockM` in `balance.js`, a
-real balance decision and not a story one.
+Every message in the last act is rewritten. By now the player expects it.
 
 ---
 
-## 6. Open
+## 6. What this settles, and what it costs
 
-- **The ending's questions.** Three or four, each worth a replay (Q3). The
-  obvious ones — *who are you*, *what happened to the other eight*, *what is
-  outside* — and each answer should be one sentence in the same register as
-  the messages.
-- **Act 2's scrawl.** The handwriting on the walls is the ninth subject's
-  predecessor. It needs four or five lines and they should never overlap with
-  what a transmission says.
+Twenty-five transmissions every two doors, eleven pages — so a page lands
+roughly every four or five doors, which is rarer than the transmissions and
+makes each reveal an event rather than a routine.
+
+**It sharpens the depth problem rather than solving it.** Slow time unlocks
+at door 46, and Act 5 needs the school, the discovery of the full stop and
+the finale. **The unlock wants to move to roughly door 30** — a change to
+`SPEED.unlockM` in `balance.js`, and a balance decision rather than a story
+one.
+
+**It adds a pacing cost.** Twenty-five empty legs is a lot of empty
+corridor, which is why §3.3 writes most messages short. Worth watching in
+playtest: if transmission legs read as dead time, the fix is fewer and
+longer, not shorter and more.
+
+---
+
+## 7. Open
+
+- **The ending's questions.** Three or four, each worth a replay. *Who am I ·
+  what happened to the other eight · what is outside · why me.*
+- **The handwriting.** The eighth subject's scrawl on the walls. Four or five
+  lines, and they must never say what a transmission says.
