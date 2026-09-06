@@ -118,9 +118,9 @@ spoken five-digit group. Tone plus groups is 15 seconds.
 ```
 
 **A door owes a page only if that door's message was rewritten.** There are
-twenty-five transmissions and eleven pages (`SCRIPT.md` §3.1), so most doors
-owe nothing and the reveal sequence fires eleven times in a whole playthrough
-— rare enough to stay an event.
+twenty-five transmissions and **nine** pages (`SCRIPT.md` §3.5), so most doors
+owe nothing and the reveal sequence fires nine times in a whole playthrough —
+rare enough to stay an event.
 
 And a message is never blocks. **The simulation rewrites each transmission
 before the player hears it**, so the first version is a complete, sensible,
@@ -181,7 +181,7 @@ rather than to sit and watch.
 
 One screen, listing every transmission. Each shows the sentence the player
 heard; the decoded ones show it with the rewritten words struck and replaced.
-A count at the top: `18 RECEIVED · 4 OF 11 DECODED`.
+A count at the top: `18 RECEIVED · 4 OF 9 DECODED`.
 
 **This is the reward, not the sequence.** The sequence is the moment; the
 board is the thing the player returns to, and it answers "what did I actually
@@ -337,7 +337,8 @@ re-litigated.
 | **Q3** | **How many questions at the end, and what are they?** | Each answer must be worth a whole replay. Three or four. |
 | **Q4** | **Does the pad survive the ending's wipe?** | Recommended yes (§9.1). Not confirmed. |
 | **Q18** | **Does T25 need to exist?** | It is the win condition in plain words. If the full stop is discoverable without it, T25 is a safety net; if not, the ending is gated on a page a player may never have collected. |
-| **Q20** | **Do twenty-five empty legs read as dead time?** | The pacing cost of the drip (`SCRIPT.md` §6). If they do, the fix is fewer and longer transmissions, not more and shorter. |
+| **Q20** | **Do twenty-five empty legs read as dead time?** | The pacing cost of the drip. Hale's plain-speech lines break up the numbers, which helps, but it is still twenty-five quiet corridors. |
+| **Q21** | **Who voices Hale?** | Eleven lines of plain speech from a tired man — a second recorded voice on top of the ten digits and a tone. It is the contrast that keeps the transmissions from all feeling the same. |
 | **Q6** | **Recorded voice or synthesised?** | Eleven files either way, but the voice is the texture of the device. |
 | **Q15** | **Does the reveal hallway need its own art?** | It is meant to read as outside the simulation. Different light on the existing corridor may be enough, or it may need to look like nothing else in the game. |
 | **Q16** | **What does the very first reveal do?** | The player has no idea what a transmission is yet. The first one has to teach the whole system — that these are messages, that they are being decoded, that there are more — without a tutorial. |
@@ -367,8 +368,10 @@ re-litigated.
 | **A18** | Won't the reveal get tiresome? | It fires at most once per new door reached, and replaces the death screen rather than being added to it (§3.8, §4.1). |
 | **A19** | Where does the clone live? | **Door 50.** Ten messages, one every five doors, last at 49 (`SCRIPT.md` §5). |
 | **A20** | How many messages? | **Twenty-five**, one every two doors, doors 2–50 (`SCRIPT.md` §5). |
-| **A23** | Is every message a lie? | No — **fourteen are true as heard.** Pages exist only for the eleven rewritten ones, so every reveal changes something and the channel earns trust before it is used against the player (`SCRIPT.md` §3.1). |
-| **A24** | Who rewrites the messages, and why? | The programme's engineers. They have never been able to decode the channel, so they overwrite it with reassuring copy. People, not a machine (`SCRIPT.md` §3, §4). |
+| **A23** | Is every message a lie? | No. **Three voices** — the programme (false), Hale the eighth subject (honest, sometimes wrong), and the builders (true). Only the programme's nine have pages (`SCRIPT.md` §3). |
+| **A24** | Who rewrites the messages, and why? | The programme. They have never been able to read the channel, so they jam individual groups and substitute their own digits — which is why a rewritten message is a real sentence with one or two words wrong (`SCRIPT.md` §3.2). |
+| **A26** | Why does the programme broadcast at all? | Early subjects heard the raw signal and broke down. The calm procedural voice began as a psychiatric measure and became the deception (`SCRIPT.md` §3.1). |
+| **A27** | Who are the engineers? | **The programme's own file-name for the builders.** The player meets the word through Hale and reads it as staff for twelve doors, until the builders use it about themselves (`SCRIPT.md` §3.4, T17). |
 | **A25** | Why was the place built? | It is an examination left running. Anyone who passes gets spoken to; the programme mistook an entrance exam for a treadmill (`SCRIPT.md` §4). |
 | **A21** | How are messages obscured without being confusing? | The simulation rewrites them. The heard version is a complete reassuring sentence; the page replaces one or two words with the truth (`SCRIPT.md` §3). |
 | **A22** | Does the story get too strange? | The word "alien" never appears. They are *the ones who built it*, and everything else is the player's inference (`SCRIPT.md` §1.1). |
