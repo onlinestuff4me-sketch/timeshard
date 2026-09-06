@@ -118,24 +118,38 @@ collapse into the two channels above.
 
 ### 3.5 The corridor channel, and the leg it needs
 
-The transmission plays while the player walks a hallway. The leg has to last
-long enough to finish it, and then the way on appears at the next turn.
+The transmission plays while the player walks a hallway, and the way on
+appears at the next turn after it finishes.
 
-**Build the leg for sprint speed, up front.** A leg long enough to cover the
-audio at a *sprint* cannot be outrun, and a player who walks simply gets some
-quiet corridor at the end. The alternative — extending the leg while it is
-being walked — means building geometry at runtime, which `PILLARS` §8
-forbids, and blocking the door until the audio ends is a stall the player can
-feel.
+**Build the leg for top speed. Place the door dynamically.**
 
-Two content constraints fall out of that:
+- The leg is generated long enough that a player moving flat out cannot reach
+  the end before the audio does, plus margin.
+- **The exit is not at the end of the leg.** It is positioned at the first
+  turn the player reaches *after* the audio finishes. A player who dawdles
+  gets a short leg; a player at full stick gets the long one. Neither is made
+  to trudge through corridor with nothing left to hear.
+- The stretches past that turn are built and simply never walked. Nothing is
+  generated at runtime, which is what `PILLARS` §8 requires; only one
+  pre-built door object is positioned.
 
-- **A transmission is 20–30 seconds.** That is the longest an empty corridor
-  stays interesting, and it is what sets the leg length. Real numbers
-  stations run for minutes and repeat everything twice; this is a compressed
-  version — tone, eight or ten groups, done.
-- **Roughly one door in five carries one.** A long empty leg is a welcome
-  change of rhythm and a bad default.
+#### The arithmetic, and what it costs
+
+Top speed is **4.6 m/s** (`balance.js:854` — and note there is no
+player-controlled sprint; the 6.5 m/s figure is the corridor scripting the
+player to a dropped gun). Cells are 4 m.
+
+| transmission | distance to cover | cells |
+|---|---|---|
+| 15 s | 69 m | 17 |
+| 20 s | 92 m | 23 |
+| 25 s | 115 m | 29 |
+
+**These are long.** A normal leg is a handful of stretches; twenty-nine cells
+is far longer than anything the generator currently builds, and it is all
+corridor with nobody in it. That argues for the **short end — 15 seconds** —
+which is a tone and six or eight groups. The script has to be written to that
+budget rather than trimmed to it afterwards.
 
 ### 3.6 Every transmission is replayable
 
@@ -154,40 +168,66 @@ one-message script.
 
 ---
 
-## 4. The pad arrives when a run ends
+## 4. The pad is a debt, not an event
 
 **The problem with tying the pad to death:** a player who does not die does
-not get it, and the pad is not optional — without it the messages never
-decode and the ending is unreachable. A skill gate on the critical path is a
-bug, not a difficulty setting.
+not get it, and without the pad nothing decodes and the ending is
+unreachable. A skill gate on the critical path is a bug.
 
-**The fix is one word.** The pad does not arrive when you *die*, it arrives
-when a **run ends** — on the way back to the menu, however you got there.
-Death is by far the most common way a run ends in a one-hit-kill game, so in
-practice it plays exactly as intended, and the fiction is unchanged: the run
-ending is the moment you are briefly outside the simulation, and that is when
-you remember more of the primer.
+**The problem with tying it to the end-of-run screen:** a player can die, see
+the retry screen, and close the app. They come back to a main menu with
+CONTINUE on it, and the payout never happened.
 
-### 4.1 What you get
+**Both are fixed by not treating the payout as an event at all.**
 
-**Every door owns one fragment.** At the end of a run you receive the
-fragments for every door you reached that you did not already hold — in
-order, with the decoded text on screen while the audio plays.
+Reaching a door **owes** the player that door's fragment, recorded and
+persisted the moment they walk in. The debt is then paid at the first quiet
+moment available, and if the app dies in between, the debt is still there.
+
+### 4.1 When the debt is paid
+
+**On any transition between being in a run and not being in one, in either
+direction:**
+
+| the player | what happens |
+|---|---|
+| dies, chooses MENU | pad screen, then the main menu |
+| closes the app on the retry screen, comes back, presses CONTINUE | pad screen, then the run loads |
+| quits to the menu any other way | pad screen, then the main menu |
+| **presses RETRY** | **nothing. The run has not ended.** |
+
+Paying on the way *into* a resumed run is not an interruption bolted on — it
+is the same screen in the same place in the flow, and the player is waiting
+on a load anyway. It is also the correct fiction: being put back into the
+simulation after a gap is exactly the moment the character would surface.
+
+**RETRY is never interrupted.** It is the highest-frequency action in a
+one-hit-kill game, and a story screen in front of it would be intolerable. A
+player who dies six times on one door and retries each time simply accrues
+the debt and is paid all of it when they finally leave.
+
+### 4.2 It only fires when something is owed
+
+A player who quits and resumes without reaching a new door sees nothing. The
+screen exists only when there is a fragment to hand over.
+
+Skippable after a beat, and everything is permanently in the archive, so a
+player is never trapped in a screen they have already read.
+
+### 4.3 What you get
+
+**Every door owns one fragment**, paid in order.
 
 - **It cannot be farmed.** Door 1's fragment arrives once.
-- **It paces itself against depth.** A deeper run pays more pad, with no
-  second difficulty curve to tune.
-- **It cannot be gated by skill.** Every run ends eventually.
-- **Nothing is permanently missable.** Later runs pass back through the same
-  doors.
-- **The surface exists.** The end-of-run screen already carries the stats
-  line and the retry button.
+- **It paces itself against depth.** A deeper run pays more, with no second
+  difficulty curve.
+- **It cannot be gated by skill, or lost to a closed app.**
+- **Nothing is permanently missable.** Later runs pass the same doors.
 
-A player on a long survival streak simply accumulates a backlog and is paid
-all of it at once, which makes the end of a good run a bigger event rather
-than a smaller one.
+A long survival streak accrues a backlog and is paid all of it at once, which
+makes the end of a good run a bigger event rather than a smaller one.
 
-### 4.2 Partial pad, partial message
+### 4.4 Partial pad, partial message
 
 Each pad number decodes one position, so holding part of a page gives part of
 a message with the rest blank:
@@ -199,7 +239,7 @@ M _ E T   T H _ M   A T   T H _   _ N D
 Players read ahead and guess. That hook is not a puzzle layer bolted on top —
 it is exactly what the arithmetic in §3.2 does.
 
-### 4.3 It stays inside the meta rule
+### 4.5 It stays inside the meta rule
 
 `TUNNEL_META` §2 says the meta never grants power, only knowledge and access.
 The pad is knowledge in the most literal sense available: it changes nothing
@@ -304,10 +344,12 @@ re-litigated.
 | **Q4** | **Does the pad survive the ending's wipe?** | Recommended yes (§9.1). Not yet confirmed. |
 | **Q5** | **How many transmissions and fragments in total?** | One fragment per door means the count is decided by Q1. |
 | **Q6** | **Recorded voice or synthesised?** | Eleven files either way, but a real voice is the whole texture of this device. |
-| **Q9** | **How long is a transmission, exactly?** | It sets the corridor leg length. §3.5 proposes 20–30 s; the real number wants a walk-through at sprint speed before it is fixed. |
+| **Q9** | **Is 15 s enough for a transmission?** | The arithmetic in §3.5 makes this the binding constraint: at 4.6 m/s, 25 s of audio needs 115 m of empty corridor. 15 s needs 69 m, which is still long. A tone and six groups may be too thin to feel like a real broadcast. |
 | **Q10** | **What fraction of doors carry a transmission?** | §3.5 proposes one in five. Too many and the long empty leg stops being a change of rhythm. |
-| **Q11** | **Can a transmission leg hold enemies at all?** | Specified as empty. If that reads as dead air rather than as relief, the alternative is one body at the far end, after the audio. |
-| **Q12** | **Where does the archive live?** | Replay (§3.6) and the decode view need a home. UNLOCKS is the obvious candidate, and it is already a screen about what the building has shown you. |
+| **Q11** | **Can a transmission leg hold enemies at all?** | Specified as empty. Given how long these legs are (§3.5), dead air is a real risk, and one body at the far end after the audio may be the better shape. |
+| **Q12** | **Where does the archive live?** | Replay (§3.6) and the decode view need a home. UNLOCKS is the obvious candidate. |
+| **Q13** | **Does the pad screen appear before or after the death stats?** | The end-of-run screen already carries the run stats and the retry button. Two screens in sequence, or the pad folded into the one that exists. |
+| **Q14** | **What happens if several fragments are owed at once?** | A backlog of six after a long run is six pieces of audio. Played in sequence, summarised as one, or capped per payout — all different feels. |
 
 ### Answered
 
@@ -320,7 +362,10 @@ re-litigated.
 | **A5** | Does the boss break the one-hit pillar? | No (§7). It dies in one hit; the difficulty is landing it. |
 | **A6** | Does the pad break the "meta is never power" rule? | No (§4.3). |
 | **A7** | What if the player never dies? | They still get the pad. It is keyed to a run *ending*, not to dying (§4). |
-| **A8** | Can a player outrun a transmission by sprinting? | No. The leg is built for sprint speed up front, so it cannot be outrun and nothing is generated at runtime (§3.5). |
+| **A8** | Can a player outrun a transmission? | No. The leg is built for top speed up front. There is also no player-controlled sprint — 4.6 m/s is the ceiling (§3.5). |
+| **A10** | What if the player closes the app on the retry screen? | Nothing is lost. The fragment is owed the moment the door is entered and persisted; it is paid on the next CONTINUE, before the run loads (§4.1). |
+| **A11** | Is RETRY interrupted? | Never. It is the highest-frequency action in the game; the debt simply accrues (§4.1). |
+| **A12** | Does a player who dawdles walk a long empty corridor after the audio? | No. The exit is placed at the first turn after the audio ends, not at the end of the built leg (§3.5). |
 | **A9** | What if a player missed a group? | Every transmission is replayable in full from the archive (§3.6). |
 
 *(Q7 and Q8 are retired — both were about the death screen's behaviour on a
