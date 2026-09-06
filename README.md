@@ -53,7 +53,7 @@ from the title screen:
 | **THE TUNNEL** | Door to door, deeper each time. The main game; PLAY starts it. |
 | **CITY STREETS** | Endless waves in the white city — the original arena. |
 | **RUSH HOUR** | Freeze the crowd, find the one face that matters, walk out. |
-| **CORRIDOR DUEL** | They come to you. Drag to sidestep, tap them to shatter. |
+| **NO RETREAT** | They come to you. Drag to sidestep, tap them to shatter. |
 | **STAND STILL** | Time only moves while you do. Stand still and the world waits. |
 
 The last two are **simplified-control prototypes**: no look axis and no time

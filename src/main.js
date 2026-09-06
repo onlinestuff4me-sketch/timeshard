@@ -2959,7 +2959,7 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       // of the player, so it overflows into the next stretch.
       if (ownIx < 0) ownIx = Math.min(here + 1, finLast);
     }
-    // CORRIDOR DUEL HAS ONE PLACE TO COME FROM, AND IT IS THE FAR END.
+    // NO RETREAT HAS ONE PLACE TO COME FROM, AND IT IS THE FAR END.
     //
     // Everything here places a body in the stretch that is PAYING for him,
     // which is right in the tunnel: you walk the leg, so the stretch you are
@@ -7651,7 +7651,7 @@ function renderSlots() {
     // default name the player may well have replaced.
     //
     // ...AND THE NAME DOES NOT REPEAT IT. A default name IS the game plus a
-    // number ("CORRIDOR DUEL 1"), so printing both put the same two words on
+    // number ("NO RETREAT 1"), so printing both put the same two words on
     // two consecutive lines of every unnamed save. The row shows the number
     // instead; `saveName` is untouched, because the rename field and the
     // delete confirmation are not standing next to a line that says the game.
@@ -11433,7 +11433,7 @@ function clearHall() {
 // ONE LEG, FOR THE MENU TO STAND IN. A corridor mode with no corridor built
 // yet had nothing to show: the hall environment hides the floor and the city,
 // so a first launch got four enemies floating in an empty fog void, and the
-// alternative — falling back to the city — puts CORRIDOR DUEL over a street.
+// alternative — falling back to the city — puts NO RETREAT over a street.
 function buildMenuHall() {
   clearHall();
   hall = { legs: [], grid: new Set(), cur: 0, doorsPassed: 0,
@@ -11971,7 +11971,7 @@ function hallWave(n) {
   // ...and the CAST is composed the same way it always was — the ramp decides
   // how many, never who. A door that debuts a type still leads with it.
   const sub = { laser: 'rusher', sniper: 'gunner', rocketeer: 'heavy', bomber: 'shotgunner' };
-  // A CORRIDOR DUEL HAS NO BACK. You hold one end of the strip and cannot
+  // NO RETREAT HAS NO BACK. You hold one end of the strip and cannot
   // give ground, so an enemy whose answer is "retreat" is unanswerable here:
   // a rusher does not fire, it simply arrives. Everything else stays — a
   // shotgunner closing to spread range is a fight you can still win by
@@ -12714,7 +12714,7 @@ function hallSteer(e) {
 }
 
 // ---------------------------------------------------------------------------
-// THE SIMPLIFIED MODES — CORRIDOR DUEL and STAND STILL
+// THE SIMPLIFIED MODES — NO RETREAT and STAND STILL
 //
 // One movement mechanic and nothing else. There is no look axis, no time
 // button and no bank: you drag to move and you tap to shoot, and that is the
@@ -12728,11 +12728,14 @@ function hallSteer(e) {
 // each mode charges in a different currency, and which one works is the
 // question these two prototypes exist to answer:
 //
-//   CORRIDOR DUEL — time is not yours at all. It drops on its own while a
-//     round is in the air and comes back when the air is clear, so slow
-//     motion is a window the enemy opens, not a resource you hold. You never
-//     advance: they come to you, and the corridor walks you to the door once
-//     the floor is clear.
+//   NO RETREAT — time IS the player's here, from room 2: a button on the
+//     tunnel's own bank, spent by holding it and refilled by shattering. What
+//     this mode charges instead is GROUND. You never advance — they come to
+//     you, and the corridor walks you to the door only once the floor is
+//     clear — so the room is a place you have to survive rather than cross,
+//     and slow motion buys you a beat inside it, never a way out of it.
+//     (It used to slow itself whenever a round was inbound, which was a rule
+//     the player could neither see nor cause. See SIMPLE.duel.)
 //
 //   STAND STILL — time is yours, and it costs movement. The world runs at your
 //     thumb's speed, so standing still stops it; but every SHOT spends a

@@ -74,13 +74,23 @@ export const MODES = [
     preview: 'assets/preview/rush.webm',
   },
   {
+    // THE ID IS A SAVE KEY, so it stays `duel` for ever: it is written into
+    // every slot's `ts_sN_mode`, into the seen-modes list and into the unlock
+    // record, and renaming it would orphan every run anybody has played. What
+    // the player reads is `name`, and that is free to change.
     id: 'duel',
     unit: 'ROUND',
-    name: 'CORRIDOR DUEL',
+    // WAS "CORRIDOR DUEL", AND BOTH WORDS WERE WRONG. Corridor is the
+    // tunnel's own word — the two modes read as variants of each other — and
+    // it is not a duel: there are up to six of them. This names the one rule
+    // that makes the mode what it is. You hold one end of a strip with no
+    // forward control at all; the corridor carries you on only once the room
+    // is clear, so there is no ground to give and nowhere to give it from.
+    name: 'NO RETREAT',
     line: 'They come to you. Drag to sidestep, tap them to shatter.',
     simple: true,
-    // Time is not yours here: it drops on its own while a round is in the air.
-    time: 'incoming',
+    // Time is the player's here from room 2, on a button and a meter.
+    time: 'button',
     doors: 5,
     preview: 'assets/preview/duel.webm',
   },

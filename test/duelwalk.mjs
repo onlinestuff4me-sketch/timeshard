@@ -1,6 +1,6 @@
 import { boot, done } from './lib.mjs';
 import { writeFileSync } from 'node:fs';
-// THE WALKER THAT MAKES THE CORRIDOR DUEL PLANS.
+// THE WALKER THAT MAKES THE NO RETREAT PLANS.
 //
 // Not an assertion — a capture, the duel's answer to walk.mjs. Rooms 1-12,
 // each one stood in from the first frame to the last body, recording the

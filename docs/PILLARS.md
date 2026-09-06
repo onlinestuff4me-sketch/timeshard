@@ -25,12 +25,13 @@ Owned by `TIME` in `src/balance.js` (`slowScale`, `moveScale`) and by
 world clock while frozen — with one deliberate exception, the GRINDER, whose
 entire point is that the building does not care that you froze.
 
-**The simplified modes lean on this line, on purpose.** CORRIDOR DUEL and
-STAND STILL have no time bank, because they have no time button and no second
-thumb to press one with, so neither can price the freeze in seconds. Each
-pays for time in a different currency instead — the duel never gives it to
-the player at all, and stand still charges a slice of full-speed world time
-for every shot fired — and which is the better game is what the two
+**The simplified modes lean on this line, on purpose.** STAND STILL has no
+time bank, because it has no time button and no second thumb to press one
+with, so it cannot price the freeze in seconds — it charges a slice of
+full-speed world time for every shot fired instead. NO RETREAT took the other
+road: it now HAS the bank and the button, from its second room, and pays in
+**ground** rather than in seconds — you cannot advance, so a room is a place
+to survive rather than to cross. Which is the better game is what the two
 prototypes exist to answer. See `docs/MODES.md`. Nothing here is relaxed for
 the tunnel, the arena or rush hour.
 

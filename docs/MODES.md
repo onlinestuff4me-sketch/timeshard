@@ -11,7 +11,7 @@ and its gate cannot say two different things in two places
 | Mode | Opens at | What you do |
 |---|---|---|
 | **THE TUNNEL** | always | Door to door, deeper each time. The main game. |
-| **CORRIDOR DUEL** | door 5 | They come to you. Drag to sidestep, tap them to shatter. |
+| **NO RETREAT** | door 5 | They come to you. Drag to sidestep, tap them to shatter. |
 | **STAND STILL** | door 10 | Time only moves while you do. Stand still and the world waits. |
 | **CITY STREETS** | door 15 | Endless waves in the white city — the original arena. |
 | **RUSH HOUR** | door 20 | Freeze the crowd, find the one face that matters, walk out. |
@@ -200,14 +200,26 @@ modes lean on, and it was a deliberate decision, not an oversight.** Each pays
 for time in a different currency, and which currency is the better game is the
 thing the prototypes exist to find out:
 
-**CORRIDOR DUEL — time is not yours at all.**
-The world drops to `SIMPLE.duel.slow` on its own whenever an enemy round is
-in the air and on its way to you (closing, arriving inside `lead` seconds,
-passing within `miss` metres — see `roundInbound`), and comes back the moment
-the air is clear. Slow motion is a window the enemy opens, never a resource
-you hold, so there is nothing to hoard and nothing to price. You never
-advance: they come to you, you sidestep, and when the strip is clear the
-corridor itself marches you to the open door.
+**NO RETREAT — time is yours, and it costs ground.**
+Room 1 runs at full speed and is simply the fight. From room 2 a time button
+arrives with a coach, on the tunnel's own bank: tap to slow, it drains while
+you are in it, every body you shatter puts some back, and it runs dry on its
+own. What this mode charges instead is **ground**. You never advance — they
+come to you, you sidestep, and the corridor marches you to the open door only
+once the strip is clear — so a room is a place to survive rather than to
+cross, and slow motion buys a beat inside it and never a way out of it.
+
+It used to slow itself whenever a round was inbound (closing, arriving inside
+`lead` seconds, passing within `miss` metres — see `roundInbound`). That is a
+real rule and an invisible one: nothing states it and the player cannot cause
+it, so from the outside the world slowed down at random. `roundInbound`
+survives as a question the probes can ask; it no longer touches time.
+
+**The name.** It was CORRIDOR DUEL, and both words were wrong: *corridor* is
+the tunnel's own word, so the two modes read as variants of each other, and it
+is not a duel — there are up to six of them. The id stays `duel`, because it
+is written into every save slot and renaming it would orphan every run
+anybody has played.
 
 **STAND STILL — time is yours, and it costs movement.**
 The world runs at your thumb's speed: still is `SIMPLE.stop.still`, full drag

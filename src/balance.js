@@ -1032,13 +1032,13 @@ export const TIME = {
 // They differ in exactly one rule — WHO OWNS TIME — so playing one after the
 // other is a controlled comparison and not two unrelated games:
 //
-//   CORRIDOR DUEL  room 1 is the fight at full speed; from room 2 a button,
+//   NO RETREAT     room 1 is the fight at full speed; from room 2 a button,
 //                  and a meter you spend and refill by shattering.
 //   STAND STILL    the world moves at your thumb's speed, and nothing else's
 //
 // STAND STILL has no time bank, so it cannot price the freeze the way the
 // tunnel does (docs/PILLARS.md §1, §2); what replaces the price is the thing
-// being tested — see docs/MODES.md. CORRIDOR DUEL now does have one, from its
+// being tested — see docs/MODES.md. NO RETREAT now does have one, from its
 // second room: the automatic slowdown was unreadable as a rule and is gone
 // outright. See SIMPLE.duel.buttonRoom.
 // ---------------------------------------------------------------------------
