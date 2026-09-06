@@ -137,29 +137,15 @@ stop you. It also needs no arrow to be understood, which is the test of a sign.
 
 ## 4. The vocabulary is closed
 
-Ten stencilled strings and four handwritten ones, listed in `docs/BEATS.md`
-§2. Adding one is a design decision.
+Five strings in three shapes, listed in `docs/BEATS.md` §3, each tied to a
+mechanic that has a place. Adding one is a design decision.
 
-Two rules govern the words:
+The rule that decides membership: **a screen cue says what to do, a world
+message says where to do it.** A mechanic with no place — shooting, the
+headshot, the time button — has no mark and stays on screen.
 
-- **Plain English, five words or fewer.** No codes, no designations, no
-  jargon. A sign is read once, at speed, on a phone.
-- **The meaning carries the weight, never the wording.** `DO NOT ASSIST THE
-  SUBJECT` is five ordinary words that land instantly.
-
-### 4.1 `LEG_HEADLINES` moves onto the walls
-
-`NO COVER · DO NOT STOP`, `GRINDER · KEEP MOVING`, `IT SEALS BEHIND YOU`,
-`THEY COME THROUGH THE WALLS` are centre-screen cards shown for two seconds
-today. Every one is a control instruction displayed over the fight it is
-about.
-
-On a wall at the mouth of the leg they persist, sit where the player is
-already looking, and read as the building rather than the UI. **The words do
-not change** — they are already plain — and the two rows the table
-deliberately leaves silent (`dimStrips`, `vault`) stay silent, for the reason
-recorded there: a sign telling the player what they can already see is a sign
-in the way.
+Words are plain English, five words or fewer, and every one replaces a screen
+string rather than joining it.
 
 ---
 
@@ -331,31 +317,33 @@ rather than inventing a bespoke effect for it later.
 
 ---
 
-## 7. When the marks start lying
+## 7. Later, and not yet
 
-The schedule is in `docs/BEATS.md` §6. The short version: every door is
-marked `EXIT` and none of them is one, which the player works out for
-themselves by the third door.
+Two extensions are specified elsewhere and deliberately not part of the first
+build:
 
-One rule about which sign is allowed to be wrong. **`EXIT` may lie; `STAND
-HERE` may not.** `EXIT` is a claim about somewhere the player cannot see, and
-catching it out is the hook. `STAND HERE` is a claim about the ground under
-their feet, and standing still is how you survive this game — a mark that puts
-somebody in a firing line is a betrayal of the one signal they have to trust
-to play at all.
+- **`LEG_HEADLINES` onto the walls.** The four headline strings are control
+  instructions shown as centre-screen cards over the fight they are about.
+  Moving them to the mouth of the leg is the same argument as §1, applied to
+  the rest of the game.
+- **Story signs.** `docs/STORY.md`. Nothing there ships until the teaching
+  marks have been played.
+
+One rule holds across both: **`EXIT` may eventually lie; `STAND HERE` may
+not.** Standing still is how you survive this game, so a mark that puts
+somebody in a firing line breaks the one signal they have to trust to play at
+all.
 
 ---
 
 ## 8. Build order
 
 1. **The mark painter.** Generalise `tutorPlaceWorldCue` from one barrier
-   string to a list of world-anchored signs. Everything else is downstream.
-2. **`turnLead[]` in `marksFromPlan`**, so signs anchor to named places.
-3. **`EXIT` above every door**, and the tutorial's three marks.
-4. **The glitch** — the grade variant in `warmUp()`, and the cap toggle.
-5. **Resolve the orange conflict** (§2.2). Small, and it blocks the rest.
-6. **Move `LEG_HEADLINES` onto the walls.**
-7. **The handwriting**, then the deep signs.
+   string to a list of world-anchored messages. Everything else is downstream.
+2. **`turnLead[]` in `marksFromPlan`**, so marks anchor to named places.
+3. **The tutorial marks** — `docs/BEATS.md` §7.
+4. **Resolve the orange conflict** (§2.2). Small, and it blocks the rest.
+5. **The glitch** — the grade variant in `warmUp()`, and the cap toggle.
 
 ---
 
