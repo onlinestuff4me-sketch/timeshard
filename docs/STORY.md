@@ -93,74 +93,94 @@ agents, and still, officially, nobody sends them. **They have been
 transmitting since the forties and no government has ever claimed them,
 because they are not from any government.**
 
-### 3.4 Audio only plays in downtime
+### 3.4 The player never decodes anything
 
-**Never during a fight, and never in slowed time.** Slow time is used in the
-most concentrated moments a player has — reading a round, picking a target,
-deciding where to step. Putting story audio there interrupts the thing it is
-interrupting for, and it makes delivery unpredictable: a player who freezes
-rarely would hear almost nothing.
+The risk in this whole system is that it becomes homework: here is a key,
+now go and apply it. Nobody wants to memorise a cipher between runs.
 
-So there are two channels, and both are quiet moments the game already has.
+**So the player never decodes. The game decodes in front of them, and they
+watch words appear.** The pad is the mechanism; the reward is the reveal, and
+the reveal is legible without remembering a single thing.
 
-| | channel | carries | when |
+### 3.5 One message, concretely
+
+A transmission is **one sentence of six to eight words**. Each word is one
+spoken five-digit group. Tone plus groups is 15 seconds.
+
+```js
+{ id: 'm07',
+  door: 22,                                  // heard here, and opened by this door's page
+  text: 'THE DOOR YOU WANT IS NOT MARKED',   // 7 words = 7 groups
+  priority: 2 }                              // reveal order when several are owed
+```
+
+**One door owes one page. One page opens one message, completely.** Not a
+scatter of letters across several — a whole readable sentence, at once.
+
+This is a deliberate trade against cryptographic purity. A real pad decodes
+position by position, which would give `M _ E T   T H _ M   A T`, and that is
+clever to describe and a chore to read. **Legibility wins.** A page covers a
+span of positions; a message is one span.
+
+### 3.6 Two channels, two jobs
+
+| | when | what it is | what it does |
 |---|---|---|---|
-| **1** | **the corridor** | the transmission — the numbers | walking a hallway between encounters, on first entry to the door it is assigned to |
-| **2** | **the way back to the menu** | the cipher — the pad | at the end of a run, before the start screen, with the text on screen |
+| **The corridor** | walking an empty leg on first entry to its door | **audio-first** — a tone and seven groups of numbers you cannot understand | mystery, atmosphere, 15 s, once |
+| **The reveal** | when a page is owed (§4) | **text-first** — the same transmission again, with each word appearing as its group is read | the payoff |
 
-Nothing plays over combat, nothing competes with a coach line, and nothing
-can be missed by playing a particular way.
+The second one is the good part: **you hear the same numbers you already
+heard, and this time each group turns into a word as it is spoken.** Noise
+becomes a sentence in real time, and the player does nothing but watch.
 
-**This retires the three-tier model** (tone always / body in freeze /
-scripted keystones). Keystones existed to guarantee that critical audio was
-heard; guaranteed downtime delivery does that for everything, so the tiers
-collapse into the two channels above.
+### 3.7 The reveal sequence
 
-### 3.5 The corridor channel, and the leg it needs
+Not a menu screen. A place.
 
-The transmission plays while the player walks a hallway, and the way on
-appears at the next turn after it finishes.
+1. You die. The screen goes red.
+2. It fades — not to `YOU DIED`, but to a **short, quiet hallway**. No
+   enemies, different light. This is the outside of the simulation.
+3. A floating orange mark ahead: **`LISTEN HERE`** — the same grammar as
+   `STAND HERE` and `STEP HERE`, so it needs no explaining.
+4. You walk to it. The transmission plays, and on the wall the blocks resolve
+   into words, one per group, in time with the voice.
+5. Any other messages opened by the same payout are listed beneath it,
+   already readable.
+6. A door: **`EXIT →`**, back to the door you died on.
 
-**Build the leg for top speed. Place the door dynamically.**
+Fifteen metres, about twenty-five seconds, and it asks the player to walk
+rather than to sit and watch.
 
-- The leg is generated long enough that a player moving flat out cannot reach
-  the end before the audio does, plus margin.
-- **The exit is not at the end of the leg.** It is positioned at the first
-  turn the player reaches *after* the audio finishes. A player who dawdles
-  gets a short leg; a player at full stick gets the long one. Neither is made
-  to trudge through corridor with nothing left to hear.
-- The stretches past that turn are built and simply never walked. Nothing is
-  generated at runtime, which is what `PILLARS` §8 requires; only one
-  pre-built door object is positioned.
+### 3.8 What stops it becoming a burden
 
-#### The arithmetic, and what it costs
+- **It fires only when a page is owed** — at most once per *new door reached*.
+  A player grinding door 30 sees it once and then not again until door 31. It
+  is exactly as frequent as progress.
+- **Everything owed is paid in one sequence.** Never two in a row.
+- **Only one message gets the full audio and animation.** The rest open
+  silently and are listed as already-readable lines on the same wall.
+- **Priority order** decides which one gets the treatment: story-critical
+  messages first, then oldest-heard. If a player skips or quits, the next
+  sequence picks up where this one stopped.
+- **Skippable after the first beat.** On death forty nobody wants ceremony.
+- **Nothing is ever only in the sequence.** It is all on the board.
 
-Top speed is **4.6 m/s** (`balance.js:854` — and note there is no
-player-controlled sprint; the 6.5 m/s figure is the corridor scripting the
-player to a dropped gun). Cells are 4 m.
+### 3.9 The board
 
-| transmission | distance to cover | cells |
-|---|---|---|
-| 15 s | 69 m | 17 |
-| 20 s | 92 m | 23 |
-| 25 s | 115 m | 29 |
+One screen, listing every transmission. Sealed ones are redaction blocks;
+opened ones are the sentence. A count at the top: `7 OF 20 DECODED`.
 
-**These are long.** A normal leg is a handful of stretches; twenty-nine cells
-is far longer than anything the generator currently builds, and it is all
-corridor with nobody in it. That argues for the **short end — 15 seconds** —
-which is a tone and six or eight groups. The script has to be written to that
-budget rather than trimmed to it afterwards.
+**This is the reward, not the sequence.** The sequence is the moment; the
+board is the thing the player returns to, and it answers "what did I actually
+get" without anyone having remembered anything.
 
-### 3.6 Every transmission is replayable
+It belongs on UNLOCKS (`Q12`, answered) — a screen that already exists,
+already means *what this place has shown you*, and **already draws exactly
+this**: `renderUnlocks` builds redaction bars sized to the hidden text, with
+a `redact` CSS class and a `N OF M RECOVERED` header. The message board is the
+same component with different rows.
 
-From the archive, at any time, in full.
-
-A decode puzzle you cannot re-listen to is unfair — a player who missed one
-group is permanently stuck on that message. It also means the corridor
-delivery only has to work *once*, on first entry, which is what makes the
-one-off leg length acceptable.
-
-### 3.7 The audio is eleven files
+### 3.10 The audio is eleven files
 
 Ten digit readings and one interval tone. Every message in the game is a
 sequence of those. A twenty-message script costs no more to record than a
@@ -170,80 +190,41 @@ one-message script.
 
 ## 4. The pad is a debt, not an event
 
-**The problem with tying the pad to death:** a player who does not die does
-not get it, and without the pad nothing decodes and the ending is
-unreachable. A skill gate on the critical path is a bug.
+**Tying the pad to death alone** gates the critical path on skill: a player
+who does not die never decodes anything.
 
-**The problem with tying it to the end-of-run screen:** a player can die, see
-the retry screen, and close the app. They come back to a main menu with
-CONTINUE on it, and the payout never happened.
+**Tying it to the end-of-run screen** loses it when a player dies, sees the
+retry screen, and closes the app.
 
-**Both are fixed by not treating the payout as an event at all.**
-
-Reaching a door **owes** the player that door's fragment, recorded and
-persisted the moment they walk in. The debt is then paid at the first quiet
-moment available, and if the app dies in between, the debt is still there.
+**So the payout is not an event.** Reaching a door **owes** that door's page,
+recorded and persisted the moment they walk in. The debt is paid at the first
+opportunity, and survives the app being killed.
 
 ### 4.1 When the debt is paid
 
-**On any transition between being in a run and not being in one, in either
-direction:**
-
 | the player | what happens |
 |---|---|
-| dies, chooses MENU | pad screen, then the main menu |
-| closes the app on the retry screen, comes back, presses CONTINUE | pad screen, then the run loads |
-| quits to the menu any other way | pad screen, then the main menu |
-| **presses RETRY** | **nothing. The run has not ended.** |
+| dies, with a page owed | the red fades into the reveal hallway (§3.7) instead of the death screen |
+| closes the app, comes back, presses CONTINUE | the reveal hallway, then the run resumes |
+| dies with **nothing** owed | the ordinary death screen. No ceremony. |
+| presses RETRY from an ordinary death | nothing. The run has not ended. |
 
-Paying on the way *into* a resumed run is not an interruption bolted on — it
-is the same screen in the same place in the flow, and the player is waiting
-on a load anyway. It is also the correct fiction: being put back into the
-simulation after a gap is exactly the moment the character would surface.
+The reveal hallway replaces the death screen rather than being added in front
+of it, which is what keeps it from feeling like a tax on dying.
 
-**RETRY is never interrupted.** It is the highest-frequency action in a
-one-hit-kill game, and a story screen in front of it would be intolerable. A
-player who dies six times on one door and retries each time simply accrues
-the debt and is paid all of it when they finally leave.
+### 4.2 What you get
 
-### 4.2 It only fires when something is owed
+**Every door owns one page**, and a page opens one message.
 
-A player who quits and resumes without reaching a new door sees nothing. The
-screen exists only when there is a fragment to hand over.
-
-Skippable after a beat, and everything is permanently in the archive, so a
-player is never trapped in a screen they have already read.
-
-### 4.3 What you get
-
-**Every door owns one fragment**, paid in order.
-
-- **It cannot be farmed.** Door 1's fragment arrives once.
-- **It paces itself against depth.** A deeper run pays more, with no second
-  difficulty curve.
+- **It cannot be farmed.** Door 1's page arrives once.
+- **It paces itself against depth**, with no second difficulty curve.
 - **It cannot be gated by skill, or lost to a closed app.**
 - **Nothing is permanently missable.** Later runs pass the same doors.
 
-A long survival streak accrues a backlog and is paid all of it at once, which
-makes the end of a good run a bigger event rather than a smaller one.
-
-### 4.4 Partial pad, partial message
-
-Each pad number decodes one position, so holding part of a page gives part of
-a message with the rest blank:
-
-```
-M _ E T   T H _ M   A T   T H _   _ N D
-```
-
-Players read ahead and guess. That hook is not a puzzle layer bolted on top —
-it is exactly what the arithmetic in §3.2 does.
-
-### 4.5 It stays inside the meta rule
+### 4.3 It stays inside the meta rule
 
 `TUNNEL_META` §2 says the meta never grants power, only knowledge and access.
-The pad is knowledge in the most literal sense available: it changes nothing
-anywhere in the game except what the player can read.
+The pad changes nothing anywhere in the game except what the player can read.
 
 ---
 
@@ -339,38 +320,37 @@ re-litigated.
 | # | question | why it matters |
 |---|---|---|
 | **Q1** | **Where does the clone live?** | The tunnel is endless by design. A finale needs a fixed depth. |
-| **Q2** | **Does the third act fit inside the depth people reach?** | Slow time unlocks at door 46 on shipped numbers. If the full stop extends it and the clone is the finale, the third act sits past door 46 — deeper than most players get. Either the reveals move shallower or the unlock does. |
-| **Q3** | **How many questions at the end, and what are they?** | The ending only works if each answer is worth a whole replay. Three or four, not twenty. |
-| **Q4** | **Does the pad survive the ending's wipe?** | Recommended yes (§9.1). Not yet confirmed. |
-| **Q5** | **How many transmissions and fragments in total?** | One fragment per door means the count is decided by Q1. |
-| **Q6** | **Recorded voice or synthesised?** | Eleven files either way, but a real voice is the whole texture of this device. |
-| **Q9** | **Is 15 s enough for a transmission?** | The arithmetic in §3.5 makes this the binding constraint: at 4.6 m/s, 25 s of audio needs 115 m of empty corridor. 15 s needs 69 m, which is still long. A tone and six groups may be too thin to feel like a real broadcast. |
-| **Q10** | **What fraction of doors carry a transmission?** | §3.5 proposes one in five. Too many and the long empty leg stops being a change of rhythm. |
-| **Q11** | **Can a transmission leg hold enemies at all?** | Specified as empty. Given how long these legs are (§3.5), dead air is a real risk, and one body at the far end after the audio may be the better shape. |
-| **Q12** | **Where does the archive live?** | Replay (§3.6) and the decode view need a home. UNLOCKS is the obvious candidate. |
-| **Q13** | **Does the pad screen appear before or after the death stats?** | The end-of-run screen already carries the run stats and the retry button. Two screens in sequence, or the pad folded into the one that exists. |
-| **Q14** | **What happens if several fragments are owed at once?** | A backlog of six after a long run is six pieces of audio. Played in sequence, summarised as one, or capped per payout — all different feels. |
+| **Q2** | **Does the third act fit inside the depth people reach?** | Slow time unlocks at door 46 on shipped numbers. If the full stop extends it and the clone is the finale, the third act sits past door 46 — deeper than most get. Now also sets Q5: one message per door means the message count and the finale depth are the same decision. |
+| **Q3** | **How many questions at the end, and what are they?** | Each answer must be worth a whole replay. Three or four. |
+| **Q4** | **Does the pad survive the ending's wipe?** | Recommended yes (§9.1). Not confirmed. |
+| **Q5** | **How many messages?** | One per transmission door. At one door in five and a finale around door 50, that is roughly ten — which is the whole script. Ten sentences has to carry the entire plot. |
+| **Q6** | **Recorded voice or synthesised?** | Eleven files either way, but the voice is the texture of the device. |
+| **Q15** | **Does the reveal hallway need its own art?** | It is meant to read as outside the simulation. Different light on the existing corridor may be enough, or it may need to look like nothing else in the game. |
+| **Q16** | **What does the very first reveal do?** | The player has no idea what a transmission is yet. The first one has to teach the whole system — that these are messages, that they are being decoded, that there are more — without a tutorial. |
+| **Q17** | **Is a 6–8 word sentence enough per message?** | Ten of them is 70 words of plot. Tight, and possibly too tight for the kidnapping, the programme, the aliens, and the full stop. |
 
 ### Answered
 
 | # | question | answer |
 |---|---|---|
-| **A1** | When does audio play? | **Superseded.** Not in slowed time — that is the player's most concentrated moment and delivery there is unpredictable. Two downtime channels instead: transmissions in empty corridors, the pad on the way back to the menu (§3.4). |
-| **A2** | How often does a pad fragment arrive? | Per door, paid out at the end of a run (§4). |
-| **A3** | Can the pad be farmed? | No. Each door's fragment arrives once. |
-| **A4** | Can a fragment be permanently missed? | No — and no longer skill-gated either, since every run ends eventually (§4). |
-| **A5** | Does the boss break the one-hit pillar? | No (§7). It dies in one hit; the difficulty is landing it. |
-| **A6** | Does the pad break the "meta is never power" rule? | No (§4.3). |
-| **A7** | What if the player never dies? | They still get the pad. It is keyed to a run *ending*, not to dying (§4). |
-| **A8** | Can a player outrun a transmission? | No. The leg is built for top speed up front. There is also no player-controlled sprint — 4.6 m/s is the ceiling (§3.5). |
-| **A10** | What if the player closes the app on the retry screen? | Nothing is lost. The fragment is owed the moment the door is entered and persisted; it is paid on the next CONTINUE, before the run loads (§4.1). |
-| **A11** | Is RETRY interrupted? | Never. It is the highest-frequency action in the game; the debt simply accrues (§4.1). |
-| **A12** | Does a player who dawdles walk a long empty corridor after the audio? | No. The exit is placed at the first turn after the audio ends, not at the end of the built leg (§3.5). |
-| **A9** | What if a player missed a group? | Every transmission is replayable in full from the archive (§3.6). |
-
-*(Q7 and Q8 are retired — both were about the death screen's behaviour on a
-door whose fragment was already held, and the run-end payout in §4 removes
-the case.)*
+| **A1** | When does audio play? | **Superseded.** Never in slowed time. Two downtime channels: transmissions in empty corridors, reveals in the post-death hallway (§3.6). |
+| **A2** | How often does a page arrive? | One per door, paid when the debt is settled (§4). |
+| **A3** | Can the pad be farmed? | No. Each door's page arrives once. |
+| **A4** | Can it be permanently missed? | No, and not skill-gated either (§4). |
+| **A5** | Does the boss break the one-hit pillar? | No (§7). |
+| **A6** | Does the pad break "meta is never power"? | No (§4.3). |
+| **A7** | What if the player never dies? | Still paid — the debt settles on any exit from a run (§4.1). |
+| **A8** | Can a player outrun a transmission? | No. The leg is built for top speed, and there is no player sprint — 4.6 m/s is the ceiling (§3.5). |
+| **A9** | What if a group was missed? | Everything is on the board, permanently (§3.9). |
+| **A10** | App closed on the retry screen? | Nothing lost. Paid on the next CONTINUE (§4.1). |
+| **A11** | Is RETRY interrupted? | Never (§4.1). |
+| **A12** | Long empty walk after the audio? | No. The exit is placed at the first turn after it ends (§3.5). |
+| **A13** | How long is a transmission? | **15 seconds.** 69 m of corridor, no enemies, a door at the end (§3.5). |
+| **A14** | Does the player have to remember the cipher? | **No.** The player never decodes. The game decodes in front of them and they watch words appear (§3.4). |
+| **A15** | Several pages owed at once? | One sequence, never two in a row. One message gets the full audio and animation by priority; the rest open silently and are listed as readable. Skipping resumes where it stopped (§3.8). |
+| **A16** | Is it all audio? | No. The corridor is audio-first, the reveal is text-first with audio underneath (§3.6). |
+| **A17** | Where does the board live? | UNLOCKS — which already renders redaction bars sized to hidden text and an `N OF M` header (§3.9). |
+| **A18** | Won't the reveal get tiresome? | It fires at most once per new door reached, and replaces the death screen rather than being added to it (§3.8, §4.1). |
 
 ---
 
