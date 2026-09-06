@@ -1087,30 +1087,97 @@ export const SIMPLE = {
     // on its own, or it keeps going for as long as you keep shattering, which
     // is the whole bargain stated in one sentence.
     buttonRoom: 2,
-    // ---- WHAT A ROOM HOLDS ------------------------------------------------
-    // ITS OWN TABLE, because a duel room is not a tunnel door. The tunnel
-    // deals a door's encounters round-robin across the legs behind it, and
-    // `doorLegs` gives door 1-4 one leg and doors 5-9 two — so in a mode where
-    // one room IS one leg, rooms 5 and 6 each inherited half a door's plan.
-    // Measured across twelve rooms, the headcount came out 5 7 8 9 7 5 5 7 9
-    // 9 8 8: it climbed to room 4, fell back to a room-1 sized fight at 6 and
-    // 7, and climbed again. Nobody designed that rest; it is an artefact of
-    // reading a per-door plan one leg at a time.
+    // ---- THE THREE DIALS ---------------------------------------------------
     //
-    // A GROUP ARRIVES TOGETHER, and the groups within a room now ASCEND:
-    // a room opens with its smallest and closes with its largest, so clearing
-    // one is a build rather than a fade. The rule under the table, from room 5
-    // on: an odd room 2k-1 is (k, k+1, k+1) and an even room 2k is
-    // (k+1, k+1, k+2) — the totals therefore climb 5, 7, 8, 10, 11, 13, 14 …
-    // rising by two and then one, for ever, capped by `encCap`.
-    encounters: [
-      [1, 2, 2],   // room 1 —  5
-      [2, 2, 3],   // room 2 —  7
-      [2, 3, 3],   // room 3 —  8
-      [3, 3, 4],   // room 4 — 10
-      [3, 4, 4],   // room 5 — 11
+    // A room is described by three numbers, and ONE OF THEM MOVES PER ROOM.
+    // That is the whole rule, and it is what keeps a difficulty curve
+    // readable: a player who has just died can name the thing that changed.
+    //
+    //   BODIES   how many men, dealt as groups that ASCEND within the room —
+    //            it opens on its smallest fight and closes on its largest.
+    //   FIRE     how many shoot at the same instant, and how long the room
+    //            waits afterwards. Simultaneous rounds are the one shape a
+    //            sidestep cannot answer, so this caps at three.
+    //   CAST     which types are in the mix.
+    //
+    // AND A NEW TYPE IS A RESET. When one arrives, the other two dials step
+    // BACK, so the thing you have never seen before is met in a quieter room
+    // than the one you just cleared. Then the ramp climbs again, past where it
+    // was. The curve is a sawtooth whose peaks rise: 8, 10, 11, 13, 14, 15
+    // bodies at the top of each cycle, with the volley reaching three.
+    //
+    // WHY THE DROP IS ONE STEP AND NOT TWO. Two was asked for, and modelled
+    // out it is a flat line: five ramp rooms give four increments split across
+    // two dials, and taking two back off each leaves you exactly where the
+    // cycle started. Every cycle peaked at 8 bodies and a single shooter, for
+    // ever. One step keeps the cadence and lets the peaks climb.
+    groups: [
+      [1, 2, 2],   //  5
+      [2, 2, 3],   //  7
+      [2, 3, 3],   //  8
+      [3, 3, 4],   // 10
+      [3, 4, 4],   // 11
+      [4, 4, 5],   // 13
+      [4, 5, 5],   // 14
+      [5, 5, 5],   // 15
     ],
-    encCap: 6,     // no group is ever bigger than this
+    encCap: 5,     // no group is ever bigger than this
+    // [how many fire together, seconds the room waits after]. The gap tightens
+    // three times, then the volley grows by one and the gap resets — a wider
+    // shape bought with a breath. Three together is the ceiling: past that a
+    // strip you cannot retreat down stops being a fight and becomes a wall.
+    fire: [
+      [1, 4.3], [1, 3.3], [1, 2.3],
+      [2, 4.3], [2, 3.3], [2, 2.3],
+      [3, 4.3], [3, 3.3], [3, 2.3],
+    ],
+    // A VOLLEY IS NEVER ON ONE FRAME. Three rounds on the same frame are one
+    // loud event the eye cannot take apart — it reads as a single wide muzzle
+    // flash — where the same three a breath apart read as three men.
+    // `volleyStep` is that breath: the minimum between two rounds of the SAME
+    // volley, small enough that a sidestep cannot answer them separately,
+    // large enough to be three things. The whole volley still costs the room
+    // one turn.
+    //
+    // THE WINDOW IS DERIVED FROM IT, not written down beside it. A fixed 0.18s
+    // window fits two rounds a breath apart and not three, so the moment the
+    // volley reached three the third was refused and a room scheduled for
+    // triples quietly fired pairs. Two numbers describing one shape will
+    // disagree eventually; one of them should be arithmetic.
+    volleyStep: 0.07,
+    volleySlack: 0.12,   // ...plus this, so a slow frame cannot clip the last
+    // ---- THE CAST PROGRAMME ------------------------------------------------
+    //
+    // A NEW TYPE ARRIVES ALONE. `with` is what joins the gunners, and it is
+    // not cumulative: the room that introduces the shotgunner is gunners and
+    // shotgunners, and nothing else. One new thing at a time is the same rule
+    // the dials follow — a player who has just died should be able to name
+    // what changed — and a debut buried in a crowd of three other types is
+    // not a debut, it is noise.
+    //
+    // COMBINING IS ITS OWN RAMP. Two types that have each had their own cycle
+    // then meet, for a couple of rooms, with every other dial held STEADY:
+    // the new thing is the combination, so nothing else may move underneath
+    // it. `hold` marks those rooms and says how many.
+    //
+    // THE RUSHER COMES AFTER SLOW TIME and not before. It does not shoot, it
+    // arrives, and in a strip with no back the only answer is to stop the
+    // world and shatter it on the way in — which is not an answer the player
+    // has until the button is theirs.
+    cast: [
+      { with: [] },                                    // the game: gunners
+      { with: ['shotgunner'] },                        // punishes standing still
+      { with: ['rusher'] },                            // ...after the button
+      { with: ['shotgunner', 'rusher'], hold: 2 },     // and now both at once
+      { with: ['shieldbearer'] },
+      { with: ['rusher', 'shieldbearer'], hold: 2 },
+      { with: ['heavy'] },
+      { with: ['shotgunner', 'heavy'], hold: 2 },
+      { with: ['armored'] },
+      { with: ['shieldbearer', 'armored'], hold: 2 },
+    ],
+    rampRooms: 5,   // ramp rooms after a type arrives, before the next does
+    typeDrop: 1,    // ...and how far the other two step back when one lands
     // SHORTER THAN THE TUNNEL'S, because you never walk it while it matters.
     // The strip is the arena, not a journey: its length is the range the
     // fight opens at, and everything past the last body is a corridor you

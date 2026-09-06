@@ -3797,22 +3797,88 @@ const doorAlive = (d) => Math.max(1, ...doorEncounters(d));
 // HOW ONE DOOR'S ENCOUNTERS ARE SPLIT BETWEEN ITS LEGS. Dealt round-robin from
 // the largest down, so every corridor behind a door gets a mix: one leg does
 // not take all the threes and leave the next a row of singles.
-// THE DUEL'S ROOMS ARE ITS OWN, largest group LAST. See SIMPLE.duel.encounters
-// for the table and the rule that continues it.
-function duelEncounters(d) {
-  const T = SIMPLE.duel.encounters;
-  const n = Math.max(1, d | 0);
-  const cap = SIMPLE.duel.encCap;
-  const clamp = (g) => g.map((v) => Math.min(cap, v));
-  if (n <= T.length) return clamp(T[n - 1].slice());
-  const k = Math.ceil(n / 2);
-  return clamp(n % 2 ? [k, k + 1, k + 1] : [k + 1, k + 1, k + 2]);
+// WHAT ROOM `d` OF NO RETREAT IS, on all three dials at once.
+//
+// Walked forward from room 1 rather than solved, because the rule IS a walk:
+// one dial moves per room, alternating bodies and fire, and a new type steps
+// the other two back. There is no closed form for that and inventing one
+// would be a second description of the same thing, free to drift from it. It
+// is a dozen iterations of arithmetic on a room number; the caller can afford
+// it. See SIMPLE.duel for the tables and the reasoning.
+function duelPlan(d) {
+  const D = SIMPLE.duel;
+  const room = Math.max(1, d | 0);
+  // How many rooms an entry owns: a combination is a short interlude of
+  // exactly `hold` rooms, anything else is the room it arrives in plus its
+  // ramp.
+  const span = (e) => (e.hold ? e.hold : 1 + D.rampRooms);
+  let b = 0, f = 0, turn = 0;
+  let idx = 0, at = 1, fresh = null, combo = false;
+  for (let r = 2; r <= room; r++) {
+    fresh = null;
+    if (r - at >= span(D.cast[idx]) && idx + 1 < D.cast.length) {
+      idx++; at = r;
+      const e = D.cast[idx];
+      // A DEBUT IS MET IN A QUIETER ROOM than the one just cleared, so the
+      // new thing is the only new thing. A COMBINATION is not a debut — both
+      // types are known — so it takes the dials exactly as it finds them:
+      // what is new there is the pairing, and nothing else may move under it.
+      if (!e.hold) {
+        b = Math.max(0, b - D.typeDrop);
+        f = Math.max(0, f - D.typeDrop);
+        fresh = e.with[e.with.length - 1] || null;
+      }
+      continue;
+    }
+    if (D.cast[idx].hold) continue;   // an interlude holds every dial steady
+    // one dial per room, taking it in turns; a dial that has topped out hands
+    // its turn to the other rather than wasting the room
+    if (turn === 0 && b + 1 < D.groups.length) b++;
+    else if (f + 1 < D.fire.length) f++;
+    else if (b + 1 < D.groups.length) b++;
+    turn ^= 1;
+  }
+  const [volley, gap] = D.fire[f];
+  const entry = D.cast[idx];
+  combo = !!entry.hold;
+  return {
+    groups: D.groups[b].map((v) => Math.min(D.encCap, v)),
+    volley, gap, fresh, combo,
+    // GUNNERS FILL EVERY OTHER SLOT. `with` is what joins them, never a
+    // running total of everything met so far.
+    cast: ['gunner'].concat(entry.with.filter((t) => t !== 'gunner')),
+    step: { bodies: b, fire: f, cast: idx },
+  };
+}
+
+// The room the player is standing in. `doorsPassed` is the count behind them.
+function duelRoom() { return hall ? hall.doorsPassed + 1 : 1; }
+
+// A VOLLEY IS SEVERAL MEN FIRING AS ONE EVENT. `duelVolleyAt` is when the
+// current one began and `duelVolleyN` how many have joined it; the room's gap
+// is measured from the START of a volley, not from its last round, so two men
+// firing together cost the room one turn rather than two.
+let duelVolleyAt = -1e9, duelVolleyN = 0;
+function duelMayFire() {
+  const p = duelPlan(duelRoom());
+  // joining the volley in progress: inside its window, and a breath behind
+  // whoever fired last, so three men read as three men
+  const window = SIMPLE.duel.volleyStep * p.volley + SIMPLE.duel.volleySlack;
+  if (duelVolleyN < p.volley
+    && worldT - duelVolleyAt <= window
+    && worldT - lastEnemyShotAt >= SIMPLE.duel.volleyStep) return true;
+  return worldT - duelVolleyAt >= p.gap;
+}
+function duelTookShot() {
+  const p = duelPlan(duelRoom());
+  if (worldT - duelVolleyAt >= p.gap) { duelVolleyAt = worldT; duelVolleyN = 1; }
+  else duelVolleyN++;
 }
 
 function legEncounters(d, i) {
   // ONE ROOM, ONE PLAN. The duel has a single leg per door (see doorLegs), so
   // there is nothing to deal out and the room simply is the door's fight.
-  if (game.mode === 'duel') return duelEncounters(d);
+  if (game.mode === 'duel') return duelPlan(d).groups;
   const all = doorEncounters(d).slice().sort((a, b) => b - a);
   const legs = Math.max(1, doorLegs(d)), out = [];
   for (let k = 0; k < all.length; k++) if (k % legs === i) out.push(all[k]);
@@ -3823,6 +3889,9 @@ function legEncounters(d, i) {
 // enough that every round is its own event — closing to the deep game's gap.
 function shotGap() {
   if (!inHall()) return OPENING.gapTo;   // every corridor mode, not just the tunnel
+  // NO RETREAT keeps its own clock: it tightens three times, then the volley
+  // grows and it resets. See SIMPLE.duel.fire.
+  if (game.mode === 'duel') return duelPlan(duelRoom()).gap;
   const sch = schoolGap();               // the school overrides the ramp outright
   if (sch !== null) return sch;
   const d = hall ? hall.doorsPassed + 1 : 1;
@@ -4340,12 +4409,23 @@ function updateEnemy(e, sdt) {
         // held the pose longer, because what he was waiting for was `gap`
         // (4.3s at door 1), not the script. The dial I could see was not the
         // one that was binding.
-        if (!e.scriptShot && worldT - lastEnemyShotAt < gap
-            && held < gap * queued + OPENING.holdSlack) {
+        // NO RETREAT FIRES IN VOLLEYS, ON PURPOSE. Everywhere else the room
+        // lets exactly one round go and then waits; here the schedule says how
+        // many go together and how long the room waits after — see
+        // SIMPLE.duel.fire. The gap is measured from the START of a volley, so
+        // three men firing as one cost the room one turn rather than three,
+        // which is what makes a wider shape affordable rather than simply
+        // three times the danger.
+        const holding = game.mode === 'duel'
+          ? !duelMayFire()
+          : (worldT - lastEnemyShotAt < gap
+            && held < gap * queued + OPENING.holdSlack);
+        if (!e.scriptShot && holding) {
           e.holdFireT = held + sdt;
         } else {
           e.holdFireT = 0;
           e.scriptShot = false;   // one turn, one round
+          if (game.mode === 'duel') duelTookShot();
           enemyFire(e, toPlayer);
           setEgunFlash(e, MAT_BLACK);
           if (spec.burst) {   // heavies always fire exactly spec.burst rounds
@@ -11087,7 +11167,7 @@ function maxAlive() {
     // was written to be. So the crowd ceiling never sits under the room's
     // biggest group.
     if (game.mode === 'duel') {
-      return Math.max(n, ...duelEncounters(hall ? hall.doorsPassed + 1 : 1));
+      return Math.max(n, ...duelPlan(duelRoom()).groups);
     }
     return n;
   }
@@ -11967,24 +12047,33 @@ function hallWave(n) {
   // you can reach and a room that is meant to BUILD, so its list has to
   // survive as a list: 3, 3, 4 is a room that ends on its biggest fight, and
   // 4, 4, 2 is the same ten men arriving in the wrong order.
-  if (game.mode === 'duel' && hall) hall.duelGroups = duelEncounters(n).slice();
+  if (game.mode === 'duel' && hall) hall.duelGroups = duelPlan(n).groups.slice();
   // ...and the CAST is composed the same way it always was — the ramp decides
   // how many, never who. A door that debuts a type still leads with it.
   const sub = { laser: 'rusher', sniper: 'gunner', rocketeer: 'heavy', bomber: 'shotgunner' };
-  // NO RETREAT HAS NO BACK. You hold one end of the strip and cannot
-  // give ground, so an enemy whose answer is "retreat" is unanswerable here:
-  // a rusher does not fire, it simply arrives. Everything else stays — a
-  // shotgunner closing to spread range is a fight you can still win by
-  // sidestepping, which is the mode's whole verb.
+  // NO RETREAT HAS NO BACK, and that is what makes a rusher worth having
+  // rather than impossible. It used to be substituted out on the reasoning
+  // that an enemy whose answer is "retreat" is unanswerable in a strip you
+  // cannot retreat down — but the mode has a time button now, and stopping
+  // the world to shatter something on its way in is exactly what the button
+  // is for. It arrives on the schedule, after slow time, never before: see
+  // SIMPLE.duel.cast.
   //
-  // `laser` maps to `rusher` above and this map is applied in ONE hop, so it
-  // has to be redirected here too or a laser arrives as the rusher this
-  // line exists to remove.
-  if (game.mode === 'duel') { sub.rusher = 'gunner'; sub.laser = 'gunner'; }
+  // What stays substituted is what the strip genuinely cannot host. A sniper
+  // is a gunner at 24 m, and a laser sweep cannot be answered by stepping out
+  // of a lane. `laser` maps to `rusher` above and the map is applied in ONE
+  // hop, so it is redirected here or a laser arrives as a rusher.
+  if (game.mode === 'duel') { sub.laser = 'gunner'; }
   // Only types this player has actually unlocked may appear — the same two
   // keys the protocols use, so the cast is metered across runs too.
-  const roster = n <= EARLY.gunnerOnlyDoors ? new Set(['gunner'])
-    : new Set(enemyRoster(n, lifetimeDoors).map((t) => sub[t] || t));
+  // NO RETREAT CASTS FROM ITS OWN SCHEDULE, not from the tunnel's door
+  // numbers: the whole point of the cast dial is that a type arrives when the
+  // ramp says it does — in a room deliberately made quieter to receive it —
+  // rather than when a shared table happens to introduce it.
+  const roster = game.mode === 'duel'
+    ? new Set(duelPlan(n).cast.map((t) => sub[t] || t))
+    : n <= EARLY.gunnerOnlyDoors ? new Set(['gunner'])
+      : new Set(enemyRoster(n, lifetimeDoors).map((t) => sub[t] || t));
   roster.add('gunner');
   const q = composeWave(n).map((t) => sub[t] || t).filter((t) => roster.has(t));
   // The leg's size comes from the leg itself: every stretch is worth a few
@@ -12775,6 +12864,8 @@ const duel = { walk: false, room: -1, coach: 'wait', coachT: 0 };
 let stopDebt = 0;
 
 function resetSimpleState() {
+  duelVolleyAt = -1e9;
+  duelVolleyN = 0;
   duel.walk = false;
   duel.room = -1;
   duel.coach = 'wait';
@@ -13969,6 +14060,7 @@ window.__ts = {
   simpleState: () => ({ mode: simple(), inbound: simple() === 'duel' ? roundInbound() : null,
     debt: +stopDebt.toFixed(3), walk: duel.walk, timeScale: +timeScale.toFixed(3),
     coach: duel.coach, room: duel.room,
+    plan: game.mode === 'duel' ? duelPlan(duelRoom()) : null,
     stick: +Math.hypot(input.stickX, input.stickY).toFixed(3) }),
   tapAim: (x, y) => { const v = tapAim(x, y); return { x: +v.x.toFixed(2), y: +v.y.toFixed(2), z: +v.z.toFixed(2) }; },
   modes: () => MODES.map((m) => m.id),
