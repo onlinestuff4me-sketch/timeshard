@@ -200,14 +200,21 @@ modes lean on, and it was a deliberate decision, not an oversight.** Each pays
 for time in a different currency, and which currency is the better game is the
 thing the prototypes exist to find out:
 
-**NO RETREAT — time is yours, and it costs ground.**
+**NO RETREAT — you can stop time. You cannot leave.**
 Room 1 runs at full speed and is simply the fight. From room 2 a time button
 arrives with a coach, on the tunnel's own bank: tap to slow, it drains while
 you are in it, every body you shatter puts some back, and it runs dry on its
-own. What this mode charges instead is **ground**. You never advance — they
-come to you, you sidestep, and the corridor marches you to the open door only
-once the strip is clear — so a room is a place to survive rather than to
-cross, and slow motion buys a beat inside it and never a way out of it.
+own. So time is priced here exactly as the tunnel prices it — **in seconds**,
+and nothing about that is new.
+
+What is new is what the seconds are worth. In the tunnel, slowing time buys
+you MOVEMENT: you walk out of a lane, put a pillar between you and a raised
+arm, cross the last stretch to a door. Here there is no forward control at
+all — the corridor carries you on only once the strip is clear — so the same
+bought second buys one thing only, a sidestep. The mode is the tunnel's time
+economy with the tunnel's mobility taken away, and the question it asks is
+whether slow motion is still worth spending when the only thing it can buy is
+a step to the left.
 
 It used to slow itself whenever a round was inbound (closing, arriving inside
 `lead` seconds, passing within `miss` metres — see `roundInbound`). That is a

@@ -26,13 +26,15 @@ world clock while frozen — with one deliberate exception, the GRINDER, whose
 entire point is that the building does not care that you froze.
 
 **The simplified modes lean on this line, on purpose.** STAND STILL has no
-time bank, because it has no time button and no second thumb to press one
-with, so it cannot price the freeze in seconds — it charges a slice of
-full-speed world time for every shot fired instead. NO RETREAT took the other
-road: it now HAS the bank and the button, from its second room, and pays in
-**ground** rather than in seconds — you cannot advance, so a room is a place
-to survive rather than to cross. Which is the better game is what the two
-prototypes exist to answer. See `docs/MODES.md`. Nothing here is relaxed for
+time bank: it has no button and no second thumb to press one with, so it
+cannot price the freeze in seconds and charges a slice of full-speed world
+time for every shot fired instead. NO RETREAT took the other road entirely —
+it has the bank and the button from its second room, and prices the freeze in
+seconds exactly as the tunnel does. What it removes is not the price but the
+PAYOFF: with no forward control, a bought second buys a sidestep and nothing
+else, where in the tunnel it buys a walk to cover. One prototype changes what
+time costs; the other changes what it is worth. Which makes the better game is
+what they exist to answer. See `docs/MODES.md`. Nothing here is relaxed for
 the tunnel, the arena or rush hour.
 
 ## 2. Scarcity is the difficulty curve

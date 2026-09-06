@@ -12728,12 +12728,13 @@ function hallSteer(e) {
 // each mode charges in a different currency, and which one works is the
 // question these two prototypes exist to answer:
 //
-//   NO RETREAT — time IS the player's here, from room 2: a button on the
-//     tunnel's own bank, spent by holding it and refilled by shattering. What
-//     this mode charges instead is GROUND. You never advance — they come to
-//     you, and the corridor walks you to the door only once the floor is
-//     clear — so the room is a place you have to survive rather than cross,
-//     and slow motion buys you a beat inside it, never a way out of it.
+//   NO RETREAT — you can stop time; you cannot leave. From room 2 it has the
+//     bank and the button, priced in seconds exactly as the tunnel prices
+//     them, so the COST is not what differs here. The PAYOFF is. In the
+//     tunnel a bought second buys MOVEMENT — out of a lane, behind a pillar,
+//     across the last stretch to a door. Here there is no forward control at
+//     all, so the same second buys a sidestep and nothing else. One prototype
+//     changes what time costs; this one changes what it is worth.
 //     (It used to slow itself whenever a round was inbound, which was a rule
 //     the player could neither see nor cause. See SIMPLE.duel.)
 //

@@ -1024,7 +1024,9 @@ export const TIME = {
 };
 
 // ---------------------------------------------------------------------------
-// THE SIMPLIFIED MODES — one movement mechanic, no look, no time button.
+// THE SIMPLIFIED MODES — one movement mechanic, no look axis. (NO RETREAT
+// does have a time button now, from its second room; STAND STILL still has
+// none, because its time IS its movement.)
 //
 // Two prototypes that ask the same question in two different ways: if the
 // player only ever drags to dodge and taps to shoot, is the four-beat rhythm
