@@ -1,5 +1,8 @@
 # The story
 
+The world, and how it reaches the player. **The pitch, the beats and every
+line of the script are `docs/SCRIPT.md`.**
+
 ## 1. The premise
 
 You are a soldier. A secret government military programme kidnapped you and
@@ -114,13 +117,19 @@ spoken five-digit group. Tone plus groups is 15 seconds.
   priority: 2 }                              // reveal order when several are owed
 ```
 
-**One door owes one page. One page opens one message, completely.** Not a
-scatter of letters across several — a whole readable sentence, at once.
+**One door owes one page. One page opens one message, completely.**
 
-This is a deliberate trade against cryptographic purity. A real pad decodes
-position by position, which would give `M _ E T   T H _ M   A T`, and that is
-clever to describe and a chore to read. **Legibility wins.** A page covers a
-span of positions; a message is one span.
+And a message is never blocks. **The simulation rewrites each transmission
+before the player hears it**, so the first version is a complete, sensible,
+reassuring sentence and the page replaces one or two words with what was
+actually sent — `THE EXIT IS AHEAD` becomes `THE EXIT IS A LIE`. Full scheme
+and all ten messages in `docs/SCRIPT.md` §3–4.
+
+This trades against cryptographic purity, deliberately. A real pad decodes
+position by position, which gives `M _ E T   T H _ M   A T` — clever to
+describe, a chore to read, and worthless to a player who has decoded nothing
+yet. **Legibility wins**, and the rewrite scheme means even an undecoded
+message is worth reading.
 
 ### 3.6 Two channels, two jobs
 
@@ -167,8 +176,9 @@ rather than to sit and watch.
 
 ### 3.9 The board
 
-One screen, listing every transmission. Sealed ones are redaction blocks;
-opened ones are the sentence. A count at the top: `7 OF 20 DECODED`.
+One screen, listing every transmission. Each shows the sentence the player
+heard; the decoded ones show it with the rewritten words struck and replaced.
+A count at the top: `7 OF 10 DECODED`.
 
 **This is the reward, not the sequence.** The sequence is the moment; the
 board is the thing the player returns to, and it answers "what did I actually
@@ -319,15 +329,15 @@ re-litigated.
 
 | # | question | why it matters |
 |---|---|---|
-| **Q1** | **Where does the clone live?** | The tunnel is endless by design. A finale needs a fixed depth. |
-| **Q2** | **Does the third act fit inside the depth people reach?** | Slow time unlocks at door 46 on shipped numbers. If the full stop extends it and the clone is the finale, the third act sits past door 46 — deeper than most get. Now also sets Q5: one message per door means the message count and the finale depth are the same decision. |
+| **Q2b** | **Does `SPEED.unlockM` move from door 46 to ~30?** | `SCRIPT.md` §5 puts the last message at 49 and the clone at 50, which leaves four doors for the school, the discovery of the full stop and the finale. Not enough room. Moving the unlock is a balance decision, not a story one. |
+| **Q2** | **Is door 50 reachable by enough players?** | The whole arc now lands there (`SCRIPT.md` §5). If most players stop at door 20 the back half of the script is never read, and the fix is either a shorter arc or a shallower ramp. |
 | **Q3** | **How many questions at the end, and what are they?** | Each answer must be worth a whole replay. Three or four. |
 | **Q4** | **Does the pad survive the ending's wipe?** | Recommended yes (§9.1). Not confirmed. |
-| **Q5** | **How many messages?** | One per transmission door. At one door in five and a finale around door 50, that is roughly ten — which is the whole script. Ten sentences has to carry the entire plot. |
+| **Q18** | **Does the tenth message need to exist?** | M10 is the win condition in plain words. If the full stop is discoverable without it, M10 is a safety net; if it is not, the ending is gated on a message a player may not have decoded. |
 | **Q6** | **Recorded voice or synthesised?** | Eleven files either way, but the voice is the texture of the device. |
 | **Q15** | **Does the reveal hallway need its own art?** | It is meant to read as outside the simulation. Different light on the existing corridor may be enough, or it may need to look like nothing else in the game. |
 | **Q16** | **What does the very first reveal do?** | The player has no idea what a transmission is yet. The first one has to teach the whole system — that these are messages, that they are being decoded, that there are more — without a tutorial. |
-| **Q17** | **Is a 6–8 word sentence enough per message?** | Ten of them is 70 words of plot. Tight, and possibly too tight for the kidnapping, the programme, the aliens, and the full stop. |
+| **Q19** | **What are the ending's questions?** | Three or four, each worth a replay, each answered in one sentence in the messages' register (`SCRIPT.md` §6). |
 
 ### Answered
 
@@ -351,6 +361,10 @@ re-litigated.
 | **A16** | Is it all audio? | No. The corridor is audio-first, the reveal is text-first with audio underneath (§3.6). |
 | **A17** | Where does the board live? | UNLOCKS — which already renders redaction bars sized to hidden text and an `N OF M` header (§3.9). |
 | **A18** | Won't the reveal get tiresome? | It fires at most once per new door reached, and replaces the death screen rather than being added to it (§3.8, §4.1). |
+| **A19** | Where does the clone live? | **Door 50.** Ten messages, one every five doors, last at 49 (`SCRIPT.md` §5). |
+| **A20** | How many messages? | **Ten.** The swaps carry the meaning, so 70 words is enough (`SCRIPT.md` §4). |
+| **A21** | How are messages obscured without being confusing? | The simulation rewrites them. The heard version is a complete reassuring sentence; the page replaces one or two words with the truth (`SCRIPT.md` §3). |
+| **A22** | Does the story get too strange? | The word "alien" never appears. They are *the ones who built it*, and everything else is the player's inference (`SCRIPT.md` §1.1). |
 
 ---
 
