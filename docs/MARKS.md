@@ -7,7 +7,7 @@ specific request:
 > world, luring the player to specific places and guiding them to where they
 > need to go next.*
 
-`docs/STORY.md` §3.1 asked for a sign painter. This is what it paints, what the
+`docs/STORY.md` needs a sign painter. This is what it paints, what the
 words are allowed to say, and the rule that stops it becoming a second HUD.
 **Where each of them goes, and what it is for, is `docs/BEATS.md`.**
 
@@ -62,8 +62,9 @@ thirty metres.
 ### 2.1 Why this is the most important line in this document
 
 The tutorial is going to spend ninety seconds teaching a player that orange is
-trustworthy. `docs/STORY.md` §2.1 then spends the rest of the game betraying
-that trust: every door is marked `EXIT` and none of them is one.
+trustworthy. `docs/STORY.md` then spends the rest of the game betraying that
+trust: every door is marked `EXIT`, the simulation keeps announcing that it is
+finishing, and neither is true.
 
 **You cannot betray a signal the player never learned to trust.** So the
 onboarding is not merely onboarding here — it is the setup for the lie, and
@@ -226,8 +227,8 @@ Six rules, each of them load-bearing:
    the sign being obeyed — the player was asked to stand, and standing is what
    they are doing. The look axis, which `PILLARS` §4 defends hardest, is never
    taken.
-4. **Under a second.** Punctuation, not a scene. `docs/STORY.md` §1.1 forbids a
-   forced pause, and the line between an effect and a cutscene is a number:
+4. **Under a second.** Punctuation, not a scene. Nothing here may force a
+   pause, and the line between an effect and a cutscene is a number:
    ~0.6 s is an effect. Two seconds is a scene, and it does not ship.
 5. **It must read with the shader off.** `gradeAllowed` self-limits the
    full-screen grades on a slow phone. The geometry change is therefore the
@@ -310,10 +311,10 @@ without building anything else:
 - **Deep in the tunnel, a glitch that does not resolve cleanly.** The corridor
   comes back with a sign that is subtly wrong, or with the same sign twice.
 
-That last one is `docs/STORY.md`'s Act II beat — *the signs stop agreeing with
-each other* — delivered by a mechanic the player learned in their first twenty
-seconds, at no cost. It is the payoff for building the grammar in the tutorial
-rather than inventing a bespoke effect for it later.
+That last one says the simulation is failing without a word of text, using a
+mechanic the player learned in their first twenty seconds. It is the payoff
+for building the grammar in the tutorial rather than inventing a bespoke
+effect for it later.
 
 ---
 
@@ -326,8 +327,9 @@ build:
   instructions shown as centre-screen cards over the fight they are about.
   Moving them to the mouth of the leg is the same argument as §1, applied to
   the rest of the game.
-- **Story signs.** `docs/STORY.md`. Nothing there ships until the teaching
-  marks have been played.
+- **Story signs.** `docs/STORY.md`. `EXIT THIS WAY →` and `EXIT` are the
+  only two the opening needs, and they are already in the teaching set.
+  Nothing else there ships until the teaching marks have been played.
 
 One rule holds across both: **`EXIT` may eventually lie; `STAND HERE` may
 not.** Standing still is how you survive this game, so a mark that puts

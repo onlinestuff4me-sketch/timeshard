@@ -1,439 +1,153 @@
-# The story, and how the walls tell it
+# The story
 
-Working design notes. **Nothing here is built.** This is the menu we pick
-from, in the same spirit as `docs/TUNNEL_META.md` — and it is written against
-a specific piece of playtest feedback:
+## 1. The premise
 
-> *why am I here · why am I in this tunnel · who are these enemies · why is
-> there a tutorial · why should I keep playing*
+You are kidnapped and put inside a military simulation built to train the
+next generation of time-stopping soldiers.
 
-Five questions. Four of them can be answered by things painted on a wall.
-
----
-
-## 0. The thing to notice first
-
-**Half of this story is already in the repo, in the wrong medium.**
-
-`src/protocols.js` does not describe a shooter. It describes an institution:
-
-> GUNNER — *Compliant. Armed. The building has many.*
-> ONE-WAY SEAL — *Section closed behind you. Return is not authorised.*
-> BLACKOUT — *Emergency lighting only. Compliance is not required to see.*
-
-`docs/PROTOCOLS.md` §1 already commits to the fiction outright: *"the city
-runs on schedule; the building is part of the system; when you refuse to
-comply it reconfigures itself to contain you."* The UNLOCKS screen already
-calls its entries **RECOVERED** and lists them by the building's own
-designation. The composer already assigns every leg a protocol number.
-
-None of that is on screen where the player is. It is in a menu they reach by
-pressing a button on the title screen, written in a voice nobody in the
-corridor speaks.
-
-So the work is not *invent a story*. It is **move the story that exists out of
-the data files and onto the geometry**, and then decide what it is a story
-*about*.
+You have to complete the simulation to get out of it. It keeps telling you
+that you are nearly done. You are not.
 
 ---
 
-## 1. The fence
+## 2. The opening, beat by beat
 
-Rules first, in the style of `docs/PILLARS.md`, because a story is the single
-easiest thing in a game to let creep across a line it was not meant to cross.
+1. You wake in a hallway. You do not remember arriving.
+2. Signs on the walls: **`EXIT THIS WAY →`**. You follow them.
+3. A door ahead, marked **`EXIT`**.
+4. A man steps into the corridor between you and it.
+5. He fires. The screen says **`DODGE`**. You do. *How did I just do that?*
+6. He fires again. You dodge again. *Seriously, how am I doing this?*
+7. You look down. You are holding a gun. *Where did that come from?*
+8. **`TAP TO SHOOT`**, flashing. If you don't, it becomes **`OR DIE UNTIL YOU
+   DO`** — and he shoots you.
+9. You shoot him. The door opens. It is not the exit.
 
-### 1.1 The story never takes the screen
+**This is the lesson order the game already has.** `TUTORIAL-GOALS` teaches
+dodge in lesson 5 and hands over the gun in lesson 6, with the weapon arriving
+*"on the same beat as the words that name it."* The story does not need the
+tutorial restructured — it needs the tutorial narrated.
 
-No cutscene, no forced pause, no unskippable text, no camera the player did not
-move (`PILLARS` §4 already forbids the last one and it applies here hardest).
-**A player who reads nothing gets exactly the game they have now.** Every word
-is on a surface that is in the world and can be walked past.
+The one change: the door marked `EXIT` must be **visible past the barrier**
+before the man appears. Seeing the goal, then something in the way of it, then
+somebody in the way of it, is the escalation the sequence runs on.
 
-### 1.2 The teaching slots are never the story slots
+---
 
-`docs/TUTORIAL-GOALS.md` §3 — *only introduce what serves the lesson* — is not
-relaxed for narrative. The five cue slots teach. Walls tell. The one card that
-is allowed to carry story is the between-legs headline, and only when the leg
-has no actionable claim to make (`legHeadline` already falls back to `DOOR N`,
-which is the least interesting true sentence in the game).
+## 3. What the player finds out, and when
 
-### 1.3 Every reveal explains a rule the player already felt
-
-This is the load-bearing rule and the reason to prefer some of the endings
-below over others. A twist in a film only has to be surprising. A twist in a
-game has to make an old mechanic mean something new. The unexplained rules we
-have to spend are:
-
-| The rule | The player already asks |
+| | they learn |
 |---|---|
-| time slows when you stand still | why does the world wait for me? |
-| one hit kills you, one hit kills them | why are we equally fragile? |
-| the world is white; only threat is red | why is there nothing here? |
-| they shatter instead of bleed | what are they made of? |
-| doors do not end | how far does this go? |
-| a death rewinds you | who is putting me back? |
-| coach text you did not ask for | who is writing to me? |
-
-Seven unpaid debts. A good ending pays several with one sentence.
-
-### 1.4 Story is not power
-
-Directly inherited from `TUNNEL_META` §2. No fragment changes a number, a
-loadout, or a difficulty. What you accumulate is knowledge and access.
-
-### 1.5 Three voices, three surfaces, never mixed
-
-| Voice | Surface | Register |
-|---|---|---|
-| **the building** | stencilled caps, on walls and doors | designations, directives, no verbs of feeling |
-| **a person** | scrawl, off-grid, lower case | short, urgent, second person |
-| **the institution** | fragments, on UNLOCKS and record screens | memo, log, transcript |
-
-If the player ever cannot tell which of the three is speaking, the system has
-failed. This is cheap to enforce — it is three CSS classes.
+| **Opening** | there is an exit, and something is between them and it |
+| **Early doors** | the exit is always the next door, and it never is |
+| **Middle** | this is a simulation, and they are the subject of it |
+| **Late** | it is a training programme for time-stopping soldiers, and they are the prototype |
+| **The end** | it was never built to be completed |
 
 ---
 
-## 2. The spine
+## 4. The lie, and how it is told
 
-### 2.1 What the player is told, in order
+**The simulation announces that it is finishing, and then continues.**
 
-**Act I — doors 1–10. The exit is ahead, and the signs are helping.**
+That is the whole device, it is repeatable, and the game already does it once:
+`TRAINING COMPLETE` fires at the end of the onboarding and is immediately
+followed by more corridor.
 
-You wake in a corridor with no memory of arriving. On the wall ahead, before
-you have moved a step, stencilled at a size you can read from the far end:
+So `TRAINING COMPLETE` is not a UI string to be replaced — **it is the first
+instance of the lie**, and everything after it is the same message wearing a
+new number:
 
-```
-EXIT →
-```
+> `TRAINING COMPLETE`
+> `PHASE ONE COMPLETE`
+> `FINAL ASSESSMENT`
+> `FINAL ASSESSMENT — EXTENDED`
 
-That single sign answers *why am I here* (I am getting out), *why this
-corridor* (it is the way out), and *what do I do* (follow the arrow) before
-the first coach line has to say anything at all. It is also the reason the
-opening corridor can stay as empty as `TUTORIAL-GOALS` demands: a sign is not
-an obstacle, an enemy, or a HUD element. It is architecture.
-
-Every door is marked `EXIT`. The building is being helpful, and being helpful
-is what makes it frightening later.
-
-**Act II — roughly doors 11–30. The signs stop agreeing with each other.**
-
-They go through a door marked `EXIT` and arrive in another corridor with
-another door marked `EXIT`. Nobody points this out. The player catches the
-building lying, on their own, which is worth ten lines of dialogue.
-
-And the corridor starts carrying evidence that it has been walked before:
-
-- a pile of red shards already on the floor when you enter, in the debris the
-  shatter system already makes
-- a dropped rifle with no rounds left in it
-- the same stencilled leg designation twice, four doors apart
-- a second voice, scrawled, off the grid, over the top of a stencil:
-  **`don't follow the arrows`**
-
-That second voice is the payoff on the coach messages. The player has been
-reading unattributed help for twenty minutes and been grateful for it. Now the
-same register turns up *inside the world*, on a wall, in handwriting. Nobody
-says "the person coaching you is in here with you." They work it out.
-
-**Act III — door 30 and down. The signs were never for you.**
-
-The stencils stop reading as wayfinding and start reading as instrumentation.
-
-```
-TEST IN PROGRESS
-DO NOT ASSIST THE SUBJECT
-THIS IS NOT AN EXIT
-```
-
-Three plain signs, and between them they say: this is an experiment, you are
-the subject of it, the men in the corridors were told not to help you, and
-the door you have been walking toward for an hour was never a door out.
-
-**And one man in the corridor does not raise his arm.**
-
-He stands there. He does not fire, does not strafe, does not close. You may
-shatter him and nothing punishes you for it; you may walk past and nothing
-punishes you for that either. The whole combat language of this game is *watch
-the arm come back* — so a man who never does is the loudest possible statement
-about what these people are, made entirely out of a mechanic that already
-exists. That is one beat, no new art, no new text, and it answers *who are
-these enemies* better than any memo could.
-
-### 2.2 What is actually going on — four candidates
-
-Ranked by how many of the seven debts in §1.3 they pay.
-
-#### A. The rehearsal — **recommended**
-
-The corridor is a reconstruction of a real building, and you are being run
-through it in advance of walking it for real. You volunteered, or something
-that felt like volunteering. The men in red are modelled from the staffing
-roster.
-
-Pays:
-
-- **why is it white** — *because nobody knew what it looked like.* The
-  reconstruction has geometry and no surfaces; the planners had floor plans
-  and no photographs. The deeper you go, the less anyone knew, which is
-  exactly what the existing difficulty ramp already feels like. This turns the
-  entire art direction from a style choice into a plot point at a cost of
-  zero.
-- **why do they shatter** — they are not modelled to survive being wrong
-  about. A figure in a rehearsal has one state and then no states.
-- **why does a death rewind me** — the rehearsal is restarted. It is not
-  merciful, it is cheap.
-- **why does the exit never come** — because the reconstruction ends where the
-  planners' knowledge ended, and the section past it is generated. You are
-  walking past the edge of what anyone actually knows about the building you
-  are about to be sent into.
-
-The dark part is not what was done to you. It is **what you agreed to and
-why**, and the last fragment is your own intake recording.
-
-#### B. The training set
-
-You are not a person being trained. You are a controller being trained *to
-convergence*, and the corridor is the environment. The coach text is reward
-shaping. Time slows when you stand still because the substrate throttles
-fidelity to what your decisions require — the freeze is not your power, it is
-the simulation being cheap, and the runs before yours did not converge
-either.
-
-Pays the time mechanic outright, which nothing else here does, and makes the
-amnesia mandatory rather than decorative: an instance starts clean because
-memory across trials is contamination.
-
-**Use it as the Act II red herring, not the answer.** It is the reading a
-sharp player will reach on their own around door 20, and letting them be
-half-right and then wrong is worth more than being right.
-
-#### C. The recording
-
-You are dead. This is your last twenty minutes, replayed by the institution to
-find out what you knew, and the exit is real — you simply never reached it.
-Each door is another pass over the same evidence; the amnesia is a degraded
-recording.
-
-Makes the loop the entire point and pays *why does the exit never come*
-perfectly. The cost is stakes: a player who works out that everything already
-happened has no reason to keep going. Good structure, weak engine.
-
-#### D. The volunteer
-
-Not a separate ending — the **final beat** of whichever of the above we pick.
-The clue trail terminates at your own signature. Recommended as the last
-fragment of A.
-
-#### The synthesis I would build
-
-**A as the spine, D as the last beat, B as the trap in the middle.** Doors
-1–10 you are escaping. Doors 11–30 you conclude you are software. Doors 30+
-you find out you are a person who agreed to this, which is worse.
+Each one is followed by another door. The player believes the first, doubts
+the third, and by the fourth understands they are not being let out.
 
 ---
 
-## 3. The channels, cheapest first
+## 5. Why the mechanics are what they are
 
-Everything below is costed against what is already in the build.
+The premise explains four rules the player already feels, which is what makes
+it worth having:
 
-### 3.1 Wall stencils — *the whole of Act I for almost nothing*
+| the rule | the reason |
+|---|---|
+| time slows when you stand still | you are a prototype time-stopping soldier |
+| one hit kills you | the simulation is not there to keep you alive |
+| one hit kills them | neither are they |
+| the doors never end | it is not built to be completed |
 
-`tutorPlaceWorldCue` in `src/main.js` already projects a text plane onto world
-geometry and scales it by **width in metres** rather than by a distance curve
-— and the comment says so explicitly: *"any words the tool authors are scaled
-by their own width rather than by a constant tuned to STAND HERE."* It is
-already a general-purpose sign painter. It is used for exactly one string.
-
-Generalise it to a small list of signs per leg, each with a wall, a cell, a
-height and a register (stencil / scrawl), and Act I is done:
-
-| Sign | Where | Says |
-|---|---|---|
-| the exit arrow | corridor walls, before turns | `EXIT →` |
-| the door sign | above every door | `EXIT` |
-| the deep signs | past door 25 | `TEST IN PROGRESS` |
-
-**The system that paints these, the closed vocabulary they are drawn from,
-the colour law behind them and the tutorial sequence they open with are
-specified in `docs/MARKS.md`. The ordered map of every beat, and which of the
-player's three questions each one answers, is `docs/BEATS.md`.**
-
-That last one is one word and it answers *why is there a tutorial*: because
-this is the induction, and the building inducts people. It also retroactively
-makes `STAND HERE` — which is already painted on a barrier in the onboarding —
-read as something the building put there, rather than as UI.
-
-### 3.2 The trial counter — *one integer*
-
-Persisted, incremented per run started, rendered on the title screen and in
-Act III stencils. Turns the death screen from a failure into an iteration and
-seeds the whole Act III reveal.
-
-### 3.3 The lie — *a lookup table*
-
-The exit countdown is authored per door rather than computed: honest through
-door 10, stalling through the teens, incoherent past 30. It must never be
-random. A player has to be able to *check*, and randomness cannot be checked.
-
-### 3.4 Fragments — *already specified, now with something to be about*
-
-`TUNNEL_META` §2c already specs one fragment per new personal-record door, and
-`docs/PROTOCOLS.md` §8 puts it fifth in the build order. It has been waiting
-for content. Twenty or so, in the institution's voice, read on the screen
-where reading is the activity — UNLOCKS and the run summary — never on the
-headline card. Sample tone in §5.
-
-### 3.5 Found evidence — *reuses two existing systems*
-
-Pre-existing shatter debris at a leg entrance, and a dropped weapon with an
-empty magazine. Both systems ship. Neither needs a word of text.
-
-### 3.6 The scrawl — *the second voice*
-
-Same sign painter, different CSS class, placed off the grid and over the top of
-stencils. Six or eight of them across the whole depth range. Never more than
-four words.
-
-### 3.7 The man who does not fire
-
-One enemy variant with its firing directive removed, appearing once, deep.
-Behaviour code exists; this removes some.
-
-### 3.8 The window — *the free one*
-
-`TUNNEL_META` §1 already wants *"a leg with one wall of glass looking out on
-the white city."* Here is why it is now the best single beat available:
-
-`src/main.js:529` — *"The city tiles from a 3x3 set of UNIQUE block designs, so
-the pattern only repeats every PERIOD metres."*
-
-**The city already repeats.** Look out of the window, walk to the far end of
-the leg, look again, and you see the same block. That is not a thing we have
-to build. It is a thing we have to stop hiding. The single most convincing
-piece of evidence that the world is a reconstruction is a rendering
-optimisation we shipped for performance reasons.
-
-### 3.9 Room tone
-
-The SFX are synthesised and there are no audio assets to author. A corridor
-ambience on a short, audibly identical loop — short enough to notice — is a
-handful of oscillators.
+The first row is the one that matters. The game's central mechanic has had no
+in-world explanation, and now it has the only one it needs.
 
 ---
 
-## 4. What this answers, literally
+## 6. The clone
 
-| Playtest question | Answered by | When |
-|---|---|---|
-| why am I here | `EXIT →` on the wall in front of you | before the first input |
-| why this corridor | `L-01 · SECTOR 1` beside the door | door 1 |
-| why is there a tutorial | it is the first corridor, signed like every other | door 1 |
-| who are these enemies | *Compliant. Armed. The building has many.* — moved out of the menu and onto the world; then the man who does not fire | first meeting; ~door 30 |
-| why should I keep playing | the sign is lying and you want to catch it; the blanks in UNLOCKS; a fragment on every personal record | continuous |
+The final encounter is a copy of you. It slows time. It dodges your bullets.
+It is built so you cannot win.
 
-The order matters. *What do I do* is answered in the first second. *Why am I
-here* is answered last, on purpose, and only to a player who went deep enough
-to deserve it.
+**It dies in one hit, like everything else in this game.** The problem is
+landing the hit — it reads your shots the way you read theirs, and steps out
+of the line. Nothing about the pillar changes: one hit shatters them, and it
+always would have, if you could ever hit it.
 
----
-
-## 5. Sample fragments
-
-Plain sentences a bored administrator would actually write. No codes, no
-jargon. The horror is entirely in what is treated as routine.
-
-> **INTAKE**
-> He signed the form. He was told how long it would take. He did not ask
-> what would happen after.
-
-> **MAINTENANCE**
-> The exit signs on level 3 now point to the test route, not the way out.
-> Nothing else to do here.
-
-> **STAFF**
-> The men in the corridors are copied from the real building's staff list.
-> Where we had no photograph we used the default face. That is fine.
-
-> **SURFACES**
-> We had no pictures of the inside below level 12, so there is nothing on
-> the walls down there. The test does not need them.
-
-> **LOG**
-> The last one stopped at the ninth door. Cleared and restarted the same
-> morning.
-
-> **NOTE**
-> He keeps writing on the walls. Painting over it costs more than leaving
-> it. Nobody who reads it can do anything about it.
-
-> **INTAKE, LATER**
-> He asked whether he would remember any of it. We told him the truth. He
-> signed anyway.
-
-And the handwriting, for contrast — the same world, the other voice:
-
-> `there is no exit`
-> `i have been here before`
-> `don't believe the signs`
-> `keep going anyway`
+The player has to lose to it several times, visibly, watching it sidestep.
+Impossible has to be *legible* or it just reads as unfair.
 
 ---
 
-## 6. Risks, said out loud
+## 7. The secret is the core rule taken to its limit
 
-**Amnesia is a cliché.** It is only excusable here because the fiction
-*requires* it rather than leaning on it — an instance starts clean by design,
-and the intake note says so. If we ever have to hand-wave why the player does not
-remember, the premise has failed and it should be cut.
+Slow time is unlocked mid-run, on the door where walking out of a round stops
+being enough (`TUTORIAL-GOALS` §6). It has a second setting nobody is told
+about: **held long enough, without moving at all, it stops time completely.**
 
-**"It was a simulation" voids stakes.** The mitigation is that the stakes are
-outside the sim. What happens in the corridor is rehearsal; what it is a
-rehearsal *for* is real, and the person it will be done to is real. If a
-player can finish the story and conclude that nothing was at risk, we picked
-the wrong ending.
+`PILLARS` §1 is *time moves when you do*. Standing absolutely still — longer
+than the game has ever asked anyone to stand still — is the one input a player
+has never tried, and the full stop is that rule's logical endpoint. It is
+discovered rather than granted, and it is the only thing that beats something
+which survives by reacting.
 
-**Story creeping into the teaching slots.** The single most likely failure,
-because it is the easiest place to put words. `TUTORIAL-GOALS.md` §3 forbids
-it and this document does not relax it. If a story beat can only be delivered
-in a cue slot, it does not ship.
+Stop time, take the shot, and the simulation breaks. That is the way out.
 
-**Story creeping into power.** Also forbidden — `TUNNEL_META` §2. A sealed
-door costs your time bank and pays a fragment. It never pays a gun.
+### One hint, placed early
 
----
+The single place in this game where an oblique message earns its keep, because
+it is a puzzle hint rather than lore. It is walked past long before it means
+anything, and it is the same plain register as everything else:
 
-## 7. Build order
-
-1. **The sign painter** — generalise `tutorPlaceWorldCue` to a per-leg sign
-   list. Everything else in this document is downstream of it.
-2. **Exit arrows and leg designations** — Act I, and four of the five
-   playtest questions.
-3. **`EXIT` above every door** — the hook, one string.
-4. **The trial counter** — one integer, title screen.
-5. **The lie** — the authored countdown table.
-6. **Fragments** on personal-record doors, per `TUNNEL_META` §2c.
-7. **Found evidence** — pre-placed debris, the empty rifle.
-8. **The scrawl** — the second voice.
-9. **The man who does not fire.**
-10. **The window on the city that rhymes.**
-
-Items 1–3 are the ones the playtest feedback is actually asking for, and they
-are the three cheapest things on the list.
+> `THE PROTOTYPE STOPS. IT DOES NOT SLOW.`
 
 ---
 
-## 8. What I would deliberately not build
+## 8. Open questions
 
-- **A prologue.** The player is in a corridor with no memory; so is the
-  player. Explaining that in advance throws away the only piece of narrative
-  alignment we get for free.
-- **A narrator.** There are three voices already and none of them is
-  addressing the player from outside the world.
-- **Collectible audio logs.** They require standing still and listening, which
-  is a mechanic this game has assigned to something else entirely.
-- **A named protagonist.** The signs say `THE SUBJECT`. Nothing needs to say
-  more than that.
-- **An ending.** The tunnel is endless by design. The story should run out of
-  fragments and leave the player in a corridor that keeps going, because that
-  is the honest shape of what they are playing.
+**Where does the clone live?** The tunnel is endless by design. The finale
+needs a fixed depth, and that is a design decision this document cannot make
+on its own.
+
+**Does the act structure fit inside the depth people actually reach?** Slow
+time unlocks at door 46 on the shipped numbers. If the secret extends slow
+time, and the clone is the finale, the whole third act sits past door 46 —
+deeper than most players will ever get. Either the reveals move shallower or
+the unlock does.
+
+**How much does the clone cost?** Everything else in this document is signs
+and strings. The clone is a new enemy with the player's own kit — new AI, new
+fight design, new failure loop. It is the only large build here and it should
+be planned as its own workstream, not as the last item on a text list.
+
+---
+
+## 9. Changed by this
+
+`docs/TUNNEL_META.md` says the meta should never grant power, and this
+document keeps that: the secret is not an upgrade, it is a thing you find out.
+
+It also overrules one line written earlier — that the game should have no
+ending, because the tunnel is endless. It has one. The endlessness is the
+antagonist's plan, not the game's shape.
