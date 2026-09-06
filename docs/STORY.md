@@ -256,7 +256,8 @@ height and a register (stencil / scrawl), and Act I is done:
 
 **The system that paints these, the closed vocabulary they are drawn from,
 the colour law behind them and the tutorial sequence they open with are
-specified in `docs/MARKS.md`.**
+specified in `docs/MARKS.md`. The ordered map of every beat, and which of the
+player's three questions each one answers, is `docs/BEATS.md`.**
 
 That last one is one word and it answers *why is there a tutorial*: because
 this is the induction, and the building inducts people. It also retroactively

@@ -9,6 +9,7 @@ specific request:
 
 `docs/STORY.md` §3.1 asked for a sign painter. This is what it paints, what the
 words are allowed to say, and the rule that stops it becoming a second HUD.
+**Where each of them goes, and what it is for, is `docs/BEATS.md`.**
 
 **Adopting §5 changes `docs/TUTORIAL-GOALS.md`, which is the specification.**
 `PILLARS` says a change to a line in a fence document is a design decision and
@@ -186,8 +187,8 @@ The requested sequence, specified.
 1. They wake facing a corridor with **no visible end**. `DRAG TO MOVE`.
 2. Twenty metres ahead, orange, and legible from the first frame: **`STAND HERE`**.
 3. They reach it. They stop.
-4. **The corridor ahead shatters.** When it settles, the endless straight is a
-   wall, and there is a turn to the left that was not there.
+4. **The picture tears for less than a second.** When it settles, the endless
+   straight is a wall, and there is a turn to the left that was not there.
 5. On that new wall, orange: **`EXIT TO THE LEFT`**.
 6. They turn. Another stretch, another wall, **`EXIT TO THE RIGHT`**.
 7. They turn, and there is the barrier, with **`STAND HERE`** painted on it.
@@ -264,23 +265,27 @@ Six rules, each of them load-bearing:
 6. **It must not read as a bug.** Two things prevent that: the player *caused*
    it, and it is authored rather than random noise.
 
-### 5.5 The wall shatters
+### 5.5 The form of the glitch
 
-The strongest available form for (6), and it costs nothing:
+**Not shattering walls.** An earlier draft had the capping wall burst into
+white debris using the enemy shatter system. It is cut, and the reason is
+worth keeping: *a simulation does not explode, it re-renders.* Shattering is
+this game's verb for a body stopping — spending it on architecture in the
+first twenty seconds spends the strongest thing the game owns on a moment that
+does not need it, and it teaches the player that walls are destructible, which
+they are not.
 
-**The wall shatters the way the people do.** The same debris system, the same
-gravity and spin and floor bounces, in white instead of red.
+The glitch is therefore **screen-space only**, and the geometry underneath it
+simply is not the same on the far side:
 
-The game has exactly one established verb for *a thing stops existing*, the
-title is built on it, and applying it to architecture says the building is made
-of the same stuff its occupants are — without a word of text. It also gives the
-breach-wall element (`docs/TUNNEL_META` §1, *"the shatter language we already
-have, applied to architecture"*) its first outing.
+- a **third grade quad** beside `gradeMul` and `gradeTun`, driven by the same
+  eased `gradeK` and the same `gradeWant` selector, built in the same `mk()`
+  and **warmed in `warmUp()` like the other two.** Scanlines and grain are
+  already in `GRADE_COMMON`; a horizontal displacement is the only new term.
+- the two wall caps toggle `.visible` behind it.
 
-The screen effect is then a third grade quad beside `gradeMul` and `gradeTun`,
-driven by the same eased `gradeK` and the same `gradeWant` selector, built in
-the same `mk()` and **warmed in `warmUp()` like the other two.** Scanlines and
-grain are already in `GRADE_COMMON`. This is a variant, not a system.
+Nothing is allocated, nothing is compiled, no debris is spawned, and the
+effect is a variant of a pass that already ships rather than a new system.
 
 ### 5.6 What this changes in `TUTORIAL-GOALS.md`
 
@@ -373,7 +378,7 @@ spent once, late, and never twice.
    Everything else is downstream.
 2. **`turnLead[]` in `marksFromPlan`**, and marks anchored to named places.
 3. **The tutorial sequence** — decoy corridor, the two caps, the three marks.
-4. **The glitch** — the white shatter, then the grade variant in `warmUp()`.
+4. **The glitch** — the grade variant in `warmUp()`, and the cap toggle.
 5. **Resolve the orange conflict** (§2.2) before any of the above ships.
 6. **Move `LEG_HEADLINES` onto the walls.**
 7. **`EXIT ▶ N` on approaches**, honest — which is `docs/STORY.md` §3.1.
