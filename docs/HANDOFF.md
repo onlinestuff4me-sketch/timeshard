@@ -68,9 +68,14 @@ duel.
   three times (4.3 → 3.3 → 2.3 s), then add a gun and reset the clock. Three
   together is the ceiling.
 * **CAST** — which types are in the mix. A new type arrives **alone**, gunners
-  filling every other slot, in a room made quieter than the one just cleared;
-  it then owns a five-room cycle. Two types that have each had a cycle meet
-  for a two-room interlude with every other dial frozen.
+  filling every other slot, in a room made quieter than the one just cleared
+  (the FIRE dial steps back — stepping both back flattens a four-room cycle);
+  it then owns the rest of a four-room cycle. Types that have each had a cycle
+  meet for a short interlude with every other dial frozen. The five debuts are
+  **shotgunner 7, rusher 11, shieldbearer 18, armored 24, heavy 28**, and the
+  ramp tops out at room 31 — five to a group and three firing together are both
+  chosen ceilings, so past that the mode is at maximum with only the cast
+  changing.
 
 The schedule is **walked forward from room 1, not solved** (`duelPlan()` in
 `src/main.js`) because the rule *is* a walk. The dials live in `SIMPLE.duel`

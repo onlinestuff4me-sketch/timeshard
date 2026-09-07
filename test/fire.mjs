@@ -87,11 +87,29 @@ const full = await page.evaluate(async (doors) => {
         }
         px = tx; pz = tz;
       }
-      // ...and stand at the door while the group held for it finishes arriving
-      const wait = performance.now();
-      while (performance.now() - wait < 4000 && !(L.door && L.door.open)) {
+      // ...AND STAND AT THE DOOR WHILE THE GROUP HELD FOR IT FINISHES
+      // ARRIVING — for as long as it is still arriving, not for four seconds
+      // of WALL clock.
+      //
+      // The door opens on an empty queue and an empty floor. How long that
+      // takes is the leg's business: it releases against the room clock, in
+      // WORLD seconds, and this box runs the world at about four-fifths of
+      // real time. A flat wall-clock budget is the trap docs/TESTING.md opens
+      // with, and it caught this probe — door 8 owes eighteen bodies and
+      // reported "never opened past leg 1 of 2" on a build with nothing wrong
+      // with it. So: wait while the leg still owes anything, and only give up
+      // when it has gone quiet for a stretch with the door still shut, which
+      // is a stall and worth failing on.
+      let quiet = 0;
+      const owed = () => t.game.spawnQueue.length + t.enemies.filter((e) => e.alive).length;
+      const guard = performance.now();
+      while (!(L.door && L.door.open) && performance.now() - guard < 45000) {
+        const before = owed();
         await new Promise((r) => requestAnimationFrame(r));
         tick();
+        quiet = owed() === before && before > 0 ? quiet + 1 : 0;
+        if (owed() === 0 && quiet > 240) break;   // nothing left and still shut
+        if (quiet > 900) break;                   // ...or nothing moving at all
       }
       if (!(L.door && L.door.open)) break;
       t.crossDoor();

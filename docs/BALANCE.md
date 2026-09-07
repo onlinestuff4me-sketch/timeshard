@@ -801,23 +801,35 @@ three, and triples quietly fired pairs.
 
 | entry | with | rooms it owns |
 |---|---|---|
-| 0 | gunners only | 6 |
-| 1 | shotgunner | 6 |
-| 2 | rusher | 6 |
-| 3 | shotgunner + rusher | 2 — an interlude, every dial frozen |
-| 4 | shieldbearer | 6 |
-| 5 | rusher + shieldbearer | 2 — an interlude, every dial frozen |
-| 6 | heavy | 6 |
-| 7 | shotgunner + heavy | 2 — an interlude, every dial frozen |
-| 8 | armored | 6 |
-| 9 | shieldbearer + armored | 2 — an interlude, every dial frozen |
+| 0 | gunners only (the opening) | 6 |
+| 1 | shotgunner | 4 |
+| 2 | rusher | 4 |
+| 3 | shotgunner + rusher | 3 — an interlude, every dial frozen |
+| 4 | shieldbearer | 4 |
+| 5 | shotgunner + rusher + shieldbearer | 2 — an interlude, every dial frozen |
+| 6 | armored | 4 |
+| 7 | heavy | 4 |
+| 8 | rusher + shieldbearer + armored | 2 — an interlude, every dial frozen |
+| 9 | shotgunner + armored + heavy | 2 — an interlude, every dial frozen |
+| 10 | shotgunner + rusher + shieldbearer + armored + heavy | 2 — an interlude, every dial frozen |
 
 A debut arrives **alone** — gunners fill every other slot — in a room made
-quieter than the one just cleared: both other dials step back by
-**1**. It then owns 5 ramp
-rooms before the next type. Two types that have each had a cycle **meet** for a
-short interlude with every other dial held still, because there the pairing is
-what is new.
+quieter than the one just cleared: the **fire** dial steps back by
+**1**, and only that one, because on a
+4-room cycle stepping both back spends two of the
+cycle's 3 moves climbing back to where the last one
+ended and the ramp goes flat. The debut then owns
+3 ramp rooms before the next type. Types that have
+each had a cycle **meet** for a short interlude with every other dial held
+still, because there the pairing is what is new.
+
+The last entry is never advanced past, so whatever it carries is the mix from
+there on — which is why it is the whole roster rather than the last trio that
+happened to be scheduled. **Both dials top out before it**, at
+15
+bodies and 3 firing
+together: five to a group and three at once are chosen ceilings, so the deep
+game is the mode at maximum with only the cast changing.
 
 ### The debut cards
 

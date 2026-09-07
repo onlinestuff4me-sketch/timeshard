@@ -1188,17 +1188,37 @@ export const SIMPLE = {
     // arrives, and in a strip with no back the only answer is to stop the
     // world and shatter it on the way in — which is not an answer the player
     // has until the button is theirs.
+    // The rooms in the comments are a CONSEQUENCE of `rooms`, `hold` and
+    // `rampRooms`, not a second set of numbers to keep in step — they are here
+    // because they are what anybody reading this actually wants to know.
+    // `test/duelramp.mjs` prints the real ones out of the running game.
+    //
+    // IT USED TO BE SIX ROOMS A CYCLE, and the whole cast did not arrive until
+    // room 44: armored — the type whose entire lesson is "body shots bounce,
+    // aim high" — was thirty-seven rooms in, which is a type most players
+    // would never meet. Four-room cycles put the last debut at 31, so the mode
+    // shows everything it has inside a session rather than inside a campaign.
+    //
+    // THREE TYPES IS THE CEILING FOR AN INTERLUDE, and that is not a rule
+    // about counting: with groups of three or four a fourth type would leave
+    // no room for the gunners that carry the shot clock. See duelQueue.
     cast: [
-      { with: [] },                                    // the game: gunners
-      { with: ['shotgunner'] },                        // punishes standing still
-      { with: ['rusher'] },                            // ...after the button
-      { with: ['shotgunner', 'rusher'], hold: 2 },     // and now both at once
-      { with: ['shieldbearer'] },
-      { with: ['rusher', 'shieldbearer'], hold: 2 },
-      { with: ['heavy'] },
-      { with: ['shotgunner', 'heavy'], hold: 2 },
-      { with: ['armored'] },
-      { with: ['shieldbearer', 'armored'], hold: 2 },
+      { with: [], rooms: 6 },                                        // 1-6
+      { with: ['shotgunner'] },                                      // 7-10
+      { with: ['rusher'] },                                          // 11-14
+      { with: ['shotgunner', 'rusher'], hold: 3 },                   // 15-17
+      { with: ['shieldbearer'] },                                    // 18-21
+      { with: ['shotgunner', 'rusher', 'shieldbearer'], hold: 2 },   // 22-23
+      { with: ['armored'] },                                         // 24-27
+      { with: ['heavy'] },                                           // 28-31
+      { with: ['rusher', 'shieldbearer', 'armored'], hold: 2 },      // 32-33
+      { with: ['shotgunner', 'armored', 'heavy'], hold: 2 },         // 34-35
+      // ...AND THE DEEP GAME IS EVERYTHING, at the top of both dials. The
+      // last entry is never advanced past, so whatever it carries is the mix
+      // from there on: it has to be the whole roster, not the last trio that
+      // happened to be scheduled.
+      { with: ['shotgunner', 'rusher', 'shieldbearer', 'armored', 'heavy'],
+        hold: 2 },                                                   // 36 on
     ],
     // ---- MEETING A NEW TYPE ------------------------------------------------
     //
@@ -1279,8 +1299,15 @@ export const SIMPLE = {
     // in metres. The strip is 12 m wide, so past this the thumb is being
     // pointed at a wall and the other way is the better dodge.
     dodgeRoom: 3.6,
-    rampRooms: 5,   // ramp rooms after a type arrives, before the next does
-    typeDrop: 1,    // ...and how far the other two step back when one lands
+    // RAMP ROOMS AFTER A TYPE ARRIVES, before the next one does — a cycle is
+    // this plus the debut room itself. Five made a six-room cycle and put the
+    // last debut at room 44.
+    rampRooms: 3,
+    // HOW FAR THE FIRE DIAL STEPS BACK when a new type lands, so the room
+    // that introduces it is quieter than the one just cleared. It used to
+    // step the BODIES dial back too; on a four-room cycle that spends two of
+    // the cycle's three moves recovering and the ramp goes flat. See duelPlan.
+    typeDrop: 1,
     // SHORTER THAN THE TUNNEL'S, because you never walk it while it matters.
     // The strip is the arena, not a journey: its length is the range the
     // fight opens at, and everything past the last body is a corridor you

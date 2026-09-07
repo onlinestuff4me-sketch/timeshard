@@ -3819,8 +3819,11 @@ function duelPlan(d) {
   const room = Math.max(1, d | 0);
   // How many rooms an entry owns: a combination is a short interlude of
   // exactly `hold` rooms, anything else is the room it arrives in plus its
-  // ramp.
-  const span = (e) => (e.hold ? e.hold : 1 + D.rampRooms);
+  // ramp — unless it names its own `rooms`, which the OPENING does, because
+  // the rooms before the first debut are not a debut's ramp. They are the
+  // mode being taught by playing it, and they have to outlast the time
+  // button (SIMPLE.duel.buttonRoom) arriving inside them.
+  const span = (e) => (e.rooms || (e.hold ? e.hold : 1 + D.rampRooms));
   let b = 0, f = 0, turn = 0;
   let idx = 0, at = 1, fresh = null, combo = false;
   for (let r = 2; r <= room; r++) {
@@ -3833,13 +3836,32 @@ function duelPlan(d) {
       // types are known — so it takes the dials exactly as it finds them:
       // what is new there is the pairing, and nothing else may move under it.
       if (!e.hold) {
-        b = Math.max(0, b - D.typeDrop);
+        // THE DEBUT ROOM IS QUIETER ON THE FIRE DIAL, and only that one.
+        //
+        // It used to step BOTH back, which was affordable on a six-room cycle
+        // and is not on a four-room one: three moves a cycle, two of them
+        // spent climbing back to where the last cycle ended, and the peaks
+        // came out 10, 10, 11, 11 — a ramp that is a flat line with debuts
+        // drawn on it. Measured by test/duelramp.mjs, which is exactly what
+        // that check is for.
+        //
+        // FIRE is the one worth spending it on. Bodies decide how crowded the
+        // room looks; the shared clock decides how much is coming AT you, and
+        // a player being shown a new silhouette needs the beats between
+        // rounds more than they need one fewer man at the back.
         f = Math.max(0, f - D.typeDrop);
         fresh = e.with[e.with.length - 1] || null;
       }
       continue;
     }
-    if (D.cast[idx].hold) continue;   // an interlude holds every dial steady
+    // AN INTERLUDE HOLDS EVERY DIAL STEADY — for its own rooms, and not one
+    // more. The programme's LAST entry can never be advanced past, so an
+    // unqualified `continue` here froze the whole game solid from the last
+    // interlude onward: past room 44 the old list stopped ramping for ever.
+    // A run that deep is rare and a difficulty curve that quietly flatlines
+    // is not something a player would report, which is exactly why it has to
+    // be right here rather than watched for.
+    if (D.cast[idx].hold && r - at < span(D.cast[idx])) continue;
     // one dial per room, taking it in turns; a dial that has topped out hands
     // its turn to the other rather than wasting the room
     if (turn === 0 && b + 1 < D.groups.length) b++;
@@ -3849,7 +3871,9 @@ function duelPlan(d) {
   }
   const [volley, gap] = D.fire[f];
   const entry = D.cast[idx];
-  combo = !!entry.hold;
+  // ...and it is only a combination while it is still ON, which for the last
+  // entry in the programme is not for ever. See the interlude guard above.
+  combo = !!entry.hold && room - at < span(entry);
   return {
     groups: D.groups[b].map((v) => Math.min(D.encCap, v)),
     volley, gap, fresh, combo,
@@ -3870,8 +3894,24 @@ function duelPlan(d) {
 function duelQueue(plan) {
   const extras = plan.cast.filter((t) => t !== 'gunner');
   const q = [];
+  let off = 0;
   for (const g of plan.groups) {
-    const grp = extras.slice(0, g);
+    // GUNNERS FILL EVERY OTHER SLOT, and "every other" means at least one:
+    // a three-type room whose groups are threes would otherwise be three
+    // specials and no gunner at all, which is not the rule the ramp is
+    // written on — and the shot clock is carried by whoever can actually
+    // pull a trigger, so a room with no gunners in it fires fewer rounds
+    // together than its own schedule says.
+    //
+    // ...AND THE TYPES ROTATE ACROSS THE GROUPS, so a room carrying more
+    // types than a group has room for still shows all of them. Taking the
+    // first few every time drops the tail of the list SILENTLY — the deep
+    // rooms carry the whole roster, and the last type on that list would
+    // simply never have been released.
+    const grp = [];
+    const take = Math.min(Math.max(0, g - 1), extras.length);
+    for (let i = 0; i < take; i++) grp.push(extras[(off + i) % extras.length]);
+    if (extras.length) off = (off + take) % extras.length;
     while (grp.length < g) grp.push('gunner');
     q.push(...grp);
   }

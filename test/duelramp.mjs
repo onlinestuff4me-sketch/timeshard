@@ -30,7 +30,7 @@ await page.waitForFunction(() => document.getElementById('overlay').classList.co
   null, { timeout: 20000 });
 await page.waitForTimeout(2000);
 
-const N = 24;
+const N = 40;   // the whole cast programme, not just its first half
 const rows = await page.evaluate((n) => {
   const out = [];
   for (let r = 1; r <= n; r++) {
@@ -61,6 +61,8 @@ for (const x of rows) {
 }
 // ONE DIAL PER ROOM. A debut moves the cast and steps the other two back; a
 // combination moves nothing. Every other room moves exactly one.
+const topBodies = Math.max(...rows.map((x) => x.step.bodies));
+const topFire = Math.max(...rows.map((x) => x.step.fire));
 for (let i = 1; i < rows.length; i++) {
   const a = rows[i - 1], b = rows[i];
   const moved = (b.step.bodies !== a.step.bodies ? 1 : 0)
@@ -75,7 +77,15 @@ for (let i = 1; i < rows.length; i++) {
     if (moved) bad('the combination at room ' + b.r + ' moved another dial');
     if (b.cast.length < 3) bad('the combination at room ' + b.r + ' is not combining anything');
   } else if (moved !== 1) {
-    bad('room ' + b.r + ' moved ' + moved + ' dials; exactly one may move');
+    // ...UNLESS THERE IS NOTHING LEFT TO MOVE. Both tables have a last step —
+    // five to a group and three firing together, both of them ceilings
+    // somebody chose — so the ramp genuinely tops out and the rooms past that
+    // are the mode at maximum with only the cast rotating. That is a design
+    // fact, and a check that calls it a bug would be demanding a curve the
+    // tables cannot draw.
+    if (!(b.step.bodies === topBodies && b.step.fire === topFire)) {
+      bad('room ' + b.r + ' moved ' + moved + ' dials; exactly one may move');
+    }
   }
 }
 // ...AND THE PEAKS CLIMB. A cycle that ends no higher than the last one is a
@@ -93,12 +103,20 @@ if (cur !== null && peaks.length) peaks.push(cur);
 const whole = peaks.slice(0, -1);
 console.log('peak bodies of each complete cycle: ' + whole.join(' -> ')
   + (peaks.length ? '   (room ' + N + ' is mid-cycle at ' + peaks[peaks.length - 1] + ')' : ''));
+// ...and this too stops asking once the BODIES table has run out of steps.
+// A cycle that peaks at the biggest room the table can describe has not gone
+// flat, it has arrived.
+const mostBodies = Math.max(...rows.map((x) => x.n));
 for (let i = 1; i < whole.length; i++) {
-  if (whole[i] <= whole[i - 1]) {
+  if (whole[i] <= whole[i - 1] && whole[i - 1] < mostBodies) {
     bad('cycle ' + (i + 1) + ' peaks at ' + whole[i] + ', no higher than the last ('
       + whole[i - 1] + ') — the ramp is flat');
   }
 }
+console.log('the ramp tops out at ' + mostBodies + ' bodies, '
+  + rows.find((x) => x.step.bodies === topBodies && x.step.fire === topFire).v
+  + ' firing together, in room '
+  + rows.find((x) => x.step.bodies === topBodies && x.step.fire === topFire).r);
 // THE RUSHER WAITS FOR THE BUTTON. It does not shoot, it arrives, and in a
 // strip with no back the only answer is to stop the world on its way in.
 const rusher = rows.find((x) => x.cast.includes('rusher'));
@@ -107,6 +125,11 @@ if (!rusher) bad('the rusher never arrives');
 else if (rusher.r <= 2) bad('the rusher arrives at room ' + rusher.r + ', before slow time is the player’s');
 
 // ---- and the guns do what the schedule says -------------------------------
+// WHICH ROOM FIRES THREE IS THE SCHEDULE'S BUSINESS, not this probe's. It was
+// pinned here as room 24 and the programme moved under it, so the triple — the
+// hardest thing the fire dial does and the one the derived volley window was
+// written for — quietly stopped being measured at all.
+const TRIPLE = (rows.find((x) => x.v >= 3) || rows[rows.length - 1]).r;
 const fired = await page.evaluate(async (rooms) => {
   const t = window.__ts, C = 4, out = [];
   for (const room of rooms) {
@@ -135,7 +158,7 @@ const fired = await page.evaluate(async (rooms) => {
       floor, alive: t.enemies.filter((e) => e.alive).length });
   }
   return out;
-}, [4, 10, 24]);   // singles, pairs, and the first room that fires three
+}, [4, 10, TRIPLE]);   // singles, pairs, and the first room that fires three
 
 console.log('');
 for (const r of fired) {

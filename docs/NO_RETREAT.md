@@ -72,27 +72,41 @@ scheduled to fire three together fired two.
 | 4 | 2·3·3 | 8 | 1 | 3.3 s | gunner |
 | 5 | 2·3·3 | 8 | 1 | 2.3 s | gunner |
 | 6 | 3·3·4 | 10 | 1 | 2.3 s | gunner — **the time button arrives** |
-| 7 | 2·3·3 | 8 | 1 | 3.3 s | **+ shotgunner** |
-| 8 | 2·3·3 | 8 | 1 | 2.3 s | gunner, shotgunner |
-| 9 | 3·3·4 | 10 | 1 | 2.3 s | gunner, shotgunner |
-| 10 | 3·3·4 | 10 | 2 | 4.3 s | gunner, shotgunner |
-| 11 | 3·4·4 | 11 | 2 | 4.3 s | gunner, shotgunner |
-| 12 | 3·4·4 | 11 | 2 | 3.3 s | gunner, shotgunner |
-| 13 | 3·3·4 | 10 | 2 | 4.3 s | **+ rusher** |
-| 14 | 3·4·4 | 11 | 2 | 4.3 s | gunner, rusher |
-| 15 | 3·4·4 | 11 | 2 | 3.3 s | gunner, rusher |
-| 16 | 4·4·5 | 13 | 2 | 3.3 s | gunner, rusher |
-| 17 | 4·4·5 | 13 | 2 | 2.3 s | gunner, rusher |
-| 18 | 4·5·5 | 14 | 2 | 2.3 s | gunner, rusher |
-| 19 | 4·5·5 | 14 | 2 | 2.3 s | **combination**: shotgunner + rusher |
-| 20 | 4·5·5 | 14 | 2 | 2.3 s | **combination**: shotgunner + rusher |
-| 21 | 4·4·5 | 13 | 2 | 3.3 s | **+ shieldbearer** |
-| 22 | 4·4·5 | 13 | 2 | 2.3 s | gunner, shieldbearer |
-| 23 | 4·5·5 | 14 | 2 | 2.3 s | gunner, shieldbearer |
-| 24 | 4·5·5 | 14 | 3 | 4.3 s | gunner, shieldbearer |
+| 7 | 3·3·4 | 10 | 1 | 3.3 s | **+ shotgunner** |
+| 8 | 3·3·4 | 10 | 1 | 2.3 s | gunner, shotgunner |
+| 9 | 3·4·4 | 11 | 1 | 2.3 s | gunner, shotgunner |
+| 10 | 3·4·4 | 11 | 2 | 4.3 s | gunner, shotgunner |
+| 11 | 3·4·4 | 11 | 1 | 2.3 s | **+ rusher** |
+| 12 | 4·4·5 | 13 | 1 | 2.3 s | gunner, rusher |
+| 13 | 4·4·5 | 13 | 2 | 4.3 s | gunner, rusher |
+| 14 | 4·5·5 | 14 | 2 | 4.3 s | gunner, rusher |
+| 15 | 4·5·5 | 14 | 2 | 4.3 s | **combination**: shotgunner + rusher |
+| 16 | 4·5·5 | 14 | 2 | 4.3 s | **combination**: shotgunner + rusher |
+| 17 | 4·5·5 | 14 | 2 | 4.3 s | **combination**: shotgunner + rusher |
+| 18 | 4·5·5 | 14 | 1 | 2.3 s | **+ shieldbearer** |
+| 19 | 4·5·5 | 14 | 2 | 4.3 s | gunner, shieldbearer |
+| 20 | 5·5·5 | 15 | 2 | 4.3 s | gunner, shieldbearer |
+| 21 | 5·5·5 | 15 | 2 | 3.3 s | gunner, shieldbearer |
+| 22 | 5·5·5 | 15 | 2 | 3.3 s | **combination**: shotgunner + rusher + shieldbearer |
+| 23 | 5·5·5 | 15 | 2 | 3.3 s | **combination**: shotgunner + rusher + shieldbearer |
+| 24 | 5·5·5 | 15 | 2 | 4.3 s | **+ armored** |
+| 25 | 5·5·5 | 15 | 2 | 3.3 s | gunner, armored |
+| 26 | 5·5·5 | 15 | 2 | 2.3 s | gunner, armored |
+| 27 | 5·5·5 | 15 | 3 | 4.3 s | gunner, armored |
+| 28 | 5·5·5 | 15 | 2 | 2.3 s | **+ heavy** |
+| 29 | 5·5·5 | 15 | 3 | 4.3 s | gunner, heavy |
+| 30 | 5·5·5 | 15 | 3 | 3.3 s | gunner, heavy |
+| 31 | 5·5·5 | 15 | 3 | 2.3 s | gunner, heavy — **both dials are now at their ceiling** |
+| 32–33 | 5·5·5 | 15 | 3 | 2.3 s | **combination**: rusher + shieldbearer + armored |
+| 34–35 | 5·5·5 | 15 | 3 | 2.3 s | **combination**: shotgunner + armored + heavy |
+| 36 on | 5·5·5 | 15 | 3 | 2.3 s | the whole roster, at maximum |
 
-Peak bodies of each complete cycle: **10 → 11 → 14**. It never ends a cycle
-where the last one ended.
+Peak bodies of each cycle: **10 → 11 → 14 → 15**, and then the bodies table has
+no step left to take. **The ramp tops out in room 31** — five to a group and
+three firing together are both ceilings somebody chose — and from there the
+mode is at maximum with only the cast changing. That is a design fact, not a
+curve that gave up: `test/duelramp.mjs` knows about it and stops asking for a
+climb once both tables have run out of steps.
 
 `groups` is a list and stays a list. Three, then three, then four is a room
 that ends on its biggest fight; four, four, two is the same ten men arriving in
@@ -115,20 +129,40 @@ men firing together cost the room one turn rather than two
 rounds and not three, so triples quietly fired pairs.
 
 **CAST** introduces one type at a time. A debut arrives **alone**: gunners fill
-every other slot, and the room is made quieter than the one just cleared —
-both other dials step back by `typeDrop: 1` — so the new thing is the only new
-thing. It then has a full cycle (`rampRooms: 5`) before the next type. Two
-types that have each had a cycle **meet** for a couple of rooms
-(`hold: 2`) with every other dial frozen, because there the pairing is what is
-new.
+every other slot, and the room is made quieter than the one just cleared — the
+**fire** dial steps back by `typeDrop: 1`. It then has the rest of its cycle
+(`rampRooms: 3`, so four rooms in all) before the next type. Types that have
+each had a cycle **meet** for a short interlude (`hold`) with every other dial
+frozen, because there the pairing is what is new.
 
-`duelQueue` builds the room group by group: each group leads with one of every
-type the room is about, then gunners fill it out. That is what guarantees the
-new type is on the floor and at the front of it in the room that debuts it —
-which is what the freeze needs to land on. Before this, a debut room was
-composed from the TUNNEL's introduction table: the roster let a shotgunner in
-and no code ever put one in the queue, so room 7 filled with gunners and the
-debut never happened. An empty permission.
+**Why the fire dial and not both.** It used to step bodies back as well. That
+is affordable on a six-room cycle and is not on a four-room one: three moves a
+cycle, two of them spent climbing back to where the last cycle ended, and the
+peaks came out 10, 10, 11, 11 — a ramp that is a flat line with debuts drawn
+on it. `test/duelramp.mjs` said so, which is exactly what that check is for.
+Fire is the one worth spending it on: bodies decide how crowded the room
+*looks*, the shared clock decides how much is coming **at** you, and a player
+being shown a new silhouette needs the beats between rounds more than they
+need one fewer man at the back.
+
+**Why cycles are four rooms.** They were six, and the whole cast did not arrive
+until room 44 — armored, the type whose entire lesson is *body shots bounce,
+aim high*, was thirty-seven rooms in, which is a type most players would never
+meet. Four-room cycles put the last debut at 28.
+
+`duelQueue` builds the room group by group: each group leads with the types the
+room is about, then gunners fill it out, and **at least one gunner stays in
+every group** — the shot clock is carried by whoever can actually pull a
+trigger, so a room with no gunners in it fires fewer rounds together than its
+own schedule says. The types **rotate across the groups**, so a deep room
+carrying the whole roster still shows all of it; taking the first few every
+time would drop the tail of that list silently.
+
+That composition is what guarantees the new type is on the floor and at the
+front of it in the room that debuts it — which is what the freeze needs to land
+on. Before it, a debut room was composed from the TUNNEL's introduction table:
+the roster let a shotgunner in and no code ever put one in the queue, so room 7
+filled with gunners and the debut never happened. An empty permission.
 
 ## Meeting a new type
 
@@ -200,7 +234,7 @@ dodging is what those words asked for both times they were said. `meetHold: 10`
 seconds is the last resort, so a stopped world nobody knows how to un-stop
 cannot happen. Once per type per run, and only in the room that type debuts in
 — a shotgunner met again three cycles later in a combination room is not a
-debut.
+debut. The five debuts land in rooms **7, 11, 18, 24 and 28**.
 
 The card carried a sentence of tactics per type once ("FIVE PELLETS, WIDE ·
 STEP EARLY AND STEP FAR", and four more like it). Every one was true and none
@@ -209,9 +243,12 @@ loading screen. It was then a small plate pinned on the body with a cue tucked
 down by the stick, which is a card that is scattered rather than one that is
 read.
 
-**The button comes first.** `buttonRoom: 6` is the peak of the first cycle, one
+**The button comes first.** `buttonRoom: 6` is the peak of the opening, one
 room before the first debut, because a debut says DODGE and slow time is what
-makes dodging survivable.
+makes dodging survivable. The opening entry in the cast programme names its own
+length (`rooms: 6`) rather than taking a debut's cycle, because the rooms
+before the first debut are not a debut's ramp — they are the mode being taught
+by playing it, and they have to outlast the button arriving inside them.
 
 ## Time
 

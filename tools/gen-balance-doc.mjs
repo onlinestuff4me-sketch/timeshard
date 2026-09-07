@@ -377,14 +377,25 @@ three, and triples quietly fired pairs.
 
 | entry | with | rooms it owns |
 |---|---|---|
-${SIMPLE.duel.cast.map((c, i) => `| ${i} | ${c.with.length ? c.with.join(' + ') : 'gunners only'} | ${c.hold ? `${c.hold} — an interlude, every dial frozen` : `${1 + SIMPLE.duel.rampRooms}`} |`).join('\n')}
+${SIMPLE.duel.cast.map((c, i) => `| ${i} | ${c.with.length ? c.with.join(' + ') : 'gunners only (the opening)'} | ${c.rooms ? `${c.rooms}` : c.hold ? `${c.hold} — an interlude, every dial frozen` : `${1 + SIMPLE.duel.rampRooms}`} |`).join('\n')}
 
 A debut arrives **alone** — gunners fill every other slot — in a room made
-quieter than the one just cleared: both other dials step back by
-**${n(SIMPLE.duel.typeDrop)}**. It then owns ${n(SIMPLE.duel.rampRooms)} ramp
-rooms before the next type. Two types that have each had a cycle **meet** for a
-short interlude with every other dial held still, because there the pairing is
-what is new.
+quieter than the one just cleared: the **fire** dial steps back by
+**${n(SIMPLE.duel.typeDrop)}**, and only that one, because on a
+${n(1 + SIMPLE.duel.rampRooms)}-room cycle stepping both back spends two of the
+cycle's ${n(SIMPLE.duel.rampRooms)} moves climbing back to where the last one
+ended and the ramp goes flat. The debut then owns
+${n(SIMPLE.duel.rampRooms)} ramp rooms before the next type. Types that have
+each had a cycle **meet** for a short interlude with every other dial held
+still, because there the pairing is what is new.
+
+The last entry is never advanced past, so whatever it carries is the mix from
+there on — which is why it is the whole roster rather than the last trio that
+happened to be scheduled. **Both dials top out before it**, at
+${n(Math.max(...SIMPLE.duel.groups.map((g) => g.reduce((x, y) => x + y, 0))))}
+bodies and ${n(SIMPLE.duel.fire[SIMPLE.duel.fire.length - 1][0])} firing
+together: five to a group and three at once are chosen ceilings, so the deep
+game is the mode at maximum with only the cast changing.
 
 ### The debut cards
 
