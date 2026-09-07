@@ -3,9 +3,16 @@ import { boot, done, OUT } from './lib.mjs';
 //
 // The mode used to slow itself whenever a round was inbound — a rule the
 // player cannot see (inside 1.1s, passing within 2.6m), so from the outside
-// the world slowed down at random. Room 1 keeps that as a demonstration; from
-// room 2 it is a button on the tunnel's own bank: spend it, kills refill it,
-// it runs dry on its own.
+// the world slowed down at random. Nothing slows itself now: the button is a
+// button, on the tunnel's own bank — spend it, kills refill it, it runs dry
+// on its own.
+//
+// WHICH ROOM IT ARRIVES IN IS THE SCHEDULE'S BUSINESS, not this probe's. It
+// used to be pinned here as "room 2" and then the ramp moved it to the peak
+// of the first cycle, one room before the first new type — because a debut
+// says DODGE and the button is what makes dodging survivable. A probe that
+// hard-codes a number the design owns reports a design decision as a bug, so
+// this one walks until the button is there and says where that was.
 const SEED = () => { try { const now = Date.now();
   localStorage.setItem('timeshard_taught', '1');
   localStorage.setItem('ts_deepest_door', '20');
@@ -69,21 +76,32 @@ if (room1.rounds && room1.slowest < 0.9) {
   bad('room 1 still slows itself: world speed fell to ' + room1.slowest);
 }
 
-// ---- walk the run to room 2 ----------------------------------------------
-await page.evaluate(async () => {
+// ---- walk the run until the button is the player's ------------------------
+const arrived = await page.evaluate(async () => {
   const t = window.__ts;
-  const t0 = performance.now();
-  while (performance.now() - t0 < 30000 && t.hall().doorsPassed < 1) {
-    await new Promise((r) => requestAnimationFrame(r));
+  const up = () => { const b = document.getElementById('timebtn');
+    return !!(b.offsetWidth || b.offsetHeight); };
+  let guard = 0;
+  while (!up() && guard++ < 14) {
+    t.crossDoor();
+    for (let i = 0; i < 6; i++) await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999;
-    for (let k = t.enemies.length - 1; k >= 0; k--) if (t.enemies[k].alive) t.killAt(k);
   }
-  await new Promise((r) => setTimeout(r, 800));
+  // THE COACH'S "BEFORE", READ HERE. It used to be read after the room had
+  // been left to run, and a room fires within a second of you arriving in it,
+  // so "the coach is up before anybody has fired" was reporting the coach
+  // doing its job. The honest moment is the frame the button appears: nothing
+  // can have started the lesson yet, because the lesson needs the button.
+  const c = document.getElementById('duelcoach');
+  const before = { text: c.textContent.trim(), on: c.classList.contains('on'),
+    coach: t.simpleState().coach };
+  await new Promise((r) => setTimeout(r, 900));
+  return { room: t.hall().doorsPassed + 1, rooms: guard, before };
 });
 const r2 = await look();
-console.log('room 2: ' + JSON.stringify(r2));
-if (r2.room < 2) bad('never reached room 2 (got ' + r2.room + ')');
-if (!r2.btn) bad('the button did not arrive in room 2');
+console.log('the button arrives in room ' + arrived.room + ': ' + JSON.stringify(r2));
+if (arrived.room <= 1) bad('the button is up in room 1, which is the introduction');
+if (!r2.btn) bad('the button never arrived, across ' + arrived.rooms + ' rooms');
 if (!r2.juice) bad('the button is not wearing its own meter');
 if (!r2.meter) bad('the bank meter is not shown');
 if (r2.meterH < 10) bad('the meter is the thin tunnel bar, not the big one: ' + r2.meterH + 'px');
@@ -98,7 +116,7 @@ const READ = `() => {
     scale: t.simpleState().timeScale, coach: t.simpleState().coach };
 }`;
 const readCoach = () => page.evaluate('(' + READ + ')()');
-const before = await readCoach();
+const before = arrived.before;
 // let the room fire at them — nobody is killed, so a round is coming
 await page.evaluate(async () => {
   const t = window.__ts;

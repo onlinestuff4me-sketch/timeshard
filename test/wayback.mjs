@@ -105,8 +105,19 @@ const r = await page.evaluate(async () => {
   // man out moved the path under us: the old heading was only 97 degrees off
   // the new bearing, so the needle was down because the player was not facing
   // away, and the check passed while proving nothing about enemy marks.
-  const back2 = t.way().bearing + Math.PI;
-  out.withMark = await settle(back2, 2500, behind);
+  //
+  // ONE SHOT AT IT IS NOT ENOUGH EITHER. The bearing is a blend of four
+  // lookaheads and the blend moves with the heading, so `bearing + PI` is not
+  // a fixed point: aiming at it once landed 129 degrees off on one run and a
+  // clean 180 on the next, from the same build. Chase it instead — re-read,
+  // re-aim, settle — until the angle stops moving or the back is plainly
+  // turned. That measures the heading the game agrees is backwards rather
+  // than the one arithmetic predicted.
+  for (let i = 0; i < 5; i++) {
+    const was = out.withMark ? out.withMark.deg : null;
+    out.withMark = await settle(t.way().bearing + Math.PI, i ? 500 : 1600, behind);
+    if (out.withMark.deg >= 150 || out.withMark.deg === was) break;
+  }
   return out;
 });
 

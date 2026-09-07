@@ -1,119 +1,157 @@
-# Corridor Duel — how the fight scales
+# NO RETREAT — how the fight scales
 
-Plans and tables, drawn from this data:
-**https://claude.ai/code/artifact/252766fc-7ae3-41bc-aace-d6d3c2defde1**
+They come to you. You hold your end of a strip you cannot walk down, drag to
+sidestep, tap to shatter, and the corridor carries you through the door once
+the room is dead.
 
-Every number here was **measured, not read off the source**. `test/duelwalk.mjs`
-stands in each of the first twelve rooms from the first frame to the last body
-and records the strip, every man who arrives, what he is, when he arrives and
-how far away he is standing. `runall.sh` skips it; re-capture with:
+Three dials ramp, and **only one of them moves per room**:
 
-```
-OUT_JSON=/tmp/duelwalk.json ROOMS=12 node test/duelwalk.mjs
-```
+| dial | what it is | where it lives |
+|---|---|---|
+| **BODIES** | how many men, as groups that ascend within the room | `SIMPLE.duel.groups` |
+| **FIRE** | how many shoot together, and how long the room waits after | `SIMPLE.duel.fire` |
+| **CAST** | which types are in the mix | `SIMPLE.duel.cast` |
+
+The schedule is **walked forward from room 1 rather than solved** (`duelPlan`),
+because the rule *is* a walk: bodies and fire take it in turns, and a new type
+steps both of them back. There is no closed form for that, and inventing one
+would be a second description of the same thing, free to drift from it.
+
+Everything in the table below is read out of the running game by
+`test/duelramp.mjs`, which also checks that the guns do what it says.
 
 ## The arena
 
 A straight strip, **24 m long and three cells (12 m) wide**, with the door at
-the far end. You hold your end: there is no forward control, so the strip is
-an arena rather than a journey, and the corridor carries you through the door
-at 6.5 m/s once the room is clear (`SIMPLE.duel.walkSpeed`). The drag's forward
-half is dropped rather than clamped, so a diagonal thumb still sidesteps
-cleanly.
+the far end. There is no forward control, so the strip is an arena rather than
+a journey; the corridor walks you out at 6.5 m/s once the floor is clear
+(`SIMPLE.duel.walkSpeed`). The drag's forward half is dropped rather than
+clamped, so a diagonal thumb still sidesteps cleanly.
 
-Nobody can be placed closer than the **first-sight floor** — 13 m at these
-depths — and `LEG.spawnMin` wants 9 m of room. Everything therefore arrives in
-the far half.
+Nobody may be placed closer than the **first-sight floor** — 13 m at these
+depths — so everything arrives in the far half and walks in.
 
-## The twelve rooms, as measured
+**How close they get: 2.6 m** (`SIMPLE.duel.holdM`), measured from where you
+stand. That number sits between two others. A man inside **1.5 m** switches to
+melee and stops shooting; a rusher plants and lunges at **3.4 m**. Held at the
+tunnel's own line — the door approach, eight metres out — the rusher never
+arrives at all: measured, the nearest one ever got to a standing player was
+7.89 m, and its debut froze on a tell it was never going to give. Removed
+entirely, two of five bodies ended up stood on the player swinging, and a room
+scheduled to fire three together fired two.
 
-| room | bodies | most at once | cap | shot gap | bullet | aim | cast |
-|---|---|---|---|---|---|---|---|
-| 1 | 5 | 2 | 2 | 4.3 s | 5.4 m/s | ×1.15 | 5 gunner |
-| 2 | 7 | 2 | 2 | 4.3 s | 5.4 m/s | ×1.15 | 7 gunner |
-| 3 | 8 | 3 | 3 | 4.3 s | 5.4 m/s | ×1.15 | 8 gunner |
-| 4 | 9 | 3 | 3 | 4.3 s | 5.4 m/s | ×1.15 | 9 gunner |
-| 5 | 7 | 4 | 4 | 4.3 s | 5.4 m/s | ×1.15 | 7 gunner |
-| 6 | 5 | 3 | 4 | 4.3 s | 5.8 m/s | ×1.134 | 5 gunner |
-| 7 | 5 | 3 | 4 | 4.3 s | 5.8 m/s | ×1.134 | 5 gunner |
-| 8 | 7 | 4 | 4 | 4.3 s | 5.8 m/s | ×1.134 | 7 gunner |
-| 9 | 9 | 5 | 5 | 4.3 s | 5.8 m/s | ×1.134 | 9 gunner |
-| 10 | 9 | 5 | 5 | 4.3 s | 5.8 m/s | ×1.134 | 8 gunner + 1 shotgunner |
-| 11 | 8 | 5 | 5 | 4.03 s | 6.0 m/s | ×1.127 | 7 gunner + 1 shotgunner |
-| 12 | 8 | 5 | 5 | 3.76 s | 6.2 m/s | ×1.119 | 6 gunner + 2 shotgunner |
+## The schedule, as the game reads it out
 
-`aim` is a multiplier on the telegraph: **lower is faster**, so the arm comes
-up sooner as it falls. `shot gap` is the room's shared clock — however many
-men are standing there, one round leaves every `gap` seconds.
+| room | groups | bodies | fire together | gap | cast |
+|---|---|---|---|---|---|
+| 1 | 1·2·2 | 5 | 1 | 4.3 s | gunner |
+| 2 | 2·2·3 | 7 | 1 | 4.3 s | gunner |
+| 3 | 2·2·3 | 7 | 1 | 3.3 s | gunner |
+| 4 | 2·3·3 | 8 | 1 | 3.3 s | gunner |
+| 5 | 2·3·3 | 8 | 1 | 2.3 s | gunner |
+| 6 | 3·3·4 | 10 | 1 | 2.3 s | gunner — **the time button arrives** |
+| 7 | 2·3·3 | 8 | 1 | 3.3 s | **+ shotgunner** |
+| 8 | 2·3·3 | 8 | 1 | 2.3 s | gunner, shotgunner |
+| 9 | 3·3·4 | 10 | 1 | 2.3 s | gunner, shotgunner |
+| 10 | 3·3·4 | 10 | 2 | 4.3 s | gunner, shotgunner |
+| 11 | 3·4·4 | 11 | 2 | 4.3 s | gunner, shotgunner |
+| 12 | 3·4·4 | 11 | 2 | 3.3 s | gunner, shotgunner |
+| 13 | 3·3·4 | 10 | 2 | 4.3 s | **+ rusher** |
+| 14 | 3·4·4 | 11 | 2 | 4.3 s | gunner, rusher |
+| 15 | 3·4·4 | 11 | 2 | 3.3 s | gunner, rusher |
+| 16 | 4·4·5 | 13 | 2 | 3.3 s | gunner, rusher |
+| 17 | 4·4·5 | 13 | 2 | 2.3 s | gunner, rusher |
+| 18 | 4·5·5 | 14 | 2 | 2.3 s | gunner, rusher |
+| 19 | 4·5·5 | 14 | 2 | 2.3 s | **combination**: shotgunner + rusher |
+| 20 | 4·5·5 | 14 | 2 | 2.3 s | **combination**: shotgunner + rusher |
+| 21 | 4·4·5 | 13 | 2 | 3.3 s | **+ shieldbearer** |
+| 22 | 4·4·5 | 13 | 2 | 2.3 s | gunner, shieldbearer |
+| 23 | 4·5·5 | 14 | 2 | 2.3 s | gunner, shieldbearer |
+| 24 | 4·5·5 | 14 | 3 | 4.3 s | gunner, shieldbearer |
 
-## What actually rises
+Peak bodies of each complete cycle: **10 → 11 → 14**. It never ends a cycle
+where the last one ended.
 
-**Concurrency, not headcount.** `most at once` climbs 2 → 5 without a single
-break. That is `maxAlive()`, and it is the dial that decides whether a room is
-a queue or a swarm.
+`groups` is a list and stays a list. Three, then three, then four is a room
+that ends on its biggest fight; four, four, two is the same ten men arriving in
+the wrong order. Everywhere else the encounter list only sets a leg's total and
+the groups are re-derived per stretch, which is fine in a corridor you walk
+down — here the room *is* the fight, so `hall.duelGroups` survives as written.
 
-**Speed and reaction, late and gently.** Bullet speed moves 5.4 → 6.2 m/s
-across twelve rooms and the telegraph shortens by 3%. The shared clock does not
-move at all until room 11, then tightens 4.3 → 3.76 s.
+## What each dial does
 
-**The cast, from room 10.** Everything up to room 9 is gunners.
+**BODIES** climbs 1·2·2 → 5·5·5 through `SIMPLE.duel.groups`, capped at
+`encCap: 5`. Five is the ceiling on one group, not on the room.
 
-## Two things the capture found
+**FIRE** is a pair: how many fire as one event, and how long the room then
+waits. It runs 1 every 4.3 s → 1 every 2.3 s → **2** every 4.3 s → 2 every
+2.3 s → **3** every 4.3 s. Tighten three times, then add a gun and reset the
+clock. A volley is measured from its **start**, not from its last round, so two
+men firing together cost the room one turn rather than two
+(`duelVolleyAt`/`duelVolleyN`), and the join window is derived —
+`volleyStep * volley + volleySlack` — because a fixed 0.18 s window fitted two
+rounds and not three, so triples quietly fired pairs.
 
-### The headcount saw-tooths
+**CAST** introduces one type at a time. A debut arrives **alone**: gunners fill
+every other slot, and the room is made quieter than the one just cleared —
+both other dials step back by `typeDrop: 1` — so the new thing is the only new
+thing. It then has a full cycle (`rampRooms: 5`) before the next type. Two
+types that have each had a cycle **meet** for a couple of rooms
+(`hold: 2`) with every other dial frozen, because there the pairing is what is
+new.
 
-Bodies per room run **5, 7, 8, 9, 7, 5, 5, 7, 9, 9, 8, 8**. It climbs to room
-4, falls back to a room-1 sized fight at 6 and 7, then climbs again.
+`duelQueue` builds the room group by group: each group leads with one of every
+type the room is about, then gunners fill it out. That is what guarantees the
+new type is on the floor and at the front of it in the room that debuts it —
+which is what the freeze needs to land on. Before this, a debut room was
+composed from the TUNNEL's introduction table: the roster let a shotgunner in
+and no code ever put one in the queue, so room 7 filled with gunners and the
+debut never happened. An empty permission.
 
-A duel room is one **leg**, and a door's encounters are dealt round-robin
-across however many legs that door has (`legEncounters`). The tunnel hides
-this: you walk several legs per door, so the shares add up on the way. Here one
-room is one leg, so the room inherits whichever slice of the door's plan its
-index happened to draw. It is not a rest that anybody designed.
+## Meeting a new type
 
-### Everyone stands on the centre line
+The first act of a debuting type stops the world. Its first round; for the
+rusher, the frame it plants and coils, which is the only tell it gives.
 
-The strip is 12 m wide. Every body measured across twelve rooms arrived within
-**one metre of the spine** — x from −0.9 to +0.85 — at z 12, 16, 20 or 24.
+The card is **just the name**, pinned over the silhouette it belongs to, and
+the instruction is **a thumb crossing the stick the way you have to go**. Both
+halves matter and neither is prose: the card used to carry a sentence of
+tactics per type ("FIVE PELLETS, WIDE · STEP EARLY AND STEP FAR" and four more
+like it) and a stopped screen with a paragraph on it is a loading screen. A
+player meeting a new silhouette has two questions — who is that, and what do I
+do — and in a mode with one control the answer to the second is always the
+same shape: get off his line.
 
-That is the placement pool: the duel places into `L.approach`, which is the
-spine's last four cells, and the cells either side of it are not in that list.
-The mode's verb is sidestepping, and at the moment every round comes down the
-same line. Widening the pool to the strip's full width in the approach band is
-a small change (the same filter the feature-stretch pool already uses) but it
-is a **design decision**, not a fix, so it is written down here rather than
-made quietly.
+Dodging is what releases it (`TUTOR.dodgeStepM` of sideways ground), because
+dodging is what the card asked for. `meetHold: 10` seconds is the last resort,
+so a stopped world nobody knows how to un-stop cannot happen. Once per type per
+run, and only in the room that type debuts in — a shotgunner met again three
+cycles later in a combination room is not a debut.
 
-## The cast, and what the duel does with it
-
-The duel shares the tunnel's introduction schedule (`TYPE_INTRO`) and then
-substitutes, because two of the types cannot be answered in a strip you cannot
-retreat down:
-
-| tunnel introduces | at door | the duel gets |
-|---|---|---|
-| gunner | 1 | gunner |
-| rusher | 7 | **gunner** — a rusher does not fire, it arrives, and there is no back |
-| shotgunner | 9 | shotgunner |
-| shieldbearer | 11 | shieldbearer |
-| heavy | 13 | heavy |
-| sniper | 16 | **gunner** |
-| bomber | 19 | shotgunner |
-| armored | 23 | armored |
-| rocketeer | 27 | heavy |
-| laser | 31 | **gunner** |
-
-`EARLY.gunnerOnlyDoors` holds everything back to room 6 regardless, and the
-roster is also metered by what the player has met across all runs — which is
-why the first shotgunner measured at room 10 rather than at its nominal 9.
+**The button comes first.** `buttonRoom: 6` is the peak of the first cycle, one
+room before the first debut, because a debut says DODGE and slow time is what
+makes dodging survivable.
 
 ## Time
 
-Room 1 runs at full speed and is simply the fight. From room 2 the time button
-arrives with a coach (see `SIMPLE.duel.buttonRoom`), on the tunnel's own bank:
-5 s at wave start, 10 s ceiling, 2 s refunded per kill, 1 s spent per second
-frozen. It runs dry on its own and lets go.
+Rooms 1 to 5 run at full speed and are simply the fight. From room 6 the button
+is the player's, on the tunnel's own bank: 5 s at wave start, 10 s ceiling, 2 s
+back per kill, 1 s spent per second frozen. It runs dry on its own and lets go.
+Slow time here is `SIMPLE.duel.slow: 0.3` — 0.13 shipped once, and at that
+speed a round takes 23 seconds to cross the strip against a bank that holds
+ten.
+
+The first round anyone fires once the button exists stops the world with the
+prompt **on the button**, and pressing it releases straight into ordinary slow
+time. The second line follows at the meter, which is by then visibly draining.
 
 The mode used to slow itself whenever a round was inbound — inside 1.1 s and
-passing within 2.6 m. That rule is invisible from outside, which is why it read
-as the world slowing at random.
+passing within 2.6 m. That is a real rule and an invisible one: nothing states
+it and the player cannot cause it, so from the outside the world slowed down at
+random.
+
+## The name
+
+It was CORRIDOR DUEL, and both words were wrong: *corridor* is what the tunnel
+is, and a duel is one-on-one, which this has never been. The id is a save key,
+so it stays `duel` for ever.

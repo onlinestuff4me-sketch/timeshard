@@ -41,10 +41,10 @@ Three rules the code keeps (`modeUnlocked` in the registry, `deepestDoor` and
 * **It is a high-water mark, kept per player, and it only goes up.**
   `ts_deepest_door` is written when a tunnel door is crossed and read by
   nothing else. It is deliberately NOT derived from the saves: a player who
-  earns Corridor Duel at door 5 and then deletes that run must not find it
+  earns NO RETREAT at door 5 and then deletes that run must not find it
   locked again, and a number recomputed from whatever saves happen to exist
   does exactly that.
-* **Tunnel doors only.** Corridor Duel and Stand Still are built on the
+* **Tunnel doors only.** NO RETREAT and Stand Still are built on the
   tunnel's legs and cross doors too; counting those would make "REACH DOOR 5
   IN THE TUNNEL" a lie on the one card that says it, and would let the modes
   bought with the climb pay for each other.
@@ -110,7 +110,7 @@ that was always available says nothing.
 **At the moment it happens.** Crossing the gate puts a card on the screen: the
 label small and red over the mode's name, because the name is the news.
 
-It **waits for the screen** rather than firing blind. Corridor Duel's gate is
+It **waits for the screen** rather than firing blind. NO RETREAT's gate is
 door 5, which is crossed on the same step that hands over slow motion — and
 that door runs the slow-time school, which owns the screen and makes
 `showBanner` a no-op for as long as it lasts. Announcing into that is

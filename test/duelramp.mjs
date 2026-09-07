@@ -123,7 +123,16 @@ const fired = await page.evaluate(async (rooms) => {
       t.player.iframes = 999;
       t.player.pos.x = home.x; t.player.pos.z = home.z;   // hold your end
     }
-    out.push({ room, want: p.volley, gap: p.gap, gaps: t.worldClock().gaps.slice(g0) });
+    // ...and WHO was standing there while it fired. A room's volley is carried
+    // by whoever can actually pull a trigger: a shieldbearer only fires while
+    // it is facing you, so a floor that fills with shieldbearers fires fewer
+    // rounds together than the schedule says and the schedule is not the part
+    // that is wrong. This is the first thing to look at when a volley comes up
+    // short.
+    const floor = {};
+    for (const e of t.enemies) if (e.alive) floor[e.type] = (floor[e.type] || 0) + 1;
+    out.push({ room, want: p.volley, gap: p.gap, gaps: t.worldClock().gaps.slice(g0),
+      floor, alive: t.enemies.filter((e) => e.alive).length });
   }
   return out;
 }, [4, 10, 24]);   // singles, pairs, and the first room that fires three
@@ -137,7 +146,9 @@ for (const r of fired) {
   groups.push(n);
   const settled = groups.slice(1);   // the first run starts mid-cycle
   console.log('room ' + String(r.room).padStart(2) + '  schedule says ' + r.want
-    + ' together every ' + r.gap + 's  ->  fired ' + (settled.join(', ') || 'nothing'));
+    + ' together every ' + r.gap + 's  ->  fired ' + (settled.join(', ') || 'nothing')
+    + '   (floor: ' + (Object.entries(r.floor).map(([k, v]) => v + ' ' + k).join(', ')
+      || 'empty') + ')');
   if (!settled.length) { bad('room ' + r.room + ' fired nothing to measure'); continue; }
   const biggest = Math.max(...settled);
   if (biggest > r.want) {

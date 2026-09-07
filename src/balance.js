@@ -1034,15 +1034,15 @@ export const TIME = {
 // They differ in exactly one rule — WHO OWNS TIME — so playing one after the
 // other is a controlled comparison and not two unrelated games:
 //
-//   NO RETREAT     room 1 is the fight at full speed; from room 2 a button,
-//                  and a meter you spend and refill by shattering.
+//   NO RETREAT     the opening rooms are the fight at full speed; then a
+//                  button, and a meter you spend and refill by shattering.
 //   STAND STILL    the world moves at your thumb's speed, and nothing else's
 //
 // STAND STILL has no time bank, so it cannot price the freeze the way the
 // tunnel does (docs/PILLARS.md §1, §2); what replaces the price is the thing
-// being tested — see docs/MODES.md. NO RETREAT now does have one, from its
-// second room: the automatic slowdown was unreadable as a rule and is gone
-// outright. See SIMPLE.duel.buttonRoom.
+// being tested — see docs/MODES.md. NO RETREAT now does have one: the
+// automatic slowdown was unreadable as a rule and is gone outright.
+// See SIMPLE.duel.buttonRoom.
 // ---------------------------------------------------------------------------
 export const SIMPLE = {
   legWide: 1,           // cells either side of the spine: 1 = a 12 m strip
@@ -1078,15 +1078,26 @@ export const SIMPLE = {
     // and the debug hook can ask.
     lead: 1.1,
     miss: 2.6,
-    // TIME IS THE PLAYER'S, FROM ROOM 2. Room 1 runs at full speed and is
-    // simply the fight — an introduction that behaved differently from every
-    // room after it would be teaching something untrue. The button arrives in
-    // room 2 with a coach and runs on the tunnel's own bank (TIME): tap to
-    // slow, it counts down while you are in it, every body you shatter puts
-    // some back. Nobody is taught to toggle it off to conserve — it runs out
+    // TIME IS THE PLAYER'S, ONCE THE BUTTON ARRIVES. The rooms before it run
+    // at full speed and are simply the fight — an introduction that behaved
+    // differently from every room after it would be teaching something
+    // untrue. The button comes with a coach and runs on the tunnel's own bank
+    // (TIME): tap to slow, it counts down while you are in it, and every body
+    // you shatter puts some back. Nobody is taught to toggle it off to conserve — it runs out
     // on its own, or it keeps going for as long as you keep shattering, which
     // is the whole bargain stated in one sentence.
-    buttonRoom: 2,
+    // THE BUTTON ARRIVES AT THE PEAK OF THE FIRST CYCLE, and one room before
+    // the first new type. Rooms 1-5 are the mode taught by playing it: hold
+    // your end, sidestep, shoot. Room 6 is the busiest room so far — ten
+    // bodies, the tightest gap the cycle reaches — which is the moment the
+    // answer is worth having and the moment a player will actually use it. It
+    // was room 2, which handed over a tool before there was a problem to
+    // point it at.
+    //
+    // It has to land BEFORE the debut freezes (see `meet`), because those
+    // stop the world to show you a new enemy and say dodge it, and the thing
+    // that makes a debut survivable is the button.
+    buttonRoom: 6,
     // ---- THE THREE DIALS ---------------------------------------------------
     //
     // A room is described by three numbers, and ONE OF THEM MOVES PER ROOM.
@@ -1176,6 +1187,48 @@ export const SIMPLE = {
       { with: ['armored'] },
       { with: ['shieldbearer', 'armored'], hold: 2 },
     ],
+    // ---- MEETING A NEW TYPE ------------------------------------------------
+    //
+    // A debut stops the world on the type's FIRST ACT — its first shot, or for
+    // the rusher the moment it plants and coils. Once per type per run.
+    //
+    // A DEBUT IS A NAME AND A GESTURE, and this is the name half.
+    //
+    // These were sentences: "FIVE PELLETS, WIDE · STEP EARLY AND STEP FAR",
+    // and four more like it. Every one of them was true and none of them was
+    // read — a stopped screen with a paragraph on it is a loading screen. A
+    // player meeting a new silhouette has two questions, WHO and WHAT DO I
+    // DO, and the answer to the second is the same in every case because
+    // this mode has one control: get off his line. So the card names him and
+    // the coach shows the thumb going the way that does it. The type still
+    // has to be listed here — the list IS which types get a debut at all.
+    meet: {
+      shotgunner: 'SHOTGUNNER',
+      rusher: 'RUSHER',
+      shieldbearer: 'SHIELDBEARER',
+      heavy: 'HEAVY',
+      armored: 'ARMORED',
+    },
+    meetHold: 10,   // seconds before a debut freeze lets go on its own
+    // HOW CLOSE THEY MAY COME, in metres in front of where you stand.
+    //
+    // Everywhere else the answer is the door approach, and in this mode that
+    // works out at eight metres — where the premise stops being true. "They
+    // come to you" is the whole of it, and a rusher plants and lunges at 3.4 m,
+    // so held at the approach it never arrives: measured, the nearest one ever
+    // got to a standing player was 7.89 m, and its debut froze on a tell it was
+    // never going to give.
+    //
+    // Removing the hold entirely is worse. Bodies then walk all the way in and
+    // a man inside 1.5 m switches to melee, which means he is not shooting —
+    // measured, a room scheduled to fire three together fired two, because two
+    // of the five were stood on the player swinging. This line is the gap
+    // between those two numbers: outside melee, inside the lunge.
+    holdM: 2.6,
+    // How much lateral room the DODGE coach wants on the side it points to,
+    // in metres. The strip is 12 m wide, so past this the thumb is being
+    // pointed at a wall and the other way is the better dodge.
+    dodgeRoom: 3.6,
     rampRooms: 5,   // ramp rooms after a type arrives, before the next does
     typeDrop: 1,    // ...and how far the other two step back when one lands
     // SHORTER THAN THE TUNNEL'S, because you never walk it while it matters.
