@@ -152,8 +152,22 @@ existing state and costs nothing — but nothing in `src/` may depend on it.
 | `slow()` | bank, cap, locked |
 | `killAt(i)`, `spawnEnemy(t)`, `shot(...)`, `fire()` | make things happen |
 | `restartHall()`, `forceMeasures([])`, `forceCondition()` | put the world in a specific state |
+| `warpDoor(d)` | set the door NUMBER and nothing else. **It does not recompose the fight** — the men in front of you are still the ones the last composition built. Fine for reading a schedule off `simpleState().plan`; useless for any question about who is actually released. `test/duelmeet.mjs` reported "the debut never freezes" for exactly this reason while the game was doing it correctly |
+| `crossDoor()` | the real crossing: opens the door, steps through, builds the next leg and composes its wave. Use this to reach a room whose FIGHT matters — but it forces the slab whatever is standing there, so kill the floor between crossings or you carry each room's men into the next |
+| `simpleState()` | everything about a simplified-mode run: `mode`, `timeScale`, `walk`, the debut coach (`coach`, `meet`, `want`, `mark`, `dir`, `met`) and, in NO RETREAT, the room's whole `plan` — groups, volley, gap, cast, fresh, combo, step |
+| `worldClock()` | `now` (world seconds), `last`, `shots` and `gaps` — the game's own count of trigger pulls and the world-time interval between them. **Count shots here, not bullets:** one pull can be five pellets, and a once-a-frame scan reads two rounds on consecutive frames as one event. Both errors were live in `fire.mjs` at once, which is how it reported gaps of `0 0 0 0` |
+| `way()` | the way-out mark: `on`, `bearing`, `back`, `edge`. Use `bearing`, not a bearing derived from `target` — that is only the furthest of four blended lookaheads, and near a corner the two disagree by tens of degrees |
+| `leg()` | the current leg, including `alive` (`maxAlive()`) and `gap` (`shotGap()`) — the two dials that decide what a room feels like |
+| `slow()`, `setSlow(s)`, `setTimeLocked(b)` | the time bank, and putting it where a test needs it |
 
 ## What the suite covers
+
+**The current suite is `test/*.mjs`, run with `bash test/runall.sh`, and every
+probe in it is described in [`test/README.md`](../test/README.md).** Start a
+static server from the repo root first — the runner will start one if nothing
+is listening, and a stalled suite that looks like a hang is usually a server
+that died. The table below is the OLDER `.js` suite and is kept for the traps
+it records, not as an index of what runs today.
 
 | file | what it is for |
 |---|---|
@@ -178,7 +192,7 @@ existing state and costs nothing — but nothing in `src/` may depend on it.
 | `schoolbody.js` | the school as behaviour rather than arithmetic: the composed corridor's body budget, the unlock as a functional gate, and the mercy rule counted in rounds actually in the air — full bank 5 up at once, dry 2, the same six rounds taking 13.2 s of world time instead of 4.7 |
 | `crossparity.js` | that `__ts.crossDoor()` really is a door crossing (checked against one walked on foot), and that the slow course arms on the unlock door and neither neighbour |
 | `mutdemo.js` | (its aim is re-established immediately before the shot: the gunner is placed in `advance` and then left alone across two Playwright round trips, which are **wall clock**, so under load he drifted out of the crosshair and the *healthy* case went red on a build with nothing wrong with it) | drives the game into the state each important assertion's mutation would produce and requires that assertion to go RED, and the weak version of it to stay green. The suite's own smoke alarm |
-| `modes.js` | the two one-thumb modes share the opening ramp and must NOT get the school, its volley gap, its body floor, its coach, the button or the meter — with the tunnel at the same door as a control |
+| `modes.js` | the one-thumb modes must NOT get the school, its volley gap, its body floor or its coach, with the tunnel at the same door as a control. (Written when neither had a time button. **NO RETREAT has one now**, from `SIMPLE.duel.buttonRoom`, on its own schedule and with its own coach — the school is still none of its business. STAND STILL still has no button at all.) |
 | `shotrhythm.js` | what the rounds actually DO, measured in world seconds off `lastEnemyShotAt`: door 8 is a metronome with no double-taps, and a school door repeats spread-spread-quiet. Every other test asks what the code *says* the gap is — for a long time those were different things |
 | `schoolentry.js` | the door: standing on the last leg before the unlock, opening it and stepping through has to produce the lesson's own corridor, its barrier, `STAND HERE`, and the button taken away until `slowIntro` hands it over |
 | `ramppane.js` | the tool's RAMP pane: every dial has a slider, the table matches the code out to door 96, moving a dial recomputes it, and the export carries the speed and school blocks |

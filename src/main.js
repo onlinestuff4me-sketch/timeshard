@@ -3909,9 +3909,26 @@ function duelMayFire(e) {
   // is on the floor (the player shot it before it opened), and it expires on
   // its own after `meetLead` world seconds however the room got there.
   if (p.fresh && SIMPLE.duel.meet[p.fresh] && !duel.met.has(p.fresh)
-      && e && e.type !== p.fresh
-      && worldT - ((hall && hall.duelFreshAt) || 0) < SIMPLE.duel.meetLead
-      && enemies.some((x) => x.alive && x.type === p.fresh)) return false;
+      && e && e.type !== p.fresh) {
+    // ...AND THE CLOCK ON IT STARTS WHEN THE DEBUT IS ACTUALLY ABLE TO FIRE,
+    // not when the room opened. A shotgunner opens fire at 10 m and is placed
+    // past the 13 m first-sight floor, so it has to WALK a third of the strip
+    // in before it may take a turn at all — and it strafes on the way, so it
+    // covers that at well under its 1.8 m/s. Measured against a fixed
+    // twelve-second lead the room ran out of patience while the man it exists
+    // to introduce was still crossing the floor, handed the clock to the
+    // gunners, and never introduced him. Everyone else is in range from the
+    // moment they arrive, so for them nothing changes.
+    const fresh = enemies.filter((x) => x.alive && x.type === p.fresh);
+    if (fresh.length) {
+      if (!fresh.some((x) => Math.hypot(x.pos.x - player.pos.x, x.pos.z - player.pos.z)
+          < x.engageDist)) {
+        if (hall) hall.duelFreshAt = worldT;   // it has not had its chance yet
+        return false;
+      }
+      if (worldT - ((hall && hall.duelFreshAt) || 0) < SIMPLE.duel.meetLead) return false;
+    }
+  }
   // joining the volley in progress: inside its window, and a breath behind
   // whoever fired last, so three men read as three men
   const window = SIMPLE.duel.volleyStep * p.volley + SIMPLE.duel.volleySlack;
@@ -3998,7 +4015,7 @@ function schoolFloor(door) {
   // THE MODE GATE HAS TO BE HERE TOO. `schoolDoor()` refuses outside the
   // tunnel, but this does not go through it — it is a pure function of the
   // door number — so gating only `schoolDoor` left the school's BODY FLOOR
-  // still raising the leg budget in corridor duel and stand still: four bodies
+  // still raising the leg budget in NO RETREAT and stand still: four bodies
   // a leg in modes that have no way to slow time. Caught by modes.js, which
   // had been a zero-byte file reported green.
   if (game.mode !== 'hall' || tutorStep !== null) return 0;
@@ -7387,13 +7404,13 @@ function discoverData() {
 // has EVER reached, across every save — unlocking belongs to the player, like
 // UNLOCKS itself, not to the run they happen to be in.
 //
-// TUNNEL DOORS ONLY. Corridor Duel and Stand Still are built on the tunnel's
+// TUNNEL DOORS ONLY. NO RETREAT and Stand Still are built on the tunnel's
 // legs (`inHall`), so they cross doors and write `rdoor` too. Counting those
 // would make "REACH DOOR 5 IN THE TUNNEL" a lie on the one card that says it,
 // and would let the modes bought with the climb pay for each other.
 // ---------------------------------------------------------------------------
 // THE HIGH-WATER MARK, kept per PLAYER and only ever raised. It is not
-// derived from the saves: a player who earns Corridor Duel at door 5 and then
+// derived from the saves: a player who earns NO RETREAT at door 5 and then
 // deletes that run must not find it locked again, and a number recomputed
 // from whatever saves happen to exist does exactly that.
 //

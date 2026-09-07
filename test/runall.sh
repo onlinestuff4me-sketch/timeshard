@@ -39,7 +39,7 @@ for f in test/*.mjs; do
   # ...and `duelwalk`, which is walk.mjs for NO RETREAT: it stands in each
   # of the first twelve rooms and records the strip, every man who arrives,
   # what he is and when. It is the floor-plan capture — the schedule in
-  # docs/DUEL.md comes from `duelramp`, which reads it out of the running
+  # docs/NO_RETREAT.md comes from `duelramp`, which reads it out of the running
   # game and runs every time. `bash test/runall.sh duelwalk` re-captures this.
   [ "$name" = "duelwalk" ] && [ -z "$FILTER" ] && continue
   [ -n "$FILTER" ] && [[ "$name" != *"$FILTER"* ]] && continue

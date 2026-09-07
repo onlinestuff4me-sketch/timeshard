@@ -1,5 +1,27 @@
 # NO RETREAT — how the fight scales
 
+> **THE MODE IS CALLED NO RETREAT. Its id is `duel`.** It shipped as CORRIDOR
+> DUEL and both words were wrong; the id is a save key, so it stays `duel` for
+> ever and every symbol in the source keeps that word — `SIMPLE.duel`,
+> `duelPlan`, `duelmeet.mjs`, this file's old name `docs/DUEL.md`. **Reading
+> `duel` in code and saying NO RETREAT to a player is correct, not a leftover.**
+
+**Where everything is**
+
+| what | where |
+|---|---|
+| the dials | `SIMPLE.duel` in `src/balance.js` |
+| the walk that reads them | `duelPlan()` in `src/main.js` |
+| who is in a room | `duelQueue()`, called from `hallWave()` |
+| how close they may come | `duelHold()` |
+| the shot clock | `duelMayFire()` / `duelTookShot()` / `shotGap()` |
+| the debut cards | `duelNoteMeet()`, `duelMeetCard()`, `duelPlaceMeetPins()` |
+| generated tables | `docs/BALANCE.md` → *NO RETREAT — the three dials* |
+| the schedule, checked | `test/duelramp.mjs` |
+| the debut cards, checked | `test/duelmeet.mjs` |
+| the button and its bank | `test/duelbtn.mjs` |
+| the published plan page | https://claude.ai/code/artifact/252766fc-7ae3-41bc-aace-d6d3c2defde1 |
+
 They come to you. You hold your end of a strip you cannot walk down, drag to
 sidestep, tap to shatter, and the corridor carries you through the door once
 the room is dead.
@@ -162,7 +184,16 @@ That reservation carries its own way out, because this mode bypasses the
 anti-deadlock valve every other one has — its clock is a volley schedule, not a
 queue. It lifts the moment no live body of that type is on the floor (you shot
 it before it opened), and it expires on its own after `meetLead: 12` world
-seconds however the room got there.
+seconds.
+
+**Those twelve seconds are counted from when the debut can actually fire**, not
+from when the room opened. A shotgunner opens fire at 10 m and is placed past
+the 13 m first-sight floor, so it has a third of the strip to walk in — and it
+strafes on the way, so it covers that at well under its 1.8 m/s. Measured
+against a lead counted from the room's start, the room ran out of patience
+while the man it exists to introduce was still crossing the floor, handed the
+clock to the gunners, and never introduced him. Everyone else is in range from
+the moment they arrive, so for them nothing changes.
 
 Dodging is what releases it (`TUTOR.dodgeStepM` of sideways ground), because
 dodging is what those words asked for both times they were said. `meetHold: 10`
@@ -200,8 +231,53 @@ passing within 2.6 m. That is a real rule and an invisible one: nothing states
 it and the player cannot cause it, so from the outside the world slowed down at
 random.
 
+## Lifting this ramp into another mode
+
+The three dials are being **trialled here**, in the smallest mode with the
+fewest controls, precisely so the shape can be judged before it is spent
+anywhere else. If it plays well the obvious next home is the tunnel, whose
+opening ramp is four dials that all move at once (`OPENING` in
+`src/balance.js`, `docs/BALANCE.md` → *The opening ramp*).
+
+**What is portable, and what is not.**
+
+| piece | portable? |
+|---|---|
+| *one dial moves per room, taking turns* | **yes** — this is the idea, and it is mode-agnostic |
+| *a debut arrives alone, in a quieter room* | **yes**, wherever types are introduced at all |
+| *a debut's first act stops the world and names it* | **yes**, given a mode with a freeze to spend |
+| the walk (`duelPlan`) | **yes in shape, no in code** — it is written against `SIMPLE.duel` |
+| groups as an ordered list | needs a mode where one room is one leg (see below) |
+| the volley clock | needs a shared room shot clock; the tunnel has one (`shotGap`) |
+| `holdM`, `walkSpeed`, `legCells` | no — arena numbers, meaningless where the player walks |
+
+**The one structural dependency.** A NO RETREAT room is exactly one leg
+(`doorLegs()` returns 1 for it), which is what lets `hall.duelGroups` survive
+as an ordered list — 3, 3, 4 is a room that builds. A tunnel door is several
+legs and its encounters are dealt round-robin across them (`legEncounters`), so
+a door there cannot promise an order without deciding first whether the ORDER
+belongs to the door or to the leg. That is the question to answer before
+porting, and it is a design question, not a port.
+
+**Do it by generalising, not by copying.** The honest port is to move the walk
+and its tables behind a per-mode block — `RAMP[mode] = { groups, fire, cast, … }`
+— and let `duelPlan` become `roomPlan(mode, n)`. Copying the function and
+editing the constants gives two descriptions of one rule, free to drift, which
+is the failure this repo has already had several times (see the header comment
+on `duelPlan`, and `composeWave` vs the duel's own cast, which is exactly this
+bug: the roster let a type in and no code ever put one in the queue).
+
+**How to tell whether it worked here first.** `test/duelramp.mjs` is the
+measurement: it reads the schedule out of the running game for 24 rooms, checks
+the shape (groups ascend, five is the ceiling, three fire together at most, a
+debut arrives alone, a combination moves nothing, every complete cycle peaks
+higher than the last), then stands in rooms 4, 10 and 24 and checks the guns
+actually fire 1, 2 and 3 together at the gaps promised. Any port should be able
+to pass the same shape of check in its own mode before it ships.
+
 ## The name
 
 It was CORRIDOR DUEL, and both words were wrong: *corridor* is what the tunnel
 is, and a duel is one-on-one, which this has never been. The id is a save key,
-so it stays `duel` for ever.
+so it stays `duel` for ever — and so `SIMPLE.duel`, `duelPlan`, `duelramp.mjs`
+and the rest keep it too. Nothing a PLAYER sees says duel.

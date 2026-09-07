@@ -23,6 +23,39 @@ cheap to iterate on. Everything here is web-iterable unless marked otherwise.
 
 ---
 
+## 0a. Judge NO RETREAT's three-dial ramp, then decide whether the tunnel gets it
+
+**The decision this is waiting on is a playtest, not a design session.**
+
+NO RETREAT has a difficulty ramp no other mode has: three dials — bodies, how
+many fire together, which types are in the mix — with a room moving exactly one
+of them and taking them in turns, and a new enemy type arriving alone in a room
+made quieter to receive it, its first act stopping the world to name it and
+ring what you have to answer. Written up in `docs/NO_RETREAT.md`, tables
+generated into `docs/BALANCE.md`, checked by `test/duelramp.mjs` and
+`test/duelmeet.mjs`.
+
+It was put in the **smallest mode first on purpose**: one control, one leg per
+room, no look axis, so the shape can be judged without four other systems
+arguing with it.
+
+**If it plays well, the tunnel is the obvious next home** — its opening ramp is
+four dials that all move at once (`OPENING`). `docs/NO_RETREAT.md` →
+*Lifting this ramp into another mode* has the port already thought through:
+what is portable, the one structural dependency (a NO RETREAT room is exactly
+one leg, and a tunnel door is several, so somebody has to decide whether an
+ordered encounter list belongs to the door or to the leg), and why the port is
+a generalisation — `roomPlan(mode, n)` over `RAMP[mode]` — rather than a copy
+of `duelPlan` with the constants edited. Copying it would give two descriptions
+of one rule, free to drift, which this repo has already been bitten by more
+than once.
+
+**What would say it worked:** rooms that keep climbing without a saw-tooth, a
+new type that is understood on the room it arrives in rather than three rooms
+later, and no room where the player cannot tell what changed.
+
+---
+
 ## 0. Playtest the scarcity curves — before anything else
 
 The four levers went in and **have never been played**. Doors 1–3 should feel

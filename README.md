@@ -56,10 +56,21 @@ from the title screen:
 | **NO RETREAT** | They come to you. Drag to sidestep, tap them to shatter. |
 | **STAND STILL** | Time only moves while you do. Stand still and the world waits. |
 
-The last two are **simplified-control prototypes**: no look axis and no time
-button, so the whole scheme is *drag to move, tap to shoot* and the table
-above does not apply to them. They own time by two different rules — see
+The last two are **simplified-control prototypes**: no look axis, so the whole
+scheme is *drag to move, tap to shoot* and the table above does not apply to
+them. They own time by two different rules — see
 [`docs/MODES.md`](docs/MODES.md). The list itself is `src/modes.js`.
+
+**NO RETREAT is also where a new difficulty ramp is being trialled**, and it is
+a candidate for the tunnel: three dials — how many bodies, how many fire
+together, which types are in the mix — with a room moving exactly one of them,
+and a new enemy type arriving alone in a room made quieter to receive it. Its
+first act stops the world, names it, and rings the thing you have to answer.
+[`docs/NO_RETREAT.md`](docs/NO_RETREAT.md) has the schedule, the reasoning, and
+what porting it elsewhere would take; the dials are generated into
+[`docs/BALANCE.md`](docs/BALANCE.md) so they cannot drift from the code.
+(The mode's id is `duel` — it shipped as CORRIDOR DUEL, and an id is a save
+key, so the source keeps that word while nothing a player sees does.)
 
 ## Features
 

@@ -1247,9 +1247,18 @@ export const SIMPLE = {
     // on a clock the room's gunners are also queuing for, and a shieldbearer —
     // which may only fire while it is facing you — measured over forty seconds
     // before its card appeared, by which time the player had met it, been shot
-    // by it and learned it the hard way. Twelve seconds is two or three turns
-    // at the gaps these rooms run; past that the room goes on without it, and
-    // it is off the moment nothing of that type is left standing.
+    // by it and learned it the hard way.
+    //
+    // TWELVE SECONDS IS TWO OR THREE TURNS at the gaps these rooms run, and
+    // that is what this is: patience for a man taking his turn, NOT patience
+    // for a man walking into range. The clock does not start until the debut
+    // is inside its own engage distance — see duelMayFire — because a
+    // shotgunner opens fire at 10 m and is placed past the 13 m first-sight
+    // floor, so it has a third of the strip to cross before a turn is even
+    // worth holding for it.
+    //
+    // Past the lead the room goes on without it, and the hold is off the
+    // moment nothing of that type is left standing.
     meetLead: 12,
     // HOW CLOSE THEY MAY COME, in metres in front of where you stand.
     //

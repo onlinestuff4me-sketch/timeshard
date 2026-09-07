@@ -201,11 +201,13 @@ for time in a different currency, and which currency is the better game is the
 thing the prototypes exist to find out:
 
 **NO RETREAT — you can stop time. You cannot leave.**
-Room 1 runs at full speed and is simply the fight. From room 2 a time button
-arrives with a coach, on the tunnel's own bank: tap to slow, it drains while
-you are in it, every body you shatter puts some back, and it runs dry on its
-own. So time is priced here exactly as the tunnel prices it — **in seconds**,
-and nothing about that is new.
+The opening rooms run at full speed and are simply the fight. The time button
+arrives with a coach at `SIMPLE.duel.buttonRoom` — the peak of the first
+cycle, one room before the first new enemy type, because a debut says DODGE
+and slow time is what makes dodging survivable — on the tunnel's own bank: tap
+to slow, it drains while you are in it, every body you shatter puts some back,
+and it runs dry on its own. So time is priced here exactly as the tunnel
+prices it — **in seconds**, and nothing about that is new.
 
 What is new is what the seconds are worth. In the tunnel, slowing time buys
 you MOVEMENT: you walk out of a lane, put a pillar between you and a raised
@@ -226,7 +228,19 @@ survives as a question the probes can ask; it no longer touches time.
 the tunnel's own word, so the two modes read as variants of each other, and it
 is not a duel — there are up to six of them. The id stays `duel`, because it
 is written into every save slot and renaming it would orphan every run
-anybody has played.
+anybody has played, and so every symbol in the source keeps that word too
+(`SIMPLE.duel`, `duelPlan`, `test/duelramp.mjs`). Nothing a PLAYER sees says
+duel.
+
+**It also has its own difficulty ramp, and it is the only mode that does.**
+Three dials — bodies, fire, cast — and a room moves exactly one of them,
+taking them in turns; a new enemy type arrives alone, in a room made quieter
+to receive it, and its first act stops the world to name it. This is being
+trialled here before it is spent anywhere else, and **it is a candidate for
+the tunnel**. Read `docs/NO_RETREAT.md` — it has the schedule, the reasoning,
+and a section on exactly what lifting the ramp into another mode would take.
+The dials themselves are generated into `docs/BALANCE.md` from `SIMPLE.duel`,
+so they cannot drift from what the game reads.
 
 **STAND STILL — time is yours, and it costs movement.**
 The world runs at your thumb's speed: still is `SIMPLE.stop.still`, full drag
