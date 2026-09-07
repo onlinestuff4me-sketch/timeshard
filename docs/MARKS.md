@@ -242,11 +242,32 @@ minority who see it.
   This is a better fit for `TUTORIAL-GOALS` goal 4 than the current cell
   test — the lesson ends when the skill is demonstrated rather than when a
   distance is covered.
-- **The teaching leg grows a dead-end branch.** `genAuthoredLeg` already
-  carries `extra` cells hung off the spine, which is the right mechanism —
-  but `tutorSpineIx` finds the nearest spine cell, and a branch the player
-  can walk down is not on the spine. That needs handling before anything
-  else here works.
+- **The teaching leg grows a dead-end branch — investigated and fixed.**
+  `genAuthoredLeg` already carries `extra` cells hung off the spine, which is
+  the right mechanism. The problem was `tutorSpineIx`: a nearest-cell search
+  over the whole path, which is right while the player is on it and silently
+  wrong the moment they are not.
+
+  Measured on a leg shaped like §5.1, walking three differently-shaped dead
+  ends at real speed: a branch that turns back toward the route reported
+  spine cell **26**, and one that hooks across it **28**, where the player had
+  walked as far as **18**. Monotonic, so it never recovers, and nothing on
+  screen says so — the lesson simply believes eight or ten cells of walking
+  that never happened. A branch that turns *away* measured correctly, which
+  is worse rather than better: it makes the bug depend on how somebody drew
+  the corridor, and the tool lets anybody redraw it.
+
+  The measure is now what its name always claimed. **It may advance one cell
+  at a time, and only while the player is standing at that cell** (0.9 of a
+  cell — above one they can claim the next from where they stand, below about
+  0.6 a player cutting a bend can stall it). All three shapes now report
+  exactly the cell walked to, and a walk of the whole route still reaches its
+  last cell.
+
+  A teleport cannot arrive by walking, so `tutorResyncSpineIx()` does the
+  unclamped search at the three places that move the player without them
+  going anywhere: a retry's anchor, the tool's step jump, and a new leg.
+  `test/spine.mjs` holds the whole thing down.
 - **`DRAG TO LOOK` timing.** The sequence says the look lesson arrives *at*
   the corner. The current build puts it two cells short, with a reason
   recorded in `marksFromPlan`: it has to be on screen before there is

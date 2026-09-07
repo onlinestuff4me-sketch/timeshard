@@ -9461,7 +9461,7 @@ function tutorJumpTo(id) {
   tutorAwaitShot = false;
   tutorFroze = false;
   tutorEverHeld = false;
-  tutorUpdateSpineIx();
+  tutorResyncSpineIx();   // jumped to, not walked to
   tutorStep = id;
   tutorNext(id);
 }
@@ -9485,17 +9485,60 @@ function tutorBarrierZ() {
 // corner" has to be a place, not a distance: a player who wanders back and
 // forth has still not turned the corner, and one who hugs the outside of a
 // bend has walked further than one who cuts it.
-function tutorUpdateSpineIx() {
+// WHERE THEY ARE NOW, WITHOUT HAVING WALKED THERE. A retry drops the player
+// on an anchor, the tool's step jump drops them on a beat, and a new leg
+// starts them somewhere new — none of which tutorUpdateSpineIx can see,
+// because it only ever accepts the next cell along. This is the unclamped
+// search, called exactly at those three moments and nowhere else.
+function tutorResyncSpineIx() {
   const L = hall && hall.legs[hall.cur];
   if (!L || !L.spine) return;
-  let best = tutorSpineIx, bd = 1e9;
+  let best = 0, bd = 1e9;
   for (let i = 0; i < L.spine.length; i++) {
     const [gx, gz] = L.spine[i];
     const d = Math.hypot(gx * HALL.cell - player.pos.x, gz * HALL.cell - player.pos.z);
     if (d < bd) { bd = d; best = i; }
   }
+  tutorSpineIx = best;
+}
+
+function tutorUpdateSpineIx() {
+  const L = hall && hall.legs[hall.cur];
+  if (!L || !L.spine) return;
+  // ONE CELL AT A TIME, AND ONLY WHILE STANDING ON IT.
+  //
+  // This used to be a nearest-cell search over the WHOLE path, which is fine
+  // while the player is on it and silently wrong the moment they are not. A
+  // leg with a dead-end branch — the opening sequence's T-junction, where one
+  // arm is a joke and not the route — puts them somewhere the spine does not
+  // go, and the nearest cell is then whichever part of the route happens to
+  // pass closest. Measured on the proposed shape: two cells off the onward
+  // corridor reported index 26 where the player had walked as far as 18, and
+  // 28 on a branch that hooks back across it. Monotonic, so it never
+  // recovers, and nothing on screen says so — the lesson simply believes
+  // eight cells of walking that never happened.
+  //
+  // Distance alone cannot fix it: a branch that crosses the onward corridor
+  // really is standing beside a late cell. So the measure becomes what its
+  // name always claimed — how far along the path they have WALKED. The index
+  // may advance by one cell, and only when the player is actually at that
+  // cell. Everything else holds.
+  //
+  // A teleport therefore cannot arrive by walking, and must not try to:
+  // tutorResyncSpineIx() below is for the three places that move the player
+  // without them going anywhere.
+  const next = Math.min(tutorSpineIx + 1, L.spine.length - 1);
+  const [nx, nz] = L.spine[next];
+  const d = Math.hypot(nx * HALL.cell - player.pos.x, nz * HALL.cell - player.pos.z);
+  // 0.9 OF A CELL, swept rather than guessed. Above one cell the player can
+  // claim the next one from where they are standing, which put every branch
+  // shape a cell ahead of the truth; below about 0.6 a player cutting the
+  // inside of a bend can miss a cell and stall the measure. At 0.9 all three
+  // test shapes report exactly the cell walked to, and a walk of the whole
+  // route still reaches its last cell.
+  if (d > HALL.cell * 0.9) return;
   // monotonic: walking backwards does not un-complete a lesson
-  tutorSpineIx = Math.max(tutorSpineIx, best);
+  tutorSpineIx = Math.max(tutorSpineIx, next);
 }
 
 // Back to the instant before the shot. Not to the top of the onboarding —
@@ -9515,6 +9558,7 @@ function tutorRetry() {
     player.pos.set(tutorAnchor.x, 0, tutorAnchor.z);
     player.yaw = tutorAnchor.yaw;
     player.pitch = tutorAnchor.pitch;
+    tutorResyncSpineIx();   // put back, not walked back
   }
   game.state = 'play';
   game.stateT = 0;
