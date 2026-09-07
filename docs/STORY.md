@@ -98,9 +98,13 @@ because they are not from any government.**
 
 ### 3.4 The walls carry the plot; the audio is optional
 
-**The spine is text on walls and floating world messages** — three to six
-words, mysterious in meaning and clear in instruction, in the same register as
-`EXIT` and `STAND HERE`. It cannot be missed, because it is architecture.
+**The spine is text on walls and floating world messages** — mysterious in
+meaning, clear in instruction, and **as long as the point needs**. It cannot be
+missed, because it is architecture.
+
+There is no word limit. `YOU ARE THE FIRST TO GET THIS FAR` is eight words and
+correct; `FIRST TO REACH THIS DEPTH` is five and is not a sentence anybody
+says. `SCRIPT.md` §2.3 has the three tests a line has to pass.
 
 **The audio is supplementary** — Hale's logs, thirty seconds of a tired man
 talking. Skippable, optional, and never carrying a fact the walls need. A
@@ -297,7 +301,8 @@ re-litigated.
 | **Q4** | **Does the pad survive the ending's wipe?** | Recommended yes (§9.1). Not confirmed. |
 | **Q18** | **Does T25 need to exist?** | It is the win condition in plain words. If the full stop is discoverable without it, T25 is a safety net; if not, the ending is gated on a page a player may never have collected. |
 | **Q21** | **Who voices Hale?** | Ten logs of ordinary speech. The only recorded voice the game needs — the numbers can be synthesised, because nothing depends on hearing them. |
-| **Q22** | **Does a rewritten wall keep the false word visible?** | Struck through keeps the drama and doubles the text on a phone screen (`SCRIPT.md` §8). |
+| **Q22** | **Does a rewritten wall keep the false word visible?** | Struck through keeps the drama and doubles the text on a phone screen. |
+| **Q23** | **Can the mark painter draw two or three lines?** | `tutorPlaceWorldCue` draws one `nowrap` line scaled by width in metres, so an eight-word sign is unreadable at distance. Multi-line is the only real cost of dropping the word limit (`SCRIPT.md` §2.3). |
 | **Q6** | **Recorded voice or synthesised?** | Eleven files either way, but the voice is the texture of the device. |
 | **Q15** | **Does the reveal hallway need its own art?** | It is meant to read as outside the simulation. Different light on the existing corridor may be enough, or it may need to look like nothing else in the game. |
 | **Q16** | **What does the very first reveal do?** | The player has no idea what a transmission is yet. The first one has to teach the whole system — that these are messages, that they are being decoded, that there are more — without a tutorial. |

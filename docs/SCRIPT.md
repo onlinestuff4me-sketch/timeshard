@@ -27,7 +27,7 @@ a file-name is one of the best beats in the story.
 | | **wall text** | **audio** |
 |---|---|---|
 | **weight** | the spine — cannot be missed | supplementary — skippable |
-| **length** | three to six words | thirty seconds of someone talking |
+| **length** | whatever the point needs — see §2.3 | thirty seconds of someone talking |
 | **register** | mysterious in meaning, clear in instruction | warm, tired, human |
 | **job** | *what is happening and what to do* | *who these people are* |
 | **decoded?** | yes — pages rewrite the walls | no |
@@ -35,6 +35,29 @@ a file-name is one of the best beats in the story.
 
 A player who mutes the game gets the whole story. A player who listens gets
 the person telling it.
+
+### 2.3 Clarity outranks brevity
+
+**There is no word limit.** A line is as long as it has to be to make its
+point on one read, and no longer.
+
+An earlier draft capped these at six words and the compression destroyed
+them: `ELEVEN TRIALS` and `HOLD THE MOMENT` were shorter than their meaning.
+The test is not *is it short* — it is:
+
+1. **Does a first-time player know what it refers to?** `PROGRESS RECORDED`
+   fails: recorded by whom, about what?
+2. **Is the instruction unambiguous**, where there is one?
+3. **Is every remaining word load-bearing?** Trim only after 1 and 2 pass.
+
+`YOU ARE THE FIRST TO GET THIS FAR` is eight words and it is correct.
+`FIRST TO REACH THIS DEPTH` is five and it is not a sentence anybody says.
+
+**Technical consequence:** `tutorPlaceWorldCue` draws one `nowrap` line and
+scales it by width in metres. An eight-word sign will be unreadably small at
+distance, so the mark painter needs **two or three short lines** rather than
+one long one. That is a real change to it and it is the only cost of this
+rule.
 
 ### 2.1 This retires the transmission leg
 
@@ -146,24 +169,24 @@ between them, one every two doors. **`(page)`** marks the ten that decode.
 
 | door | | reads | after its page |
 |---|---|---|---|
-| 2 | P | `SESSION RESUMED` | — |
-| 4 | P | `THE EXIT IS AHEAD` **(page)** | `THE EXIT IS A LIE` |
-| 6 | S | *they wrote that one* | — |
-| 8 | P | `SUBJECT PERFORMING WELL` | — |
-| 10 | P | `PROGRESS RECORDED` **(page)** | `DEATHS RECORDED` |
+| 2 | P | `YOUR SESSION HAS RESUMED` | — |
+| 4 | P | `THE EXIT IS JUST AHEAD` **(page)** | `THE EXIT AHEAD IS A LIE` |
+| 6 | S | *they write these signs* | — |
+| 8 | P | `YOU ARE PERFORMING WELL` | — |
+| 10 | P | `EVERY DOOR YOU REACH IS RECORDED` **(page)** | `EVERY TIME YOU DIE IS RECORDED` |
 | 12 | S | *this is not a simulation* | — |
 
-Door 2 reads as interface. Door 6 turns it into a character in three words.
+Door 2 reads as interface. Door 6 turns it into a character in four words.
 
 ### Act 2 · The Others
 
 | door | | reads | after its page |
 |---|---|---|---|
-| 14 | P | `FIRST TO REACH THIS DEPTH` **(page)** | `NINTH TO REACH THIS DEPTH` |
+| 14 | P | `YOU ARE THE FIRST TO GET THIS FAR` **(page)** | `YOU ARE THE NINTH TO GET THIS FAR` |
 | 16 | S | *i was the eighth* | — |
-| 18 | P | `SUBJECTS ARE RELEASED` **(page)** | `SUBJECTS ARE ERASED` |
+| 18 | P | `ALL SUBJECTS ARE RELEASED WHEN THEY FINISH` **(page)** | `ALL SUBJECTS ARE ERASED WHEN THEY FINISH` |
 | 20 | S | *i never got out* | — |
-| 22 | S | *their files say ENGINEERS* | — |
+| 22 | S | *their files call them ENGINEERS* | — |
 
 Door 16 lands two doors after the player learns they are ninth, which is when
 a name means something.
@@ -172,41 +195,44 @@ a name means something.
 
 | door | | reads | after its page |
 |---|---|---|---|
-| 24 | S | *they did not build this* | — |
-| 26 | P | `BUILT 1947` **(page)** | `FOUND 1947` |
-| 28 | S | *engineers are not on the payroll* | — |
-| 30 | P | `CHANNEL MONITORED FOR SAFETY` **(page)** | `CHANNEL WRITTEN OVER` |
-| 32 | S | *i could never read the numbers* | — |
-| 34 | **B** | `WE ARE THE ENGINEERS` | — |
+| 24 | S | *they did not build this place* | — |
+| 26 | P | `THIS SIMULATION WAS BUILT IN 1947` **(page)** | `THIS PLACE WAS FOUND IN 1947` |
+| 28 | S | *no engineer is on the payroll · i checked* | — |
+| 30 | P | `THIS CHANNEL IS MONITORED FOR YOUR SAFETY` **(page)** | `THIS CHANNEL IS WRITTEN OVER BY THE PROGRAMME` |
+| 32 | S | *i could never read the numbers · you might* | — |
+| 34 | **B** | `WE ARE THE ENGINEERS · THAT IS THEIR WORD` | — |
+
+Door 26 swaps two words and both matter: not a simulation, and not built.
 
 **Door 34 is the best beat in the script.** Clean, no page, and it turns over
-a word the player has been reading since door 22 — one the programme has used
-in its own filing for eighty years without ever knowing what it meant.
+a word the player has read as staff since door 22 — one the programme has
+used in its own filing for eighty years without knowing what it meant.
 
 ### Act 4 · The Watchers
 
 | door | | reads | after its page |
 |---|---|---|---|
-| 36 | B | `WE LEFT IT RUNNING` | — |
-| 38 | B | `NOT A WEAPON · A TEST` | — |
-| 40 | P | `ELEVEN TRIALS` **(page)** | `ELEVEN THOUSAND TRIALS` |
-| 42 | P | `YOU WILL BE SENT HOME` **(page)** | `NO ONE IS SENT HOME` |
-| 44 | B | `PASS AND WE WILL SPEAK` | — |
+| 36 | B | `WE LEFT THIS PLACE RUNNING AND WALKED AWAY` | — |
+| 38 | B | `IT IS NOT A WEAPON · IT IS A TEST` | — |
+| 40 | P | `ELEVEN PEOPLE HAVE BEEN THROUGH THIS PLACE` **(page)** | `ELEVEN THOUSAND HAVE BEEN THROUGH THIS PLACE` |
+| 42 | P | `YOU WILL BE SENT HOME WHEN YOU FINISH` **(page)** | `NO ONE HAS EVER BEEN SENT HOME` |
+| 44 | B | `PASS THE TEST AND WE WILL SPEAK WITH YOU` | — |
 
-Door 40's single jammed word is the largest number in the game. Door 44 is
-the only promise anybody makes the player, and it is the one that turns out
-to be true.
+Door 40's `ELEVEN` reads as believable — eight before the player, plus a few
+— until one jammed word turns it into a number that predates the programme.
+Door 44 is the only promise anybody makes, and it is the one that is true.
 
 ### Act 5 · The Copy
 
 | door | | reads | after its page |
 |---|---|---|---|
-| 46 | P | `THE LAST DOOR AWAITS YOU` **(page)** | `THE LAST DOOR HOLDS YOUR FACE` |
-| 48 | S | *i died here* | — |
-| 50 | P | `HOLD THE MOMENT` **(page)** | `HOLD COMPLETELY STILL` |
+| 46 | P | `THE LAST DOOR OPENS WHEN YOU ARE READY` **(page)** | `THE LAST DOOR HOLDS SOMETHING WEARING YOUR FACE` |
+| 48 | S | *i died behind the last door* | — |
+| 50 | P | `HOLD STILL AND TIME WILL SLOW FOR YOU` **(page)** | `HOLD PERFECTLY STILL AND TIME WILL STOP` |
 
-Door 50 is the win condition in four words, and it rhymes with `STAND HERE` —
-the first thing the game ever taught.
+Door 50 is the win condition in plain words, and both versions are true
+instructions — the false one just stops one step short of the thing that
+wins.
 
 ---
 
