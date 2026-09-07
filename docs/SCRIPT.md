@@ -118,6 +118,13 @@ same skeleton.
 The eighth subject. Reached the last door, was not released, and spent long
 enough inside to work part of it out.
 
+**His pattern is set in the tutorial, before the player knows he exists.** The
+T-junction at the end of the opening — a red arrow and a short message on a
+wall, `THIS WAY` and `NOT THIS WAY` — is his, and he uses the same arrow later
+to point at things he found. The building labels places; Hale points at them.
+One glyph sorts the two voices by eye and the reveal costs nothing.
+See `docs/MARKS.md` §5.4.
+
 **He is never encrypted, because he never had the key.** His handwriting is
 always plain, always sincere, and sometimes wrong — the programme lies, the
 engineers tell the truth, and Hale guesses well.

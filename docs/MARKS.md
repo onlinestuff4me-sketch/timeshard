@@ -147,153 +147,111 @@ string rather than joining it.
 
 ---
 
-## 5. The tutorial's new opening
+## 5. The opening sequence
 
-The requested sequence, specified.
+The answer to *what gives lesson 1 a destination* is not geometry and not a
+sign. **It is a decision.** A junction with two labelled ways is a place the
+player walks to in order to choose, which is a stronger reason to cross twenty
+metres than any marker.
 
-### 5.1 What the player sees
+### 5.1 The sequence
 
-1. They wake facing a corridor with **no visible end**. `DRAG TO MOVE`.
-2. Twenty metres ahead, orange, and legible from the first frame: **`STAND HERE`**.
-3. They reach it. They stop.
-4. **The picture tears for less than a second.** When it settles, the endless
-   straight is a wall, and there is a turn to the left that was not there.
-5. On the wall the turn faces, orange: **`EXIT →`**.
-6. They turn. Another stretch, another wall, another **`EXIT →`**.
-7. They turn, and there is the barrier, with **`STAND HERE`** painted on it.
-
-The first thing that ever happens to this player is the world being caught
-changing shape, and it happens because they did as they were told.
-
-### 5.2 The endless hallway is already built
-
-`VIS.hallNear = 14`, `VIS.hallFar = 55`. The corridor fogs out from fourteen
-metres and is solid air by fifty-five.
-
-**A corridor longer than 55 m has no visible end.** The infinite hallway is not
-an effect to build; it is a decoy run of cells that outruns the existing fog.
-Nothing new, no shader, no far-plane change.
-
-### 5.3 The geometry, and why nothing is built at runtime
-
-`PILLARS` §8: *do not add a light, a material or a pass at runtime.* A
-corridor that rebuilds itself when the player steps on a mark is exactly the
-stall that rule exists to prevent.
-
-So **both configurations exist from the first frame**, and the glitch toggles
-`.visible` on two pooled wall panels. Nothing is allocated, nothing compiles.
-
-```js
-// src/tutorial.js
-const TEACH_MOVES = [
-  ['f', 8],    // 1. MOVE. The mark is at cell 5; the turn is at cell 8 and
-               //    is capped until the glitch opens it.
-  ['l', 3],    // 2. LOOK — EXIT -> on the decoy's cap
-  ['f', 3],
-  ['r', 3],    // 3. CORNERS — EXIT -> again
-  ['f', 13],   // 4-9. barrier, dodge, shoot, door
-];
-
-// The decoy: cells hung off the path, which `plan.extra` already supports
-// ("a room's width, a fork's second lane"). Cells 9-22 carry the straight
-// past the turn and past the 55 m fog wall, so the corridor has no end.
-extra: [[0, 9], [0, 10], /* … */ [0, 22]],
-```
-
-| | before the glitch | after |
+| | what the player gets | on screen |
 |---|---|---|
-| cap on the **left turn** at cell 8 | visible | hidden |
-| cap on the **decoy** at cell 9 | hidden | visible |
+| 1 | A straight hallway. | `DRAG TO MOVE` + thumb coach |
+| 2 | At the corner, the look lesson joins it. | + `DRAG TO LOOK` + its coach |
+| 3 | Another turn. **The moment they face down the new hallway, both prompts and the divider go.** | nothing |
+| 4 | A few metres on, the hallway ends in a **T**. On the wall: a red arrow left, `THIS WAY`. A red arrow right, `NOT THIS WAY`. | one signpost |
+| 5a | **Right:** a short hall. At the first turn, `TURN AROUND`. At the next, `I'M NOT JOKING, TURN AROUND`. Immediately past that corner a gunner stands with his arm already up, and fires. | one message at a time |
+| 5b | Red screen, about 1.5 s. No retry card. Back at the T, facing the signpost. | nothing |
+| 6 | **Left:** at the next turn, `GOOD CHOICE`. Then `STAND HERE` on the barrier, and the lesson continues as built. | one message at a time |
 
-The `EXIT →` sign is painted on the decoy's cap — **the wall that was
-open air a second ago.** That is the best-placed sign in the sequence and it
-falls out of the geometry for free.
+### 5.2 Why this is the right shape
 
-### 5.4 The glitch
+- **It answers the destination problem without a marker.** The walk has a
+  reason: something to decide at the end of it.
+- **The screen is empty by step 4**, so the signpost never competes. The rule
+  holds without a special case.
+- **It is the first thing the player chooses**, two minutes in, and the game
+  responds to the choice. That teaches agency before it teaches a trigger.
+- **It plants a vocabulary.** The arrow-and-message pattern is the one Hale
+  uses later to point at things he found. The player learns to read his
+  handwriting before they know he exists.
+- **It is funny**, which nothing else in this game is, and ninety seconds in
+  that buys a lot of patience.
 
-Six rules, each of them load-bearing:
+### 5.3 The signpost is one message, not two
 
-1. **It fires on arrival, by proximity — not on the player stopping.** A player
-   who walks straight through the mark still gets the beat. Nobody can be
-   stranded in a corridor waiting for a trigger they did not know they had to
-   arm.
-2. **The camera never moves.** `PILLARS` §4 is absolute and this is the most
-   tempting place in the game to break it. The player stays put, facing the
-   same way. The *world* changes.
-3. **Movement is held; look stays live.** The freeze is not a lockout, it is
-   the sign being obeyed — the player was asked to stand, and standing is what
-   they are doing. The look axis, which `PILLARS` §4 defends hardest, is never
-   taken.
-4. **Under a second.** Punctuation, not a scene. Nothing here may force a
-   pause, and the line between an effect and a cutscene is a number:
-   ~0.6 s is an effect. Two seconds is a scene, and it does not ship.
-5. **It must read with the shader off.** `gradeAllowed` self-limits the
-   full-screen grades on a slow phone. The geometry change is therefore the
-   sentence and the effect is only the punctuation — a player who never sees
-   the grade still sees the corridor become a different corridor.
-6. **It must not read as a bug.** Two things prevent that: the player *caused*
-   it, and it is authored rather than random noise.
+`THIS WAY` and `NOT THIS WAY` share a wall and are read together — a
+signpost, the way a road sign naming two destinations is one sign. The rule
+in `docs/BEATS.md` §1 is about unrelated instructions competing; this is one
+instruction with two halves.
 
-### 5.5 The form of the glitch
+It carries one real constraint: **both halves must be in frame at once.** The
+camera is about 42° horizontal in portrait, so the T wall has to be readable
+whole from the approach. A four-metre wall at eight metres spans roughly 28°,
+which fits — but it is the thing to check first, because a signpost you have
+to pan across is two messages after all.
 
-**Not shattering walls.** An earlier draft had the capping wall burst into
-white debris using the enemy shatter system. It is cut, and the reason is
-worth keeping: *a simulation does not explode, it re-renders.* Shattering is
-this game's verb for a body stopping — spending it on architecture in the
-first twenty seconds spends the strongest thing the game owns on a moment that
-does not need it, and it teaches the player that walls are destructible, which
-they are not.
+### 5.4 The arrow is Hale's signature
 
-The glitch is therefore **screen-space only**, and the geometry underneath it
-simply is not the same on the far side:
+**The building labels places. Hale points at them.**
 
-- a **third grade quad** beside `gradeMul` and `gradeTun`, driven by the same
-  eased `gradeK` and the same `gradeWant` selector, built in the same `mk()`
-  and **warmed in `warmUp()` like the other two.** Scanlines and grain are
-  already in `GRADE_COMMON`; a horizontal displacement is the only new term.
-- the two wall caps toggle `.visible` behind it.
+| | uses | never uses |
+|---|---|---|
+| **the building** | `EXIT`, `STAND HERE` — nouns, places, stencilled | arrows, second person |
+| **Hale** | `→ THIS WAY`, `→ TURN AROUND` — arrows, spoken to you | naming a place as if it were signage |
 
-Nothing is allocated, nothing is compiled, no debris is spawned, and the
-effect is a variant of a pass that already ships rather than a new system.
+One glyph does the whole job: **an arrow means a person marked this.** No
+explanation is needed at the time, and the reveal costs nothing later because
+the player already sorted the two voices by eye.
 
-### 5.6 What this changes in `TUTORIAL-GOALS.md`
+**Consequence:** the derived turn signs currently read `EXIT ▶`. If the arrow
+is Hale's, the building cannot use one — those become plain `EXIT`, or they
+become Hale's and mean something quite different. That is a decision, not a
+detail.
 
-Three lines, with the reasoning that is currently behind each:
+### 5.5 The death has to be a joke, not a punishment
 
-**Lesson 1's end condition.** It ends at `firstCornerLead`, *"a couple of cells
-SHORT of the corner"*, because `DRAG TO LOOK` *"has to be on screen BEFORE
-there is anything to look at."* Under this plan it ends at the mark, and
-`DRAG TO LOOK` arrives on the glitch — which is still before the turn, and is a
-far better moment for it: the world has just changed and the instruction is to
-go and look at it. **The reasoning survives and is better served.**
+This is the player's first death, and it arrives before they know death
+exists. The difference between *a joke with a punchline* and *the game killed
+me for being curious* is entirely in the framing:
 
-**Lesson 2's location.** Look is currently taught on a straight, deliberately:
-*"the point being made is that looking is a SEPARATE action that happens at the
-same time as moving, not a mode you enter."* Teaching it at a corner risks the
-player learning *look = turn corners*, which is the wrong lesson and is a real
-cost, not a hypothetical one. **Mitigation:** the cue still arrives mid-straight
-on the glitch, so it is still taught as simultaneous; the turn is where it gets
-*used*. That is the intended shape — taught on the straight, paid off at the
-corner — but it is the line in this proposal most worth arguing about.
+- **Two warnings first**, so it is plainly consented to.
+- **Unwinnable on purpose, and visibly so.** The round must be faster than
+  backtracking, or a player will believe they were merely slow — which turns
+  a gag into a skill test they failed without being taught the skill.
+- **The cost is about two seconds and no progress.** No retry card, no lost
+  ground, straight back to the T. `TUTORIAL-GOALS` goal 4 is satisfied: the
+  junction is the anchor and nothing before it is replayed.
 
-**The way-out needle.** `wayArrowShows()` holds the needle through the walking
-lessons and retires it on `tutorSignSeen`. With a mark in every walking lesson,
-it is retired at the first one and never returns during the onboarding — it
-only needs `tutorSignSeen` to be set by *any* mark rather than only the
-barrier's. **This proposal removes a system from the onboarding rather than
-adding one**, which is the direction `TUTORIAL-GOALS` §3 asks everything to
-move in.
+### 5.6 Nothing essential lives down the right branch
 
-### 5.7 STAND HERE means one thing, in both places
+Most players will take `THIS WAY`. The branch has to be pure reward for
+curiosity, so no lesson, no mechanic and no required message can sit in it.
 
-It appears twice: at 20 m, and on the barrier. That is a rhyme, not a
-collision, and `TUTORIAL-GOALS` §6 already blesses the technique — *"the same
-furniture as onboarding lesson 4, and deliberately so […] that recognition is
-the cheapest possible way to say stop and read this."*
+What it pays instead is character: somebody wrote these, somebody expected
+you to disobey, and somebody found it funny. That is a better prize than
+anything mechanical, and it is why the joke is worth building for the
+minority who see it.
 
-The condition on it: **both must behave identically.** Arrive, stop, and the
-world does something. If one of them is a place and the other is a button, the
-words mean two things and the rhyme becomes a lie.
+### 5.7 What this changes in the build
+
+- **Lesson 3 ends on facing, not on reaching.** A new advance condition:
+  the prompts retire when the player turns to look down the new hallway.
+  This is a better fit for `TUTORIAL-GOALS` goal 4 than the current cell
+  test — the lesson ends when the skill is demonstrated rather than when a
+  distance is covered.
+- **The teaching leg grows a dead-end branch.** `genAuthoredLeg` already
+  carries `extra` cells hung off the spine, which is the right mechanism —
+  but `tutorSpineIx` finds the nearest spine cell, and a branch the player
+  can walk down is not on the spine. That needs handling before anything
+  else here works.
+- **`DRAG TO LOOK` timing.** The sequence says the look lesson arrives *at*
+  the corner. The current build puts it two cells short, with a reason
+  recorded in `marksFromPlan`: it has to be on screen before there is
+  anything to look at, or the player is already mid-turn when it appears.
+  Worth keeping the lead.
 
 ---
 

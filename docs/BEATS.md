@@ -53,6 +53,14 @@ carried, plus a fact about the place that the screen line could never carry.
 That is the answer to *how do these serve both goals at once*: not by adding
 story text, but by moving instructions into objects.
 
+### 1.2b A signpost is one message
+
+`THIS WAY` / `NOT THIS WAY` on one wall at one junction is a signpost, not two
+instructions — read together, as a road sign naming two destinations is. The
+rule is about unrelated messages competing, and the constraint it carries is
+geometric rather than editorial: both halves have to be in frame at once.
+`docs/MARKS.md` §5.3.
+
 ### 1.3 What that leaves the tutorial
 
 Two world messages, and both replace something:
@@ -151,6 +159,9 @@ with it, then take it away while the player is still in the room.
 
 ## 7. Build order
 
+0. **The T-junction** (`docs/MARKS.md` §5) — the destination problem is
+   answered by a decision rather than a marker, and it plants the arrow
+   pattern Hale reuses for the rest of the game. This is now the first item.
 1. ~~**`STAND HERE` at 20 m**~~ — **cut.** On the shipped path the opening
    straight is five cells, so twenty metres *is* the first corner: an
    authored `STAND HERE` there would have stood two cells from the turn sign
