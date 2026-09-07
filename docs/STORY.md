@@ -96,110 +96,69 @@ agents, and still, officially, nobody sends them. **They have been
 transmitting since the forties and no government has ever claimed them,
 because they are not from any government.**
 
-### 3.4 The player never decodes anything
+### 3.4 The walls carry the plot; the audio is optional
 
-The risk in this whole system is that it becomes homework: here is a key,
-now go and apply it. Nobody wants to memorise a cipher between runs.
+**The spine is text on walls and floating world messages** — three to six
+words, mysterious in meaning and clear in instruction, in the same register as
+`EXIT` and `STAND HERE`. It cannot be missed, because it is architecture.
 
-**So the player never decodes. The game decodes in front of them, and they
-watch words appear.** The pad is the mechanism; the reward is the reveal, and
-the reveal is legible without remembering a single thing.
+**The audio is supplementary** — Hale's logs, thirty seconds of a tired man
+talking. Skippable, optional, and never carrying a fact the walls need. A
+player who mutes the game gets the whole story; a player who listens gets the
+person telling it.
 
-### 3.5 One message, concretely
+Full split and every line in `docs/SCRIPT.md` §2 and §5.
 
-A transmission is **one sentence of six to eight words**. Each word is one
-spoken five-digit group. Tone plus groups is 15 seconds.
+### 3.5 This retires the transmission leg
 
-```js
-{ id: 'm07',
-  door: 22,                                  // heard here, and opened by this door's page
-  text: 'THE DOOR YOU WANT IS NOT MARKED',   // 7 words = 7 groups
-  priority: 2 }                              // reveal order when several are owed
-```
+Audio no longer needs a guaranteed 69 m of empty corridor, because nothing
+load-bearing is in it. It plays over ordinary corridors, **ducks to silence
+while an enemy is live, resumes when the leg is clear**, and is always
+replayable.
 
-**A door owes a page only if that door's message was rewritten.** There are
-twenty-five transmissions and **nine** pages (`SCRIPT.md` §3.5), so most doors
-owe nothing and the reveal sequence fires nine times in a whole playthrough —
-rare enough to stay an event.
+Twenty-five long empty legs go with it, and `Q20` with them.
 
-And a message is never blocks. **The simulation rewrites each transmission
-before the player hears it**, so the first version is a complete, sensible,
-reassuring sentence and the page replaces one or two words with what was
-actually sent — `THE EXIT IS AHEAD` becomes `THE EXIT IS A LIE`. Full scheme
-and all ten messages in `docs/SCRIPT.md` §3–4.
+### 3.6 The player never decodes anything
 
-This trades against cryptographic purity, deliberately. A real pad decodes
-position by position, which gives `M _ E T   T H _ M   A T` — clever to
-describe, a chore to read, and worthless to a player who has decoded nothing
-yet. **Legibility wins**, and the rewrite scheme means even an undecoded
-message is worth reading.
+The risk in this system is that it becomes homework: here is a key, now go
+and apply it. **So the player never decodes.** A page arrives and the sign
+changes.
 
-### 3.6 Two channels, two jobs
+### 3.7 Decoding rewrites the walls
 
-| | when | what it is | what it does |
-|---|---|---|---|
-| **The corridor** | walking an empty leg on first entry to its door | **audio-first** — a tone and seven groups of numbers you cannot understand | mystery, atmosphere, 15 s, once |
-| **The reveal** | when a page is owed (§4) | **text-first** — the same transmission again, with each word appearing as its group is read | the payoff |
+The signs are the programme's overlay; a page lets the player see through it,
+so **the wall itself changes.** The false word is struck through and the true
+word sits beside it, so the lie stays visible.
 
-The second one is the good part: **you hear the same numbers you already
-heard, and this time each group turns into a word as it is spoken.** Noise
-becomes a sentence in real time, and the player does nothing but watch.
+They do not revisit a corridor inside a run — **they revisit it on the next
+one.** A second run is a walk back through a building that has started
+telling the truth, which is the best argument this design has for replaying
+and costs one lookup at sign-draw time.
 
-### 3.7 The reveal sequence
+### 3.8 The reveal sequence
 
-Not a menu screen. A place.
+A page still needs a moment of its own, and it is a place rather than a menu:
 
 1. You die. The screen goes red.
-2. It fades — not to `YOU DIED`, but to a **short, quiet hallway**. No
-   enemies, different light. This is the outside of the simulation.
-3. A floating orange mark ahead: **`LISTEN HERE`** — the same grammar as
-   `STAND HERE` and `STEP HERE`, so it needs no explaining.
-4. You walk to it. The transmission plays, and on the wall the blocks resolve
-   into words, one per group, in time with the voice.
-5. Any other messages opened by the same payout are listed beneath it,
-   already readable.
-6. A door: **`EXIT →`**, back to the door you died on.
+2. It fades — not to `YOU DIED` but to a **short, quiet hallway**. No enemies,
+   different light.
+3. An orange mark ahead: **`LISTEN HERE`** — the same grammar as `STAND HERE`.
+4. You walk to it. The sign you saw earlier is on the wall, and the jammed
+   word is struck through and replaced.
+5. A door: `EXIT →`, back to the door you died on.
 
-Fifteen metres, about twenty-five seconds, and it asks the player to walk
-rather than to sit and watch.
-
-### 3.8 What stops it becoming a burden
-
-- **It fires only when a page is owed** — at most once per *new door reached*.
-  A player grinding door 30 sees it once and then not again until door 31. It
-  is exactly as frequent as progress.
-- **Everything owed is paid in one sequence.** Never two in a row.
-- **Only one message gets the full audio and animation.** The rest open
-  silently and are listed as already-readable lines on the same wall.
-- **Priority order** decides which one gets the treatment: story-critical
-  messages first, then oldest-heard. If a player skips or quits, the next
-  sequence picks up where this one stopped.
-- **Skippable after the first beat.** On death forty nobody wants ceremony.
-- **Nothing is ever only in the sequence.** It is all on the board.
+Fifteen metres. It fires ten times in a whole playthrough (`SCRIPT.md` §5),
+which is rare enough to stay an event.
 
 ### 3.9 The board
 
-One screen, listing every transmission. Each shows the sentence the player
-heard; the decoded ones show it with the rewritten words struck and replaced.
-A count at the top: `18 RECEIVED · 4 OF 9 DECODED`.
+One screen listing every wall line the player has read, decoded ones showing
+the strike-through, plus Hale's logs as replayable audio. A count at the top:
+`22 READ · 4 OF 10 DECODED`.
 
-**This is the reward, not the sequence.** The sequence is the moment; the
-board is the thing the player returns to, and it answers "what did I actually
-get" without anyone having remembered anything.
-
-It belongs on UNLOCKS (`Q12`, answered) — a screen that already exists,
-already means *what this place has shown you*, and **already draws exactly
-this**: `renderUnlocks` builds redaction bars sized to the hidden text, with
-a `redact` CSS class and a `N OF M RECOVERED` header. The message board is the
-same component with different rows.
-
-### 3.10 The audio is eleven files
-
-Ten digit readings and one interval tone. Every message in the game is a
-sequence of those. A twenty-message script costs no more to record than a
-one-message script.
-
----
+It belongs on UNLOCKS, which already means *what this place has shown you* and
+**already draws exactly this** — `renderUnlocks` builds redaction bars sized to
+hidden text under an `N OF M RECOVERED` header.
 
 ## 4. The pad is a debt, not an event
 
@@ -337,8 +296,8 @@ re-litigated.
 | **Q3** | **How many questions at the end, and what are they?** | Each answer must be worth a whole replay. Three or four. |
 | **Q4** | **Does the pad survive the ending's wipe?** | Recommended yes (§9.1). Not confirmed. |
 | **Q18** | **Does T25 need to exist?** | It is the win condition in plain words. If the full stop is discoverable without it, T25 is a safety net; if not, the ending is gated on a page a player may never have collected. |
-| **Q20** | **Do twenty-five empty legs read as dead time?** | The pacing cost of the drip. Hale's plain-speech lines break up the numbers, which helps, but it is still twenty-five quiet corridors. |
-| **Q21** | **Who voices Hale?** | Eleven lines of plain speech from a tired man — a second recorded voice on top of the ten digits and a tone. It is the contrast that keeps the transmissions from all feeling the same. |
+| **Q21** | **Who voices Hale?** | Ten logs of ordinary speech. The only recorded voice the game needs — the numbers can be synthesised, because nothing depends on hearing them. |
+| **Q22** | **Does a rewritten wall keep the false word visible?** | Struck through keeps the drama and doubles the text on a phone screen (`SCRIPT.md` §8). |
 | **Q6** | **Recorded voice or synthesised?** | Eleven files either way, but the voice is the texture of the device. |
 | **Q15** | **Does the reveal hallway need its own art?** | It is meant to read as outside the simulation. Different light on the existing corridor may be enough, or it may need to look like nothing else in the game. |
 | **Q16** | **What does the very first reveal do?** | The player has no idea what a transmission is yet. The first one has to teach the whole system — that these are messages, that they are being decoded, that there are more — without a tutorial. |
@@ -363,7 +322,9 @@ re-litigated.
 | **A13** | How long is a transmission? | **15 seconds.** 69 m of corridor, no enemies, a door at the end (§3.5). |
 | **A14** | Does the player have to remember the cipher? | **No.** The player never decodes. The game decodes in front of them and they watch words appear (§3.4). |
 | **A15** | Several pages owed at once? | One sequence, never two in a row. One message gets the full audio and animation by priority; the rest open silently and are listed as readable. Skipping resumes where it stopped (§3.8). |
-| **A16** | Is it all audio? | No. The corridor is audio-first, the reveal is text-first with audio underneath (§3.6). |
+| **A16** | Is it all audio? | **No — inverted.** The walls carry the plot; audio is optional colour that never holds a fact the walls need (§3.4). |
+| **A28** | Do audio legs need 69 m of empty corridor? | No longer. Nothing load-bearing is in the audio, so it plays over ordinary corridors and ducks during fights (§3.5). This answers Q20. |
+| **A29** | What does a page actually change? | The sign on the wall, permanently — visible on the next run through that door (§3.7). |
 | **A17** | Where does the board live? | UNLOCKS — which already renders redaction bars sized to hidden text and an `N OF M` header (§3.9). |
 | **A18** | Won't the reveal get tiresome? | It fires at most once per new door reached, and replaces the death screen rather than being added to it (§3.8, §4.1). |
 | **A19** | Where does the clone live? | **Door 50.** Ten messages, one every five doors, last at 49 (`SCRIPT.md` §5). |
