@@ -1216,16 +1216,30 @@ export const SIMPLE = {
     // was going to be read: a stopped screen with a paragraph on it is a
     // loading screen.
     //
-    // THE KEY IS THE NAME and the value is the second row. Being listed here
-    // is what gives a type a debut at all. The line is the onboarding's own
-    // wording, changed only where it would be untrue: a rusher has no bullet
-    // to dodge, it has a lunge.
+    // THE KEY IS THE NAME. Being listed here is what gives a type a debut at
+    // all. `say` is the second row and `mark` is what gets the ring — the
+    // same ring the onboarding draws round the round it is telling you to
+    // dodge, because "dodge this" is only an instruction if the player can
+    // find THIS on the screen.
+    //
+    //   rounds   what he just fired — every pellet of it
+    //   body     the man himself: a rusher has no round, it IS the round
+    //   head     the one place a bullet goes in, on a man body shots bounce
+    //            off — so his card says SHOOT rather than DODGE
+    //   shield   the thing in the way, on the one type a sidestep does not
+    //            answer on its own: he turns to follow you, so the lesson is
+    //            stop time FIRST and then get round him, and his card holds
+    //            the button lit while it says so
+    // `want` is what ANSWERS the card and lets the world go again — always
+    // the thing the words just asked for, because a card released by
+    // something else is a card the player never has to read.
     meet: {
-      shotgunner: 'DODGE THE BULLET',
-      rusher: 'DODGE THE LUNGE',
-      shieldbearer: 'DODGE THE BULLET',
-      heavy: 'DODGE THE BURST',
-      armored: 'DODGE THE BULLET',
+      shotgunner:   { say: 'DODGE THIS', mark: 'rounds', want: 'dodge' },
+      rusher:       { say: 'DODGE THIS', mark: 'body',   want: 'dodge' },
+      heavy:        { say: 'DODGE THIS', mark: 'rounds', want: 'dodge' },
+      armored:      { say: 'SHOOT THIS', mark: 'head',   want: 'shoot' },
+      shieldbearer: { say: 'STOP TIME · GET ROUND HIM', mark: 'shield',
+                      want: 'dodge', button: true },
     },
     meetHold: 10,   // seconds before a debut freeze lets go on its own
     // ...and how long a debut room holds its FIRST ROUND for the new type

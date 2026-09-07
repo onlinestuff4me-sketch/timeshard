@@ -465,6 +465,38 @@
                           16%  { transform:translateX(52px);  opacity:.95; }
                           70%  { transform:translateX(-52px); opacity:.95; }
                           100% { transform:translateX(-52px); opacity:0; } }
+  /* ...AND A CARD THAT SAYS SHOOT SHOWS A THUMB PRESSING, not one crossing.
+     The gesture IS the instruction, so it may not be the wrong gesture: a
+     swipe under SHOOT THIS tells the player to move away from the one thing
+     the words are pointing at. Same press the onboarding teaches the trigger
+     with. */
+  #duelmeet.tap .stk i { opacity:.95; animation:meettap 1.15s ease-in-out infinite; }
+  @keyframes meettap { 0%,72% { transform:scale(1);   opacity:.95; }
+                       84%    { transform:scale(.62); opacity:1; }
+                       100%   { transform:scale(1);   opacity:.95; } }
+
+  /* ...AND THE RING ROUND THE THING THE WORDS MEAN. Same ring the onboarding
+     draws on the round it says to dodge (#tutorpin), because DODGE THIS is
+     only an instruction if the player can find THIS: a shotgun pellet
+     fourteen metres down the corridor is four pixels. There is a small pool
+     of them, because a shotgun blast is five rounds and they all count.
+
+     Sized per target from the world — a head is a head and a body is a body —
+     so the ring says which object without pretending a pellet is the size of
+     a man. Screen position and size are written per frame; only the pool
+     lives here. */
+  #duelpins { position:fixed; inset:0; z-index:10; pointer-events:none; }
+  #duelpins i { position:absolute; left:0; top:0; display:none;
+             border-radius:50%; border:3px solid #ff2d1a;
+             box-shadow:0 0 18px rgba(255,45,26,.55),
+                        inset 0 0 12px rgba(255,45,26,.3);
+             animation:pinpulse 1.05s ease-in-out infinite; }
+  #duelpins i.on { display:block; }
+  /* THE CARD'S OWN LIGHT ON THE BUTTON. `hint` belongs to the button lesson
+     and to the slow-time school, and both of them come and go on their own
+     business; a card that says STOP TIME needs to light the control it names
+     and to be able to put it out again without touching theirs. */
+  #timebtn.wanted::after { animation:tteach 1.15s ease-out infinite; opacity:1; }
 
   /* slow-mo bank meter (button mode): drains while locked, kills refill it */
   #slowmeter { display:none; position:fixed; left:16px; right:16px;
@@ -1383,6 +1415,7 @@
      when you shatter" only means anything while you can watch it fall. -->
 <div id="duelcoach"><b></b></div>
 <div id="duelmeet"><b class="who"></b><b class="what"></b><span class="stk"><i></i></span></div>
+<div id="duelpins"><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <div id="timetip">
   <div class="tt1"><span>TAP</span><span class="ttbtn"><i></i></span><span>TO STOP TIME</span></div>
   <div class="tt2">BULLETS FREEZE WHILE YOU MOVE</div>

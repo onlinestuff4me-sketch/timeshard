@@ -3722,6 +3722,14 @@ function enemyFire(e, toPlayer) {
     }
     spawnBullet(origin, d, false, (spec.mul || 1));
   }
+  // THE ROUNDS THE CARD IS ABOUT. `duelNoteMeet` runs above, before a single
+  // pellet exists, so the ring cannot be aimed there — this is where the
+  // blast becomes real and gets handed to the card that is naming it.
+  if (duel.meetOwner === e && duel.meetMark === 'rounds') {
+    for (let k = Math.max(0, bullets.length - (spec.pellets || 1)); k < bullets.length; k++) {
+      duel.meetRounds.push(bullets[k]);
+    }
+  }
   muzzleFlash(origin.x, origin.y, origin.z, 0.85);
   sfx.enemyShot();
   if (tutorStep !== null) {
@@ -4659,6 +4667,7 @@ function playerFire(aimAt = null) {
   const spec = WEAPONS[player.weapon];
   if (spec.melee) { knifeStrike(spec); return; }
   if (player.mag <= 0) { startReload(); return; }       // dry: rack a new mag
+  playerShots++;   // SHOOT THIS is answered by this going up
   player.fireCd = spec.cd;
   // THE LESSON DOES NOT COUNT ROUNDS. The magazine is on screen, and it fills
   // itself: running dry and being made to read RELOADING is a fourth thing to
@@ -10117,6 +10126,7 @@ const el = {
   slowmeter: document.getElementById('slowmeter'),
 
   duelmeet: document.getElementById('duelmeet'),
+  duelpins: [...document.querySelectorAll('#duelpins i')],
   tutorhand: document.getElementById('tutorhand'),
   tutorline: document.getElementById('tutorline'),
   tutorarrow: document.getElementById('tutorarrow'),
@@ -12949,7 +12959,14 @@ function duelHold(L, otherwise) {
 // never runs again this run.
 const duel = { walk: false, room: -1, coach: 'wait', coachT: 0,
   // types whose debut freeze has already played, this run
-  met: new Set(), meetType: null, meetFrom: 0, meetDir: 0 };
+  met: new Set(), meetType: null, meetFrom: 0, meetDir: 0,
+  // what the ring is drawn round, who it belongs to, and what answers it
+  meetMark: null, meetOwner: null, meetRounds: [],
+  meetWant: 'dodge', meetShots: 0 };
+// EVERY SHOT THE PLAYER HAS EVER TAKEN. Only ever compared against itself —
+// a card that says SHOOT THIS is answered by the count going up, which is a
+// question no flag anybody else owns can be asked without clearing it.
+let playerShots = 0;
 // Dead-stop state: seconds of full-speed world time owed by shots already
 // fired. See SIMPLE.stop.shotTime.
 let stopDebt = 0;
@@ -12960,6 +12977,10 @@ function resetSimpleState() {
   duel.met = new Set();
   duel.meetType = null;
   duel.meetDir = 0;
+  duel.meetOwner = null;
+  duel.meetMark = null;
+  duel.meetRounds.length = 0;
+  duel.meetWant = 'dodge';
   duel.walk = false;
   duel.room = -1;
   duel.coach = 'wait';
@@ -13024,19 +13045,95 @@ function duelCoachSay(text, where) {
 // THE DEBUT CARD: three rows on a stopped world — who it is, what to do, and
 // a thumb doing it. `dir` is +1 for a swipe to the right of the screen, -1
 // for the left; 0 takes the whole card down.
-function duelMeetCard(dir, name, what) {
+// `want` decides the third row as well as the release: a card that says DODGE
+// shows a thumb crossing the stick, and one that says SHOOT shows a thumb
+// pressing — the gesture is the instruction, so it cannot be the wrong one.
+function duelMeetCard(on, name, what, want, dir) {
   const d = el.duelmeet;
   if (!d) return;
-  if (dir) {
+  if (on) {
     d.querySelector('.who').textContent = name;
     d.querySelector('.what').textContent = what;
     // ...and the longest names step the headline down rather than running off
     // the sides of it. See #duelmeet .who.
     d.classList.toggle('longname', name.length > 10);
   }
-  d.classList.toggle('on', !!dir);
-  d.classList.toggle('right', dir > 0);
-  d.classList.toggle('left', dir < 0);
+  d.classList.toggle('on', !!on);
+  d.classList.toggle('tap', !!on && want === 'shoot');
+  d.classList.toggle('right', !!on && want !== 'shoot' && dir > 0);
+  d.classList.toggle('left', !!on && want !== 'shoot' && dir < 0);
+  if (!on) {
+    for (const p of el.duelpins || []) p.classList.remove('on');
+    duel.meetOwner = null;
+    duel.meetMark = null;
+    duel.meetRounds.length = 0;
+    if (el.timebtn) el.timebtn.classList.remove('wanted');
+    d.querySelector('.who').textContent = '';
+    d.querySelector('.what').textContent = '';
+  }
+}
+
+// WHERE THE RING GOES, and how big it is.
+//
+// Same ring the onboarding draws on the round it is telling you to dodge: a
+// pellet fourteen metres away is four pixels, so DODGE THIS without it is an
+// instruction pointing at nothing. The size comes from the WORLD — a head is a
+// head, a body is a body — with a floor, so a ring never pretends a pellet is
+// the size of a man and never shrinks to something you cannot find either.
+const _vPin = new THREE.Vector3();
+const _vPinUp = new THREE.Vector3();
+// A ring has to be findable and has to still be a RING: at three metres a
+// rusher's body projects wider than the screen, and a circle bigger than the
+// frame is not a mark on a thing, it is a vignette.
+const PIN_MIN = 15, PIN_MAX = 108;   // screen radius, px
+function duelMeetTargets(out) {
+  out.length = 0;
+  const e = duel.meetOwner;
+  if (!e) return out;
+  const sx = Math.max(e.g.scale.x, 1), sy = e.g.scale.y;
+  if (duel.meetMark === 'rounds') {
+    for (const b of duel.meetRounds) {
+      if (bullets.indexOf(b) >= 0) out.push([b.pos.x, b.pos.y, b.pos.z, 0.12]);
+    }
+  } else if (duel.meetMark === 'body' && e.alive) {
+    out.push([e.pos.x, 0.95 * sy, e.pos.z, 0.62 * sx]);
+  } else if (duel.meetMark === 'head' && e.alive) {
+    // the same sphere the hit test uses, so the ring is drawn round the thing
+    // that actually takes the shot rather than round a guess at where it is
+    out.push([e.pos.x, 1.62 * sy, e.pos.z, (e.type === 'armored' ? 0.3 : 0.24) * sx]);
+  } else if (duel.meetMark === 'shield' && e.alive) {
+    // the plate's own corner of his local frame — see the shielded hit test
+    const c = Math.cos(e.g.rotation.y), s = Math.sin(e.g.rotation.y);
+    const lx = -0.24 * sx, lz = 0.52 * sx;
+    out.push([e.pos.x + lx * c + lz * s, 1.125 * sy, e.pos.z - lx * s + lz * c,
+      0.55 * sx]);
+  }
+  return out;
+}
+const _pinTargets = [];
+function duelPlaceMeetPins() {
+  const pins = el.duelpins;
+  if (!pins || !pins.length) return;
+  const on = duel.coach === 'meet' ? duelMeetTargets(_pinTargets) : [];
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  for (let i = 0; i < pins.length; i++) {
+    const t = on[i];
+    if (!t) { pins[i].classList.remove('on'); continue; }
+    _vPin.set(t[0], t[1], t[2]).project(camera);
+    if (_vPin.z > 1 || Math.abs(_vPin.x) > 1.2 || Math.abs(_vPin.y) > 1.2) {
+      pins[i].classList.remove('on');
+      continue;
+    }
+    _vPinUp.set(t[0], t[1] + t[3], t[2]).project(camera);
+    const r = Math.max(PIN_MIN, Math.min(PIN_MAX,
+      Math.abs(_vPinUp.y - _vPin.y) * 0.5 * h));
+    const d = r * 2;
+    pins[i].style.width = d + 'px';
+    pins[i].style.height = d + 'px';
+    pins[i].style.left = ((_vPin.x * 0.5 + 0.5) * w - r) + 'px';
+    pins[i].style.top = ((-_vPin.y * 0.5 + 0.5) * h - r) + 'px';
+    pins[i].classList.add('on');
+  }
 }
 // WHICH WAY IS OUT, as a screen direction.
 //
@@ -13074,8 +13171,8 @@ function duelDodgeDir(e) {
 function duelNoteMeet(e) {
   if (!e || game.mode !== 'duel' || game.state !== 'play') return;
   if (duel.coach === 'tap' || duel.coach === 'meet') return;   // one card at a time
-  const line = SIMPLE.duel.meet[e.type];
-  if (!line || duel.met.has(e.type)) return;
+  const card = SIMPLE.duel.meet[e.type];
+  if (!card || duel.met.has(e.type)) return;
   // ...and only the type this room exists to introduce. A shotgunner met
   // again three cycles later in a combination room is not a debut.
   if (duelPlan(duelRoom()).fresh !== e.type) return;
@@ -13085,7 +13182,17 @@ function duelNoteMeet(e) {
   duel.coachT = 0;
   duel.meetFrom = player.pos.x;
   duel.meetDir = duelDodgeDir(e);
-  duelMeetCard(duel.meetDir, e.type.toUpperCase(), line);
+  duel.meetOwner = e;
+  duel.meetMark = card.mark;
+  duel.meetRounds.length = 0;
+  duel.meetWant = card.want;
+  duel.meetShots = playerShots;
+  duelMeetCard(1, e.type.toUpperCase(), card.say, card.want, duel.meetDir);
+  // ...AND THE BUTTON LIT, on the one type whose answer starts with it. A
+  // shieldbearer turns to follow you, so stepping off his line at full speed
+  // only buys the beat he needs to come round; the card says stop time first,
+  // and the control it names wears the same pulse the button lesson uses.
+  if (card.button && duelButtonOn() && el.timebtn) el.timebtn.classList.add('wanted');
   vibrate([14, 50, 14]);
 }
 // Called from enemyFire, on every enemy shot in the game — so the first thing
@@ -13123,11 +13230,14 @@ function updateDuelCoach(dtReal) {
       return;
     }
     duel.coachT += dtReal;
-    // THE COACH SAYS DODGE, SO DODGING IS WHAT ANSWERS IT — the same rule the
-    // onboarding's dodge beat uses, and the only control this mode has.
-    // Sideways, measured from where they were standing when it stopped.
-    const across = Math.abs(player.pos.x - duel.meetFrom);
-    if (across >= TUTOR.dodgeStepM || duel.coachT > SIMPLE.duel.meetHold) {
+    // WHAT THE CARD ASKED FOR IS WHAT ANSWERS IT. A card released by anything
+    // else is a card nobody has to read: DODGE THIS goes when they step aside
+    // — the onboarding's own rule, measured from where they were standing
+    // when it stopped — and SHOOT THIS goes when they pull the trigger.
+    const done = duel.meetWant === 'shoot'
+      ? playerShots > duel.meetShots
+      : Math.abs(player.pos.x - duel.meetFrom) >= TUTOR.dodgeStepM;
+    if (done || duel.coachT > SIMPLE.duel.meetHold) {
       duel.coach = 'done';
       duel.meetType = null;
       duelMeetCard(0);
@@ -13956,6 +14066,7 @@ function frame(now) {
   sfx.update(playing || game.state === 'clear' ? timeScale : 1, dt);
   el.crosshair.classList.toggle('hot', player.fireCd > 0);
   if (tutorStep !== null) tutorPlaceWorldCue();
+  if (game.mode === 'duel') duelPlaceMeetPins();
 
   renderFrame(dt);
   // THE VEIL COMES OFF ON THE FIRST REAL PICTURE, not when the module has
@@ -14256,6 +14367,7 @@ window.__ts = {
   simpleState: () => ({ mode: simple(), inbound: simple() === 'duel' ? roundInbound() : null,
     debt: +stopDebt.toFixed(3), walk: duel.walk, timeScale: +timeScale.toFixed(3),
     coach: duel.coach, room: duel.room, meet: duel.meetType, dir: duel.meetDir,
+    want: duel.meetWant, mark: duel.meetMark,
     met: [...duel.met],
     plan: game.mode === 'duel' ? duelPlan(duelRoom()) : null,
     stick: +Math.hypot(input.stickX, input.stickY).toFixed(3) }),

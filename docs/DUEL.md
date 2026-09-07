@@ -117,8 +117,37 @@ three rows fill the still screen:
 | row | what it is |
 |---|---|
 | the **NAME** | the type the game announces doors in, outlined in red |
-| the **DODGE line** | the onboarding's own wording, in its own light ink |
-| the **thumb** | the coach disc from the lesson, travelling ONE way — the way you have to go |
+| the **instruction** | two words, in the onboarding's own light ink |
+| the **thumb** | the coach disc from that lesson, doing the thing the words ask |
+
+...and **a ring round the thing the words mean**, the same one the onboarding
+draws on the round it tells you to dodge. *Dodge this* is not an instruction
+unless the player can find **this**: a shotgun pellet at fourteen metres is
+four pixels. The ring is sized from the world — a head is a head, a body is a
+body — with a floor so it is always findable and a ceiling so it stays a ring
+rather than a vignette.
+
+| type | it says | the ring is on | what answers it |
+|---|---|---|---|
+| shotgunner | DODGE THIS | every pellet of the blast, all five | a sidestep |
+| heavy | DODGE THIS | the round it just fired | a sidestep |
+| rusher | DODGE THIS | **its body** — it has no round, it *is* the round | a sidestep |
+| armored | **SHOOT THIS** | the exposed head, the sphere the hit test uses | **a shot** |
+| shieldbearer | STOP TIME · GET ROUND HIM | the plate that is in the way | a sidestep |
+
+**What the card asks for is what releases it.** A card released by something
+else is a card nobody has to read. So DODGE goes on the sidestep — the
+onboarding's own rule, `TUTOR.dodgeStepM` measured from where you stood when
+it stopped — and SHOOT goes when you pull the trigger. The third row follows:
+a swipe under DODGE, a press under SHOOT, because the gesture *is* the
+instruction and so it may not be the wrong gesture.
+
+**The shieldbearer is the one a sidestep does not answer on its own.** He
+turns to follow you, so stepping off his line at full speed only buys him the
+beat he needs to come round. His card holds the time button lit while it says
+so — its own `wanted` pulse, not the button lesson's, so it can put it out
+again without touching that — and the ring goes on the plate, which is the
+thing to get round rather than the thing to shoot.
 
 The first act of a debuting type is what stops it: its first round, or for the
 rusher the frame it plants and coils, which is the only tell it gives. **That
