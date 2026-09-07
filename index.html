@@ -644,6 +644,18 @@
            text-shadow:0 0 3px rgba(22,24,29,.92), 0 2px 14px rgba(22,24,29,.6);
            transition:opacity .35s ease; transform:translate(-50%, -108%); }
   body.slowmo #ts-sign { text-shadow:0 0 3px rgba(12,13,16,.95), 0 2px 16px rgba(12,13,16,.9); }
+  /* A SIGNPOST: one message, two halves, one wall. The left label sits over
+     the left corridor mouth and the right over the right, so the player maps
+     each to the arm it names without anything having to say so. It is a row
+     rather than two boxes because it must scale and move as ONE object —
+     two elements would be two messages, which is the thing the rule forbids.
+
+     Wider than a plain sign and allowed to wrap inside each half: NOT THIS
+     WAY is three words and has to stay under its own arrow. */
+  #ts-sign.post { display:flex; gap:1.1em; align-items:flex-start;
+           max-width:26em; white-space:normal; }
+  #ts-sign.post b { font-weight:inherit; flex:1 1 0; text-align:center;
+           max-width:11em; }
 
   #ts-world { left:0; top:0; width:max-content; max-width:94vw; white-space:nowrap;
            padding:0 .34em;

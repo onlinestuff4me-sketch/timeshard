@@ -41,8 +41,9 @@ async function shoot(page, name, note) {
   await page.screenshot({ path: join(OUT, file) });
   shots.push({ file, name, note, ...state });
   const g = state.signs;
+  if (process.env.TS_DEBUG) console.log('   list:', JSON.stringify(g.list));
   console.log(`  ${file}  showing=${JSON.stringify(g.showing)} on=${g.onScreen} ` +
-    `may=${g.may} cueUp=${g.cueUp} spineIx=${g.spineIx} proj=${JSON.stringify(g.proj)} ` +
+    `post=${g.post} cueUp=${g.cueUp} spineIx=${g.spineIx} proj=${JSON.stringify(g.proj)} ` +
     `step=${state.tutor.step}`);
 }
 
@@ -69,6 +70,9 @@ async function standAt(page, ix, lookAhead = 2) {
     if (dx || dz) t.player.yaw = Math.atan2(-dx, -dz);
     t.player.pitch = 0;
   }, [ix, lookAhead]);
+  // TELEPORTED, NOT WALKED — so resync the spine index the same way a retry
+  // does. tutorUpdateSpineIx only ever accepts the next cell along.
+  await page.evaluate(() => window.__ts.resyncSpine && window.__ts.resyncSpine());
   await page.waitForTimeout(420);   // a few frames for the projection to settle
 }
 
@@ -104,25 +108,19 @@ const run = async () => {
     document.getElementById('overlay').classList.contains('hidden'), null, { timeout: 20000 });
   await page.waitForTimeout(1400);
 
-  await shoot(page, 'lesson-1',
-    'Lesson 1. The screen owns the frame: DRAG TO MOVE is a message about a '
-    + 'thumb and cannot be anywhere but the glass. No sign competes with it.');
-  await standAt(page, 9, 3);
-  await shoot(page, 'lesson-3',
-    'Lesson 3, both coach lines up. Still no sign — the first build put one '
-    + 'here and it landed on top of DRAG TO MOVE.');
-  await standAt(page, 17, 3);
-  await shoot(page, 'stand-here',
-    'Lesson 4. The screen prompts retire and the world takes the frame: '
-    + 'STAND HERE, mounted on the barrier. One message, and it is about a '
-    + 'place rather than a control.');
+  // The lesson prompts own the frame early, so jump past them to photograph
+  // the cell-anchored signs on their own.
   await page.evaluate(() => window.__ts.setTutorStep('exit'));
   await page.waitForTimeout(900);
-  await standAt(page, 21, 2);
-  await shoot(page, 'door',
-    'Lesson 7. EXIT is painted on the door and the screen line GO THROUGH '
-    + 'THE DOOR is gone — replaced, not joined. Same instruction, plus the '
-    + 'fact that this building labels its doors.');
+  await standAt(page, 9, 3);
+  await shoot(page, 'placed-sign',
+    'A sign anchored to an explicit cell rather than a spine index. This is '
+    + 'what a dead-end branch needs: the spine does not go there, so there is '
+    + 'no mark to name it.');
+  await standAt(page, 21, 3);
+  await shoot(page, 'signpost',
+    'A signpost: one message, two halves, one wall, one anchor. Both labels '
+    + 'scale and move as a single object, so it stays one message.');
 
   writeFileSync(join(OUT, 'shots.json'), JSON.stringify({ shots, errs }, null, 2));
   if (errs.length) console.log('PAGE ERRORS:', errs.slice(0, 4));

@@ -93,43 +93,66 @@ pointing at the same place are two answers to one question.
 
 ---
 
-## 3. Marks are derived, never typed
+## 3. Marks are derived, never typed — with one exception
 
-A mark declares **which named place on the path it belongs to**, never a
-coordinate.
+A sign names **which place on the path it belongs to**, never a coordinate.
 
-This is not a preference. `src/tutorial.js` already carries the scar:
+This is not a preference. `src/tutorial.js` carries the scar:
 
 > *DERIVED, NEVER TYPED. […] Held as literals they went stale the instant
 > [the path] was: redrawing the teaching leg in the tool left the barrier
-> standing 24 m inside solid rock, with lesson 4 waiting for the player to
-> reach a cell the corridor no longer had and the STAND HERE sign gated off a
-> spine index the leg no longer reached. Nothing on screen, no way forward, no
+> standing 24 m inside solid rock […] Nothing on screen, no way forward, no
 > error.*
 
-So marks hang off `marksFromPlan` exactly as the barrier does, and dragging the
-path in the tool carries them. `docs/LEVELS.md` already describes the barrier,
-the start and the door as *"drawn but not painted: all three are derived, so
-they move when the geometry does instead of being separately maintained."*
-Marks are the fourth thing on that list.
+So route signs hang off `marksFromPlan`, and dragging the path in the tool
+carries them. Three ways to name a place, in order of preference:
 
-### 3.1 One new derived mark, and it generalises
+| | | |
+|---|---|---|
+| `'door'` | the far end of the walked path | resolved when the leg is built |
+| a mark name | `firstCorner`, `finalRun`, … | derived, survives a path edit |
+| `[gx, gz]` | an explicit cell | **the exception** |
 
-`marksFromPlan` gains **`turnLead[]`** — for every change of direction in the
-path, the cell a short run before it.
+### 3.1 The exception, and why it has to exist
 
-That single addition gives every authored leg a sign before every turn for
-free, and it is what real building wayfinding does. The tutorial's two turns
-are then not special-cased; they are the first two entries in a list.
+A dead-end branch is not on the spine, so there is no mark to hang a sign on
+— `marksFromPlan` only knows the walked path. The `TURN AROUND` warnings in
+§5 have nowhere else to live.
 
-### 3.2 Which wall it goes on
+Two rules keep it honest:
 
-A mark before a left turn belongs **on the wall you would walk into if you did
-not turn** — the far face of the T, derived from the turn's direction.
+- **Anything on the route stays named.** A coordinate is for somewhere the
+  path does not go, and nothing else.
+- **Cells are leg-relative**, the same frame of reference `plan.extra`
+  already uses (`docs/LEVELS.md`). A leg starts wherever the last one ended,
+  so an absolute coordinate is meaningless — and the failure is silent:
+  measured, a sign authored at `[6, 12]` landed a few metres from the
+  player's spawn and retired itself before the run had begun.
 
-This is where the sign goes in a real corridor, and it means the building
-answers the question your body is about to ask, on the surface that is about to
-stop you. It also needs no arrow to be understood, which is the test of a sign.
+### 3.2 Two ways to retire a sign, one per kind of anchor
+
+| | retired when |
+|---|---|
+| **route sign** | the walk has gone past the cell it hangs on |
+| **placed sign** | the player has walked within 1.4 cells of it, latched |
+
+A placed sign has no spine index to be passed, so proximity is the only
+retirement available to it. That latch is cleared by
+`tutorResyncSpineIx()` — **arriving somewhere is not the same as having
+walked there**, and without that a teleport silently retired whatever it
+landed near. Measured: the tool's step jump retired a branch sign
+twenty-six metres away, because the jump had put the player beside it for a
+frame.
+
+### 3.3 The pick is by distance, not by spine order
+
+The route-only version walked the spine in order. A branch is not on the
+spine, so ordering along it cannot say which of a route sign and a branch
+sign is the one in front of you — and at a junction both are a few metres
+away.
+
+Nearest is the honest answer, and it is the same answer on a straight
+corridor, where the next sign ahead is also the closest one left.
 
 ---
 
@@ -186,6 +209,12 @@ metres than any marker.
 signpost, the way a road sign naming two destinations is one sign. The rule
 in `docs/BEATS.md` §1 is about unrelated instructions competing; this is one
 instruction with two halves.
+
+**Built as one element**, not two: `halves` renders a single box on a single
+anchor, so the two labels scale and move together. Two elements would be two
+messages, which is the thing the rule forbids — and the left label lands over
+the left corridor mouth and the right over the right for free, because the
+box is painted across the junction.
 
 It carries one real constraint: **both halves must be in frame at once.** The
 camera is about 42° horizontal in portrait, so the T wall has to be readable

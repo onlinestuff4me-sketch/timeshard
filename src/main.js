@@ -8605,9 +8605,9 @@ function tutorPlaceWorldCue() {
   // What the text measures at a known size, so any words the tool authors are
   // scaled by their own width rather than by a constant tuned to "STAND HERE".
   // Cached against the text: offsetWidth is a layout read.
-  if (n._szText !== n.textContent) {
+  if (n._szText !== markup) {
     n.style.fontSize = '20px';
-    n._szText = n.textContent;
+    n._szText = markup;
     n._szW = n.offsetWidth || 120;
   }
   // A floor of 12 px, because below that it is not words, it is a red smudge —
@@ -8666,6 +8666,8 @@ const SIGN_W = 3.0;
 // overlapped into one unreadable block.
 const SIGN_H = HALL.h - 0.45;
 const SIGN_MAX_PX = 44;   // a sign in a corridor, not a billboard
+// A T's back wall is the corridor's width, and a signpost is painted across it.
+const SIGN_POST_W = HALL.cell * 1.5;
 let tutorSigns = [];      // [{ at, text }] for the current leg, in path order
 
 // The signs a leg carries, built once when the leg is. Turn signs come from
@@ -8678,50 +8680,107 @@ function tutorBuildSigns() {
   const marks = spec && spec.marks;
   if (!marks) return;
   for (const s of (spec.signs || [])) {
-    // `door` is the far end of the walked path and the leg knows where that
-    // is only once it is built, so it is carried as -1 and resolved against
-    // the spine at draw time. Everything else is a mark name or a cell.
+    // THREE WAYS TO NAME A PLACE, and only one of them is a coordinate.
+    //
+    //   'door'      the far end of the walked path — resolved at draw time,
+    //               because the leg knows where that is only once it is built
+    //   a mark name derived by marksFromPlan, so a path edit carries it
+    //   [gx, gz]    an explicit cell, for somewhere the spine does not go
+    //
+    // The third is what a dead-end branch needs. It is deliberately last and
+    // deliberately the only one that is a literal: everything ON the route
+    // should be named, because a named place survives the corridor being
+    // redrawn and a coordinate does not. A branch is off the route, so there
+    // is no mark to hang it on — see docs/MARKS.md §3.
     const at = s.at === 'door' ? -1
-      : (typeof s.at === 'string' ? marks[s.at] : s.at);
-    if (at != null) tutorSigns.push({ at, from: at, text: s.text });
+      : Array.isArray(s.at) ? [s.at[0] | 0, s.at[1] | 0]
+      : typeof s.at === 'string' ? marks[s.at] : s.at;
+    if (at == null) continue;
+    tutorSigns.push({
+      at,
+      // A PLACED SIGN HAS NO `from`. Route signs become the one to read at a
+      // spine index; a sign off the route cannot, because the index does not
+      // measure the branch. It is eligible from the moment the leg is built
+      // and retires by being walked up to. See tutorSignPick.
+      from: Array.isArray(at) ? null : at,
+      text: s.text || '', halves: s.halves || null, seen: false,
+    });
   }
   for (const t of (spec.turnSigns === false ? [] : (marks.turnLead || []))) {
     // A SOLID TRIANGLE, not an arrow glyph. U+2192 is drawn from a different
     // part of most system fonts and comes out visibly lighter and smaller
     // than the caps beside it; U+25C0/U+25B6 are the same weight as the
     // letters, and the menu already uses one for the time button.
+    //
     // WHERE IT HANGS AND WHERE IT STARTS COUNTING ARE TWO DIFFERENT CELLS.
     // A turn sign belongs on the wall you would walk into if you did not turn
     // — the far face of the T, a cell past the corner — because that is where
     // signage goes in a real corridor and because a label floating in the
-    // middle of the hallway is a caption, not a sign.
-    //
-    // `turnLead.at` is the lead: two cells short, which is where it becomes
-    // the sign the player should be reading. Placing it there was what put a
-    // giant EXIT hanging in mid-air above the corridor.
-    tutorSigns.push({ at: t.turnAt + 1, from: t.at,
-      text: t.dir === 'l' ? '\u25C0 EXIT' : 'EXIT \u25B6' });
+    // middle of the hallway is a caption, not a sign. `turnLead.at` is the
+    // lead: two cells short, which is where it becomes the sign to read.
+    tutorSigns.push({ at: t.turnAt + 1, from: t.at, seen: false,
+      text: t.dir === 'l' ? '\u25C0 EXIT' : 'EXIT \u25B6', halves: null });
   }
-  tutorSigns.sort((a, b) => a.from - b.from);
 }
 
-// The one sign to draw: the nearest still ahead of the player on the path.
-// Spine index rather than distance, for the same reason `tutorUpdateSpineIx`
-// exists — a player who wanders back down the corridor has not un-passed a
-// corner, and a sign that comes back when they turn round is the flicker the
-// way-out needle was built to avoid.
-function tutorSignPick() {
-  let door = null;
-  for (const s of tutorSigns) {
-    if (s.at < 0) { door = s; continue; }
-    // RETIRED WHEN THE PLAYER PASSES THE SIGN, not when they pass its lead.
-    // `from` is two cells short of the corner and only decides which sign is
-    // frontmost; testing it here took every turn sign down two cells before
-    // the player reached the turn it was about, which is the worst possible
-    // moment for it to go.
-    if (s.at >= tutorSpineIx) return s;
+// A sign's anchor in world space. Route signs name a cell of the spine;
+// placed signs carry their own; the door is the spine's last cell, which is
+// known only once the leg is built.
+const _signCell = [0, 0];
+function tutorSignCell(s) {
+  const L = hall && hall.legs[hall.cur];
+  if (!L || !L.spine || !L.spine.length) return null;
+  // LEG-RELATIVE, like `plan.extra` already is. A leg starts wherever the
+  // last one ended, so an authored cell cannot be an absolute grid
+  // coordinate — and the failure is silent and confusing: measured, a sign
+  // authored at [6, 12] landed a few metres from the player's spawn and
+  // retired itself before the run had begun. `spine[0]` is the leg's origin
+  // (genAuthoredLeg passes sgx/sgz straight into planToCells), so this is the
+  // same frame of reference docs/LEVELS.md states for `extra`.
+  if (Array.isArray(s.at)) {
+    _signCell[0] = L.spine[0][0] + s.at[0];
+    _signCell[1] = L.spine[0][1] + s.at[1];
+    return _signCell;
   }
-  return door;   // past every turn, the way on is the only thing left to say
+  const i = s.at < 0 ? L.spine.length - 1 : Math.min(L.spine.length - 1, s.at);
+  const c = L.spine[i];
+  if (!c) return null;
+  _signCell[0] = c[0]; _signCell[1] = c[1];
+  return _signCell;
+}
+
+// HOW CLOSE COUNTS AS HAVING READ IT. A placed sign has no spine index to be
+// passed, so walking up to it is what retires it — and it has to latch,
+// because a sign that comes back every time the player turns round is the
+// flicker the way-out needle was built to avoid.
+const SIGN_PASS_M = HALL.cell * 1.4;
+
+// The one sign to draw: the nearest the player has not finished with.
+//
+// Distance rather than spine order, which the route-only version used. A
+// branch is not on the spine, so ordering along it cannot say which of a
+// route sign and a branch sign is the one in front of you — and at a junction
+// both are a few metres away. Nearest is the honest answer and it is the same
+// answer on a straight corridor, where the next sign ahead is also the
+// closest one left.
+function tutorSignPick() {
+  let best = null, bd = 1e9;
+  for (const s of tutorSigns) {
+    const c = tutorSignCell(s);
+    if (!c) continue;
+    const d = Math.hypot(c[0] * HALL.cell - player.pos.x, c[1] * HALL.cell - player.pos.z);
+    // RETIRED, TWO WAYS, one per kind of anchor.
+    if (s.from != null) {
+      // a route sign: passed when the walk has gone by the cell it hangs on
+      if (s.at >= 0 && s.at < tutorSpineIx) continue;
+      if (s.from > tutorSpineIx) continue;          // not yet its turn
+    } else {
+      if (d < SIGN_PASS_M) s.seen = true;           // walked up to it
+      if (s.seen) continue;
+    }
+    if (d < bd) { bd = d; best = s; }
+  }
+  return best;
 }
 
 function tutorPlaceSign() {
@@ -8755,13 +8814,19 @@ function tutorPlaceSign() {
   // floor means the player is being shot at, and a sign about where to walk
   // is not what that moment is for.
   if (enemies.length) return hide();
-  const L = hall && hall.legs[hall.cur];
   const s = tutorSignPick();
-  if (!L || !L.spine || !s) return hide();
-  const c = L.spine[s.at < 0 ? L.spine.length - 1
-    : Math.min(L.spine.length - 1, s.at)];
+  const c = s && tutorSignCell(s);
   if (!c) return hide();
-  if (n.textContent !== s.text) n.textContent = s.text;
+  // A SIGNPOST IS ONE MESSAGE WITH TWO HALVES, not two messages. `halves`
+  // renders them as one box on one wall — the way a road sign naming two
+  // destinations is one sign — so the left arm's label sits over the left
+  // corridor mouth and the right one over the right, and the whole thing
+  // scales as a single object. See docs/MARKS.md §5.3.
+  const markup = s.halves
+    ? `<b>${escHtml(s.halves[0])}</b><b>${escHtml(s.halves[1])}</b>`
+    : escHtml(s.text);
+  if (n._markup !== markup) { n.innerHTML = markup; n._markup = markup; }
+  n.classList.toggle('post', !!s.halves);
   const ax = c[0] * HALL.cell, az = c[1] * HALL.cell;
   _vSignEye.set(ax, SIGN_H, az).project(camera);
   if (_vSignEye.z > 1 || Math.abs(_vSignEye.x) > 1.15 || Math.abs(_vSignEye.y) > 1.15) {
@@ -8773,12 +8838,16 @@ function tutorPlaceSign() {
   // the same arithmetic three.js does for the wall, so the words and the
   // corridor grow together. See tutorPlaceWorldCue, which learned this the
   // hard way over four attempts.
-  _vSignL.set(ax - SIGN_W / 2, SIGN_H, az).project(camera);
-  _vSignR.set(ax + SIGN_W / 2, SIGN_H, az).project(camera);
+  // A SIGNPOST SPANS THE JUNCTION, a plain sign spans a wall. Both are a
+  // width in metres and both scale by projecting their own ends, which is
+  // what keeps them painted on the corridor rather than captioning it.
+  const halfW = (s.halves ? SIGN_POST_W : SIGN_W) / 2;
+  _vSignL.set(ax - halfW, SIGN_H, az).project(camera);
+  _vSignR.set(ax + halfW, SIGN_H, az).project(camera);
   const spanPx = Math.abs(_vSignR.x - _vSignL.x) * 0.5 * w;
-  if (n._szText !== n.textContent) {
+  if (n._szText !== markup) {
     n.style.fontSize = '20px';
-    n._szText = n.textContent;
+    n._szText = markup;
     n._szW = n.offsetWidth || 120;
   }
   const fit = 20 * (w * 0.92) / Math.max(n._szW, 1);
@@ -9500,6 +9569,14 @@ function tutorResyncSpineIx() {
     if (d < bd) { bd = d; best = i; }
   }
   tutorSpineIx = best;
+  // ...AND A PLACED SIGN IS NOT READ BY BEING TELEPORTED PAST. `seen` latches
+  // on proximity, which is the only retirement a sign off the route can have
+  // — and that made every jump silently retire whatever it landed near.
+  // Measured: the tool's step jump to `exit` retired a branch sign twenty-six
+  // metres away, because the jump had put the player beside it for a frame.
+  // Clearing here is the same rule as the index above: arriving somewhere is
+  // not the same as having walked there.
+  for (const g of tutorSigns) if (g.from == null) g.seen = false;
 }
 
 function tutorUpdateSpineIx() {
@@ -13852,22 +13929,33 @@ window.__ts = {
   // projected DOM label off the canvas, so the list and the pick are exposed
   // rather than inferred from pixels.
   signs: () => ({
-    list: tutorSigns.map((g) => ({ at: g.at, text: g.text })),
-    showing: (() => { const g = tutorSignPick(); return g ? g.text : null; })(),
+    list: tutorSigns.map((g) => {
+      const c = tutorSignCell(g);
+      return { at: g.at, from: g.from, seen: !!g.seen,
+        d: c ? +Math.hypot(c[0] * HALL.cell - player.pos.x,
+          c[1] * HALL.cell - player.pos.z).toFixed(1) : null,
+        text: (g.text || (g.halves || []).join(' | ')).slice(0, 14) };
+    }),
+    showing: (() => {
+      const g = tutorSignPick();
+      return g ? (g.text || (g.halves || []).join(' | ')) : null;
+    })(),
     onScreen: el.tsign ? el.tsign.classList.contains('show') : false,
+    post: el.tsign ? el.tsign.classList.contains('post') : false,
     spineIx: tutorSpineIx,
     may: !enemies.length,
     cueUp: Object.keys(el.tslot || {}).some((k) =>
       el.tslot[k] && el.tslot[k].classList.contains('show')),
     proj: (() => {
-      const L = hall && hall.legs[hall.cur]; const g = tutorSignPick();
-      if (!L || !L.spine || !g) return null;
-      const c = L.spine[g.at < 0 ? L.spine.length - 1 : Math.min(L.spine.length - 1, g.at)];
+      const g = tutorSignPick(); const c = g && tutorSignCell(g);
       if (!c) return null;
       _vSignEye.set(c[0] * HALL.cell, SIGN_H, c[1] * HALL.cell).project(camera);
       return { x: +_vSignEye.x.toFixed(2), y: +_vSignEye.y.toFixed(2), z: +_vSignEye.z.toFixed(3) };
     })(),
   }),
+  // A harness that teleports has not walked, so it needs the same resync the
+  // retry and the tool's step jump use. See tutorUpdateSpineIx.
+  resyncSpine: () => { tutorResyncSpineIx(); return tutorSpineIx; },
   // what the bodies are doing and where they are, for the wall-clip check
   bodies: () => enemies.map((e) => ({ x: +e.pos.x.toFixed(2), z: +e.pos.z.toFixed(2),
     state: e.state, arm: +e.armR.rotation.x.toFixed(2), alive: e.alive })),

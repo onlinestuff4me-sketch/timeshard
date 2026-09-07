@@ -437,6 +437,12 @@ export const LEGS = [
     // come back there — which is where they were always going to earn their
     // keep, and where `EXIT` starts telling the story as well as the way out.
     turnSigns: false,
+    // ...and the T-junction's signpost, the two warnings down the dead end
+    // and GOOD CHOICE on the left arm are NOT here yet, because the geometry
+    // they hang on is not either. The anchoring they need is built and
+    // photographed — an explicit leg-relative cell, and `halves` for a
+    // signpost — but a sign authored against a corridor that does not exist
+    // is a sign inside a wall. They land with the junction.
     signs: [{ at: 'door', text: 'EXIT' }],
   },
   // WITHIN ENGAGE RANGE OF THE DOOR YOU COME IN THROUGH. A gunner's
@@ -1081,10 +1087,22 @@ export function normaliseLegs(legs) {
       // Derived turn signs are on by default and off where a lesson owns the
       // screen. Explicit `false` only — an absent flag means yes.
       turnSigns: (l && l.turnSigns) !== false,
+      // A HALF-WRITTEN SIGN MUST NOT THROW IN THE FRAME LOOP — same rule as
+      // the enemy list above. Three anchor shapes survive: a mark name, a
+      // spine index, and an explicit [gx, gz] cell for somewhere the path
+      // does not go. A signpost carries `halves` instead of `text`, so one
+      // or the other is required rather than `text` alone.
       signs: ((l && l.signs) || [])
-        .filter((g) => g && g.text && g.at != null)
-        .map((g) => ({ at: typeof g.at === 'string' ? g.at : (g.at | 0),
-          text: String(g.text) })),
+        .filter((g) => g && g.at != null
+          && (g.text || (Array.isArray(g.halves) && g.halves.length === 2)))
+        .map((g) => ({
+          at: typeof g.at === 'string' ? g.at
+            : Array.isArray(g.at) ? [g.at[0] | 0, g.at[1] | 0]
+            : (g.at | 0),
+          text: g.text ? String(g.text) : '',
+          halves: Array.isArray(g.halves)
+            ? [String(g.halves[0]), String(g.halves[1])] : null,
+        })),
     };
     if (plan) { out.plan = plan; out.marks = marksFromPlan(plan); }
     else delete out.marks;   // no path, no marks: main.js falls back on distance
