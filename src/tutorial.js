@@ -414,22 +414,29 @@ export const LEGS = [
     note: 'Lessons 1-9. Straight run, two jogs left, then the straight where '
       + 'the barrier stands and the combat lesson happens.',
     plan: { moves: TEACH_MOVES, approach: 4 },
-    // WHAT THE MOVE LESSON WALKS TO. Lesson 1 used to end a couple of cells
-    // short of a corner the player cannot see when the lesson starts, so
-    // DRAG TO MOVE had a direction and no destination. The turn signs fix
-    // that on their own — the opening straight is five cells, so `EXIT ->`
-    // hangs twenty metres away and is legible from the first frame.
+    // ONE MESSAGE IN FOCUS, AND IN THE TEACHING LEG THE SCREEN HAS IT.
     //
-    // NO AUTHORED `STAND HERE` IN THE CORRIDOR. It was specified at twenty
-    // metres, which on this path is the corner itself, so it would have
-    // landed two cells from the turn sign and broken the one-at-a-time rule.
-    // It also had nothing to do: the beat that makes standing there matter is
-    // the corridor reconfiguring, and that is not built. A sign that names a
-    // place where nothing happens is the one kind of sign this system cannot
-    // afford. STAND HERE stays on the barrier, where arriving does something.
+    // Lessons 1-3 are `DRAG TO MOVE` and `DRAG TO LOOK`, and a sign twenty
+    // metres down the corridor lands within a few per cent of them: a sign
+    // high on a wall projects near the vanishing point, and on a portrait
+    // phone that is exactly where the coach line sits. Screenshots of the
+    // first build show the two overlapping into one unreadable block.
     //
-    // `door` is the last cell of the walked path, resolved when the leg is
-    // built rather than typed as a number.
+    // So no turn signs here. A message about a THUMB has to be on the glass
+    // and cannot be anywhere else; a message about a PLACE can be in the
+    // world. Where a control is being taught the screen owns the frame, and
+    // the world only speaks once it is done.
+    //
+    // That leaves the teaching leg exactly two world messages, and both of
+    // them REPLACE a screen line rather than joining it:
+    //   `STAND HERE`  on the barrier   (lesson 4, already built)
+    //   `EXIT`        on the door      (lesson 7, replacing GO THROUGH THE DOOR)
+    //
+    // `turnSigns: false` turns off the derived ones for this leg only. Every
+    // leg past the onboarding has no coach text at all, so they are free to
+    // come back there — which is where they were always going to earn their
+    // keep, and where `EXIT` starts telling the story as well as the way out.
+    turnSigns: false,
     signs: [{ at: 'door', text: 'EXIT' }],
   },
   // WITHIN ENGAGE RANGE OF THE DOOR YOU COME IN THROUGH. A gunner's
@@ -819,10 +826,18 @@ export const STEPS = [
     // DOOR rather than DOOR 1 · OPEN — GO.
     grants: { gun: true, fire: true, ammo: true, score: true },
     dropBarrier: true, openDoor: true, hud: 'GO TO THE NEXT DOOR',
-    // NOT "THE NEXT ROOM": the next area is a hallway now, and the one after
-    // that is too. The door is the thing that is true of all three.
-    cues: [{ text: 'GO THROUGH THE DOOR', slot: 'mid', arrow: 'none',
-      hand: 'none', pulse: false, on: 'enter', off: 'advance' }],
+    // NO SCREEN CUE. `EXIT` is painted on the door itself, and one message in
+    // focus means the world one REPLACES the screen one rather than joining
+    // it — `GO THROUGH THE DOOR` centred over a door already labelled EXIT is
+    // the same sentence twice, in two places, competing for one glance.
+    //
+    // This is the trade the whole sign system is worth making: the screen
+    // line said one thing, the sign says the same thing AND says the building
+    // is the sort of place that labels its doors. Two jobs, one message.
+    // (The old cue read GO THROUGH THE DOOR — not "the next room", because
+    // the next area is a hallway. The sign has no such problem: it names the
+    // door rather than what is past it.)
+    cues: [],
   },
   // --- 10-12. THE RAMP -----------------------------------------------------
   // The teaching is over. Each of these is a real fight and a checkpoint: the
@@ -1063,6 +1078,9 @@ export function normaliseLegs(legs) {
       // A HALF-WRITTEN SIGN MUST NOT THROW IN THE FRAME LOOP. Same rule as
       // the enemy list above: filter here so an edited spec cannot reach the
       // painter with a sign that has no words or no place to stand.
+      // Derived turn signs are on by default and off where a lesson owns the
+      // screen. Explicit `false` only — an absent flag means yes.
+      turnSigns: (l && l.turnSigns) !== false,
       signs: ((l && l.signs) || [])
         .filter((g) => g && g.text && g.at != null)
         .map((g) => ({ at: typeof g.at === 'string' ? g.at : (g.at | 0),

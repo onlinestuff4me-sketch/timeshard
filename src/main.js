@@ -8685,7 +8685,7 @@ function tutorBuildSigns() {
       : (typeof s.at === 'string' ? marks[s.at] : s.at);
     if (at != null) tutorSigns.push({ at, from: at, text: s.text });
   }
-  for (const t of (marks.turnLead || [])) {
+  for (const t of (spec.turnSigns === false ? [] : (marks.turnLead || []))) {
     // A SOLID TRIANGLE, not an arrow glyph. U+2192 is drawn from a different
     // part of most system fonts and comes out visibly lighter and smaller
     // than the caps beside it; U+25C0/U+25B6 are the same weight as the
@@ -8731,7 +8731,20 @@ function tutorPlaceSign() {
   // THE BARRIER'S SIGN WINS. `tutorPlaceWorldCue` owns STAND HERE, and when
   // it is up the player is being sent to a place that is already on screen.
   // A second sign behind it is the two-at-once case this whole thing forbids.
-  const cueUp = el.tslot && el.tslot.world && el.tslot.world.classList.contains('show');
+  // ONE MESSAGE IN FOCUS, COUNTING THE SCREEN. This used to test only the
+  // world slot, which is not the rule: `DRAG TO MOVE` and a sign twenty
+  // metres away are two instructions competing for one glance, and on a
+  // portrait phone they land within a few per cent of each other because a
+  // sign high on a corridor wall projects near the vanishing point and that
+  // is where the coach line sits. Geometry puts them in the same place, so
+  // no amount of sign tuning separates them — only not drawing both does.
+  //
+  // ANY slot showing means the screen has the frame, and the sign waits.
+  let cueUp = false;
+  for (const k of Object.keys(el.tslot || {})) {
+    const t = el.tslot[k];
+    if (t && t.classList.contains('show')) { cueUp = true; break; }
+  }
   if (cueUp || tutorStep === null) return hide();
   // A SIGN IS NOT THE NEEDLE, so it does not ride on `tutorMay('way')`. That
   // grant is off for the door lesson — which is the one beat whose entire
@@ -13800,7 +13813,8 @@ window.__ts = {
     onScreen: el.tsign ? el.tsign.classList.contains('show') : false,
     spineIx: tutorSpineIx,
     may: !enemies.length,
-    cueUp: !!(el.tslot && el.tslot.world && el.tslot.world.classList.contains('show')),
+    cueUp: Object.keys(el.tslot || {}).some((k) =>
+      el.tslot[k] && el.tslot[k].classList.contains('show')),
     proj: (() => {
       const L = hall && hall.legs[hall.cur]; const g = tutorSignPick();
       if (!L || !L.spine || !g) return null;

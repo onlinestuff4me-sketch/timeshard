@@ -104,37 +104,25 @@ const run = async () => {
     document.getElementById('overlay').classList.contains('hidden'), null, { timeout: 20000 });
   await page.waitForTimeout(1400);
 
-  await shoot(page, 'first-frame',
-    'Lesson 1, first frame, before any input. DRAG TO MOVE now has a '
-    + 'destination in the world instead of only a direction.');
-  await standAt(page, 2, 2);
-  await shoot(page, 'near-sign',
-    'Two cells along. The sign is sized by the width of the wall it is '
-    + 'painted on, so approaching it makes it grow the way an object does '
-    + 'rather than the way a caption does.');
+  await shoot(page, 'lesson-1',
+    'Lesson 1. The screen owns the frame: DRAG TO MOVE is a message about a '
+    + 'thumb and cannot be anywhere but the glass. No sign competes with it.');
   await standAt(page, 9, 3);
-  await shoot(page, 'second-sign-far',
-    'Past the first corner and looking down the next straight. The first '
-    + 'sign has retired and the second turn has its own, derived from the '
-    + 'same marks and carrying its own arrow.');
-  await standAt(page, 10, 2);
-  await shoot(page, 'second-sign-near',
-    'The second turn sign, close. One sign is drawn at a time, always.');
+  await shoot(page, 'lesson-3',
+    'Lesson 3, both coach lines up. Still no sign — the first build put one '
+    + 'here and it landed on top of DRAG TO MOVE.');
   await standAt(page, 17, 3);
-  await shoot(page, 'barrier-wins',
-    'The final straight. STAND HERE is mounted on the barrier and takes '
-    + 'priority, so the corridor sign behind it is suppressed rather than '
-    + 'competing with it.');
-  // The door lesson: barrier down, floor clear, door open. The one beat whose
-  // whole subject is a door, and now the one where EXIT is on it. Jumped to
-  // rather than played, because the dodge and shoot beats keep replacing the
-  // bodies that (correctly) suppress a navigation mark.
+  await shoot(page, 'stand-here',
+    'Lesson 4. The screen prompts retire and the world takes the frame: '
+    + 'STAND HERE, mounted on the barrier. One message, and it is about a '
+    + 'place rather than a control.');
   await page.evaluate(() => window.__ts.setTutorStep('exit'));
   await page.waitForTimeout(900);
   await standAt(page, 21, 2);
   await shoot(page, 'door',
-    'EXIT on the wall at the end of the walked path. Anchored to the last '
-    + 'spine cell, not to a typed coordinate, so a path edit carries it.');
+    'Lesson 7. EXIT is painted on the door and the screen line GO THROUGH '
+    + 'THE DOOR is gone — replaced, not joined. Same instruction, plus the '
+    + 'fact that this building labels its doors.');
 
   writeFileSync(join(OUT, 'shots.json'), JSON.stringify({ shots, errs }, null, 2));
   if (errs.length) console.log('PAGE ERRORS:', errs.slice(0, 4));

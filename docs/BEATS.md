@@ -7,21 +7,67 @@ Story signs are deferred — see `docs/STORY.md`. This file is about goal ②:
 
 ---
 
-## 1. The rule
+## 1. One message in focus. Ever.
 
-> **A screen cue says what to do. A world message says where to do it.**
+> **The screen and the world are one channel, not two.**
 
-`DRAG TO MOVE` is a control instruction and belongs in a screen slot. `STAND
-HERE` is a place, and belongs on the thing it names. That is why those two
-already work, and it is the test for everything else: **a mechanic with a
-place gets a world message. A mechanic without one stays on screen.**
+`DRAG TO MOVE`, `DODGE THE BULLET`, `STAND HERE`, `GO TO THE NEXT DOOR` — the
+game already works this way, and a sign on a wall does not get an exemption
+just because it is in the world. Two instructions is two glances, and on a
+portrait phone they are not even in different places: a sign painted high on a
+corridor wall projects near the vanishing point, which is exactly where the
+coach line sits. **Geometry puts them on top of each other**, so no amount of
+tuning separates them — only not drawing both does.
 
-Two more rules that follow from it:
+Enforced in `tutorPlaceSign`: if any cue slot is showing, the sign waits.
 
-- **Every world message replaces a screen cue, never adds to one.** The screen
-  gets quieter, not busier.
-- **The environment teaches first; the message only labels.** If the geometry
-  cannot make the action possible and obvious, no sign will fix it.
+### 1.1 A thumb message cannot leave the glass
+
+> **A message about a CONTROL lives on the screen. A message about a PLACE can
+> live in the world.**
+
+That single line settles where everything goes:
+
+| | example | where |
+|---|---|---|
+| **a thumb** | `DRAG TO MOVE`, `DRAG TO LOOK`, `TAP ANYWHERE TO SHOOT` | screen, always |
+| **a place** | `STAND HERE`, `EXIT`, `GO THROUGH THE DOOR` | the world |
+
+So the handoff is by lesson: **where a control is being taught, the screen
+owns the frame. Once it is taught, the world speaks.**
+
+### 1.2 A world message replaces a screen one, never joins it
+
+This is the rule that makes the whole system pay for itself rather than
+costing screen space.
+
+| screen line | becomes | and gains |
+|---|---|---|
+| `GO THROUGH THE DOOR` | `EXIT` on the door | the building labels its doors |
+| `GO TO THE BARRIER` | `STAND HERE` on the barrier | somebody painted this for you |
+| `WALK OVER IT TO TAKE IT` | a label on the gun | it was dropped, not issued |
+| `NO COVER · DO NOT STOP` | a stencil at the leg mouth | the building warns you |
+
+**Every row does two jobs with one message** — the instruction the screen line
+carried, plus a fact about the place that the screen line could never carry.
+That is the answer to *how do these serve both goals at once*: not by adding
+story text, but by moving instructions into objects.
+
+### 1.3 What that leaves the tutorial
+
+Two world messages, and both replace something:
+
+| lesson | | |
+|---|---|---|
+| 1–3 move, look, corners | screen | thumbs are being taught |
+| **4 stand here** | **world** | `STAND HERE` on the barrier *(already shipped)* |
+| 5–6 dodge, shoot | screen | thumbs again, and a fight |
+| **7 the door** | **world** | `EXIT` on the door, replacing `GO THROUGH THE DOOR` |
+
+**No turn signs in the teaching leg.** The first build put them there and the
+screenshots showed them landing on top of `DRAG TO MOVE`. `turnSigns: false`
+on that leg; every leg past the onboarding has no coach text at all, which is
+where they were always going to earn their keep.
 
 ---
 

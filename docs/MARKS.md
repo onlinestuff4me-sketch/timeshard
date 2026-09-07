@@ -61,18 +61,24 @@ The earlier draft proposed orange for wayfinding and hit a real conflict:
 `VIS.contactBlackCol` is `0xff6a24`, which is orange and already means *an
 enemy is standing there*. Both problems go away by not inventing a colour.
 
-### 2.1 One sign on screen, always
+### 2.1 One message on screen, counting the screen
 
-What keeps red unambiguous is not hue, it is **count**. `tutorSignPick`
-returns the nearest sign still ahead on the path and nothing else is drawn, so
-walking a corridor reads as a sequence of single instructions rather than as a
-noticeboard.
+What keeps red unambiguous is not hue, it is **count** — and the count is
+across both channels, not one. `docs/BEATS.md` §1 is the rule; this is how it
+is enforced.
 
-Two rules fall out of it, both enforced in `tutorPlaceSign`:
+`tutorSignPick` returns the nearest sign still ahead on the path and nothing
+else is drawn, so a corridor reads as a sequence of single instructions
+rather than as a noticeboard.
 
-- **The barrier's `STAND HERE` wins.** When it is up the player is being sent
-  to a place already on screen, and a second sign behind it is the
-  two-at-once case this exists to prevent.
+Three rules, all in `tutorPlaceSign`:
+
+- **Any cue slot showing means no sign.** Not just the world slot — `DRAG TO
+  MOVE` and a sign twenty metres away are two instructions competing for one
+  glance, and they land within a few per cent of each other because a sign
+  high on a wall projects near the vanishing point, which is where the coach
+  line sits.
+- **The barrier's `STAND HERE` wins**, being a world cue itself.
 - **No sign while anybody is on the floor.** A navigation mark belongs in a
   corridor with nobody in it — the rule `wayArrowShows()` already reaches for
   past the onboarding. It is also why a sign does not ride on the `way`
