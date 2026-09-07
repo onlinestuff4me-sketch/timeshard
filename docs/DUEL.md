@@ -110,23 +110,44 @@ debut never happened. An empty permission.
 
 ## Meeting a new type
 
-The first act of a debuting type stops the world. Its first round; for the
-rusher, the frame it plants and coils, which is the only tell it gives.
+**It is the onboarding's dodge beat, with a name on top.** The world stops the
+way the lesson stops it — `TUTOR.holdEase`, eased rather than snapped — and
+three rows fill the still screen:
 
-The card is **just the name**, pinned over the silhouette it belongs to, and
-the instruction is **a thumb crossing the stick the way you have to go**. Both
-halves matter and neither is prose: the card used to carry a sentence of
-tactics per type ("FIVE PELLETS, WIDE · STEP EARLY AND STEP FAR" and four more
-like it) and a stopped screen with a paragraph on it is a loading screen. A
-player meeting a new silhouette has two questions — who is that, and what do I
-do — and in a mode with one control the answer to the second is always the
-same shape: get off his line.
+| row | what it is |
+|---|---|
+| the **NAME** | the type the game announces doors in, outlined in red |
+| the **DODGE line** | the onboarding's own wording, in its own light ink |
+| the **thumb** | the coach disc from the lesson, travelling ONE way — the way you have to go |
+
+The first act of a debuting type is what stops it: its first round, or for the
+rusher the frame it plants and coils, which is the only tell it gives. **That
+first round is reserved for it.** A debut has to win a turn on a clock four
+gunners are also queuing for, and a shieldbearer — which may only fire while it
+is facing you, so it forfeits most turns it wins — measured more than forty
+seconds before its card appeared. By then the player has met it, been shot by
+it and learned it the hard way, which is not an introduction. So in a debut
+room nobody else may fire until the new type has.
+
+That reservation carries its own way out, because this mode bypasses the
+anti-deadlock valve every other one has — its clock is a volley schedule, not a
+queue. It lifts the moment no live body of that type is on the floor (you shot
+it before it opened), and it expires on its own after `meetLead: 12` world
+seconds however the room got there.
 
 Dodging is what releases it (`TUTOR.dodgeStepM` of sideways ground), because
-dodging is what the card asked for. `meetHold: 10` seconds is the last resort,
-so a stopped world nobody knows how to un-stop cannot happen. Once per type per
-run, and only in the room that type debuts in — a shotgunner met again three
-cycles later in a combination room is not a debut.
+dodging is what those words asked for both times they were said. `meetHold: 10`
+seconds is the last resort, so a stopped world nobody knows how to un-stop
+cannot happen. Once per type per run, and only in the room that type debuts in
+— a shotgunner met again three cycles later in a combination room is not a
+debut.
+
+The card carried a sentence of tactics per type once ("FIVE PELLETS, WIDE ·
+STEP EARLY AND STEP FAR", and four more like it). Every one was true and none
+of them was going to be read: a stopped screen with a paragraph on it is a
+loading screen. It was then a small plate pinned on the body with a cue tucked
+down by the stick, which is a card that is scattered rather than one that is
+read.
 
 **The button comes first.** `buttonRoom: 6` is the peak of the first cycle, one
 room before the first debut, because a debut says DODGE and slow time is what

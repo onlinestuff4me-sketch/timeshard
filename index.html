@@ -400,72 +400,71 @@
   /* ...and under the meter it is about */
   #duelcoach.atmeter { left:16px; right:16px;
                top:calc(env(safe-area-inset-top, 0px) + 58px); }
-  /* ON THE MAN, AND ONLY HIS NAME. A debut card is pinned over the
-     silhouette it is naming — left/top are set per freeze from his projected
-     position — so the name belongs to a body rather than floating in the
-     middle of the screen.
+  /* ---- MEETING A NEW TYPE -------------------------------------------------
+     Three rows, stacked and centred, on a world that has stopped — the same
+     shape the onboarding uses for every lesson it holds the world for:
+     WHO IT IS, WHAT TO DO, and a thumb doing it.
 
-     IT USED TO CARRY A SENTENCE TOO, and the sentence was the mistake: a
-     paragraph of tactics on a stopped screen is read by nobody and understood
-     by fewer. What a debut has to land is two things — WHO that is, and WHAT
-     TO DO — and neither of them is prose. The name goes here, on him; the
-     instruction is a thumb moving the way it means, over the stick. */
-  #duelcoach.atman { transform:translate(-50%, -100%); max-width:min(260px, 74vw); }
-  #duelcoach.atman b { background:#16181d; padding:9px 15px; position:relative; }
-  #duelcoach b i { display:block; font-style:normal; color:#ff2d1a;
-               font-size:13px; letter-spacing:.22em; }
-  /* a stem down to the head it names, so the plate reads as a label on him
-     rather than a card that happens to be nearby */
-  #duelcoach.atman b::after { content:''; position:absolute; left:50%; top:100%;
-               width:1.5px; height:16px; margin-left:-.75px;
-               background:linear-gradient(#16181d, rgba(22,24,29,0)); }
+     It was two floating pieces before — a small plate pinned over the body
+     and a cue tucked down by the stick — and a card that is scattered is a
+     card that is scanned. This is one column and there is nothing else on
+     screen, which is what a stopped world is for. */
+  #duelmeet { position:fixed; left:0; right:0; top:20%; z-index:11;
+              display:flex; flex-direction:column; align-items:center;
+              gap:min(3.4vh,28px); padding:0 14px; pointer-events:none;
+              opacity:0; transform:translateY(8px);
+              transition:opacity .35s ease, transform .35s ease; }
+  #duelmeet.on { opacity:1; transform:none; }
+  /* THE NAME, in the type the game announces doors in — the biggest words it
+     has — and outlined in red, because black on the freeze's pale wash is the
+     one place that type is not already legible, and because the outline says
+     ENEMY in the same red every threat on this screen wears. */
+  /* SIZED FOR THE LONGEST NAME, not for the shortest. The door banner runs at
+     min(12vw,58px) with .1em of tracking, and at that size SHOTGUNNER already
+     touched both edges of a 402 px screen and SHIELDBEARER ran off it. The
+     names are the content here, so the type is sized to the name rather than
+     the name being left to run off a screen the type happens to want.
 
-  /* THE OTHER HALF OF A DEBUT: what to do about him.
-     Not a sentence — the word, and a thumb crossing the stick the way the
-     player has to move. This mode has exactly one control, so the whole
-     instruction fits in one gesture, and a gesture survives being glanced at
-     where a line of tactics does not. It sits over the LEFT half, which is
-     where the move stick lives. */
-  /* DOWN WHERE THE THUMB IS, not up in the fight. At mid-screen the ring was
-     drawn straight over the man the card was naming and the word sat on his
-     chest — two red things on top of each other, neither readable. The move
-     stick lives in the lower left, so the gesture that says "use it" belongs
-     there: 25% across is the centre of the left half, and the height clears
-     the viewmodel and the ammo strip. */
-  #dueldodge { position:fixed; z-index:10; pointer-events:none; opacity:0;
-               transition:opacity .22s ease; left:25%;
-               bottom:calc(env(safe-area-inset-bottom, 0px) + 15vh);
-               transform:translateX(-50%); text-align:center; }
-  #dueldodge.on { opacity:1; }
-  /* on its own plate, because the floor behind it is any colour the room is */
-  #dueldodge b { display:inline-block; font-size:12px; font-weight:900;
-               letter-spacing:.26em; color:#ff2d1a; margin-bottom:12px;
-               background:rgba(22,24,29,.9); padding:7px 13px; border-radius:11px;
-               box-shadow:0 6px 22px rgba(22,24,29,.35); }
-  #dueldodge .stk { position:relative; display:block; width:104px; height:48px;
-               margin:0 auto; }
-  /* The ring the thumb rests in, and the thumb itself. Both carry BOTH inks —
-     a dark edge and a light one — because a freeze can land on a dark room or
-     a bright one and a coach that is only legible on one of them is a coach
-     that is sometimes not there. The onboarding's hands can key off
-     `body.slowmo`; this cannot, because the freeze IS slow motion. */
-  #dueldodge .stk::before { content:''; position:absolute; left:50%; top:50%;
-               width:48px; height:48px; margin:-24px 0 0 -24px; border-radius:50%;
-               box-shadow:inset 0 0 0 2px rgba(22,24,29,.55), 0 0 0 1.5px rgba(238,240,243,.5); }
-  #dueldodge .stk i { position:absolute; left:50%; top:50%; width:32px; height:32px;
-               margin:-16px 0 0 -16px; border-radius:50%; opacity:0;
-               background:rgba(238,240,243,.82);
-               box-shadow:inset 0 0 0 3px rgba(22,24,29,.62), 0 2px 10px rgba(22,24,29,.4); }
-  #dueldodge.right .stk i { animation:dodgeswipeR 1.25s ease-in-out infinite; }
-  #dueldodge.left  .stk i { animation:dodgeswipeL 1.25s ease-in-out infinite; }
-  @keyframes dodgeswipeR { 0%   { transform:translateX(0);    opacity:0; }
-                           18%  { transform:translateX(0);    opacity:.95; }
-                           72%  { transform:translateX(31px); opacity:.95; }
-                           100% { transform:translateX(31px); opacity:0; } }
-  @keyframes dodgeswipeL { 0%   { transform:translateX(0);     opacity:0; }
-                           18%  { transform:translateX(0);     opacity:.95; }
-                           72%  { transform:translateX(-31px); opacity:.95; }
-                           100% { transform:translateX(-31px); opacity:0; } }
+     TEN CHARACTERS IS WHERE IT BREAKS on a 402 px screen: SHOTGUNNER fits at
+     46 px and SHIELDBEARER does not, so the longer names step down instead of
+     every name paying for the longest one. The probe measures the overflow,
+     so both numbers are checked rather than guessed. */
+  #duelmeet .who { display:block; width:100%; font-weight:900; color:#16181d;
+              font-size:min(11.5vw,52px); letter-spacing:.04em; line-height:1.04;
+              text-align:center; text-wrap:balance;
+              text-shadow:
+                -2px 0 0 #ff2d1a,  2px 0 0 #ff2d1a,
+                 0 -2px 0 #ff2d1a, 0  2px 0 #ff2d1a,
+                -2px -2px 0 #ff2d1a, 2px -2px 0 #ff2d1a,
+                -2px  2px 0 #ff2d1a, 2px  2px 0 #ff2d1a,
+                 0 4px 22px rgba(12,13,16,.55); }
+  #duelmeet.longname .who { font-size:min(9.4vw,44px); }
+  /* ...AND THE INSTRUCTION, in the onboarding's own dodge line: same weight,
+     same size, same light ink and dark glow. It is the same sentence the
+     player was taught to answer with a sidestep, so it is the same sentence
+     here rather than a second phrasing of it. */
+  #duelmeet .what { display:block; width:100%; font-weight:900; color:#eef0f3;
+              font-size:min(8.4vw,38px); letter-spacing:.06em; line-height:1.06;
+              text-align:center; text-wrap:balance;
+              text-shadow:0 2px 14px rgba(12,13,16,.92), 0 0 2px rgba(12,13,16,.8); }
+  /* ...and the thumb, the same disc the onboarding coaches with, travelling
+     ONE WAY: which way is the whole point of it here. */
+  #duelmeet .stk { position:relative; display:block; width:180px; height:86px; }
+  #duelmeet .stk i { position:absolute; left:50%; top:50%;
+              width:74px; height:74px; margin:-37px 0 0 -37px; border-radius:50%;
+              opacity:0;
+              background:radial-gradient(circle, rgba(238,240,243,.5) 0%, rgba(238,240,243,.26) 55%, rgba(238,240,243,0) 70%);
+              box-shadow:inset 0 0 0 3px rgba(238,240,243,.78), 0 0 20px rgba(12,13,16,.55); }
+  #duelmeet.right .stk i { animation:meetswipeR 1.9s ease-in-out infinite; }
+  #duelmeet.left  .stk i { animation:meetswipeL 1.9s ease-in-out infinite; }
+  @keyframes meetswipeR { 0%   { transform:translateX(-52px); opacity:0; }
+                          16%  { transform:translateX(-52px); opacity:.95; }
+                          70%  { transform:translateX(52px);  opacity:.95; }
+                          100% { transform:translateX(52px);  opacity:0; } }
+  @keyframes meetswipeL { 0%   { transform:translateX(52px);  opacity:0; }
+                          16%  { transform:translateX(52px);  opacity:.95; }
+                          70%  { transform:translateX(-52px); opacity:.95; }
+                          100% { transform:translateX(-52px); opacity:0; } }
 
   /* slow-mo bank meter (button mode): drains while locked, kills refill it */
   #slowmeter { display:none; position:fixed; left:16px; right:16px;
@@ -1383,7 +1382,7 @@
      is "press this", and the second sits under the meter because "it refills
      when you shatter" only means anything while you can watch it fall. -->
 <div id="duelcoach"><b></b></div>
-<div id="dueldodge"><b>DODGE</b><span class="stk"><i></i></span></div>
+<div id="duelmeet"><b class="who"></b><b class="what"></b><span class="stk"><i></i></span></div>
 <div id="timetip">
   <div class="tt1"><span>TAP</span><span class="ttbtn"><i></i></span><span>TO STOP TIME</span></div>
   <div class="tt2">BULLETS FREEZE WHILE YOU MOVE</div>

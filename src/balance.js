@@ -341,6 +341,19 @@ export const OPENING = {
   // prevent it. The ceiling is the gap plus this, so the gap is what decides
   // and this is only the deadlock guard it was always meant to be.
   holdSlack: 0.6,
+  // ...AND THE VALVE STILL LETS ONE MAN THROUGH AT A TIME.
+  //
+  // The allowance above is per-man, so when a crowd has all been waiting past
+  // it they all release TOGETHER — measured at door 5, two rounds at the same
+  // instant, a gap of zero. That is the chorus the shared clock exists to
+  // prevent, arriving through the one door in it: sidestepping answers a
+  // stream of rounds and cannot answer a wall of them.
+  //
+  // So a valve release is still a round, and rounds are events: this is the
+  // shortest gap that reads as two of them rather than one loud one. It does
+  // not delay anybody beyond the next frames — the man who lost the race is
+  // still past his allowance and fires as soon as this clears.
+  valveFloor: 0.2,
 };
 
 export const EARLY = {
@@ -1192,24 +1205,38 @@ export const SIMPLE = {
     // A debut stops the world on the type's FIRST ACT — its first shot, or for
     // the rusher the moment it plants and coils. Once per type per run.
     //
-    // A DEBUT IS A NAME AND A GESTURE, and this is the name half.
+    // A DEBUT IS THE ONBOARDING'S DODGE BEAT, WITH A NAME ON TOP.
     //
-    // These were sentences: "FIVE PELLETS, WIDE · STEP EARLY AND STEP FAR",
-    // and four more like it. Every one of them was true and none of them was
-    // read — a stopped screen with a paragraph on it is a loading screen. A
-    // player meeting a new silhouette has two questions, WHO and WHAT DO I
-    // DO, and the answer to the second is the same in every case because
-    // this mode has one control: get off his line. So the card names him and
-    // the coach shows the thumb going the way that does it. The type still
-    // has to be listed here — the list IS which types get a debut at all.
+    // The world stops the way the lesson stops it, and three rows fill the
+    // screen: who it is, the same DODGE line the player was taught to answer
+    // with a sidestep, and a thumb going the way that answers it here.
+    //
+    // These were sentences of tactics — "FIVE PELLETS, WIDE · STEP EARLY AND
+    // STEP FAR", and four more like it. Every one was true and none of them
+    // was going to be read: a stopped screen with a paragraph on it is a
+    // loading screen.
+    //
+    // THE KEY IS THE NAME and the value is the second row. Being listed here
+    // is what gives a type a debut at all. The line is the onboarding's own
+    // wording, changed only where it would be untrue: a rusher has no bullet
+    // to dodge, it has a lunge.
     meet: {
-      shotgunner: 'SHOTGUNNER',
-      rusher: 'RUSHER',
-      shieldbearer: 'SHIELDBEARER',
-      heavy: 'HEAVY',
-      armored: 'ARMORED',
+      shotgunner: 'DODGE THE BULLET',
+      rusher: 'DODGE THE LUNGE',
+      shieldbearer: 'DODGE THE BULLET',
+      heavy: 'DODGE THE BURST',
+      armored: 'DODGE THE BULLET',
     },
     meetHold: 10,   // seconds before a debut freeze lets go on its own
+    // ...and how long a debut room holds its FIRST ROUND for the new type
+    // before anyone else may fire, in world seconds. A debut has to win a turn
+    // on a clock the room's gunners are also queuing for, and a shieldbearer —
+    // which may only fire while it is facing you — measured over forty seconds
+    // before its card appeared, by which time the player had met it, been shot
+    // by it and learned it the hard way. Twelve seconds is two or three turns
+    // at the gaps these rooms run; past that the room goes on without it, and
+    // it is off the moment nothing of that type is left standing.
+    meetLead: 12,
     // HOW CLOSE THEY MAY COME, in metres in front of where you stand.
     //
     // Everywhere else the answer is the door approach, and in this mode that

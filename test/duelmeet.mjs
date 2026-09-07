@@ -7,10 +7,10 @@ import { boot, done, OUT } from './lib.mjs';
 // that beats it. Dodging releases it, because dodging is what the card asked
 // for and the only control this mode has.
 //
-// The card is pinned over the silhouette rather than floating mid-screen: the
-// name belongs to a body — and the card is ONLY the name. The instruction is
-// a thumb crossing the stick the way the player has to go, because this mode
-// has one control and a gesture survives a glance where a sentence does not.
+// The card is the ONBOARDING'S DODGE BEAT with a name on top: three rows
+// stacked down a still screen — who it is, the same DODGE line that lesson
+// taught, and a thumb going the way that answers it — and the sidestep those
+// words ask for is what starts the world again.
 const SEED = () => { try { const now = Date.now();
   localStorage.setItem('timeshard_taught', '1'); localStorage.setItem('ts_deepest_door', '40');
   localStorage.setItem('ts_s0_used', '1'); localStorage.setItem('ts_s0_mode', 'hall');
@@ -90,14 +90,21 @@ for (const d of debuts.slice(0, 3)) {
     const home = { x: L.spine[0][0] * C, z: L.spine[0][1] * C };
     t.player.pos.x = home.x; t.player.pos.z = home.z;
     const card = () => {
-      const c = document.getElementById('duelcoach'), g = document.getElementById('dueldodge');
-      const box = c.getBoundingClientRect();
-      return { on: c.classList.contains('on'), atman: c.classList.contains('atman'),
-        text: c.textContent.trim(),
-        cue: g.classList.contains('on')
-          ? (g.classList.contains('right') ? 'right' : g.classList.contains('left') ? 'left' : '?')
-          : '',
-        x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
+      const m = document.getElementById('duelmeet');
+      const row = (sel) => {
+        const e = m.querySelector(sel), b = e.getBoundingClientRect();
+        return { text: e.textContent.trim(), top: Math.round(b.top),
+          bottom: Math.round(b.bottom), w: Math.round(b.width),
+          // ...and whether the words fit in it. A row that is 100% wide
+          // measures 402 px whether or not the name inside it ran off both
+          // ends, so the overflow has to be asked for by name.
+          over: e.scrollWidth > e.clientWidth + 1,
+          size: Math.round(parseFloat(getComputedStyle(e).fontSize)) };
+      };
+      return { on: m.classList.contains('on'),
+        cue: m.classList.contains('right') ? 'right'
+          : m.classList.contains('left') ? 'left' : '',
+        who: row('.who'), what: row('.what'), stk: row('.stk') };
     };
     // hold your end and wait for the new thing to do its first thing
     const t0 = performance.now();
@@ -129,18 +136,20 @@ for (const d of debuts.slice(0, 3)) {
   if (r.held.coach === 'meet' && !shot) {
     shot = true;
     const hold = page.evaluate(() => window.__holdMeet());
-    await page.waitForTimeout(250);
+    // ...and catch the thumb PART-WAY ACROSS. Its travel is a 1.9 s loop that
+    // starts and ends at zero opacity, so a picture taken on arrival caught it
+    // invisible and the capture showed two rows and an empty gap.
+    await page.waitForTimeout(900);
     await page.screenshot({ path: OUT + 'duel-meet.png' });
     await hold.catch(() => {});
   }
   const r2 = await page.evaluate(async (home) => {
     const t = window.__ts;
     const card = () => {
-      const c = document.getElementById('duelcoach'), g = document.getElementById('dueldodge');
-      return { on: c.classList.contains('on'),
-        cue: g.classList.contains('on')
-          ? (g.classList.contains('right') ? 'right' : g.classList.contains('left') ? 'left' : '?')
-          : '' };
+      const m = document.getElementById('duelmeet');
+      return { on: m.classList.contains('on'),
+        cue: m.classList.contains('right') ? 'right'
+          : m.classList.contains('left') ? 'left' : '' };
     };
     // ...and dodging is what answers it
     // ...and we go the way the thumb went: screen-right is +x or -x depending
@@ -160,19 +169,61 @@ for (const d of debuts.slice(0, 3)) {
   r.after = r2;
   seen.push({ d, r });
   console.log('room ' + d.room + ' (' + d.type + '):');
-  console.log('   held:  ' + JSON.stringify(r.held));
+  console.log('   held:  coach=' + r.held.coach + ' scale=' + r.held.scale
+    + ' card ' + (r.held.on ? 'up' : 'down') + ' thumb ' + (r.held.cue || 'none'));
+  for (const k of ['who', 'what', 'stk']) {
+    const v = r.held[k];
+    console.log('     ' + k.padEnd(5) + ' y ' + String(v.top).padStart(3) + '-'
+      + String(v.bottom).padStart(3) + '  ' + v.size + 'px  '
+      + (v.over ? 'OVERFLOWS  ' : '') + JSON.stringify(v.text));
+  }
   console.log('   after dodging: coach=' + r.after.coach + ' card '
     + (r.after.on ? 'STILL UP' : 'gone') + ' scale ' + r.after.scale);
   if (r.held.coach !== 'meet') { bad(d.type + ' never stopped the world on its debut'); continue; }
   if (r.held.scale > 0.001) bad(d.type + ' froze but the world kept moving: ' + r.held.scale);
   if (!r.held.on) bad(d.type + ' froze without a card');
-  if (!r.held.atman) bad(d.type + '’s card is not pinned to the body it names');
-  if (r.held.text.toUpperCase() !== d.type.toUpperCase()) {
-    bad(d.type + '’s card says more than its name: ' + JSON.stringify(r.held.text));
+  if (r.held.who.text.toUpperCase() !== d.type.toUpperCase()) {
+    bad(d.type + ' is not named on its own card: ' + JSON.stringify(r.held.who.text));
+  }
+  if (!/^DODGE /.test(r.held.what.text)) {
+    bad(d.type + '’s second row is not the dodge line: ' + JSON.stringify(r.held.what.text));
   }
   if (r.held.cue !== 'left' && r.held.cue !== 'right') {
     bad(d.type + ' froze without a thumb showing which way to go: '
       + JSON.stringify(r.held.cue));
+  }
+  // THREE ROWS, STACKED, AND BIG ENOUGH TO BE THE SCREEN. A card whose pieces
+  // overlap or hide off the bottom is a card nobody reads, and the whole
+  // reason the world is stopped is so it can be read.
+  if (!(r.held.who.bottom <= r.held.what.top
+        && r.held.what.bottom <= r.held.stk.top)) {
+    bad(d.type + '’s rows are not stacked in order: who ' + r.held.who.bottom
+      + ', what ' + r.held.what.top + '-' + r.held.what.bottom
+      + ', thumb ' + r.held.stk.top);
+  }
+  if (r.held.stk.bottom > 874 || r.held.who.top < 0) {
+    bad(d.type + '’s card runs off the screen: ' + r.held.who.top
+      + ' to ' + r.held.stk.bottom + ' in 874');
+  }
+  // THE NAME IS THE HEADLINE, so it has to be the biggest thing on the card —
+  // and the size that fits the longest name is a measured number, not a round
+  // one, so the bar is the relationship rather than a threshold.
+  if (r.held.who.size <= r.held.what.size) {
+    bad(d.type + '’s name is not bigger than the line under it: '
+      + r.held.who.size + 'px against ' + r.held.what.size + 'px');
+  }
+  if (r.held.who.size < 34) {
+    bad(d.type + '’s name is not announcing-sized: ' + r.held.who.size + 'px');
+  }
+  if (r.held.what.size < 26) {
+    bad(d.type + '’s dodge line is too small to be the instruction: '
+      + r.held.what.size + 'px');
+  }
+  for (const k of ['who', 'what']) {
+    if (r.held[k].over) {
+      bad(d.type + '’s ' + k + ' row runs off the sides: '
+        + JSON.stringify(r.held[k].text) + ' at ' + r.held[k].size + 'px');
+    }
   }
   if (r.after.on) bad(d.type + '’s card survived the dodge that was supposed to answer it');
   if (r.after.cue) bad(d.type + '’s thumb coach survived the dodge it asked for');

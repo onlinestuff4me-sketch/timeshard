@@ -3878,8 +3878,32 @@ function duelRoom() { return hall ? hall.doorsPassed + 1 : 1; }
 // is measured from the START of a volley, not from its last round, so two men
 // firing together cost the room one turn rather than two.
 let duelVolleyAt = -1e9, duelVolleyN = 0;
-function duelMayFire() {
+function duelMayFire(e) {
   const p = duelPlan(duelRoom());
+  // THE FIRST ROUND OF A DEBUT ROOM BELONGS TO THE DEBUT.
+  //
+  // A room that introduces a type introduces it on that type's first act, and
+  // that act has to win a turn on a clock four gunners are also queuing for.
+  // Measured, a shieldbearer — which may only fire while it is facing you, so
+  // it forfeits most turns it does win — went more than forty seconds before
+  // its card appeared, and by then the player had met it, been shot by it and
+  // learned it the hard way. The introduction has to come first or it is not
+  // an introduction.
+  //
+  // Only until it has fired once: `duel.met` gets the type on that round, and
+  // from the next one the room is an ordinary room.
+  //
+  // AND NEVER INTO A DEADLOCK. A reservation held on somebody who is not
+  // coming is a room where nobody may ever fire — the duel bypasses the
+  // anti-deadlock valve every other mode has, because its clock is a volley
+  // schedule rather than a queue, so this one has to carry its own way out.
+  // Two of them: the reservation is off the moment no live body of that type
+  // is on the floor (the player shot it before it opened), and it expires on
+  // its own after `meetLead` world seconds however the room got there.
+  if (p.fresh && SIMPLE.duel.meet[p.fresh] && !duel.met.has(p.fresh)
+      && e && e.type !== p.fresh
+      && worldT - ((hall && hall.duelFreshAt) || 0) < SIMPLE.duel.meetLead
+      && enemies.some((x) => x.alive && x.type === p.fresh)) return false;
   // joining the volley in progress: inside its window, and a breath behind
   // whoever fired last, so three men read as three men
   const window = SIMPLE.duel.volleyStep * p.volley + SIMPLE.duel.volleySlack;
@@ -4438,10 +4462,15 @@ function updateEnemy(e, sdt) {
         // three men firing as one cost the room one turn rather than three,
         // which is what makes a wider shape affordable rather than simply
         // three times the danger.
+        // ...AND THE VALVE IS A DOOR, NOT A GATE LIFTED FOR EVERYONE AT ONCE.
+        // Each man's allowance is his own, so a crowd that has all outwaited
+        // it releases on the same frame — measured, two rounds at door 5 with
+        // a gap of zero between them. See OPENING.valveFloor.
+        const valve = held >= gap * queued + OPENING.holdSlack
+          && worldT - lastEnemyShotAt >= OPENING.valveFloor;
         const holding = game.mode === 'duel'
-          ? !duelMayFire()
-          : (worldT - lastEnemyShotAt < gap
-            && held < gap * queued + OPENING.holdSlack);
+          ? !duelMayFire(e)
+          : (worldT - lastEnemyShotAt < gap && !valve);
         if (!e.scriptShot && holding) {
           e.holdFireT = held + sdt;
         } else {
@@ -10087,7 +10116,7 @@ const el = {
   gtime: document.getElementById('gtime'),
   slowmeter: document.getElementById('slowmeter'),
 
-  dueldodge: document.getElementById('dueldodge'),
+  duelmeet: document.getElementById('duelmeet'),
   tutorhand: document.getElementById('tutorhand'),
   tutorline: document.getElementById('tutorline'),
   tutorarrow: document.getElementById('tutorarrow'),
@@ -12070,7 +12099,12 @@ function hallWave(n) {
   // you can reach and a room that is meant to BUILD, so its list has to
   // survive as a list: 3, 3, 4 is a room that ends on its biggest fight, and
   // 4, 4, 2 is the same ten men arriving in the wrong order.
-  if (game.mode === 'duel' && hall) hall.duelGroups = duelPlan(n).groups.slice();
+  if (game.mode === 'duel' && hall) {
+    hall.duelGroups = duelPlan(n).groups.slice();
+    // ...and when the room opened, which is what the debut's reservation on
+    // the first round is timed out against. See duelMayFire.
+    hall.duelFreshAt = worldT;
+  }
   // ...and the CAST is composed the same way it always was — the ramp decides
   // how many, never who. A door that debuts a type still leads with it.
   const sub = { laser: 'rusher', sniper: 'gunner', rocketeer: 'heavy', bomber: 'shotgunner' };
@@ -12931,7 +12965,7 @@ function resetSimpleState() {
   duel.coach = 'wait';
   duel.coachT = 0;
   duelCoachSay('');
-  duelDodgeCue(0);
+  duelMeetCard(0);
   stopDebt = 0;
 }
 
@@ -12979,24 +13013,27 @@ function roundInbound() {
 //   3. ...and then the second line, at the meter that is now visibly draining,
 //      because "it refills when you shatter" is only meaningful while the
 //      player can see it going down.
-function duelCoachSay(text, where, name) {
+function duelCoachSay(text, where) {
   const el2 = el.duelcoach;
   if (!el2) return;
-  const b = el2.firstChild;
-  if (name) b.innerHTML = `<i>${escHtml(name)}</i>`;
-  else b.textContent = text || '';
-  el2.classList.toggle('on', !!(text || name));
+  el2.firstChild.textContent = text || '';
+  el2.classList.toggle('on', !!text);
   el2.classList.toggle('atbtn', where === 'btn');
   el2.classList.toggle('atmeter', where === 'meter');
-  el2.classList.toggle('atman', where === 'man');
-  if (where !== 'man') { el2.style.left = ''; el2.style.top = ''; el2.style.right = ''; }
 }
-// THE GESTURE HALF OF A DEBUT: the word, and a thumb crossing the stick the
-// way the player has to go. `dir` is +1 for a swipe to the right of the
-// screen, -1 for the left, or 0 to take it down.
-function duelDodgeCue(dir) {
-  const d = el.dueldodge;
+// THE DEBUT CARD: three rows on a stopped world — who it is, what to do, and
+// a thumb doing it. `dir` is +1 for a swipe to the right of the screen, -1
+// for the left; 0 takes the whole card down.
+function duelMeetCard(dir, name, what) {
+  const d = el.duelmeet;
   if (!d) return;
+  if (dir) {
+    d.querySelector('.who').textContent = name;
+    d.querySelector('.what').textContent = what;
+    // ...and the longest names step the headline down rather than running off
+    // the sides of it. See #duelmeet .who.
+    d.classList.toggle('longname', name.length > 10);
+  }
   d.classList.toggle('on', !!dir);
   d.classList.toggle('right', dir > 0);
   d.classList.toggle('left', dir < 0);
@@ -13024,14 +13061,16 @@ function duelDodgeDir(e) {
 // MEETING A NEW TYPE. The world stops on its first act — its first round, or
 // for the rusher the frame it plants and coils.
 //
-// TWO HALVES, NEITHER OF THEM PROSE. The card is his NAME and nothing else,
-// pinned over the silhouette it belongs to; the instruction is a thumb
-// crossing the stick the way the player has to go, down where the move stick
-// lives. It used to be a sentence of tactics per type, every one of them true
-// and none of them read: a stopped screen with a paragraph on it is a loading
-// screen, and in a mode with one control the answer is always the same shape —
-// get off his line. Once per type per run.
-const _vMeet = new THREE.Vector3();
+// IT IS THE ONBOARDING'S DODGE BEAT, WITH A NAME ON TOP. Three rows fill the
+// still screen — who it is, the same DODGE line that lesson taught, and a
+// thumb going the way that answers it — and a sidestep starts the world
+// again, which is what those words asked for both times.
+//
+// It used to be a sentence of tactics per type, every one of them true and
+// none of them read: a stopped screen with a paragraph on it is a loading
+// screen. Then it was a small plate pinned on the body with a cue tucked down
+// by the stick, which is a card that is scattered rather than one that is
+// read. Once per type per run.
 function duelNoteMeet(e) {
   if (!e || game.mode !== 'duel' || game.state !== 'play') return;
   if (duel.coach === 'tap' || duel.coach === 'meet') return;   // one card at a time
@@ -13046,18 +13085,7 @@ function duelNoteMeet(e) {
   duel.coachT = 0;
   duel.meetFrom = player.pos.x;
   duel.meetDir = duelDodgeDir(e);
-  duelCoachSay('', 'man', line);
-  duelDodgeCue(duel.meetDir);
-  // pin the card over him, worked out once because the world is stopped
-  _vMeet.set(e.pos.x, 1.9, e.pos.z).project(camera);
-  const w = window.innerWidth, h = window.innerHeight;
-  const el2 = el.duelcoach;
-  if (el2) {
-    const x = Math.max(12, Math.min(w - 12, (_vMeet.x * 0.5 + 0.5) * w));
-    const y = Math.max(70, Math.min(h - 180, (-_vMeet.y * 0.5 + 0.5) * h));
-    el2.style.left = Math.round(x) + 'px';
-    el2.style.top = Math.round(y) + 'px';
-  }
+  duelMeetCard(duel.meetDir, e.type.toUpperCase(), line);
   vibrate([14, 50, 14]);
 }
 // Called from enemyFire, on every enemy shot in the game — so the first thing
@@ -13091,7 +13119,7 @@ function updateDuelCoach(dtReal) {
     // it, and `simpleTime` would keep the clock at zero for ever.
     if (game.state !== 'play') {
       duel.coach = 'done'; duel.meetType = null;
-      duelCoachSay(''); duelDodgeCue(0);
+      duelMeetCard(0);
       return;
     }
     duel.coachT += dtReal;
@@ -13102,8 +13130,7 @@ function updateDuelCoach(dtReal) {
     if (across >= TUTOR.dodgeStepM || duel.coachT > SIMPLE.duel.meetHold) {
       duel.coach = 'done';
       duel.meetType = null;
-      duelCoachSay('');
-      duelDodgeCue(0);
+      duelMeetCard(0);
     }
     return;
   }
@@ -13141,8 +13168,12 @@ function simpleTime() {
     // So the opening rooms run at full speed and are simply the fight; the
     // button arrives with a coach at SIMPLE.duel.buttonRoom, and from there
     // slow time is a thing you do.
-    // the two held beats: meeting the button, and meeting a new type
-    if (duel.coach === 'tap' || duel.coach === 'meet') return { target: 0, ease: 30 };
+    // THE TWO HELD BEATS: meeting the button, and meeting a new type. A debut
+    // stops the world the way the ONBOARDING stops it — TUTOR.holdEase, not a
+    // snap — because it is the same beat: three rows on a still screen, and
+    // the sidestep they ask for is what starts it again.
+    if (duel.coach === 'meet') return { target: 0, ease: TUTOR.holdEase };
+    if (duel.coach === 'tap') return { target: 0, ease: 30 };
     return { target: (duelButtonOn() && timeLocked) ? SIMPLE.duel.slow : TIME_FULL,
       ease: SIMPLE.duel.ease };
   }
