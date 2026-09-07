@@ -295,14 +295,14 @@ re-litigated.
 
 | # | question | why it matters |
 |---|---|---|
-| **Q2b** | **Does `SPEED.unlockM` move from door 46 to ~30?** | `SCRIPT.md` §5 puts the last message at 49 and the clone at 50, which leaves four doors for the school, the discovery of the full stop and the finale. Not enough room. Moving the unlock is a balance decision, not a story one. |
-| **Q2** | **Is door 50 reachable by enough players?** | The whole arc now lands there (`SCRIPT.md` §5). If most players stop at door 20 the back half of the script is never read, and the fix is either a shorter arc or a shallower ramp. |
+| **Q24** | **Where do the ramp revisions land the unlock and the finale?** | The two numbers `SCRIPT.md` §5.1 consumes. The Corridor / No Retreat ramp work may reshape both, and the story now absorbs either answer without an edit. |
+| **Q2** | **Is the finale reachable by enough players?** | The arc lands wherever **F** does. If most players stop well short, the back half is never read — and the fix is fewer beats, not compressed ones (`SCRIPT.md` §5.3). |
 | **Q3** | **How many questions at the end, and what are they?** | Each answer must be worth a whole replay. Three or four. |
 | **Q4** | **Does the pad survive the ending's wipe?** | Recommended yes (§9.1). Not confirmed. |
 | **Q18** | **Does T25 need to exist?** | It is the win condition in plain words. If the full stop is discoverable without it, T25 is a safety net; if not, the ending is gated on a page a player may never have collected. |
 | **Q21** | **Who voices Hale?** | Ten logs of ordinary speech. The only recorded voice the game needs — the numbers can be synthesised, because nothing depends on hearing them. |
 | **Q22** | **Does a rewritten wall keep the false word visible?** | Struck through keeps the drama and doubles the text on a phone screen. |
-| **Q23** | **Can the mark painter draw two or three lines?** | `tutorPlaceWorldCue` draws one `nowrap` line scaled by width in metres, so an eight-word sign is unreadable at distance. Multi-line is the only real cost of dropping the word limit (`SCRIPT.md` §2.3). |
+
 | **Q6** | **Recorded voice or synthesised?** | Eleven files either way, but the voice is the texture of the device. |
 | **Q15** | **Does the reveal hallway need its own art?** | It is meant to read as outside the simulation. Different light on the existing corridor may be enough, or it may need to look like nothing else in the game. |
 | **Q16** | **What does the very first reveal do?** | The player has no idea what a transmission is yet. The first one has to teach the whole system — that these are messages, that they are being decoded, that there are more — without a tutorial. |
@@ -330,9 +330,11 @@ re-litigated.
 | **A16** | Is it all audio? | **No — inverted.** The walls carry the plot; audio is optional colour that never holds a fact the walls need (§3.4). |
 | **A28** | Do audio legs need 69 m of empty corridor? | No longer. Nothing load-bearing is in the audio, so it plays over ordinary corridors and ducks during fights (§3.5). This answers Q20. |
 | **A29** | What does a page actually change? | The sign on the wall, permanently — visible on the next run through that door (§3.7). |
+| **A30** | Can a sign wrap? | **Two or three rows, never more.** Three short rows still read as a sign; four read as a paragraph on a wall. A line that will not fit in three gets rewritten (`SCRIPT.md` §2.3). |
+| **A31** | Does the script break when the ramp is retuned? | No. No wall line owns a door number — the script is an ordered list and the doors are computed from `unlockDoor()` and the finale (`SCRIPT.md` §5). |
 | **A17** | Where does the board live? | UNLOCKS — which already renders redaction bars sized to hidden text and an `N OF M` header (§3.9). |
 | **A18** | Won't the reveal get tiresome? | It fires at most once per new door reached, and replaces the death screen rather than being added to it (§3.8, §4.1). |
-| **A19** | Where does the clone live? | **Door 50.** Ten messages, one every five doors, last at 49 (`SCRIPT.md` §5). |
+| **A19** | Where does the clone live? | Wherever **F** is set. The script spaces itself against it (`SCRIPT.md` §5.1). |
 | **A20** | How many messages? | **Twenty-five**, one every two doors, doors 2–50 (`SCRIPT.md` §5). |
 | **A23** | Is every message a lie? | No. **Three voices** — the programme (false), Hale the eighth subject (honest, sometimes wrong), and the builders (true). Only the programme's nine have pages (`SCRIPT.md` §3). |
 | **A24** | Who rewrites the messages, and why? | The programme. They have never been able to read the channel, so they jam individual groups and substitute their own digits — which is why a rewritten message is a real sentence with one or two words wrong (`SCRIPT.md` §3.2). |

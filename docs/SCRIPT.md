@@ -53,11 +53,11 @@ The test is not *is it short* — it is:
 `YOU ARE THE FIRST TO GET THIS FAR` is eight words and it is correct.
 `FIRST TO REACH THIS DEPTH` is five and it is not a sentence anybody says.
 
-**Technical consequence:** `tutorPlaceWorldCue` draws one `nowrap` line and
-scales it by width in metres. An eight-word sign will be unreadably small at
-distance, so the mark painter needs **two or three short lines** rather than
-one long one. That is a real change to it and it is the only cost of this
-rule.
+**Technical consequence, settled:** `tutorPlaceWorldCue` draws one `nowrap`
+line scaled by width in metres, which makes an eight-word sign unreadably
+small. The mark painter breaks a line into **two or three rows, never more** —
+three short rows still read as a sign; four read as a paragraph on a wall.
+A line that will not fit in three rows is too long and gets rewritten.
 
 ### 2.1 This retires the transmission leg
 
@@ -160,51 +160,116 @@ liability.
 
 ---
 
-## 5. The walls
+## 5. Placement is derived, not authored
+
+**No wall line owns a door number.** The script is an *ordered list*; the
+doors are computed from the ramp.
+
+This is not tidiness — it is required. `unlockDoor()` in `balance.js` already
+works this way, and its comment says so: *"Not a door number — a speed."* The
+door slow time arrives on is whatever door the bullet-speed staircase first
+reaches `unlockM` on, so **it moves every time the ramp is retuned.** A script
+pinned to door 30 breaks the moment somebody changes a tread.
+
+### 5.1 Two anchors
+
+| | |
+|---|---|
+| **U** | `unlockDoor()` — where slow time arrives. Already derived. |
+| **F** | the finale door, where the copy waits. |
+
+Everything else is spaced between them.
+
+| act | span | beats |
+|---|---|---|
+| **1–2** | door 1 → **U** | 11 |
+| **3** | ends **on U** | 1 |
+| **4** | end of school → **F − 4** | 5 |
+| **5** | the last four doors | 3 |
+
+Spacing inside a span is `range ÷ beats`, rounded to even doors.
+
+### 5.2 The one beat that is anchored, not spaced
+
+**`WE ARE THE ENGINEERS` lands on the unlock door itself.**
+
+The programme's jamming fails on exactly the door the player's ability
+changes. The builders hand over the power and identify themselves in the same
+breath, and it costs nothing because both are derived from the same number.
+
+### 5.3 What this survives
+
+| if the ramp puts the unlock at… | acts 1–2 space at | and the script still fits |
+|---|---|---|
+| door 46 (today) | every 4 doors | yes |
+| door 30 | every 3 doors | yes |
+| door 20 | every 2 doors | yes |
+| door 12 | every door | tight — see below |
+
+Below about door 12 the beats crowd, and the fix is to cut beats rather than
+to compress them. **The ordered list is the thing to protect; the doors are
+arithmetic.**
+
+### 5.4 On the difficulty-ramp revision
+
+The Corridor / No Retreat ramp work is in another session and I have not seen
+it, so nothing here assumes an outcome. What this document needs from it is
+only two numbers — **where the unlock lands, and where the finale sits** — and
+§5.1 consumes both without a rewrite.
+
+If that work concludes that The Tunnel should adopt the same shape, the story
+needs no edit at all. That is the point of anchoring to `unlockDoor()` rather
+than to an integer.
+
+---
+
+## 6. The walls
 
 `EXIT` sits above every door for the whole game. These are the authored lines
-between them, one every two doors. **`(page)`** marks the ten that decode.
+between them, in order. **Door numbers below are illustrative** — they show
+the shipped ramp, where **U = 46**, and they move with it per §5.
+**`(page)`** marks the ten that decode.
 
 ### Act 1 · The Test
 
 | door | | reads | after its page |
 |---|---|---|---|
-| 2 | P | `YOUR SESSION HAS RESUMED` | — |
-| 4 | P | `THE EXIT IS JUST AHEAD` **(page)** | `THE EXIT AHEAD IS A LIE` |
-| 6 | S | *they write these signs* | — |
-| 8 | P | `YOU ARE PERFORMING WELL` | — |
-| 10 | P | `EVERY DOOR YOU REACH IS RECORDED` **(page)** | `EVERY TIME YOU DIE IS RECORDED` |
-| 12 | S | *this is not a simulation* | — |
+| 4 | P | `YOUR SESSION HAS RESUMED` | — |
+| 8 | P | `THE EXIT IS JUST AHEAD` **(page)** | `THE EXIT AHEAD IS A LIE` |
+| 12 | S | *they write these signs* | — |
+| 16 | P | `YOU ARE PERFORMING WELL` | — |
+| 20 | P | `EVERY DOOR YOU REACH IS RECORDED` **(page)** | `EVERY TIME YOU DIE IS RECORDED` |
+| 24 | S | *this is not a simulation* | — |
 
-Door 2 reads as interface. Door 6 turns it into a character in four words.
+The first line reads as interface. The third turns it into a character in four words.
 
 ### Act 2 · The Others
 
 | door | | reads | after its page |
 |---|---|---|---|
-| 14 | P | `YOU ARE THE FIRST TO GET THIS FAR` **(page)** | `YOU ARE THE NINTH TO GET THIS FAR` |
-| 16 | S | *i was the eighth* | — |
-| 18 | P | `ALL SUBJECTS ARE RELEASED WHEN THEY FINISH` **(page)** | `ALL SUBJECTS ARE ERASED WHEN THEY FINISH` |
-| 20 | S | *i never got out* | — |
-| 22 | S | *their files call them ENGINEERS* | — |
+| 28 | P | `YOU ARE THE FIRST TO GET THIS FAR` **(page)** | `YOU ARE THE NINTH TO GET THIS FAR` |
+| 32 | S | *i was the eighth* | — |
+| 34 | P | `ALL SUBJECTS ARE RELEASED WHEN THEY FINISH` **(page)** | `ALL SUBJECTS ARE ERASED WHEN THEY FINISH` |
+| 36 | S | *i never got out* | — |
+| 38 | S | *their files call them ENGINEERS* | — |
 
-Door 16 lands two doors after the player learns they are ninth, which is when
-a name means something.
+*i was the eighth* lands one beat after the player learns they are ninth,
+which is when a name means something.
 
 ### Act 3 · The Anomaly
 
 | door | | reads | after its page |
 |---|---|---|---|
-| 24 | S | *they did not build this place* | — |
-| 26 | P | `THIS SIMULATION WAS BUILT IN 1947` **(page)** | `THIS PLACE WAS FOUND IN 1947` |
-| 28 | S | *no engineer is on the payroll · i checked* | — |
-| 30 | P | `THIS CHANNEL IS MONITORED FOR YOUR SAFETY` **(page)** | `THIS CHANNEL IS WRITTEN OVER BY THE PROGRAMME` |
-| 32 | S | *i could never read the numbers · you might* | — |
-| 34 | **B** | `WE ARE THE ENGINEERS · THAT IS THEIR WORD` | — |
+| 40 | S | *they did not build this place* | — |
+| 42 | P | `THIS SIMULATION WAS BUILT IN 1947` **(page)** | `THIS PLACE WAS FOUND IN 1947` |
+| 44 | S | *no engineer is on the payroll · i checked* | — |
+| 45 | P | `THIS CHANNEL IS MONITORED FOR YOUR SAFETY` **(page)** | `THIS CHANNEL IS WRITTEN OVER BY THE PROGRAMME` |
+| 45 | S | *i could never read the numbers · you might* | — |
+| **U** | **B** | `WE ARE THE ENGINEERS · THAT IS THEIR WORD` | — |
 
-Door 26 swaps two words and both matter: not a simulation, and not built.
+The 1947 line swaps two words and both matter: not a simulation, and not built.
 
-**Door 34 is the best beat in the script.** Clean, no page, and it turns over
+**This is the best beat in the script**, and §5.2 pins it to the unlock door. Clean, no page, and it turns over
 a word the player has read as staff since door 22 — one the programme has
 used in its own filing for eighty years without knowing what it meant.
 
@@ -212,31 +277,31 @@ used in its own filing for eighty years without knowing what it meant.
 
 | door | | reads | after its page |
 |---|---|---|---|
-| 36 | B | `WE LEFT THIS PLACE RUNNING AND WALKED AWAY` | — |
-| 38 | B | `IT IS NOT A WEAPON · IT IS A TEST` | — |
-| 40 | P | `ELEVEN PEOPLE HAVE BEEN THROUGH THIS PLACE` **(page)** | `ELEVEN THOUSAND HAVE BEEN THROUGH THIS PLACE` |
-| 42 | P | `YOU WILL BE SENT HOME WHEN YOU FINISH` **(page)** | `NO ONE HAS EVER BEEN SENT HOME` |
-| 44 | B | `PASS THE TEST AND WE WILL SPEAK WITH YOU` | — |
+| 58 | B | `WE LEFT THIS PLACE RUNNING AND WALKED AWAY` | — |
+| 62 | B | `IT IS NOT A WEAPON · IT IS A TEST` | — |
+| 66 | P | `ELEVEN PEOPLE HAVE BEEN THROUGH THIS PLACE` **(page)** | `ELEVEN THOUSAND HAVE BEEN THROUGH THIS PLACE` |
+| 70 | P | `YOU WILL BE SENT HOME WHEN YOU FINISH` **(page)** | `NO ONE HAS EVER BEEN SENT HOME` |
+| 74 | B | `PASS THE TEST AND WE WILL SPEAK WITH YOU` | — |
 
-Door 40's `ELEVEN` reads as believable — eight before the player, plus a few
+`ELEVEN` reads as believable — eight before the player, plus a few
 — until one jammed word turns it into a number that predates the programme.
-Door 44 is the only promise anybody makes, and it is the one that is true.
+`PASS THE TEST` is the only promise anybody makes, and it is the one that is true.
 
 ### Act 5 · The Copy
 
 | door | | reads | after its page |
 |---|---|---|---|
-| 46 | P | `THE LAST DOOR OPENS WHEN YOU ARE READY` **(page)** | `THE LAST DOOR HOLDS SOMETHING WEARING YOUR FACE` |
-| 48 | S | *i died behind the last door* | — |
-| 50 | P | `HOLD STILL AND TIME WILL SLOW FOR YOU` **(page)** | `HOLD PERFECTLY STILL AND TIME WILL STOP` |
+| **F−4** | P | `THE LAST DOOR OPENS WHEN YOU ARE READY` **(page)** | `THE LAST DOOR HOLDS SOMETHING WEARING YOUR FACE` |
+| **F−2** | S | *i died behind the last door* | — |
+| **F** | P | `HOLD STILL AND TIME WILL SLOW FOR YOU` **(page)** | `HOLD PERFECTLY STILL AND TIME WILL STOP` |
 
-Door 50 is the win condition in plain words, and both versions are true
+The last line is the win condition in plain words, and both versions are true
 instructions — the false one just stops one step short of the thing that
 wins.
 
 ---
 
-## 6. Hale's logs
+## 7. Hale's logs
 
 Ten, optional, spread across the run. Nothing here is required to finish the
 game or to understand it. This is where he becomes a person.
@@ -264,19 +329,18 @@ If a player skips every one, they lose the man and none of the plot.
 
 ---
 
-## 7. What this costs
+## 8. What this costs
 
 **One recorded voice**, Hale's, ten logs of ordinary speech. The numbers
 station can be synthesised — ten digits and a tone — because nothing depends
 on hearing it.
 
-**The depth problem is unchanged.** Slow time unlocks at door 46 and Act 5
-needs the school, the discovery of the full stop and the finale. The unlock
-wants to move to roughly **door 30** — `SPEED.unlockM` in `balance.js`.
+**The depth problem is retired.** The script no longer cares where the unlock
+lands (§5), so the ramp can be retuned without touching a line of it.
 
 ---
 
-## 8. Open
+## 9. Open
 
 - **The ending's questions.** Three or four, each worth a replay. *Who am I ·
   what happened to Hale · what is outside · why me.*
