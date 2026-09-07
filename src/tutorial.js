@@ -325,7 +325,46 @@ export function marksFromPlan(plan) {
     // the last corner instead, so the barrier is the first thing you see when
     // you round it and the rest of the run is the lesson's stage.
     barrierAt: 0,
+    // EVERY TURN, AND A LEAD ON IT. A sign belongs on the wall a turn faces,
+    // and it is only useful if it can be READ before the player is standing
+    // in the corner — so each entry is a couple of cells short of the turn,
+    // the same lead and for the same reason as `firstCornerLead`.
+    //
+    // One entry per change of direction, carrying which way the path goes
+    // next, because that is what decides both the words and the wall.
+    // Derived like everything else here: drag the path in the tool and the
+    // signs move with it, which is the whole point of this function.
+    turnLead: [],
   };
+  // WHICH WAY THE TURN GOES ON SCREEN, from the cells rather than from the
+  // letter in the plan. `['r', 3]` steps grid +x, and with the player walking
+  // +z that is to their LEFT — the plan's letters are grid directions, not the
+  // player's hand. Getting this from the move list produced an arrow pointing
+  // one way at a sign standing the other, which is worse than no arrow.
+  //
+  // Camera-right for a heading (hx, hz) is (-hz, hx) in this convention, so
+  // the sign of `out · right` is the whole answer and it cannot drift if the
+  // corridor is ever rebuilt.
+  const { spine } = planToCells(0, 0, moves);
+  const cellAt = (i) => spine[Math.max(0, Math.min(spine.length - 1, i))];
+  for (let i = 1; i < runs.length; i++) {
+    // ONLY WHERE THE PATH GOES SIDEWAYS. A jog is a lateral run and then a
+    // forward one, so every corner shows up here twice — once turning out of
+    // the straight, once turning back onto the axis. The second is not a
+    // decision the player makes and a sign on it points at the wall they are
+    // already walking along.
+    if (runs[i].dir === 'f' || runs[i].dir === runs[i - 1].dir) continue;
+    const at = runs[i - 1].at;
+    const a = cellAt(at - 1), b = cellAt(at), c = cellAt(at + 1);
+    const hx = b[0] - a[0], hz = b[1] - a[1];
+    const ox = c[0] - b[0], oz = c[1] - b[1];
+    const dot = ox * -hz + oz * hx;          // out · camera-right
+    marks.turnLead.push({
+      at: Math.max(1, at - TUTOR.lookLeadCells),
+      turnAt: at,
+      dir: dot > 0 ? 'r' : 'l',
+    });
+  }
   marks.barrierAt = marks.finalRun;
   // The rejoin is the one mark the moves alone cannot state, because the fork's
   // second lane is `extra` cells hanging off the spine. It is the furthest cell
@@ -375,6 +414,23 @@ export const LEGS = [
     note: 'Lessons 1-9. Straight run, two jogs left, then the straight where '
       + 'the barrier stands and the combat lesson happens.',
     plan: { moves: TEACH_MOVES, approach: 4 },
+    // WHAT THE MOVE LESSON WALKS TO. Lesson 1 used to end a couple of cells
+    // short of a corner the player cannot see when the lesson starts, so
+    // DRAG TO MOVE had a direction and no destination. The turn signs fix
+    // that on their own — the opening straight is five cells, so `EXIT ->`
+    // hangs twenty metres away and is legible from the first frame.
+    //
+    // NO AUTHORED `STAND HERE` IN THE CORRIDOR. It was specified at twenty
+    // metres, which on this path is the corner itself, so it would have
+    // landed two cells from the turn sign and broken the one-at-a-time rule.
+    // It also had nothing to do: the beat that makes standing there matter is
+    // the corridor reconfiguring, and that is not built. A sign that names a
+    // place where nothing happens is the one kind of sign this system cannot
+    // afford. STAND HERE stays on the barrier, where arriving does something.
+    //
+    // `door` is the last cell of the walked path, resolved when the leg is
+    // built rather than typed as a number.
+    signs: [{ at: 'door', text: 'EXIT' }],
   },
   // WITHIN ENGAGE RANGE OF THE DOOR YOU COME IN THROUGH. A gunner's
   // engageDist is 19-25 m; bodies parked at z 7-10 stood 28 m from the entry,
@@ -1004,6 +1060,13 @@ export function normaliseLegs(legs) {
         .filter((e) => e && isFinite(e.x) && isFinite(e.z))
         .map((e) => ({ x: +e.x, z: +e.z, type: String(e.type || 'gunner') })),
       fireOrder: (l && l.fireOrder) === 'turns' ? 'turns' : 'free',
+      // A HALF-WRITTEN SIGN MUST NOT THROW IN THE FRAME LOOP. Same rule as
+      // the enemy list above: filter here so an edited spec cannot reach the
+      // painter with a sign that has no words or no place to stand.
+      signs: ((l && l.signs) || [])
+        .filter((g) => g && g.text && g.at != null)
+        .map((g) => ({ at: typeof g.at === 'string' ? g.at : (g.at | 0),
+          text: String(g.text) })),
     };
     if (plan) { out.plan = plan; out.marks = marksFromPlan(plan); }
     else delete out.marks;   // no path, no marks: main.js falls back on distance

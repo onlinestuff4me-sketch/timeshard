@@ -13,3 +13,4 @@ DerivedData/
 
 # probe screenshots
 test/out/
+.shots/

@@ -44,55 +44,46 @@ That behaviour is the specification for every mark. It is already written, in
 
 ---
 
-## 2. Orange is a law, not a colour choice
+## 2. Red, and one at a time
 
-The palette has exactly two meanings today: the world is white, and **red is
-threat** (`main.js:11298` — *"in a world this pale red means threat"*).
+**No new colour.** `#ts-world` — the element `STAND HERE` is already drawn in
+— is `#ff2d1a`, the signal red. Corridor signs use the same one.
 
-Marks add a third and it must be as strict as the first two:
+The palette stays at three meanings and none of them collide:
 
-> **Orange means the building is telling you where to go. It never means
-> anything else.**
+| | |
+|---|---|
+| **white** | the world |
+| **red** | the building talking, and the threat it is talking about |
+| **black screen text** | the game instructing the player |
 
-Not damage, not a pickup, not a HUD accent, not a highlight. The moment orange
-appears on something that is not a direction, the direction stops being
-readable at a glance — which is the entire value of a mark on a phone screen at
-thirty metres.
+The earlier draft proposed orange for wayfinding and hit a real conflict:
+`VIS.contactBlackCol` is `0xff6a24`, which is orange and already means *an
+enemy is standing there*. Both problems go away by not inventing a colour.
 
-### 2.1 Why this is the most important line in this document
+### 2.1 One sign on screen, always
 
-The tutorial is going to spend ninety seconds teaching a player that orange is
-trustworthy. `docs/STORY.md` then spends the rest of the game betraying that
-trust: every door is marked `EXIT`, the simulation keeps announcing that it is
-finishing, and neither is true.
+What keeps red unambiguous is not hue, it is **count**. `tutorSignPick`
+returns the nearest sign still ahead on the path and nothing else is drawn, so
+walking a corridor reads as a sequence of single instructions rather than as a
+noticeboard.
 
-**You cannot betray a signal the player never learned to trust.** So the
-onboarding is not merely onboarding here — it is the setup for the lie, and
-every honest mark in the first ten doors is a deposit against it. That is the
-strongest argument for building this system, and it is a story argument rather
-than a UX one.
+Two rules fall out of it, both enforced in `tutorPlaceSign`:
 
-### 2.2 One conflict, and it is real
+- **The barrier's `STAND HERE` wins.** When it is up the player is being sent
+  to a place already on screen, and a second sign behind it is the
+  two-at-once case this exists to prevent.
+- **No sign while anybody is on the floor.** A navigation mark belongs in a
+  corridor with nobody in it — the rule `wayArrowShows()` already reaches for
+  past the onboarding. It is also why a sign does not ride on the `way`
+  grant: that grant is off for the door lesson, whose entire subject is a
+  door, and on for the dodging lesson, which is a fight.
 
-`VIS.contactBlackCol` is `0xff6a24`. That is orange, and it currently means
-*an enemy is standing there* — the fog-exempt contact mote that `PILLARS` §6
-requires so a blackout cannot hide a body.
+### 2.2 A sign retires the needle
 
-Orange therefore already means "threat you cannot otherwise see", which is the
-exact opposite of what §2 wants it to mean. This has to be settled before a
-single mark is painted, and there are only two answers:
-
-1. **The mote goes red**, joining every other threat signal. Correct by the
-   colour law and by `PILLARS` §6; it is a change to a tuned, shipped value.
-2. **Marks take a different amber**, further from red than `0xff6a24` is.
-   Cheaper, but it puts two similar oranges on screen meaning opposite things,
-   which is the failure mode `updateEdgeArrows` already documents for two reds:
-   *"two reds meaning two different things is worse than either one alone."*
-
-Recommendation: **(1)**. Blackout is `impl: false` and reachable only through
-Settings → TEST, so the mote is not in the main flow and the change costs
-nothing today. It will cost something the day blackout ships, and this is the
-cheap moment.
+`tutorPlaceSign` latches `tutorSignSeen` the moment it genuinely draws, the
+same way `tutorPlaceWorldCue` does. The red floor needle and a red sign
+pointing at the same place are two answers to one question.
 
 ---
 

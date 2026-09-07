@@ -620,6 +620,31 @@
      barrier if every part of the box scales with the type — 28 px of fixed
      side padding put a constant on the end of a proportional measurement and
      the words drifted out of step with the slab they are painted on. */
+  /* CORRIDOR SIGNS. Same painter, same red, same anchoring-in-metres as
+     #ts-world — the difference is what they hang on: STAND HERE is mounted on
+     the barrier, these are painted on the corridor.
+
+     WRAPPING, WHICH #ts-world DOES NOT DO. A sign says as much as its point
+     needs (docs/SCRIPT.md), and an eight-word line drawn `nowrap` and scaled
+     to a three-metre wall is a grey thread. Three short rows still read as a
+     sign; four read as a paragraph on a wall, so the box is capped at three
+     line-heights and `balance` splits them evenly rather than leaving one
+     word stranded on the last row. */
+  /* THE CAP IS IN `em`, NOT `vw`. A sign wraps because its WORDS are long,
+     never because it happens to be drawn large — a viewport cap made
+     "EXIT >" break onto two rows the moment the player walked up to it. In
+     em the limit travels with the font size, so a short sign is one row at
+     every distance and only a genuinely long line ever splits. */
+  #ts-sign { left:0; top:0; width:max-content; max-width:13em;
+           white-space:normal; text-wrap:balance;
+           max-height:3.12em; overflow:hidden;
+           padding:0 .34em;
+           font-size:min(6.2vw,28px); line-height:1.04;
+           color:#ff2d1a;
+           text-shadow:0 0 3px rgba(22,24,29,.92), 0 2px 14px rgba(22,24,29,.6);
+           transition:opacity .35s ease; transform:translate(-50%, -108%); }
+  body.slowmo #ts-sign { text-shadow:0 0 3px rgba(12,13,16,.95), 0 2px 16px rgba(12,13,16,.9); }
+
   #ts-world { left:0; top:0; width:max-content; max-width:94vw; white-space:nowrap;
            padding:0 .34em;
            font-size:min(6.2vw,28px); line-height:1.02;
@@ -1272,7 +1297,7 @@
   <div id="flash"></div>
   <div id="warn"></div>
   <div id="banner"></div>
-  <div id="tutor"><div id="tutorline"></div><div id="tutorhand"></div><div id="tutorhand2"></div><div id="tutorarrow"></div><div id="tutorup"></div><div id="ts-top" class="tslot top"></div><div id="ts-mid" class="tslot mid"></div><div id="ts-dodge" class="tslot dodge"></div><div id="ts-left" class="tslot left"></div><div id="ts-right" class="tslot right"></div><div id="ts-atbtn" class="tslot atbtn"></div><div id="ts-world" class="tslot world"></div><div id="tutorpin"></div></div>
+  <div id="tutor"><div id="tutorline"></div><div id="tutorhand"></div><div id="tutorhand2"></div><div id="tutorarrow"></div><div id="tutorup"></div><div id="ts-top" class="tslot top"></div><div id="ts-mid" class="tslot mid"></div><div id="ts-dodge" class="tslot dodge"></div><div id="ts-left" class="tslot left"></div><div id="ts-right" class="tslot right"></div><div id="ts-atbtn" class="tslot atbtn"></div><div id="ts-world" class="tslot world"></div><div id="ts-sign" class="tslot sign"></div><div id="tutorpin"></div></div>
   <div id="wayarrow"><i></i></div>
   <div id="ammo">PISTOL · ∞</div>
   <div id="reloadbar"><div id="reloadfill"></div></div>

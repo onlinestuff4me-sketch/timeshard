@@ -8633,6 +8633,165 @@ function tutorPlaceWorldCue() {
   n.style.left = `${Math.max(half, Math.min(w - half, want))}px`;
   n.style.top = `${(-_vWorld.y * 0.5 + 0.5) * h}px`;
 }
+// ---------------------------------------------------------------------------
+// SIGNS — the same painter as STAND HERE, pointed at the corridor instead of
+// at the barrier.
+//
+// ONE AT A TIME, ALWAYS. Two signs in frame is two instructions competing for
+// the same glance, and on a portrait phone at thirty metres they overlap.
+// `tutorSignPick` takes the nearest one AHEAD of the player and nothing else
+// is drawn — so walking the corridor reads as a sequence of single
+// instructions rather than as a noticeboard.
+//
+// RED, like STAND HERE already is (`#ts-world` is `#ff2d1a`). The building
+// speaks in one colour and the screen text is the black instruction layer;
+// adding a third would mean two reds meaning different things, which
+// `updateEdgeArrows` already documents as worse than either alone.
+//
+// DERIVED FROM MARKS, NEVER FROM COORDINATES. Each sign names a cell that
+// `marksFromPlan` computed, so dragging the path in the tool carries the sign
+// with it. This is the bug that stranded the barrier in solid rock, and the
+// comment on `marksFromPlan` is the reason it is written this way.
+const _vSignEye = new THREE.Vector3();
+const _vSignL = new THREE.Vector3();
+const _vSignR = new THREE.Vector3();
+// How wide a corridor sign is painted, in metres. A cell is 4 m, so this is
+// most of the wall it hangs on and it scales exactly like the wall does.
+const SIGN_W = 3.0;
+// HIGH ON THE WALL, not at eye level. Derived from the corridor rather than
+// typed: `HALL.h` is 3.1 m, so this hangs just under the ceiling the way real
+// wayfinding does — and, on a portrait phone, that is what keeps it clear of
+// the coach line. At eye height it projected within a few per cent of the
+// vanishing point, which is exactly where `DRAG TO MOVE` sits, and the two
+// overlapped into one unreadable block.
+const SIGN_H = HALL.h - 0.45;
+const SIGN_MAX_PX = 44;   // a sign in a corridor, not a billboard
+let tutorSigns = [];      // [{ at, text }] for the current leg, in path order
+
+// The signs a leg carries, built once when the leg is. Turn signs come from
+// `marks.turnLead` — one per change of direction, already two cells short of
+// the corner — and the arrow is the turn's own direction, so the words and
+// the geometry cannot disagree.
+function tutorBuildSigns() {
+  tutorSigns = [];
+  const spec = tutorLegsOf()[tutorLegIx];
+  const marks = spec && spec.marks;
+  if (!marks) return;
+  for (const s of (spec.signs || [])) {
+    // `door` is the far end of the walked path and the leg knows where that
+    // is only once it is built, so it is carried as -1 and resolved against
+    // the spine at draw time. Everything else is a mark name or a cell.
+    const at = s.at === 'door' ? -1
+      : (typeof s.at === 'string' ? marks[s.at] : s.at);
+    if (at != null) tutorSigns.push({ at, from: at, text: s.text });
+  }
+  for (const t of (marks.turnLead || [])) {
+    // A SOLID TRIANGLE, not an arrow glyph. U+2192 is drawn from a different
+    // part of most system fonts and comes out visibly lighter and smaller
+    // than the caps beside it; U+25C0/U+25B6 are the same weight as the
+    // letters, and the menu already uses one for the time button.
+    // WHERE IT HANGS AND WHERE IT STARTS COUNTING ARE TWO DIFFERENT CELLS.
+    // A turn sign belongs on the wall you would walk into if you did not turn
+    // — the far face of the T, a cell past the corner — because that is where
+    // signage goes in a real corridor and because a label floating in the
+    // middle of the hallway is a caption, not a sign.
+    //
+    // `turnLead.at` is the lead: two cells short, which is where it becomes
+    // the sign the player should be reading. Placing it there was what put a
+    // giant EXIT hanging in mid-air above the corridor.
+    tutorSigns.push({ at: t.turnAt + 1, from: t.at,
+      text: t.dir === 'l' ? '\u25C0 EXIT' : 'EXIT \u25B6' });
+  }
+  tutorSigns.sort((a, b) => a.from - b.from);
+}
+
+// The one sign to draw: the nearest still ahead of the player on the path.
+// Spine index rather than distance, for the same reason `tutorUpdateSpineIx`
+// exists — a player who wanders back down the corridor has not un-passed a
+// corner, and a sign that comes back when they turn round is the flicker the
+// way-out needle was built to avoid.
+function tutorSignPick() {
+  let door = null;
+  for (const s of tutorSigns) {
+    if (s.at < 0) { door = s; continue; }
+    // RETIRED WHEN THE PLAYER PASSES THE SIGN, not when they pass its lead.
+    // `from` is two cells short of the corner and only decides which sign is
+    // frontmost; testing it here took every turn sign down two cells before
+    // the player reached the turn it was about, which is the worst possible
+    // moment for it to go.
+    if (s.at >= tutorSpineIx) return s;
+  }
+  return door;   // past every turn, the way on is the only thing left to say
+}
+
+function tutorPlaceSign() {
+  const n = el.tsign;
+  if (!n) return;
+  const hide = () => { n.style.visibility = 'hidden'; n.classList.remove('show'); };
+  // THE BARRIER'S SIGN WINS. `tutorPlaceWorldCue` owns STAND HERE, and when
+  // it is up the player is being sent to a place that is already on screen.
+  // A second sign behind it is the two-at-once case this whole thing forbids.
+  const cueUp = el.tslot && el.tslot.world && el.tslot.world.classList.contains('show');
+  if (cueUp || tutorStep === null) return hide();
+  // A SIGN IS NOT THE NEEDLE, so it does not ride on `tutorMay('way')`. That
+  // grant is off for the door lesson — which is the one beat whose entire
+  // subject is a door — and on for the dodging lesson, which is a fight.
+  //
+  // The rule is the one `wayArrowShows()` already reaches past the onboarding:
+  // a navigation mark belongs in a corridor with nobody in it. Bodies on the
+  // floor means the player is being shot at, and a sign about where to walk
+  // is not what that moment is for.
+  if (enemies.length) return hide();
+  const L = hall && hall.legs[hall.cur];
+  const s = tutorSignPick();
+  if (!L || !L.spine || !s) return hide();
+  const c = L.spine[s.at < 0 ? L.spine.length - 1
+    : Math.min(L.spine.length - 1, s.at)];
+  if (!c) return hide();
+  if (n.textContent !== s.text) n.textContent = s.text;
+  const ax = c[0] * HALL.cell, az = c[1] * HALL.cell;
+  _vSignEye.set(ax, SIGN_H, az).project(camera);
+  if (_vSignEye.z > 1 || Math.abs(_vSignEye.x) > 1.15 || Math.abs(_vSignEye.y) > 1.15) {
+    return hide();
+  }
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  // SIZED BY THE WALL IT IS PAINTED ON, not by a curve fitted to distance.
+  // Project both ends of a three-metre sign and scale the text to the span:
+  // the same arithmetic three.js does for the wall, so the words and the
+  // corridor grow together. See tutorPlaceWorldCue, which learned this the
+  // hard way over four attempts.
+  _vSignL.set(ax - SIGN_W / 2, SIGN_H, az).project(camera);
+  _vSignR.set(ax + SIGN_W / 2, SIGN_H, az).project(camera);
+  const spanPx = Math.abs(_vSignR.x - _vSignL.x) * 0.5 * w;
+  if (n._szText !== n.textContent) {
+    n.style.fontSize = '20px';
+    n._szText = n.textContent;
+    n._szW = n.offsetWidth || 120;
+  }
+  const fit = 20 * (w * 0.92) / Math.max(n._szW, 1);
+  // ...AND A CEILING, WHICH THE BARRIER'S LABEL DOES NOT NEED. STAND HERE is
+  // walked up to and then the lesson moves on; a corridor sign is walked
+  // PAST, so the last few metres would otherwise scale it into a billboard
+  // that fills the screen and detaches from the wall it is painted on. 44 px
+  // is about the size of the menu's own headings.
+  const px = Math.max(11, Math.min(fit, SIGN_MAX_PX, 20 * spanPx / Math.max(n._szW, 1)));
+  n.style.fontSize = `${px}px`;
+  n.style.visibility = '';
+  n.classList.add('show');
+  // ...AND THIS IS WHERE THE NEEDLE'S JOB ENDS, for the same reason the
+  // barrier's sign ends it: the player is being sent somewhere that is on
+  // screen, and a red mark on the floor pointing at it is a second answer to
+  // a question already answered. Two reds meaning the same thing is the
+  // clutter `updateEdgeArrows` documents; two reds is also just noise.
+  // Latched, like `tutorPlaceWorldCue` does it, so glancing away does not
+  // bring it back.
+  tutorSignSeen = true;
+  const half = (n.offsetWidth || 200) / 2 + 6;
+  const want = (_vSignEye.x * 0.5 + 0.5) * w;
+  n.style.left = `${Math.max(half, Math.min(w - half, want))}px`;
+  n.style.top = `${(-_vSignEye.y * 0.5 + 0.5) * h}px`;
+}
+
 // The barrier's own width, for anything that wants to size itself against it.
 function tutorBarWidth() {
   return tutorBar && tutorBar.m.geometry.parameters
@@ -8967,7 +9126,7 @@ function tutorResetWorld() {
   tutorHardFreeze = false; tutorWorldHeld = false;
   tutorMeterOn = false; tutorMeterAt = 0; tutorMeterSaid = false;
   tutorMeterEverShown = false;
-  tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0; tutorCrossedDoor = false;
+  tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0; tutorBuildSigns(); tutorCrossedDoor = false;
   document.body.classList.remove('tutoring');
   tutorHideMsg(); tutorHand(null); tutorLine(false);
   if (el.timebtn) el.timebtn.classList.remove('arrive', 'hint');
@@ -8988,13 +9147,13 @@ function startTutorial() {
   tutorDeadPending = false; tutorAnchorStep = null; tutorButtonShown = false;
   tutorFired = new Set(); tutorSignSeen = false;
   tutorHardFreeze = false; tutorWorldHeld = false;
-  tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0; tutorCrossedDoor = false;
+  tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0; tutorBuildSigns(); tutorCrossedDoor = false;
   document.body.classList.add('tutoring');
   gun.visible = false;
   el.timebtn.style.display = 'none';
   tutorShowMeter(false);
   hideTimeTip();
-  tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0;
+  tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0; tutorBuildSigns();
   tutorNext(tutorOrder()[0]);
 }
 // ---------------------------------------------------------------------------
@@ -9060,7 +9219,7 @@ function startSlowLesson() {
   tutorDeadPending = false; tutorAnchorStep = null;
   tutorFired = new Set(); tutorSignSeen = false;
   tutorHardFreeze = false; tutorWorldHeld = false;
-  tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0;
+  tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0; tutorBuildSigns();
   // THE GUN STAYS IN THEIR HANDS. This is the one real difference from the
   // onboarding: the player is seventy doors in, armed, and mid-run. The lesson
   // takes the time button away and gives it back — nothing else.
@@ -9945,6 +10104,7 @@ const el = {
     top: document.getElementById('ts-top'),
     world: document.getElementById('ts-world'),
   },
+  tsign: document.getElementById('ts-sign'),
   tutlink: document.getElementById('tutlink'),
   tutorpin: document.getElementById('tutorpin'),
   saves: document.getElementById('saves'),
@@ -12466,7 +12626,7 @@ function crossHallDoor() {
     // all read from the NEXT authored leg, and the course ran out of legs one
     // crossing early. (The barrier survived only by accident of ordering — it
     // is built inside tutorNext, before this line.)
-    if (!enteredSlow) tutorLegIx++;
+    if (!enteredSlow) { tutorLegIx++; tutorBuildSigns(); }
     tutorSpineIx = 0;
     tutorCrossedDoor = true;
     if (tutorLegsOf()[tutorLegIx]) {
@@ -13503,7 +13663,7 @@ function frame(now) {
   if (game.state === 'menu') updateShimmer(now / 1000);
   sfx.update(playing || game.state === 'clear' ? timeScale : 1, dt);
   el.crosshair.classList.toggle('hot', player.fireCd > 0);
-  if (tutorStep !== null) tutorPlaceWorldCue();
+  if (tutorStep !== null) { tutorPlaceWorldCue(); tutorPlaceSign(); }
 
   renderFrame(dt);
   // THE VEIL COMES OFF ON THE FIRST REAL PICTURE, not when the module has
@@ -13631,6 +13791,25 @@ window.__ts = {
     legIx: tutorLegIx, spineIx: tutorSpineIx, held: tutorWorldHeld,
     barrierZ: tutorBar ? +tutorBar.z.toFixed(1) : null,
     moved: +tutorMoved.toFixed(2), looked: +tutorLooked.toFixed(2) }),
+  // THE SIGNS, and which one is currently painted. A probe cannot read a
+  // projected DOM label off the canvas, so the list and the pick are exposed
+  // rather than inferred from pixels.
+  signs: () => ({
+    list: tutorSigns.map((g) => ({ at: g.at, text: g.text })),
+    showing: (() => { const g = tutorSignPick(); return g ? g.text : null; })(),
+    onScreen: el.tsign ? el.tsign.classList.contains('show') : false,
+    spineIx: tutorSpineIx,
+    may: !enemies.length,
+    cueUp: !!(el.tslot && el.tslot.world && el.tslot.world.classList.contains('show')),
+    proj: (() => {
+      const L = hall && hall.legs[hall.cur]; const g = tutorSignPick();
+      if (!L || !L.spine || !g) return null;
+      const c = L.spine[g.at < 0 ? L.spine.length - 1 : Math.min(L.spine.length - 1, g.at)];
+      if (!c) return null;
+      _vSignEye.set(c[0] * HALL.cell, SIGN_H, c[1] * HALL.cell).project(camera);
+      return { x: +_vSignEye.x.toFixed(2), y: +_vSignEye.y.toFixed(2), z: +_vSignEye.z.toFixed(3) };
+    })(),
+  }),
   // what the bodies are doing and where they are, for the wall-clip check
   bodies: () => enemies.map((e) => ({ x: +e.pos.x.toFixed(2), z: +e.pos.z.toFixed(2),
     state: e.state, arm: +e.armR.rotation.x.toFixed(2), alive: e.alive })),
@@ -13677,7 +13856,7 @@ window.__ts = {
   tutorPopulate: (legId) => {
     const i = tutorLegsOf().findIndex((l) => l.id === legId);
     if (i < 0) return false;
-    tutorLegIx = i;
+    tutorLegIx = i; tutorBuildSigns();
     for (let k = enemies.length - 1; k >= 0; k--) { scene.remove(enemies[k].g); enemies.splice(k, 1); }
     tutorPopulateLeg();
     return true;

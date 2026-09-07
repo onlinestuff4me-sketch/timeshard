@@ -105,15 +105,22 @@ with it, then take it away while the player is still in the room.
 
 ## 7. Build order
 
-1. **`STAND HERE` at 20 m** — gives lesson 1 a destination.
-2. **`EXIT →` at the turns** — gives lesson 2 a reason to look, and retires
-   the way-out needle for the tutorial.
-3. **`EXIT` above every door** — replaces `GO TO THE NEXT DOOR`.
+1. ~~**`STAND HERE` at 20 m**~~ — **cut.** On the shipped path the opening
+   straight is five cells, so twenty metres *is* the first corner: an
+   authored `STAND HERE` there would have stood two cells from the turn sign
+   and broken the one-at-a-time rule. It also had nothing to do — the beat
+   that makes standing there matter is the corridor reconfiguring, and that
+   is not built. A sign naming a place where nothing happens is the one kind
+   this system cannot afford. `STAND HERE` stays on the barrier.
+2. **`EXIT ◀` at the turns** — *built.* Derived from `marks.turnLead`, one per
+   change of direction, hung on the wall the turn faces. This is what gives
+   lesson 1 its destination, and it does it better than the cut item: it is
+   twenty metres away, legible from the first frame, and reaching it does
+   something.
+3. **`EXIT` above the door** — *built.* Anchored to the last cell of the
+   walked path.
 4. **Widen the dodge stretch**, then add `STEP HERE` to the first dodge.
-5. **`TAKE IT` on dropped guns** — replaces the pickup banner, and works for
-   the whole game rather than just the lesson.
-
-1–3 need the mark painter (`docs/MARKS.md` §8) and nothing else.
+5. **`TAKE IT` on dropped guns.**
 
 ---
 
