@@ -1080,6 +1080,32 @@ export const SIMPLE = {
     // player is always at the moving end of that range. Same number, same
     // reason. A round from 6 m out now takes 3.2 s of slowed time instead of
     // 8.5, which is a beat you can act inside.
+    // ---- HOW FAST, AND HOW CLOSE -----------------------------------------
+    //
+    // MEASURED, standing in the opening rooms and holding still: rounds at
+    // 5.4 m/s, men at a median of 19 m, and never more than ONE firing at a
+    // time all the way to the button. A round fired from twenty metres at
+    // 5.4 m/s is in the air for THREE AND THREE QUARTER SECONDS. You can look
+    // away and come back.
+    //
+    // The cause is inheritance, not a number anybody chose: bullet speed came
+    // off the TUNNEL's staircase (SPEED), which is written for a forty-six
+    // door climb, and engage distance came off the shared default of 19-25 m,
+    // which is written for a corridor you walk down and take cover in. This
+    // mode is thirty-one rooms long and has neither.
+    //
+    // So it keeps its own. A round crosses the gap in about two seconds in
+    // room 1 and a bit over one by the time the button arrives — still a
+    // sidestep, and no longer a stroll.
+    bullet: { openM: 7.0, stepM: 0.62, capM: 13.5 },
+    // ...AND THEY COME TO YOU, which is the mode's whole first sentence. This
+    // CAPS a type's own engage distance rather than replacing it, so a
+    // shotgunner still opens at its own ten metres and a gunner stops being
+    // able to plink from the far wall. They are placed past the 13 m
+    // first-sight floor, so at these numbers the back rank has to walk in
+    // before it may fire at all — which is the closing-in the mode was
+    // missing.
+    engage: { openM: 15, nearM: 9.5, byRoom: 10 },
     slow: 0.3,
     ease: 9,            // crossing between slow and full (per second)
     // WHAT "A ROUND IS ON ITS WAY" MEANS — inside `lead` seconds and passing
@@ -1150,8 +1176,13 @@ export const SIMPLE = {
     // three times, then the volley grows by one and the gap resets — a wider
     // shape bought with a breath. Three together is the ceiling: past that a
     // strip you cannot retreat down stops being a fight and becomes a wall.
+    // TWO MEN FIRE TOGETHER BEFORE THE BUTTON ARRIVES, not five rooms after
+    // it. The table used to spend its first three steps tightening a SINGLE
+    // gun — measured, the room the button lands in had never once put two
+    // rounds in the air together, so the power turned up before the problem
+    // it answers. One tightening step at the top, then the second gun.
     fire: [
-      [1, 4.3], [1, 3.3], [1, 2.3],
+      [1, 4.3], [1, 3.3],
       [2, 4.3], [2, 3.3], [2, 2.3],
       [3, 4.3], [3, 3.3], [3, 2.3],
     ],
@@ -1260,6 +1291,30 @@ export const SIMPLE = {
       armored:      { say: 'SHOOT THIS', mark: 'head',   want: 'shoot' },
       shieldbearer: { say: 'STOP TIME · GET ROUND HIM', mark: 'shield',
                       want: 'dodge', button: true },
+    },
+    // ---- THE ROOM-1 LESSON -------------------------------------------------
+    //
+    // Two beats, in the order the mode needs them. The player arrives with no
+    // weapon on screen: the FIRST round anyone fires stops the world, rings
+    // it, and says the one thing there is to do about it. Stepping aside
+    // starts the world again and the pistol arrives with the second beat —
+    // TAP HERE TO SHOOT, over a man with a ring on him and a thumb pressing
+    // on his chest, because in this mode a shot goes where the thumb went.
+    // Firing puts both away.
+    //
+    // ...AND IT IS SAID TWICE AT MOST. Once here, and once more only if the
+    // player shows they did not take it: a round that got half way to them
+    // while they stood in its lane, or a whole room crossed without a body
+    // shattered. Repeating past that is nagging a player who is playing.
+    teach: {
+      dodge: 'DODGE THIS',
+      shoot: 'TAP HERE TO SHOOT',
+      // how far along its flight a round has to get, with the player still in
+      // its lane, to count as a dodge they did not make
+      lateAt: 0.5,
+      // ...and the freeze lets go on its own after this, so a stopped world
+      // is never a stuck one
+      hold: 12,
     },
     meetHold: 10,   // seconds before a debut freeze lets go on its own
     // ...and how long a debut room holds its FIRST ROUND for the new type

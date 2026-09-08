@@ -19,6 +19,8 @@
 | generated tables | `docs/BALANCE.md` → *NO RETREAT — the three dials* |
 | the schedule, checked | `test/duelramp.mjs` |
 | the debut cards, checked | `test/duelmeet.mjs` |
+| the room-1 lesson, checked | `test/duelschool.mjs` |
+| speed and range | `SIMPLE.duel.bullet` / `.engage`, read by `duelBulletSpeed()` / `duelEngageCap()` |
 | the button and its bank | `test/duelbtn.mjs` |
 | the published plan page | https://claude.ai/code/artifact/252766fc-7ae3-41bc-aace-d6d3c2defde1 |
 
@@ -52,6 +54,55 @@ clamped, so a diagonal thumb still sidesteps cleanly.
 
 Nobody may be placed closer than the **first-sight floor** — 13 m at these
 depths — so everything arrives in the far half and walks in.
+
+## How fast, and how close
+
+**Measured, standing in the opening rooms and holding still:** rounds at
+5.4 m/s, men at a median of **19 m**, and never more than **one** firing at a
+time all the way to the button. A round fired from twenty metres at 5.4 m/s is
+in the air for **three and three quarter seconds**.
+
+The cause was inheritance, not a number anybody chose. Bullet speed came off
+the tunnel's staircase (`SPEED`), written for a forty-six door climb; engage
+distance came off the shared default of 19–25 m, written for a corridor you
+walk down and take cover in. This mode is thirty-one rooms long and has
+neither. So it keeps its own:
+
+| | was | is | measured after |
+|---|---|---|---|
+| bullet, room 1 | 5.4 m/s | `bullet.openM` 7.0 | 2.1 s of flight |
+| bullet, room 6 | 5.4 m/s | +`stepM` 0.62 a room | 10.1 m/s, **1.2 s** |
+| bullet, ceiling | 6.2 by room 12 | `capM` 13.5 | room 11 at 13.2 |
+| they stand at | 19.2 m | `engage` 15 → 9.5 by room 10 | 14.3 m → 7.0 m |
+| firing together at the button | **1** | fire dial reaches 2 by room 5 | **2** |
+
+`engage` is a **cap on a type's own engage distance**, not a replacement — a
+shotgunner still opens at its own ten metres, and a gunner stops being able to
+plink from the far wall. Bodies are placed past the 13 m first-sight floor, so
+at these numbers the back rank has to walk in before it may fire at all, which
+is the closing-in the mode was missing.
+
+The telegraph rides the same staircase (`diffT`), so a mode with its own
+speeds does not keep the tunnel's reaction times.
+
+## The room-1 lesson
+
+Two beats, in the order the mode needs them, and **the player arrives with no
+weapon on screen** — a gun in frame is an invitation to use it, and the first
+thing this mode has to say is that a round is coming and you move.
+
+1. **DODGE THIS.** The first round anyone fires stops the world the way a
+   debut does, rings the round, and shows a thumb crossing the stick. Stepping
+   aside answers it.
+2. **TAP HERE TO SHOOT.** The world starts again, the pistol arrives, a man
+   gets a ring and a thumb presses on his chest — in this mode a shot goes
+   where the thumb went, so the cue is on the *body*, not on the stick. Firing
+   puts both away.
+
+**It is said twice at most** (`SIMPLE.duel.teach`), and the second time has to
+be earned by missing it: a round that got `lateAt` (half way) to the player
+while they stood in its lane, or a whole room crossed without a body
+shattered. Past that it is nagging somebody who is playing.
 
 **How close they get: 2.6 m** (`SIMPLE.duel.holdM`), measured from where you
 stand. That number sits between two others. A man inside **1.5 m** switches to

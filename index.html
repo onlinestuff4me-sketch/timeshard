@@ -492,6 +492,27 @@
                         inset 0 0 12px rgba(255,45,26,.3);
              animation:pinpulse 1.05s ease-in-out infinite; }
   #duelpins i.on { display:block; }
+  /* A CARD WITHOUT A NAME. The debut cards name the type they are about; the
+     room-1 lesson is about a bullet and a trigger, which have no names. Same
+     three rows minus the headline, so the instruction sits where the eye has
+     already learned to find one. */
+  #duelmeet.noname .who { display:none; }
+  /* ...AND NO THUMB ON THE CARD when there is one out on the man. TAP HERE TO
+     SHOOT points at a body, so the card's own stick row would be a second
+     thumb saying a different place — the armored unit's debut keeps its card
+     thumb, because there the ring is on a head and there is no world cue. */
+  #duelmeet.nostick .stk { display:none; }
+  /* ...AND THE THUMB THAT SITS ON A BODY. The dodge coach points at the
+     stick, because a dodge is a stick gesture; TAP HERE TO SHOOT points at
+     the MAN, because in this mode a shot goes where the thumb went. So this
+     one is world-anchored — placed on him every frame, pressing. */
+  #dueltap { position:fixed; left:0; top:0; width:74px; height:74px;
+             margin:-37px 0 0 -37px; border-radius:50%; z-index:10;
+             pointer-events:none; display:none;
+             background:rgba(238,240,243,.5);
+             box-shadow:inset 0 0 0 3px rgba(22,24,29,.7), 0 0 22px rgba(12,13,16,.55);
+             animation:meettap 1.15s ease-in-out infinite; }
+  #dueltap.on { display:block; }
   /* THE CARD'S OWN LIGHT ON THE BUTTON. `hint` belongs to the button lesson
      and to the slow-time school, and both of them come and go on their own
      business; a card that says STOP TIME needs to light the control it names
@@ -1416,6 +1437,7 @@
 <div id="duelcoach"><b></b></div>
 <div id="duelmeet"><b class="who"></b><b class="what"></b><span class="stk"><i></i></span></div>
 <div id="duelpins"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<div id="dueltap"></div>
 <div id="timetip">
   <div class="tt1"><span>TAP</span><span class="ttbtn"><i></i></span><span>TO STOP TIME</span></div>
   <div class="tt2">BULLETS FREEZE WHILE YOU MOVE</div>

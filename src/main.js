@@ -3305,9 +3305,14 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     strafe: Math.random() < 0.5 ? 1 : -1,
     strafeT: 1 + Math.random() * 2,
     fireCd: ((type === 'sniper' ? 1.2 : 0.3) + Math.random() * 1.1) * aimSpeedFactor(),
-    engageDist: spec.engage
-      ? spec.engage[0] + Math.random() * spec.engage[1]
-      : 19 + Math.random() * 6,           // guns come up early — pressure from range
+    engageDist: Math.min(
+      spec.engage
+        ? spec.engage[0] + Math.random() * spec.engage[1]
+        : 19 + Math.random() * 6,         // guns come up early — pressure from range
+      // ...but never from the far wall of a strip you cannot walk down. See
+      // SIMPLE.duel.engage: this is a CAP, so a type that already fights
+      // close keeps its own number.
+      game.mode === 'duel' ? duelEngageCap(duelRoom()) : Infinity),
     burstLeft: 0,
     burstT: 0,
     tell: 0,                              // fire-telegraph heat, 0..1
@@ -3616,6 +3621,7 @@ function killEnemy(i, impulseDir) {
   scene.remove(e.g);
   enemies.splice(i, 1);
   game.kills++;
+  duel.shotHere = true;   // ...and this room has had a body taken out of it
   // ...and the save's lifetime count, run kills only — never the menu's
   // attract fight, which shatters somebody every few seconds forever.
   if (game.state === 'play' || game.state === 'intro' || game.state === 'clear') {
@@ -3778,7 +3784,10 @@ function setEgunFlash(e, mat) {
 function diffT() {
   const v = game.mode === 'rush'
     ? speedAt(1 + rushT / 25, SPEED, false)
-    : speedAt(game.wave);
+    // ...and the telegraph tightens with whatever staircase this mode is on,
+    // so a mode with its own speeds does not keep the tunnel's reaction times.
+    : game.mode === 'duel' ? duelBulletSpeed(duelRoom())
+      : speedAt(game.wave);
   const span = Math.max(0.01, SPEED.capM - SPEED.openM);
   return Math.min(1, Math.max(0, (v - SPEED.openM) / span));
 }
@@ -4223,7 +4232,25 @@ function enemyBulletSpeed() {
   // ten-door plateau — which on its run clock landed as a flat stretch from
   // 2000 to 2250 seconds for no reason a player could ever discover.
   if (game.mode === 'rush') return speedAt(1 + rushT / 25, SPEED, false);
+  // NO RETREAT KEEPS ITS OWN STAIRCASE. See SIMPLE.duel.bullet: the tunnel's
+  // is written for a forty-six door climb and this mode is thirty-one rooms
+  // long, so inheriting it left rounds in the air for the best part of four
+  // seconds right through the room the time button arrives in.
+  if (game.mode === 'duel') return duelBulletSpeed(duelRoom());
   return speedAt(game.wave);
+}
+// The staircase itself: a speed for room 1, a tread per room, a ceiling.
+function duelBulletSpeed(room) {
+  const B = SIMPLE.duel.bullet;
+  return Math.min(B.capM, B.openM + B.stepM * Math.max(0, room - 1));
+}
+// ...AND HOW CLOSE THEY FIGHT, as a CAP on a type's own engage distance
+// rather than a replacement for it: a shotgunner still opens at its own ten
+// metres, and a gunner stops being able to plink from the far wall.
+function duelEngageCap(room) {
+  const E = SIMPLE.duel.engage;
+  const t = Math.min(1, Math.max(0, (room - 1) / Math.max(1, E.byRoom - 1)));
+  return E.openM + (E.nearM - E.openM) * t;
 }
 
 // Telegraphs and cooldowns ride the same dial: leisurely on the opening
@@ -4715,6 +4742,10 @@ let pendingFireAim = null;
 function playerFire(aimAt = null) {
   if (!player.alive || game.state !== 'play') return;
   if (tutorHoldsPlayerFire()) return;   // no weapon on screen yet, no round
+  if (duelHoldsGun()) return;           // ...and the same while room 1 is
+                                        // teaching the dodge with no gun on
+                                        // screen: a round fired into a stopped
+                                        // world hangs there and reads as a bug
   if (player.reloadT > 0) return;                       // hands are busy
   if (player.fireCd > 0) {
     pendingFireUntil = performance.now() + 300;
@@ -4897,6 +4928,7 @@ function updateBullets(sdt) {
     b.pos.addScaledVector(b.vel, sdt);
     b.life -= sdt;
     b.mesh.position.copy(b.pos);
+    duelWatchRound(b);   // ...and is anybody doing anything about this one?
 
     // trail stretches behind the bullet, longer at speed (enemy tracers extra
     // long so incoming fire reads instantly in frozen time)
@@ -8731,6 +8763,21 @@ function tutorRenderCues() {
 // that is inside the lane. Nothing else is a threat, and the moment it stops
 // being true the player HAS dodged, whether or not they moved the distance
 // some other rule wanted.
+// A ROUND THEY ARE NOT ANSWERING. How far along its flight it has got, with
+// the player still standing in its lane — which is the difference between "a
+// round is coming" and "a round is coming and nothing is being done about
+// it". `born` is kept for the life of the round precisely so this question
+// has an answer. See SIMPLE.duel.teach.lateAt.
+function duelWatchRound(b) {
+  if (b.fromPlayer || duel.said.dodge >= 2 || duelTeaching()) return;
+  if (!duelMayTeach()) return;
+  const flown = Math.hypot(b.pos.x - b.born.x, b.pos.z - b.born.z);
+  const span = flown + Math.hypot(player.pos.x - b.pos.x, player.pos.z - b.pos.z);
+  if (span < 1e-3 || flown / span < SIMPLE.duel.teach.lateAt) return;
+  if (!tutorRoundThreatens(b)) return;   // it is going to miss: nothing to teach
+  duelTeachDodge(b);
+}
+
 function tutorRoundThreatens(b) {
   if (!b) return false;
   const vx = b.vel.x, vz = b.vel.z;
@@ -10183,6 +10230,7 @@ const el = {
   slowmeter: document.getElementById('slowmeter'),
 
   duelmeet: document.getElementById('duelmeet'),
+  dueltap: document.getElementById('dueltap'),
   duelpins: [...document.querySelectorAll('#duelpins i')],
   tutorhand: document.getElementById('tutorhand'),
   tutorline: document.getElementById('tutorline'),
@@ -12167,6 +12215,12 @@ function hallWave(n) {
   // survive as a list: 3, 3, 4 is a room that ends on its biggest fight, and
   // 4, 4, 2 is the same ten men arriving in the wrong order.
   if (game.mode === 'duel' && hall) {
+    // A ROOM CROSSED WITH NOTHING SHATTERED IN IT is the shooting half of the
+    // lesson going unlearned, and the one thing that earns saying it again.
+    // Asked here, on the composition of the NEXT room, because that is the
+    // moment the last one is over.
+    if (duel.taught && !duel.shotHere && duel.said.shoot < 2) duel.reteach = true;
+    duel.shotHere = false;
     hall.duelGroups = duelPlan(n).groups.slice();
     // ...and when the room opened, which is what the debut's reservation on
     // the first round is timed out against. See duelMayFire.
@@ -13019,7 +13073,15 @@ const duel = { walk: false, room: -1, coach: 'wait', coachT: 0,
   met: new Set(), meetType: null, meetFrom: 0, meetDir: 0,
   // what the ring is drawn round, who it belongs to, and what answers it
   meetMark: null, meetOwner: null, meetRounds: [],
-  meetWant: 'dodge', meetShots: 0 };
+  meetWant: 'dodge', meetShots: 0,
+  // THE ROOM-1 LESSON. `said` counts how many times each beat has been shown
+  // — twice is the ceiling, and the second time has to be earned by missing
+  // it. `shotHere` is whether anything has been shattered in THIS room, which
+  // is what the shooting half is judged on when a door closes behind you.
+  said: { dodge: 0, shoot: 0 }, shotHere: false, taught: false, reteach: false,
+  // ...and the time button's own introduction, which is its own beat and not
+  // a state of the coach variable. See duelNoteShot.
+  btnSaid: false };
 // EVERY SHOT THE PLAYER HAS EVER TAKEN. Only ever compared against itself —
 // a card that says SHOOT THIS is answered by the count going up, which is a
 // question no flag anybody else owns can be asked without clearing it.
@@ -13038,6 +13100,12 @@ function resetSimpleState() {
   duel.meetMark = null;
   duel.meetRounds.length = 0;
   duel.meetWant = 'dodge';
+  duel.said = { dodge: 0, shoot: 0 };
+  duel.shotHere = false;
+  duel.taught = false;
+  duel.reteach = false;
+  duel.btnSaid = false;
+  duelTapCue(null);
   duel.walk = false;
   duel.room = -1;
   duel.coach = 'wait';
@@ -13167,11 +13235,33 @@ function duelMeetTargets(out) {
   }
   return out;
 }
+// THE THUMB ON A BODY. The dodge coach points at the stick; TAP HERE TO
+// SHOOT points at the MAN, because in this mode a shot goes where the thumb
+// went and pointing at a control the player is not being asked to use would
+// be teaching the wrong gesture. Placed every frame, so it stays on him while
+// he walks.
+const _vTapCue = new THREE.Vector3();
+function duelTapCue(e) {
+  const n = el.dueltap;
+  if (!n) return;
+  if (!e || !e.alive) { n.classList.remove('on'); return; }
+  _vTapCue.set(e.pos.x, 1.25 * e.g.scale.y, e.pos.z).project(camera);
+  if (_vTapCue.z > 1 || Math.abs(_vTapCue.x) > 1 || Math.abs(_vTapCue.y) > 1) {
+    n.classList.remove('on');
+    return;
+  }
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  n.style.left = `${(_vTapCue.x * 0.5 + 0.5) * w}px`;
+  n.style.top = `${(-_vTapCue.y * 0.5 + 0.5) * h}px`;
+  n.classList.add('on');
+}
+
 const _pinTargets = [];
 function duelPlaceMeetPins() {
   const pins = el.duelpins;
   if (!pins || !pins.length) return;
-  const on = duel.coach === 'meet' ? duelMeetTargets(_pinTargets) : [];
+  const on = (duel.coach === 'meet' || duelTeaching())
+    ? duelMeetTargets(_pinTargets) : [];
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
   for (let i = 0; i < pins.length; i++) {
     const t = on[i];
@@ -13252,10 +13342,129 @@ function duelNoteMeet(e) {
   if (card.button && duelButtonOn() && el.timebtn) el.timebtn.classList.add('wanted');
   vibrate([14, 50, 14]);
 }
+// ---------------------------------------------------------------------------
+// THE ROOM-1 LESSON. Two beats, and the second one is the reason the first
+// exists: you are shown what a round does to you before you are handed
+// anything to do about it.
+//
+//   DODGE   the first round anyone fires stops the world, gets a ring, and
+//           says the one thing there is to do. Answered by stepping aside.
+//   SHOOT   the world starts again, the pistol arrives, and a man gets a ring
+//           and a thumb pressing on his chest. Answered by firing.
+//
+// Said TWICE AT MOST — see SIMPLE.duel.teach. The second time has to be
+// earned by missing it: a round that got half way while the player stood in
+// its lane, or a whole room crossed without a body shattered.
+// ---------------------------------------------------------------------------
+function duelTeaching() {
+  return duel.coach === 'dodge' || duel.coach === 'aim';
+}
+// THE LESSON BELONGS TO THE OPENING, AND NOWHERE ELSE.
+//
+// It is about the two things this mode is made of — a round comes and you
+// move, a man is there and you tap him — and the rooms before the first new
+// type are exactly the rooms that are about only those two things. Past that
+// the debut cards own the screen, and a probe walking to room 7 without ever
+// having been shot at found both of them talking at once: the lesson froze
+// the world over a shotgunner's introduction and the introduction never
+// happened.
+//
+// `step.cast === 0` is the opening entry of the cast programme — the same
+// rooms `SIMPLE.duel.cast[0].rooms` names — so this moves if the programme
+// does, rather than being a room number typed twice.
+function duelMayTeach() {
+  if (game.mode !== 'duel' || game.state !== 'play') return false;
+  if (duel.coach === 'tap' || duel.coach === 'meet') return false;
+  const p = duelPlan(duelRoom());
+  if (p.step.cast !== 0) return false;
+  // ...and never over a debut that has not landed yet, even inside it
+  return !(p.fresh && !duel.met.has(p.fresh));
+}
+// THE PISTOL IS NOT ON SCREEN UNTIL THE DODGE BEAT IS ANSWERED. A weapon in
+// frame is an invitation to use it, and the first thing this mode has to say
+// is that a round is coming and you move — so room 1 opens with nothing in
+// your hands, and the gun arrives on the beat you earn it.
+//
+// ...WITH A WAY OUT. If nobody ever fires, the lesson never starts and a
+// player would be stood in a corridor unarmed for ever. The room's own clock
+// (see duelMayFire) is what that is measured against.
+function duelHoldsGun() {
+  if (game.mode !== 'duel' || duelRoom() !== 1) return false;
+  if (duel.said.shoot > 0 || duel.taught) return false;
+  const since = worldT - ((hall && hall.duelFreshAt) || 0);
+  return since < SIMPLE.duel.teach.hold * 2;
+}
+function duelTeachDodge(b) {
+  if (!duelMayTeach() || duelTeaching()) return;
+  if (duel.said.dodge >= 2 || !b) return;
+  duel.said.dodge++;
+  duel.coach = 'dodge';
+  duel.coachT = 0;
+  duel.meetFrom = player.pos.x;
+  duel.meetMark = 'rounds';
+  duel.meetOwner = b.turnOwner || enemies.find((e) => e.alive) || null;
+  duel.meetRounds.length = 0;
+  duel.meetRounds.push(b);
+  duel.meetWant = 'dodge';
+  // ...which way. Away from where the round is going, which for a round
+  // already in the air is the side of it the player is not on.
+  const cs = Math.cos(player.yaw), sn = Math.sin(player.yaw);
+  const across = (player.pos.x - b.pos.x) * cs - (player.pos.z - b.pos.z) * sn;
+  duel.meetDir = across >= 0 ? 1 : -1;
+  duelMeetCard(1, '', SIMPLE.duel.teach.dodge, 'dodge', duel.meetDir);
+  if (el.duelmeet) el.duelmeet.classList.add('noname');
+  vibrate([14, 50, 14]);
+}
+function duelTeachShoot() {
+  if (!duelMayTeach()) return;
+  if (duel.said.shoot >= 2) return;
+  const man = duelNearestBody();
+  if (!man) return;
+  duel.said.shoot++;
+  duel.coach = 'aim';
+  duel.coachT = 0;
+  duel.meetMark = 'body';
+  duel.meetOwner = man;
+  duel.meetRounds.length = 0;
+  duel.meetWant = 'shoot';
+  duel.meetShots = playerShots;
+  duelMeetCard(1, '', SIMPLE.duel.teach.shoot, 'shoot', 0);
+  if (el.duelmeet) el.duelmeet.classList.add('noname', 'nostick');
+}
+// Whoever the lesson should point at: the nearest man in front of the player,
+// because a thumb on somebody behind a wall teaches nothing.
+function duelNearestBody() {
+  let best = null, bestD = 1e9;
+  for (const e of enemies) {
+    if (!e.alive || e.state === 'assemble') continue;
+    const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
+    if (d < bestD) { bestD = d; best = e; }
+  }
+  return best;
+}
+function duelTeachDone() {
+  duel.coach = 'done';
+  duel.meetOwner = null;
+  duel.meetMark = null;
+  duel.meetRounds.length = 0;
+  duelMeetCard(0);
+  duelTapCue(null);
+  if (el.duelmeet) el.duelmeet.classList.remove('noname', 'nostick');
+}
+
 // Called from enemyFire, on every enemy shot in the game — so the first thing
 // it does is decide this is none of its business.
 function duelNoteShot() {
-  if (duel.coach !== 'wait' || !duelButtonOn() || game.state !== 'play') return;
+  if (!duelButtonOn() || game.state !== 'play') return;
+  // ONCE, AND NOT OFF THE BACK OF THE COACH STATE. `duel.coach` is one
+  // variable shared by every held beat this mode has, and this used to demand
+  // it be 'wait' — which is true only before ANYTHING has been said. The
+  // room-1 lesson now always speaks first and leaves it 'done', so the time
+  // button's own introduction could never fire again for a real player: the
+  // power arrived silently, with nothing on screen to say what it was.
+  if (duel.btnSaid) return;
+  if (duel.coach !== 'wait' && duel.coach !== 'done') return;   // one at a time
+  duel.btnSaid = true;
   duel.coach = 'tap';
   duel.coachT = 0;
   duelCoachSay('TAP TO SLOW TIME', 'btn');
@@ -13266,7 +13475,9 @@ function duelNoteShot() {
 // so it ends here and the meter line takes over.
 function duelCoachTapped() {
   if (!duelButtonOn()) return;              // the tunnel's button is not this
-  if (duel.coach !== 'tap' && duel.coach !== 'wait') return;
+  if (duel.coach !== 'tap' && duel.btnSaid) return;
+  if (duel.coach === 'meet' || duelTeaching()) return;   // something else is talking
+  duel.btnSaid = true;
   // FOUND IT THEMSELVES? Then the first line has nothing left to say, and
   // saying it anyway — stopping the world to teach a control they are already
   // holding — is the most annoying thing a tutorial can do. Skip to the half
@@ -13277,6 +13488,40 @@ function duelCoachTapped() {
   el.timebtn.classList.remove('hint');
 }
 function updateDuelCoach(dtReal) {
+  // ...a room went by with nothing shattered in it: say the shooting half
+  // once more, as soon as there is a man on the floor to point at.
+  if (duel.reteach && duel.coach === 'done' && game.state === 'play'
+      && duelNearestBody()) {
+    duel.reteach = false;
+    duelTeachShoot();
+  }
+  // ---- the room-1 lesson --------------------------------------------------
+  if (duelTeaching()) {
+    if (game.state !== 'play') { duelTeachDone(); return; }
+    duel.coachT += dtReal;
+    if (duel.coach === 'dodge') {
+      // stepping aside is what the words asked for, and it is also the only
+      // control the player has been given yet
+      const across = Math.abs(player.pos.x - duel.meetFrom);
+      if (across >= TUTOR.dodgeStepM || duel.coachT > SIMPLE.duel.teach.hold) {
+        duelTeachDone();
+        // ...AND THE PISTOL ARRIVES ON THE BEAT THEY EARNED IT. Straight into
+        // the second half, because "you moved, now here is what you moved
+        // FOR" is one thought and two screens of it is two.
+        duelTeachShoot();
+      }
+      return;
+    }
+    // 'aim': the world is running. Firing is the answer, and the thumb rides
+    // the man it is about until then.
+    duelTapCue(duel.meetOwner && duel.meetOwner.alive ? duel.meetOwner
+      : (duel.meetOwner = duelNearestBody()));
+    if (playerShots > duel.meetShots || duel.coachT > SIMPLE.duel.teach.hold) {
+      duel.taught = true;
+      duelTeachDone();
+    }
+    return;
+  }
   if (duel.coach === 'meet') {
     // A HELD WORLD IS ONLY HELD WHILE THERE IS A FIGHT TO HOLD. If the run
     // ended on the round that triggered the card, nothing is going to dodge
@@ -13339,7 +13584,12 @@ function simpleTime() {
     // stops the world the way the ONBOARDING stops it — TUTOR.holdEase, not a
     // snap — because it is the same beat: three rows on a still screen, and
     // the sidestep they ask for is what starts it again.
-    if (duel.coach === 'meet') return { target: 0, ease: TUTOR.holdEase };
+    // ...and the room-1 dodge beat stops it the same way a debut does. The
+    // SHOOTING half deliberately does not: a pistol that arrives in a stopped
+    // world has not arrived, it has been drawn on the screen.
+    if (duel.coach === 'meet' || duel.coach === 'dodge') {
+      return { target: 0, ease: TUTOR.holdEase };
+    }
     if (duel.coach === 'tap') return { target: 0, ease: 30 };
     return { target: (duelButtonOn() && timeLocked) ? SIMPLE.duel.slow : TIME_FULL,
       ease: SIMPLE.duel.ease };
@@ -13605,8 +13855,8 @@ function frame(now) {
   // ...and it does stop. The duel's two held beats want the same true zero: a
   // world creeping at 0.003 while somebody reads three words is a world that
   // arrives at them mid-sentence.
-  if ((tutorWorldHeld || duel.coach === 'tap' || duel.coach === 'meet')
-    && timeScale < 0.004) timeScale = 0;
+  if ((tutorWorldHeld || duel.coach === 'tap' || duel.coach === 'meet'
+    || duel.coach === 'dodge') && timeScale < 0.004) timeScale = 0;
   const sdt = dt * timeScale;   // scaled dt: the world's clock
   worldT += sdt;                // ...and its running total, for world-time gaps
 
@@ -13790,7 +14040,7 @@ function frame(now) {
       camera.lookAt(0, 1.2, 0);
     }
   } else {
-    gun.visible = tutorMay('gun');
+    gun.visible = tutorMay('gun') && !duelHoldsGun();
     // the crosshair and the pause button ride with the weapon — see index.html
     document.body.classList.toggle('armed', gun.visible);
     camera.position.set(player.pos.x, EYE_HEIGHT, player.pos.z);
@@ -14425,6 +14675,9 @@ window.__ts = {
     debt: +stopDebt.toFixed(3), walk: duel.walk, timeScale: +timeScale.toFixed(3),
     coach: duel.coach, room: duel.room, meet: duel.meetType, dir: duel.meetDir,
     want: duel.meetWant, mark: duel.meetMark,
+    said: { ...duel.said }, shotHere: duel.shotHere, taught: duel.taught,
+    tap: el.dueltap ? el.dueltap.classList.contains('on') : false,
+    gun: gun.visible,
     met: [...duel.met],
     plan: game.mode === 'duel' ? duelPlan(duelRoom()) : null,
     stick: +Math.hypot(input.stickX, input.stickY).toFixed(3) }),

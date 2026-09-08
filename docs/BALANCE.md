@@ -782,13 +782,12 @@ fight, and the same bodies dealt another way is not.
 |---|---|---|
 | 0 | 1 | 4.3 s |
 | 1 | 1 | 3.3 s |
-| 2 | 1 | 2.3 s |
-| 3 | 2 | 4.3 s |
-| 4 | 2 | 3.3 s |
-| 5 | 2 | 2.3 s |
-| 6 | 3 | 4.3 s |
-| 7 | 3 | 3.3 s |
-| 8 | 3 | 2.3 s |
+| 2 | 2 | 4.3 s |
+| 3 | 2 | 3.3 s |
+| 4 | 2 | 2.3 s |
+| 5 | 3 | 4.3 s |
+| 6 | 3 | 3.3 s |
+| 7 | 3 | 2.3 s |
 
 Tighten, tighten, tighten, then add a gun and reset the clock. A volley is
 measured from its **start**, so men firing together cost the room one turn

@@ -49,31 +49,65 @@ const r1 = await look();
 console.log('room 1: ' + JSON.stringify(r1));
 if (r1.btn) bad('the button is up in room 1, which is the introduction');
 
-// ---- room 1 runs at FULL SPEED: no automatic slow, ever -------------------
-// The mode used to slow itself whenever a round was inbound. That rule is
-// invisible from the outside — inside 1.1s, passing within 2.6m — so it read
-// as the world slowing at random, and a room that behaves differently from
-// every room after it teaches something untrue.
+// ---- ANSWER THE ROOM-1 LESSON, then measure what is left ------------------
+// Room 1 teaches two things and stops the world for the first of them, so it
+// is no longer a room that runs at full speed from the first frame. What it
+// must still be is a room that stops for NOTHING ELSE: the mode used to slow
+// itself whenever a round was inbound — inside 1.1s, passing within 2.6m — a
+// real rule and an invisible one, which read as the world slowing at random.
+// So: answer the lesson the way a player does, then watch.
 const room1 = await page.evaluate(async () => {
-  const t = window.__ts;
+  const t = window.__ts, C = 4;
+  const L = t.hall().legs[t.hall().cur];
+  const home = { x: L.spine[0][0] * C, z: L.spine[0][1] * C };
+  const taught = { froze: false, gunHeld: false };
+  // ...the dodge half: stand until it stops the world, then step aside
+  let t0 = performance.now();
+  while (performance.now() - t0 < 30000 && t.simpleState().coach !== 'dodge') {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999;
+    t.player.pos.x = home.x; t.player.pos.z = home.z;
+    if (!t.simpleState().gun) taught.gunHeld = true;
+  }
+  taught.froze = t.simpleState().coach === 'dodge';
+  t0 = performance.now();
+  while (performance.now() - t0 < 8000 && t.simpleState().coach === 'dodge') {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999;
+    t.player.pos.x = home.x + 1.6;
+  }
+  // ...and the shooting half: fire once
+  t0 = performance.now();
+  while (performance.now() - t0 < 8000 && t.simpleState().coach === 'aim') {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999;
+    t.fire();
+  }
+  // NOW measure: with the lesson answered, nothing may move the clock but the
+  // player.
   let slowest = 1, rounds = 0;
   const seen = new WeakSet();
-  const t0 = performance.now();
-  while (performance.now() - t0 < 18000) {
+  t0 = performance.now();
+  while (performance.now() - t0 < 14000) {
     await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999;
     for (const b of t.bullets) {
       if (!b.fromPlayer && !seen.has(b)) { seen.add(b); rounds++; }
     }
-    slowest = Math.min(slowest, t.simpleState().timeScale);
+    if (t.simpleState().coach === 'done') slowest = Math.min(slowest, t.simpleState().timeScale);
   }
-  return { slowest: +slowest.toFixed(3), rounds, room: t.hall().doorsPassed + 1 };
+  return { slowest: +slowest.toFixed(3), rounds, ...taught,
+    said: t.simpleState().said, room: t.hall().doorsPassed + 1 };
 });
-console.log('room 1, ' + room1.rounds + ' rounds fired at the player: slowest world speed '
+console.log('room 1 lesson: froze=' + room1.froze + ' gun held back=' + room1.gunHeld
+  + ' said ' + JSON.stringify(room1.said));
+console.log('room 1 after it, ' + room1.rounds + ' rounds fired: slowest world speed '
   + room1.slowest);
+if (!room1.froze) bad('the room-1 lesson never stopped the world for its first round');
+if (!room1.gunHeld) bad('the pistol was on screen before the lesson handed it over');
 if (!room1.rounds) console.log('  (nobody fired — that check measured nothing)');
 if (room1.rounds && room1.slowest < 0.9) {
-  bad('room 1 still slows itself: world speed fell to ' + room1.slowest);
+  bad('room 1 still slows itself once the lesson is done: ' + room1.slowest);
 }
 
 // ---- walk the run until the button is the player's ------------------------
