@@ -3304,15 +3304,16 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     walkPhase: Math.random() * Math.PI * 2,
     strafe: Math.random() < 0.5 ? 1 : -1,
     strafeT: 1 + Math.random() * 2,
-    fireCd: ((type === 'sniper' ? 1.2 : 0.3) + Math.random() * 1.1) * aimSpeedFactor(),
-    engageDist: Math.min(
-      spec.engage
-        ? spec.engage[0] + Math.random() * spec.engage[1]
-        : 19 + Math.random() * 6,         // guns come up early — pressure from range
-      // ...but never from the far wall of a strip you cannot walk down. See
-      // SIMPLE.duel.engage: this is a CAP, so a type that already fights
-      // close keeps its own number.
-      game.mode === 'duel' ? duelEngageCap(duelRoom()) : Infinity),
+    fireCd: (game.mode === 'duel' && type !== 'sniper'
+      ? SIMPLE.duel.openIn[0] + Math.random() * SIMPLE.duel.openIn[1]
+      : (type === 'sniper' ? 1.2 : 0.3) + Math.random() * 1.1) * aimSpeedFactor(),
+    engageDist: spec.engage
+      ? spec.engage[0] + Math.random() * spec.engage[1]
+      : 19 + Math.random() * 6,           // guns come up early — pressure from range
+    // NO RETREAT CAPS THIS FROM THE SECOND ROUND ON, not from the first: a man
+    // opens from wherever he is standing and closes afterwards. See
+    // SIMPLE.duel.engage and duelEngage().
+    opened: false,
     burstLeft: 0,
     burstT: 0,
     tell: 0,                              // fire-telegraph heat, 0..1
@@ -3705,6 +3706,7 @@ function enemyFire(e, toPlayer) {
   // reported gaps of `0 0 0 0` — some of those were one shotgun blast and
   // some were two rounds it never saw apart. The game knows exactly when it
   // pulled a trigger, so it says so.
+  e.opened = true;   // his first round is away; from here he has to close in
   enemyShots++;
   // ...and the first shot of a room has nothing to be a gap from
   if (lastEnemyShotAt > 0) shotGaps.push(+(worldT - lastEnemyShotAt).toFixed(3));
@@ -4252,6 +4254,14 @@ function duelEngageCap(room) {
   const t = Math.min(1, Math.max(0, (room - 1) / Math.max(1, E.byRoom - 1)));
   return E.openM + (E.nearM - E.openM) * t;
 }
+// How far out THIS man may fire from, right now. The cap is on his second
+// round and everything after it — his first comes from wherever he is, so a
+// room announces itself instead of spending its opening seconds on a walk.
+function duelEngage(e) {
+  if (game.mode !== 'duel') return e.engageDist;
+  if (SIMPLE.duel.openAnywhere && !e.opened) return e.engageDist;
+  return Math.min(e.engageDist, duelEngageCap(duelRoom()));
+}
 
 // Telegraphs and cooldowns ride the same dial: leisurely on the opening
 // waves (x1.15), tightening to ~x0.5 by wave 8.
@@ -4484,7 +4494,7 @@ function updateEnemy(e, sdt) {
       const los = hasLineOfSight(_v2.set(e.pos.x, 1.35, e.pos.z),
         _v3.set(player.pos.x, EYE_HEIGHT - 0.3, player.pos.z));
       e.seenT = los ? (e.seenT || 0) + sdt : 0;
-      if (e.type !== 'rusher' && dist < e.engageDist && e.fireCd <= 0 &&
+      if (e.type !== 'rusher' && dist < duelEngage(e) && e.fireCd <= 0 &&
           (!ENEMY_TYPES[e.type].shielded || Math.cos(e.g.rotation.y - wantYaw) > 0.8) &&
           performance.now() >= game.noFireBefore && !tutorHoldsFire(e) &&
           stagedArmed(e) &&
@@ -8773,7 +8783,13 @@ function duelWatchRound(b) {
   if (!duelMayTeach()) return;
   const flown = Math.hypot(b.pos.x - b.born.x, b.pos.z - b.born.z);
   const span = flown + Math.hypot(player.pos.x - b.pos.x, player.pos.z - b.pos.z);
-  if (span < 1e-3 || flown / span < SIMPLE.duel.teach.lateAt) return;
+  const T = SIMPLE.duel.teach;
+  // ...and the SECOND telling is a correction, not an introduction: it waits
+  // until the round is nearly on them, and never in the room that already
+  // said it once.
+  const first = duel.said.dodge === 0;
+  if (!first && duelRoom() === duel.saidDodgeIn) return;
+  if (span < 1e-3 || flown / span < (first ? T.lateAt : T.lateAgainAt)) return;
   if (!tutorRoundThreatens(b)) return;   // it is going to miss: nothing to teach
   duelTeachDodge(b);
 }
@@ -13078,10 +13094,14 @@ const duel = { walk: false, room: -1, coach: 'wait', coachT: 0,
   // — twice is the ceiling, and the second time has to be earned by missing
   // it. `shotHere` is whether anything has been shattered in THIS room, which
   // is what the shooting half is judged on when a door closes behind you.
-  said: { dodge: 0, shoot: 0 }, shotHere: false, taught: false, reteach: false,
+  said: { dodge: 0, shoot: 0 }, saidDodgeIn: 0,
+  shotHere: false, taught: false, reteach: false,
   // ...and the time button's own introduction, which is its own beat and not
   // a state of the coach variable. See duelNoteShot.
-  btnSaid: false };
+  btnSaid: false,
+  // ...whose second half raises the shooting cue alongside it, so "spend the
+  // seconds" and "here is what on" are one beat. See duelPairShot.
+  pairShot: false };
 // EVERY SHOT THE PLAYER HAS EVER TAKEN. Only ever compared against itself —
 // a card that says SHOOT THIS is answered by the count going up, which is a
 // question no flag anybody else owns can be asked without clearing it.
@@ -13101,10 +13121,12 @@ function resetSimpleState() {
   duel.meetRounds.length = 0;
   duel.meetWant = 'dodge';
   duel.said = { dodge: 0, shoot: 0 };
+  duel.saidDodgeIn = 0;
   duel.shotHere = false;
   duel.taught = false;
   duel.reteach = false;
   duel.btnSaid = false;
+  duel.pairShot = false;
   duelTapCue(null);
   duel.walk = false;
   duel.room = -1;
@@ -13260,7 +13282,7 @@ const _pinTargets = [];
 function duelPlaceMeetPins() {
   const pins = el.duelpins;
   if (!pins || !pins.length) return;
-  const on = (duel.coach === 'meet' || duelTeaching())
+  const on = (duel.coach === 'meet' || duelTeaching() || duel.pairShot)
     ? duelMeetTargets(_pinTargets) : [];
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
   for (let i = 0; i < pins.length; i++) {
@@ -13375,6 +13397,12 @@ function duelTeaching() {
 function duelMayTeach() {
   if (game.mode !== 'duel' || game.state !== 'play') return false;
   if (duel.coach === 'tap' || duel.coach === 'meet') return false;
+  // ...AND IT ENDS WHERE THE POWER BEGINS. The button's own room belongs to
+  // the button, which arrives with a coach of its own and a shooting cue
+  // paired to it — measured, the dodge repeat fired in room 6 and stopped
+  // that introduction happening at all. This lesson is for the rooms BEFORE
+  // there is anything else to be told.
+  if (duelButtonOn()) return false;
   const p = duelPlan(duelRoom());
   if (p.step.cast !== 0) return false;
   // ...and never over a debut that has not landed yet, even inside it
@@ -13398,6 +13426,7 @@ function duelTeachDodge(b) {
   if (!duelMayTeach() || duelTeaching()) return;
   if (duel.said.dodge >= 2 || !b) return;
   duel.said.dodge++;
+  duel.saidDodgeIn = duelRoom();
   duel.coach = 'dodge';
   duel.coachT = 0;
   duel.meetFrom = player.pos.x;
@@ -13478,6 +13507,7 @@ function duelCoachTapped() {
   if (duel.coach !== 'tap' && duel.btnSaid) return;
   if (duel.coach === 'meet' || duelTeaching()) return;   // something else is talking
   duel.btnSaid = true;
+  duel.meetShots = playerShots;
   // FOUND IT THEMSELVES? Then the first line has nothing left to say, and
   // saying it anyway — stopping the world to teach a control they are already
   // holding — is the most annoying thing a tutorial can do. Skip to the half
@@ -13486,6 +13516,24 @@ function duelCoachTapped() {
   duel.coachT = 0;
   duelCoachSay('SHATTER ENEMIES TO REFILL YOUR METER', 'meter');
   el.timebtn.classList.remove('hint');
+  // ...AND WHAT THE SECONDS ARE FOR. The meter line asks the player to shatter
+  // and says nothing about how, at the one moment the world has slowed down
+  // to let them. So the button's coach is PAIRED with the shooting cue: a ring
+  // on a man and a thumb pressing on his chest, in the slowed room, while the
+  // line about refilling is on screen. Stopping time and taking a shot are one
+  // idea and this is the beat that has both halves of it in frame.
+  duelPairShot();
+}
+// The shooting cue raised ALONGSIDE another beat rather than as one of its
+// own: no card of its own, no freeze, no state change — just the ring and the
+// thumb on a body, put away when the beat that raised them is over.
+function duelPairShot() {
+  const man = duelNearestBody();
+  if (!man) return;
+  duel.meetMark = 'body';
+  duel.meetOwner = man;
+  duel.meetRounds.length = 0;
+  duel.pairShot = true;
 }
 function updateDuelCoach(dtReal) {
   // ...a room went by with nothing shattered in it: say the shooting half
@@ -13555,7 +13603,28 @@ function updateDuelCoach(dtReal) {
     if (duel.coachT > 12) { duel.coach = 'done'; duelCoachSay(''); el.timebtn.classList.remove('hint'); }
   } else if (duel.coach === 'refill') {
     duel.coachT += dtReal;
-    if (duel.coachT > 4.5) { duel.coach = 'done'; duelCoachSay(''); }
+    // the paired shooting cue rides this beat: it follows a live body, and it
+    // goes when the line it came with goes — or the moment they take the shot
+    // it was asking for, because then it has been answered.
+    if (duel.pairShot) {
+      if (!duel.meetOwner || !duel.meetOwner.alive) duel.meetOwner = duelNearestBody();
+      duelTapCue(duel.meetOwner);
+    }
+    // ...AND A CUE THAT GOES IN THE FRAME IT ARRIVED WAS NEVER SHOWN. You
+    // shoot in this mode by tapping ANYWHERE, and the time button is on the
+    // screen — so the very tap that raises this cue also pulls the trigger,
+    // and "they took the shot it asked for" was true before the player could
+    // have seen it. It has to be up long enough to read first.
+    const answered = duel.pairShot && duel.coachT > 0.8
+      && playerShots > duel.meetShots;
+    if (duel.coachT > 4.5 || answered) {
+      duel.coach = 'done';
+      duelCoachSay('');
+      duel.pairShot = false;
+      duel.meetOwner = null;
+      duel.meetMark = null;
+      duelTapCue(null);
+    }
   }
 }
 

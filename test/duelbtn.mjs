@@ -145,9 +145,12 @@ await page.screenshot({ path: OUT + 'duel-button.png' });
 const READ = `() => {
   const c = document.getElementById('duelcoach');
   const t = window.__ts;
+  const pins = [...document.querySelectorAll('#duelpins i')]
+    .filter((p) => p.classList.contains('on')).length;
   return { text: c.textContent.trim(), on: c.classList.contains('on'),
     atbtn: c.classList.contains('atbtn'), atmeter: c.classList.contains('atmeter'),
-    scale: t.simpleState().timeScale, coach: t.simpleState().coach };
+    scale: t.simpleState().timeScale, coach: t.simpleState().coach,
+    pins, tap: document.getElementById('dueltap').classList.contains('on') };
 }`;
 const readCoach = () => page.evaluate('(' + READ + ')()');
 const before = arrived.before;
@@ -183,6 +186,12 @@ if (!/TAP TO SLOW/.test(held.text)) bad('the prompt does not say what to do: ' +
 if (held.scale > 0.001) bad('the world did not actually stop: scale ' + held.scale);
 if (!answered.on || !answered.atmeter) bad('the meter line did not follow the tap');
 if (!/REFILL/.test(answered.text)) bad('the second line is not about refilling: ' + answered.text);
+// ...AND IT IS PAIRED WITH THE SHOOTING CUE. The meter line asks the player to
+// shatter and says nothing about how, at the one moment the world has slowed
+// down to let them. Stopping time and taking a shot are one idea, so both
+// halves have to be in frame together.
+if (!answered.tap) bad('the button lesson says SHATTER and puts no thumb on anybody');
+if (!answered.pins) bad('the button lesson says SHATTER and rings nobody');
 if (answered.scale <= 0.001) bad('answering the prompt did not let the world move again');
 await page.screenshot({ path: OUT + 'duel-coach.png' });
 

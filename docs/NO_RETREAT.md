@@ -78,9 +78,25 @@ neither. So it keeps its own:
 
 `engage` is a **cap on a type's own engage distance**, not a replacement — a
 shotgunner still opens at its own ten metres, and a gunner stops being able to
-plink from the far wall. Bodies are placed past the 13 m first-sight floor, so
-at these numbers the back rank has to walk in before it may fire at all, which
-is the closing-in the mode was missing.
+plink from the far wall.
+
+**...and the cap starts on a man's second round, not his first**
+(`openAnywhere`). Measured, the second and third men in a room went **ten to
+seventeen world seconds** between arriving and firing. Part of that is the
+room's own clock, which is the pacing dial and stays — and part of it was a man
+placed at twenty metres walking a third of the strip before he was allowed to
+shoot at all. A room you walk into should announce itself. He opens from
+wherever he is standing and closes afterwards, so the closing-in is something
+the player watches happen rather than something that happens before anything
+else does. `openIn` cuts the opening cooldown with it: the shared default gave
+a man up to 1.4 s of thinking time before he could even raise his gun.
+
+| | was | is |
+|---|---|---|
+| first body, arriving to firing | 3.5 s | **1.3 s** |
+| the ones behind it | 10 – 16.7 s | 4.6 – 7.1 s (the room clock) |
+| opens from | 14 m | ~19 m |
+| ends up at | — | **2.6 – 3.7 m**, the hold line |
 
 The telegraph rides the same staircase (`diffT`), so a mode with its own
 speeds does not keep the tunnel's reaction times.
@@ -100,9 +116,22 @@ thing this mode has to say is that a round is coming and you move.
    puts both away.
 
 **It is said twice at most** (`SIMPLE.duel.teach`), and the second time has to
-be earned by missing it: a round that got `lateAt` (half way) to the player
-while they stood in its lane, or a whole room crossed without a body
-shattered. Past that it is nagging somebody who is playing.
+be earned by missing it: a round that got to the player while they stood in its
+lane, or a whole room crossed without a body shattered. Past that it is nagging
+somebody who is playing.
+
+**The two tellings are different questions, so they have different bars.** The
+first is an introduction and fires at `lateAt` — half way along the round's
+flight, while there is plenty left to step out of. The second is a *correction*,
+and at the same bar it went off almost immediately and over and over: a player
+who is mid-sidestep at half way has not failed at anything. So the repeat waits
+until `lateAgainAt` — the round nearly on them — and **never fires in the room
+that already said it once**.
+
+**And the whole lesson ends where the power begins.** The button's own room
+belongs to the button, which arrives with a coach of its own; measured, the
+dodge repeat fired in room 6 and stopped that introduction happening at all.
+This lesson is for the rooms *before* there is anything else to be told.
 
 **How close they get: 2.6 m** (`SIMPLE.duel.holdM`), measured from where you
 stand. That number sits between two others. A man inside **1.5 m** switches to
@@ -312,7 +341,13 @@ ten.
 
 The first round anyone fires once the button exists stops the world with the
 prompt **on the button**, and pressing it releases straight into ordinary slow
-time. The second line follows at the meter, which is by then visibly draining.
+time. The second line follows at the meter, which is by then visibly draining —
+**paired with the shooting cue**: a ring on a man and a thumb pressing on his
+chest, in the slowed room, while the line about refilling is on screen. The
+meter line asks the player to shatter and said nothing about how, at the one
+moment the world has slowed down to let them. Stopping time and taking a shot
+are one idea, so both halves are in frame together, and the cue goes the moment
+they take the shot it was asking for.
 
 The mode used to slow itself whenever a round was inbound — inside 1.1 s and
 passing within 2.6 m. That is a real rule and an invisible one: nothing states

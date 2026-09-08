@@ -1106,6 +1106,22 @@ export const SIMPLE = {
     // before it may fire at all — which is the closing-in the mode was
     // missing.
     engage: { openM: 15, nearM: 9.5, byRoom: 10 },
+    // ...BUT NOT FOR HIS FIRST ROUND. Measured, the second and third men in a
+    // room went ten to seventeen world seconds between arriving and firing:
+    // part of that is the room's own clock, which is the pacing dial and
+    // stays, and part of it was a man placed at twenty metres walking a third
+    // of the strip before he was allowed to shoot at all. A room you walk
+    // into should announce itself.
+    //
+    // So the cap applies from a man's SECOND round on. He opens from wherever
+    // he is — which is also what "far is fine for their first shot" asked for
+    // — and then closes, and the closing is now something the player watches
+    // happen rather than something that happens before anything else does.
+    openAnywhere: true,
+    // ...and he does not stand there thinking about it first. The shared
+    // default is up to 1.4 s of cooldown before a man may even raise his gun,
+    // on top of the telegraph and the room clock.
+    openIn: [0.15, 0.35],
     slow: 0.3,
     ease: 9,            // crossing between slow and full (per second)
     // WHAT "A ROUND IS ON ITS WAY" MEANS — inside `lead` seconds and passing
@@ -1309,9 +1325,18 @@ export const SIMPLE = {
     teach: {
       dodge: 'DODGE THIS',
       shoot: 'TAP HERE TO SHOOT',
-      // how far along its flight a round has to get, with the player still in
-      // its lane, to count as a dodge they did not make
+      // HOW FAR ALONG ITS FLIGHT a round has to get, with the player still in
+      // its lane, to count as a dodge they did not make.
+      //
+      // Two numbers, because the two tellings are different questions. The
+      // FIRST is an introduction and wants to arrive while there is plenty of
+      // round left to step out of. The SECOND is a correction, and at the same
+      // half-way bar it fired almost immediately and again and again — a
+      // player who is mid-sidestep at 50% has not failed at anything. So the
+      // repeat waits until the round is nearly on them, and it will not fire
+      // in the same room as the first.
       lateAt: 0.5,
+      lateAgainAt: 0.82,
       // ...and the freeze lets go on its own after this, so a stopped world
       // is never a stuck one
       hold: 12,

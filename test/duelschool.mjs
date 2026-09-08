@@ -106,19 +106,46 @@ if (after.said.dodge !== 1 || after.said.shoot !== 1) {
   bad('the lesson has been said the wrong number of times: ' + JSON.stringify(after.said));
 }
 // ---- ...AND IT IS SAID AGAIN ONLY IF IT WAS NOT TAKEN --------------------
-// Stand in the lane of a round and do nothing. That is the one thing that
-// earns hearing it twice.
-const again = await page.evaluate(async () => {
+// Two conditions now, and the probe has to satisfy both: a NEW room (the same
+// room does not get told twice) and a round that is nearly on the player
+// rather than one they may still be mid-sidestep of.
+//
+// FIRST: standing in a round's lane in the SAME room must NOT bring it back.
+const sameRoom = await page.evaluate(async () => {
   const t = window.__ts, home = window.__home;
   const t0 = performance.now();
-  while (performance.now() - t0 < 30000 && t.simpleState().coach !== 'dodge') {
+  while (performance.now() - t0 < 14000 && t.simpleState().coach !== 'dodge') {
     await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999;
     t.player.pos.x = home.x; t.player.pos.z = home.z;
   }
-  return { coach: t.simpleState().coach, said: t.simpleState().said };
+  return { coach: t.simpleState().coach, said: t.simpleState().said,
+    room: t.hall().doorsPassed + 1 };
 });
-console.log('stood still:     ' + JSON.stringify(again));
+console.log('same room:       ' + JSON.stringify(sameRoom));
+if (sameRoom.said.dodge > 1) {
+  bad('the room that already said it said it again: dodge ' + sameRoom.said.dodge);
+}
+
+// ...and NOW in a new room, standing still, it is said its second and last time.
+const again = await page.evaluate(async () => {
+  const t = window.__ts, C = 4;
+  for (let k = t.enemies.length - 1; k >= 0; k--) t.killAt(k);
+  t.crossDoor();
+  for (let i = 0; i < 6; i++) await new Promise((r) => requestAnimationFrame(r));
+  const L = t.hall().legs[t.hall().cur];
+  const home = { x: L.spine[0][0] * C, z: L.spine[0][1] * C };
+  window.__home = home;
+  const t0 = performance.now();
+  while (performance.now() - t0 < 40000 && t.simpleState().coach !== 'dodge') {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999;
+    t.player.pos.x = home.x; t.player.pos.z = home.z;
+  }
+  return { coach: t.simpleState().coach, said: t.simpleState().said,
+    room: t.hall().doorsPassed + 1 };
+});
+console.log('a new room:      ' + JSON.stringify(again));
 if (again.coach !== 'dodge') bad('standing in a round\'s lane did not bring the dodge back');
 if (again.said.dodge !== 2) bad('the dodge count is ' + again.said.dodge + ', not 2');
 
