@@ -8744,15 +8744,21 @@ function tutorBuildSigns() {
 // the leg that carries it is, which is the same moment the corridor's own
 // meshes are made — not mid-fight, which is what PILLARS 8 is about.
 const paintCache = new Map();
-const PAINT_RED = '#a81f0e';        // a red can, not the interface's signal red
+// A red can, not the interface's signal red — and it is declared sRGB below,
+// so this hex is the colour that actually lands. The corridor's own textures
+// are not: they were eyed in-game against the default NoColorSpace path,
+// which treats their bytes as linear and brightens them on the way out, so
+// their hexes read paler than they are. Painting to that convention would
+// have meant guessing at a number instead of choosing one.
+const PAINT_RED = '#7d150a';
 // Hand-lettered, so the glyphs want to be a heavy grotesque with the wobble
 // added rather than a script face pretending to be handwriting.
-const PAINT_FONT = '900 108px "Arial Black", "Helvetica Neue", Impact, sans-serif';
+const PAINT_FONT = '900 132px "Arial Black", "Helvetica Neue", Impact, sans-serif';
 
 // One rough stroke of a brush: the letterform, drawn several times with tiny
 // offsets so the edges thicken unevenly the way a loaded brush does.
-function paintGlyphs(g, text, x, y, alpha) {
-  g.font = PAINT_FONT;
+function paintGlyphs(g, text, x, y, alpha, px) {
+  g.font = px ? PAINT_FONT.replace(/\d+px/, `${Math.round(px)}px`) : PAINT_FONT;
   g.textAlign = 'left';
   g.textBaseline = 'alphabetic';
   let cx = x;
@@ -8796,8 +8802,8 @@ function paintArrow(g, x, y, size, dir) {
 function paintWear(g, w, h) {
   g.globalCompositeOperation = 'destination-out';
   // flecks the brush missed
-  for (let i = 0; i < 900; i++) {
-    g.globalAlpha = 0.25 + Math.random() * 0.6;
+  for (let i = 0; i < 520; i++) {
+    g.globalAlpha = 0.18 + Math.random() * 0.45;
     const r = 1 + Math.random() * 4;
     g.beginPath();
     g.arc(Math.random() * w, Math.random() * h, r, 0, 7);
@@ -8824,10 +8830,16 @@ function paintDrip(g, x, y, len) {
 }
 
 // The texture for one message. `dir` puts a brushed arrowhead on that side.
-function makePaintTexture(text, dir) {
-  const key = `${text}|${dir || ''}`;
+function makePaintTexture(text, dir, halves) {
+  const key = `${text}|${dir || ''}|${(halves || []).join('/')}`;
   const hit = paintCache.get(key);
   if (hit) return hit;
+  // A SIGNPOST IS TALLER, NOT WIDER. The back wall of a T is the corridor's
+  // own width — four metres — and two messages side by side on it are either
+  // unreadable or overlapping. Stacked, each gets the whole wall to itself:
+  // the left one high and to the left, the right one low and to the right,
+  // which is also how a person with one can and limited reach would do it.
+  if (halves) return makePaintPost(key, halves);
   const W = 1024, H = 256;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
@@ -8853,6 +8865,10 @@ function makePaintTexture(text, dir) {
   paintWear(g, W, H);
 
   const t = new THREE.CanvasTexture(c);
+  // SAID OUT LOUD. Without this three treats the canvas bytes as linear and
+  // converts them to sRGB on the way out, which turns a dark oxide red into
+  // a bright orange one — measured, #6e0f06 came out around #d4502a.
+  t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
   const m = new THREE.MeshBasicMaterial({ map: t, transparent: true,
     depthWrite: false, side: THREE.DoubleSide });
@@ -8875,13 +8891,23 @@ const PAINT_CANVAS_H = 2.4;
 const paintMeshes = [];
 function tutorAddPaint(s) {
   const L = hall && hall.legs[hall.cur];
-  if (!L || !L.spine || !L.spine.length || !s || !s.text) return;
-  const made = makePaintTexture(s.text, s.dir || null);
+  if (!L || !L.spine || !L.spine.length || !s) return;
+  if (!s.text && !s.halves) return;
+  const made = makePaintTexture(s.text, s.dir || null, s.halves || null);
   // `h` IS THE CAP HEIGHT, in metres, because that is the number a person
   // would give: how tall are the letters. The canvas is four times that tall
   // once its margins are counted, and the plane follows the canvas.
-  const capM = s.h || 0.26;                     // a hand's span of letter
-  const hM = capM * PAINT_CANVAS_H;
+  const capM = s.h || 0.42;                     // an arm's span of letter
+  // A signpost's canvas is twice as tall for the same cap height, because it
+  // carries two lines rather than one.
+  let hM = capM * (made.post ? PAINT_CANVAS_H * 2 : PAINT_CANVAS_H);
+  // ...AND IT CANNOT BE WIDER THAN THE WALL. Cap height is the number a
+  // person would give, but a long message at a comfortable cap height runs
+  // off both ends of a four-metre corridor and crops to a sentence missing
+  // its first and last letters. The wall wins: past this the letters get
+  // smaller, which is what somebody with a can and a wall would also do.
+  const maxW = HALL.cell - 0.6;
+  if (hM * made.aspect > maxW) hM = maxW / made.aspect;
   const geo = new THREE.PlaneGeometry(hM * made.aspect, hM);
   const m = new THREE.Mesh(geo, made.mat);
   // THE INNER FACE, and the game already had the formula. A wall slab is
@@ -8923,6 +8949,75 @@ window.__paintProbe = () => [...paintCache.entries()].map(([k, v]) => {
   for (let i = 3; i < d.length; i += 4) if (d[i] > 24) on++;
   return { key: k, w: c.width, h: c.height, opaquePct: +(100 * on / (c.width * c.height)).toFixed(1) };
 });
+
+// The signpost: two messages, one wall, one object.
+function makePaintPost(key, halves) {
+  const W = 1280, H = 560;
+  const PAD = 44, ARROW = 120, BASE = 132;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = PAINT_RED;
+
+  // FITTED TO THE WALL, NOT TO A CONSTANT. The two lines are different
+  // lengths — NOT THIS WAY is half again as long as THIS WAY — and a fixed
+  // size ran the longer one off the canvas, which crops to a message missing
+  // its first letter. Both are scaled by the same factor so they still read
+  // as one hand at one moment, and the factor is whatever makes the longer
+  // one fit with an arrow beside it.
+  g.font = PAINT_FONT;
+  const room = W - PAD * 2 - ARROW - 30;
+  let scale = 1;
+  for (const t of halves) scale = Math.min(scale, room / Math.max(g.measureText(t).width, 1));
+  const px = BASE * scale;
+
+  // upper, to the left, pointing left
+  {
+    const t = halves[0];
+    let x = PAD;
+    paintArrow(g, x + ARROW * 0.45, H * 0.24, px * 0.86, 'l');
+    x += ARROW + 24;
+    const w = paintGlyphs(g, t, x, H * 0.33, 0.94, px);
+    paintDrip(g, x + Math.random() * w, H * 0.34, 18 + Math.random() * 44);
+  }
+  // lower, to the right, pointing right
+  {
+    const t = halves[1];
+    g.font = PAINT_FONT.replace(/\d+px/, `${Math.round(px)}px`);
+    const tw = g.measureText(t).width;
+    const x = W - PAD - ARROW - 24 - tw;
+    const w = paintGlyphs(g, t, x, H * 0.82, 0.92, px);
+    paintArrow(g, x + w + ARROW * 0.6, H * 0.73, px * 0.86, 'r');
+    paintDrip(g, x + Math.random() * w, H * 0.83, 14 + Math.random() * 34);
+  }
+  paintWear(g, W, H);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  const m = new THREE.MeshBasicMaterial({ map: t, transparent: true,
+    depthWrite: false, side: THREE.DoubleSide });
+  const made = { tex: t, mat: m, aspect: W / H, post: true };
+  paintCache.set(key, made);
+  return made;
+}
+
+// IS ANY OF HALE'S PAINT ON SCREEN? Projected rather than guessed at from a
+// distance, because a wall two metres away and behind you is not a message.
+// Only the near ones count: a mesh at the far end of a straight is a red mark
+// nobody can read, and suppressing a legible label for it would be worse
+// than showing both.
+const _vPaint = new THREE.Vector3();
+const PAINT_IN_VIEW_M = 26;
+function tutorPaintInView() {
+  for (const m of paintMeshes) {
+    if (!m.visible) continue;
+    const d = Math.hypot(m.position.x - player.pos.x, m.position.z - player.pos.z);
+    if (d > PAINT_IN_VIEW_M) continue;
+    _vPaint.copy(m.position).project(camera);
+    if (_vPaint.z <= 1 && Math.abs(_vPaint.x) < 1 && Math.abs(_vPaint.y) < 1) return true;
+  }
+  return false;
+}
 
 // A sign's anchor in world space. Route signs name a cell of the spine;
 // placed signs carry their own; the door is the spine's last cell, which is
@@ -9006,6 +9101,11 @@ function tutorPlaceSign() {
     if (t && t.classList.contains('show')) { cueUp = true; break; }
   }
   if (cueUp || tutorStep === null) return hide();
+  // ...AND PAINT COUNTS AS A MESSAGE. Hale's are the only ones actually in
+  // the room, so when one is in front of the player it IS the message and a
+  // floating label beside it is the second one the rule forbids. The
+  // simulation waits its turn.
+  if (tutorPaintInView()) return hide();
   // A SIGN IS NOT THE NEEDLE, so it does not ride on `tutorMay('way')`. That
   // grant is off for the door lesson — which is the one beat whose entire
   // subject is a door — and on for the dodging lesson, which is a fight.

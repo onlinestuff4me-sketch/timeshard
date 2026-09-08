@@ -112,12 +112,23 @@ const run = async () => {
   // the cell-anchored signs on their own.
   await page.evaluate(() => window.__ts.setTutorStep('exit'));
   await page.waitForTimeout(900);
-  await standAt(page, 9, 2);
-  await shoot(page, 'paint-far', "Hale's paint, from down the corridor.");
-  await standAt(page, 10, 1);
-  await shoot(page, 'paint-near', 'Closer. It is a texture on the wall, lit by the corridor.');
-  await standAt(page, 11, 1);
-  await shoot(page, 'paint-second', 'The second message, further along.');
+  await standAt(page, 15, 2);
+  await shoot(page, 'approach-t', 'Walking the short hall toward the junction.');
+  await standAt(page, 16, 1);
+  await shoot(page, 'the-t', 'The T. One object, two lines, painted on the back wall.');
+  await standAt(page, 19, 2);
+  await shoot(page, 'good-choice', 'The left arm, following the arrow.');
+  // The dead end is `extra` cells, so it is not on the spine — placed directly.
+  await page.evaluate(() => { const t = window.__ts, C = 4, o = t.hall().legs[t.hall().cur].spine[0];
+    t.player.pos.x = (o[0] - 2) * C; t.player.pos.z = (o[1] + 11) * C;
+    t.player.yaw = Math.atan2(1, 0); t.player.pitch = 0; });
+  await page.waitForTimeout(500);
+  await shoot(page, 'dead-end-1', 'Down the right arm: the first warning.');
+  await page.evaluate(() => { const t = window.__ts, C = 4, o = t.hall().legs[t.hall().cur].spine[0];
+    t.player.pos.x = (o[0] - 3) * C; t.player.pos.z = (o[1] + 10) * C;
+    t.player.yaw = Math.atan2(0, 1); t.player.pitch = 0; });
+  await page.waitForTimeout(500);
+  await shoot(page, 'dead-end-2', 'Round the corner: the second.');
 
   writeFileSync(join(OUT, 'shots.json'), JSON.stringify({ shots, errs }, null, 2));
   if (errs.length) console.log('PAGE ERRORS:', errs.slice(0, 4));

@@ -250,10 +250,30 @@ export const TUTOR = {
 // steps in the grid, not which way the head goes.)
 const TEACH_MOVES = [
   ['f', 5],    // 1. MOVE — dead straight, nothing else on screen
-  ['r', 3],    // 2. LOOK — turn left, and back right onto the axis
+  ['r', 3],    // 2. LOOK — the first corner
   ['f', 3],
-  ['r', 3],    // 3. and once more, so the habit is not a one-off
-  ['f', 13],   // 4-9. the barrier, the dodging, the shooting, the door
+  ['l', 3],    // 3. CORNERS — and back onto the axis
+  ['f', 3],    //    the short hall to the junction
+  ['r', 4],    // 4. THE T — the spine takes the LEFT arm, the one marked
+               //    THIS WAY. `r` steps grid +x, which with the player
+               //    walking +z is to their left; marksFromPlan derives the
+               //    screen direction from the cells rather than the letter.
+  ['f', 13],   // 5-9. the barrier, the dodging, the shooting, the door
+];
+// THE DEAD END, hung off the junction as `extra` cells — the right arm of
+// the T, which is a joke and not the route. Leg-relative, like every other
+// cell list here.
+//
+// It turns AWAY from the spine on purpose. A branch that hooks back across
+// the onward corridor is measurable but ugly: it puts the player standing
+// beside a cell of the route they have not walked to, which is the case
+// test/spine.mjs exists to keep honest.
+//
+//   (0,11) is the junction. Right is grid -x.
+const TEACH_DEAD_END = [
+  [-1, 11], [-2, 11], [-3, 11],          // the short hall right
+  [-3, 10], [-3, 9],                     // first turn — TURN AROUND
+  [-4, 9], [-5, 9], [-6, 9],             // second turn — and the man
 ];
 // --- marks: named cells on the walked path ---------------------------------
 // DERIVED, NEVER TYPED. A mark is a place in the lesson — "the first corner",
@@ -345,7 +365,7 @@ export function marksFromPlan(plan) {
   // Camera-right for a heading (hx, hz) is (-hz, hx) in this convention, so
   // the sign of `out · right` is the whole answer and it cannot drift if the
   // corridor is ever rebuilt.
-  const { spine } = planToCells(0, 0, moves);
+  const { spine } = planToCells(0, 0, moves);   // ...and reused by the fork test below
   const cellAt = (i) => spine[Math.max(0, Math.min(spine.length - 1, i))];
   for (let i = 1; i < runs.length; i++) {
     // ONLY WHERE THE PATH GOES SIDEWAYS. A jog is a lateral run and then a
@@ -371,16 +391,29 @@ export function marksFromPlan(plan) {
   // of the walked path that any of them touches.
   const extra = (plan && plan.extra) || [];
   if (extra.length) {
-    const { spine } = planToCells(0, 0, moves);
-    let best = -1;
+    let lo = Infinity, hi = -1;
     for (const [ex, ez] of extra) {
       for (let i = 0; i < spine.length; i++) {
         if (Math.abs(spine[i][0] - ex) + Math.abs(spine[i][1] - ez) <= 1) {
-          best = Math.max(best, i);
+          if (i < lo) lo = i;
+          if (i > hi) hi = i;
         }
       }
     }
-    if (best > 0) { marks.forkEnd = best; marks.barrierAt = best; }
+    // A FORK REJOINS. A DEAD END DOES NOT, and telling them apart matters
+    // because this mark is where the barrier stands.
+    //
+    // The onboarding's `extra` used to be one thing: a second lane that left
+    // the spine and came back, so the furthest cell it touched was the
+    // rejoin and the barrier belonged just past it. A dead-end branch —
+    // the junction's right arm, which is a joke and not the route — touches
+    // the spine at ONE place, the junction itself, and reading that as a
+    // rejoin put the barrier at the T with the whole second half of the leg
+    // behind it.
+    //
+    // So: touched at two separated points is a fork; touched at one is a
+    // branch, and the marks are left where the path put them.
+    if (hi > lo + 2) { marks.forkEnd = hi; marks.barrierAt = hi; }
   }
   return marks;
 }
@@ -413,7 +446,7 @@ export const LEGS = [
     id: 'teaching', form: 'corridor', barrier: true, countsAsDoor: false,
     note: 'Lessons 1-9. Straight run, two jogs left, then the straight where '
       + 'the barrier stands and the combat lesson happens.',
-    plan: { moves: TEACH_MOVES, approach: 4 },
+    plan: { moves: TEACH_MOVES, extra: TEACH_DEAD_END, approach: 4 },
     // ONE MESSAGE IN FOCUS, AND IN THE TEACHING LEG THE SCREEN HAS IT.
     //
     // Lessons 1-3 are `DRAG TO MOVE` and `DRAG TO LOOK`, and a sign twenty
@@ -437,19 +470,25 @@ export const LEGS = [
     // come back there — which is where they were always going to earn their
     // keep, and where `EXIT` starts telling the story as well as the way out.
     turnSigns: false,
-    // ...and the T-junction's signpost, the two warnings down the dead end
-    // and GOOD CHOICE on the left arm are NOT here yet, because the geometry
-    // they hang on is not either. The anchoring they need is built and
-    // photographed — an explicit leg-relative cell, and `halves` for a
-    // signpost — but a sign authored against a corridor that does not exist
-    // is a sign inside a wall. They land with the junction.
-    signs: [{ at: 'door', text: 'EXIT' }],
-    // -- PROOF ONLY, removed once the junction lands. On an END WALL — the
-    // one the corridor turns at — because that is the only wall a walking
-    // player is facing. Paint on a side wall is edge-on and unreadable,
-    // which is exactly why Hale's messages belong at junctions.
+    // NO `EXIT` SIGN ON THIS LEG. One message in focus, and on the door beat
+    // Hale's paint is what the player is reading. The building gets its
+    // signage back on the doors past the onboarding.
+    signs: [],
+    // HALE'S PAINT, on the three end walls of the junction. An end wall is
+    // the only surface a walking player faces — a side wall is edge-on and
+    // unreadable — which is why his messages live at corners and why the T
+    // is the right place for the pattern to be introduced.
     paint: [
-      { at: [3, 8], face: '-z', text: 'THIS WAY', dir: 'l' },
+      // The junction's back wall: one object, two lines, stacked. Four metres
+      // of corridor width will not carry two messages side by side at a
+      // readable size, and stacking them is also how a person with one can
+      // and limited reach would do it.
+      { at: [0, 11], face: '-z', halves: ['THIS WAY', 'NOT THIS WAY'], h: 0.34 },
+      // The dead end. Two warnings on the walls its turns face, then a man.
+      { at: [-3, 11], face: '+x', text: 'TURN AROUND', h: 0.4 },
+      { at: [-3, 9], face: '+z', text: 'NOT JOKING', h: 0.4 },
+      // ...and the reward for obeying, on the wall the left arm turns at.
+      { at: [4, 11], face: '-x', text: 'GOOD CHOICE', h: 0.4 },
     ],
   },
   // WITHIN ENGAGE RANGE OF THE DOOR YOU COME IN THROUGH. A gunner's
@@ -1103,8 +1142,12 @@ export function normaliseLegs(legs) {
       // on, and the words. Filtered like everything else so a half-written
       // entry cannot reach the frame loop.
       paint: ((l && l.paint) || [])
-        .filter((g) => g && g.text && Array.isArray(g.at))
-        .map((g) => ({ at: [g.at[0] | 0, g.at[1] | 0], text: String(g.text),
+        .filter((g) => g && Array.isArray(g.at)
+          && (g.text || (Array.isArray(g.halves) && g.halves.length === 2)))
+        .map((g) => ({ at: [g.at[0] | 0, g.at[1] | 0],
+          text: g.text ? String(g.text) : '',
+          halves: Array.isArray(g.halves)
+            ? [String(g.halves[0]), String(g.halves[1])] : null,
           face: g.face || '-z', dir: g.dir || null,
           // cap height in metres — the number a person would give for how
           // tall the letters are. A hand's span is about right for a can.
