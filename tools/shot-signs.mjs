@@ -41,9 +41,9 @@ async function shoot(page, name, note) {
   await page.screenshot({ path: join(OUT, file) });
   shots.push({ file, name, note, ...state });
   const g = state.signs;
-  if (process.env.TS_DEBUG) console.log('   list:', JSON.stringify(g.list));
+  if (process.env.TS_DEBUG) console.log('   paintAt:', JSON.stringify(g.paintAt), 'cam:', JSON.stringify(g.cam));
   console.log(`  ${file}  showing=${JSON.stringify(g.showing)} on=${g.onScreen} ` +
-    `post=${g.post} cueUp=${g.cueUp} spineIx=${g.spineIx} proj=${JSON.stringify(g.proj)} ` +
+    `paint=${g.paint}/${g.paintSpec} cueUp=${g.cueUp} spineIx=${g.spineIx} proj=${JSON.stringify(g.proj)} ` +
     `step=${state.tutor.step}`);
 }
 
@@ -112,15 +112,12 @@ const run = async () => {
   // the cell-anchored signs on their own.
   await page.evaluate(() => window.__ts.setTutorStep('exit'));
   await page.waitForTimeout(900);
-  await standAt(page, 9, 3);
-  await shoot(page, 'placed-sign',
-    'A sign anchored to an explicit cell rather than a spine index. This is '
-    + 'what a dead-end branch needs: the spine does not go there, so there is '
-    + 'no mark to name it.');
-  await standAt(page, 21, 3);
-  await shoot(page, 'signpost',
-    'A signpost: one message, two halves, one wall, one anchor. Both labels '
-    + 'scale and move as a single object, so it stays one message.');
+  await standAt(page, 9, 2);
+  await shoot(page, 'paint-far', "Hale's paint, from down the corridor.");
+  await standAt(page, 10, 1);
+  await shoot(page, 'paint-near', 'Closer. It is a texture on the wall, lit by the corridor.');
+  await standAt(page, 11, 1);
+  await shoot(page, 'paint-second', 'The second message, further along.');
 
   writeFileSync(join(OUT, 'shots.json'), JSON.stringify({ shots, errs }, null, 2));
   if (errs.length) console.log('PAGE ERRORS:', errs.slice(0, 4));

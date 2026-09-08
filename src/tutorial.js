@@ -444,6 +444,13 @@ export const LEGS = [
     // signpost — but a sign authored against a corridor that does not exist
     // is a sign inside a wall. They land with the junction.
     signs: [{ at: 'door', text: 'EXIT' }],
+    // -- PROOF ONLY, removed once the junction lands. On an END WALL — the
+    // one the corridor turns at — because that is the only wall a walking
+    // player is facing. Paint on a side wall is edge-on and unreadable,
+    // which is exactly why Hale's messages belong at junctions.
+    paint: [
+      { at: [3, 8], face: '-z', text: 'THIS WAY', dir: 'l' },
+    ],
   },
   // WITHIN ENGAGE RANGE OF THE DOOR YOU COME IN THROUGH. A gunner's
   // engageDist is 19-25 m; bodies parked at z 7-10 stood 28 m from the entry,
@@ -1092,6 +1099,16 @@ export function normaliseLegs(legs) {
       // spine index, and an explicit [gx, gz] cell for somewhere the path
       // does not go. A signpost carries `halves` instead of `text`, so one
       // or the other is required rather than `text` alone.
+      // Hale's painted messages: a leg-relative cell, which wall face it is
+      // on, and the words. Filtered like everything else so a half-written
+      // entry cannot reach the frame loop.
+      paint: ((l && l.paint) || [])
+        .filter((g) => g && g.text && Array.isArray(g.at))
+        .map((g) => ({ at: [g.at[0] | 0, g.at[1] | 0], text: String(g.text),
+          face: g.face || '-z', dir: g.dir || null,
+          // cap height in metres — the number a person would give for how
+          // tall the letters are. A hand's span is about right for a can.
+          h: +g.h || 0.26, y: g.y != null ? +g.y : null })),
       signs: ((l && l.signs) || [])
         .filter((g) => g && g.at != null
           && (g.text || (Array.isArray(g.halves) && g.halves.length === 2)))

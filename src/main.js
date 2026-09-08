@@ -8676,9 +8676,13 @@ let tutorSigns = [];      // [{ at, text }] for the current leg, in path order
 // the geometry cannot disagree.
 function tutorBuildSigns() {
   tutorSigns = [];
+  tutorClearPaint();
   const spec = tutorLegsOf()[tutorLegIx];
   const marks = spec && spec.marks;
   if (!marks) return;
+  // Hale's, painted on the masonry. Built with the leg's own meshes and
+  // dropped with them, so nothing is created while a fight is running.
+  for (const s of (spec.paint || [])) tutorAddPaint(s);
   for (const s of (spec.signs || [])) {
     // THREE WAYS TO NAME A PLACE, and only one of them is a coordinate.
     //
@@ -8722,6 +8726,203 @@ function tutorBuildSigns() {
       text: t.dir === 'l' ? '\u25C0 EXIT' : 'EXIT \u25B6', halves: null });
   }
 }
+
+// ---------------------------------------------------------------------------
+// PAINT.
+//
+// Hale did not have a sign shop. He had a can and a wall, so his messages are
+// PAINTED ON THE GEOMETRY — a texture on a plane sitting against the masonry,
+// lit by the corridor and going round corners with it.
+//
+// That is the whole point of the split. The floating labels belong to the
+// people who run this place: STAND HERE and EXIT are the simulation drawing
+// on the player's eye, and they hang in screen space because they are not
+// really in the room. Hale's are in the room. A player never has to be told
+// which is which.
+//
+// Cached by string. A canvas and a material per message, built the first time
+// the leg that carries it is, which is the same moment the corridor's own
+// meshes are made — not mid-fight, which is what PILLARS 8 is about.
+const paintCache = new Map();
+const PAINT_RED = '#a81f0e';        // a red can, not the interface's signal red
+// Hand-lettered, so the glyphs want to be a heavy grotesque with the wobble
+// added rather than a script face pretending to be handwriting.
+const PAINT_FONT = '900 108px "Arial Black", "Helvetica Neue", Impact, sans-serif';
+
+// One rough stroke of a brush: the letterform, drawn several times with tiny
+// offsets so the edges thicken unevenly the way a loaded brush does.
+function paintGlyphs(g, text, x, y, alpha) {
+  g.font = PAINT_FONT;
+  g.textAlign = 'left';
+  g.textBaseline = 'alphabetic';
+  let cx = x;
+  for (const ch of text) {
+    const w = g.measureText(ch).width;
+    if (ch === ' ') { cx += w; continue; }
+    g.save();
+    // every letter sits a little off the line and a little off vertical
+    g.translate(cx + w / 2, y);
+    g.rotate((Math.random() - 0.5) * 0.05);
+    g.translate(-(cx + w / 2), (Math.random() - 0.5) * 6);
+    for (let k = 0; k < 3; k++) {
+      g.globalAlpha = alpha * (0.55 + Math.random() * 0.45);
+      g.fillText(ch, cx + (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3 + y * 0);
+    }
+    g.restore();
+    cx += w * (0.98 + Math.random() * 0.05);
+  }
+  g.globalAlpha = 1;
+  return cx - x;
+}
+
+// A brushed arrowhead. Straight edges but not straight lines, and thicker on
+// one side, because nobody paints a symmetrical triangle freehand.
+function paintArrow(g, x, y, size, dir) {
+  const s = dir === 'l' ? -1 : 1;
+  g.save();
+  g.globalAlpha = 0.94;
+  g.beginPath();
+  const jit = () => (Math.random() - 0.5) * size * 0.09;
+  g.moveTo(x + s * size * 0.5 + jit(), y + jit());
+  g.lineTo(x - s * size * 0.42 + jit(), y - size * 0.52 + jit());
+  g.lineTo(x - s * size * 0.30 + jit(), y + jit());
+  g.lineTo(x - s * size * 0.42 + jit(), y + size * 0.52 + jit());
+  g.closePath();
+  g.fill();
+  g.restore();
+}
+
+// Wear: the wall is not a clean surface and the paint did not soak in evenly.
+function paintWear(g, w, h) {
+  g.globalCompositeOperation = 'destination-out';
+  // flecks the brush missed
+  for (let i = 0; i < 900; i++) {
+    g.globalAlpha = 0.25 + Math.random() * 0.6;
+    const r = 1 + Math.random() * 4;
+    g.beginPath();
+    g.arc(Math.random() * w, Math.random() * h, r, 0, 7);
+    g.fill();
+  }
+  // and a few longer scuffs across the grain
+  for (let i = 0; i < 26; i++) {
+    g.globalAlpha = 0.3 + Math.random() * 0.5;
+    const x = Math.random() * w, y = Math.random() * h;
+    g.fillRect(x, y, 10 + Math.random() * 70, 1 + Math.random() * 2.5);
+  }
+  g.globalCompositeOperation = 'source-over';
+  g.globalAlpha = 1;
+}
+
+// A drip, from the bottom of a letter, because the can was overloaded.
+function paintDrip(g, x, y, len) {
+  g.globalAlpha = 0.8;
+  g.fillRect(x, y, 3.5, len);
+  g.beginPath();
+  g.arc(x + 1.75, y + len, 3.4, 0, 7);
+  g.fill();
+  g.globalAlpha = 1;
+}
+
+// The texture for one message. `dir` puts a brushed arrowhead on that side.
+function makePaintTexture(text, dir) {
+  const key = `${text}|${dir || ''}`;
+  const hit = paintCache.get(key);
+  if (hit) return hit;
+  const W = 1024, H = 256;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = PAINT_RED;
+
+  // measure first so the whole thing can be centred on the wall
+  g.font = PAINT_FONT;
+  const tw = g.measureText(text).width;
+  const aw = dir ? 130 : 0;
+  const total = tw + aw;
+  const baseY = H * 0.66;
+  let x = (W - total) / 2;
+  if (dir === 'l') { paintArrow(g, x + 55, baseY - 34, 96, 'l'); x += aw; }
+  const drawnW = paintGlyphs(g, text, x, baseY, 0.92);
+  if (dir === 'r') paintArrow(g, x + drawnW + 70, baseY - 34, 96, 'r');
+
+  // two or three drips under whichever letters happened to hold the paint
+  for (let i = 0; i < 3; i++) {
+    paintDrip(g, x + Math.random() * Math.max(drawnW, 10), baseY + 4,
+      12 + Math.random() * 46);
+  }
+  paintWear(g, W, H);
+
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = 4;
+  const m = new THREE.MeshBasicMaterial({ map: t, transparent: true,
+    depthWrite: false, side: THREE.DoubleSide });
+  const made = { tex: t, mat: m, aspect: W / H };
+  paintCache.set(key, made);
+  return made;
+}
+
+// PLACING A PAINTED MESSAGE. `at` is a leg-relative cell, `face` is the
+// direction the wall's paint looks in — so a message on the back wall of a
+// T, met by a player walking up the corridor, faces '-z'.
+//
+// Flush to the masonry with a two-centimetre standoff. Any less z-fights on
+// a phone's depth buffer; any more and it reads as a board screwed to the
+// wall rather than paint soaked into it.
+const PAINT_STANDOFF = 0.07;   // the ribs' standoff, for the same reason
+// The canvas is this many cap-heights tall, so a plane sized from cap height
+// covers the letters plus the room a drip needs under them.
+const PAINT_CANVAS_H = 2.4;
+const paintMeshes = [];
+function tutorAddPaint(s) {
+  const L = hall && hall.legs[hall.cur];
+  if (!L || !L.spine || !L.spine.length || !s || !s.text) return;
+  const made = makePaintTexture(s.text, s.dir || null);
+  // `h` IS THE CAP HEIGHT, in metres, because that is the number a person
+  // would give: how tall are the letters. The canvas is four times that tall
+  // once its margins are counted, and the plane follows the canvas.
+  const capM = s.h || 0.26;                     // a hand's span of letter
+  const hM = capM * PAINT_CANVAS_H;
+  const geo = new THREE.PlaneGeometry(hM * made.aspect, hM);
+  const m = new THREE.Mesh(geo, made.mat);
+  // THE INNER FACE, and the game already had the formula. A wall slab is
+  // centred at `C/2 - W/2` and is `W` deep, so its face is at `C/2 - W` —
+  // and the pilaster ribs a few hundred lines down use exactly
+  // `C/2 - W - 0.07`, with the comment "sits just proud of the wall face
+  // (never intersecting it, so nothing can z-fight)".
+  //
+  // `C/2 - W/2` put the paint a tenth of a metre INSIDE the masonry, which
+  // renders nothing and is indistinguishable from a mesh that was never made:
+  // the probe reported it present, visible, in the scene, dead ahead and
+  // carrying a texture that was 8.7% opaque. Only turning depth testing off
+  // proved where it was.
+  const C = HALL.cell, W = HALL.wall;
+  const half = C / 2 - W - PAINT_STANDOFF;
+  const gx = L.spine[0][0] + s.at[0], gz = L.spine[0][1] + s.at[1];
+  const x = gx * C, z = gz * C;
+  const y = s.y != null ? s.y : 1.65;           // a person's own eye height
+  const f = s.face || '-z';
+  if (f === '-z')      { m.position.set(x, y, z + half); m.rotation.y = Math.PI; }
+  else if (f === '+z') { m.position.set(x, y, z - half); }
+  else if (f === '-x') { m.position.set(x + half, y, z); m.rotation.y = -Math.PI / 2; }
+  else                 { m.position.set(x - half, y, z); m.rotation.y = Math.PI / 2; }
+  scene.add(m);
+  paintMeshes.push(m);
+  if (L.meshes) L.meshes.push(m);               // dropped with the leg
+}
+function tutorClearPaint() {
+  for (const m of paintMeshes) { scene.remove(m); m.geometry.dispose(); }
+  paintMeshes.length = 0;
+}
+
+// A probe hook: how much of a painted texture is actually opaque. A canvas
+// that came out blank looks exactly like a mesh that was never made.
+window.__paintProbe = () => [...paintCache.entries()].map(([k, v]) => {
+  const c = v.tex.image, g = c.getContext('2d');
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  let on = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 24) on++;
+  return { key: k, w: c.width, h: c.height, opaquePct: +(100 * on / (c.width * c.height)).toFixed(1) };
+});
 
 // A sign's anchor in world space. Route signs name a cell of the spine;
 // placed signs carry their own; the door is the spine's last cell, which is
@@ -13942,6 +14143,14 @@ window.__ts = {
     })(),
     onScreen: el.tsign ? el.tsign.classList.contains('show') : false,
     post: el.tsign ? el.tsign.classList.contains('post') : false,
+    paint: paintMeshes.length,
+    paintAt: paintMeshes.map((m) => ({
+      p: [+m.position.x.toFixed(1), +m.position.y.toFixed(1), +m.position.z.toFixed(1)],
+      ry: +m.rotation.y.toFixed(2), vis: m.visible,
+      inScene: !!m.parent, w: +m.geometry.parameters.width.toFixed(2),
+    })),
+    cam: [+player.pos.x.toFixed(1), +player.pos.z.toFixed(1), +player.yaw.toFixed(2)],
+    paintSpec: ((tutorLegsOf()[tutorLegIx] || {}).paint || []).length,
     spineIx: tutorSpineIx,
     may: !enemies.length,
     cueUp: Object.keys(el.tslot || {}).some((k) =>
