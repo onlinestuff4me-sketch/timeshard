@@ -8761,27 +8761,71 @@ function paintGlyphs(g, text, x, y, alpha, px) {
   g.font = px ? PAINT_FONT.replace(/\d+px/, `${Math.round(px)}px`) : PAINT_FONT;
   g.textAlign = 'left';
   g.textBaseline = 'alphabetic';
+  // WHERE EVERY LETTER ACTUALLY LANDED. Each one is nudged off the line and
+  // off vertical, so its baseline is not `y` — and a drip has to start on the
+  // letter it came from, not near it. Reported rather than recomputed,
+  // because the nudge is random and cannot be worked out afterwards.
+  const glyphs = [];
   let cx = x;
   for (const ch of text) {
     const w = g.measureText(ch).width;
     if (ch === ' ') { cx += w; continue; }
+    const vjit = (Math.random() - 0.5) * 6;
     g.save();
     // every letter sits a little off the line and a little off vertical
     g.translate(cx + w / 2, y);
     g.rotate((Math.random() - 0.5) * 0.05);
-    g.translate(-(cx + w / 2), (Math.random() - 0.5) * 6);
+    g.translate(-(cx + w / 2), vjit);
     for (let k = 0; k < 3; k++) {
       g.globalAlpha = alpha * (0.55 + Math.random() * 0.45);
-      g.fillText(ch, cx + (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3 + y * 0);
+      g.fillText(ch, cx + (Math.random() - 0.5) * 3, 0);
     }
     g.restore();
+    glyphs.push({ ch, x: cx, w, base: y + vjit });
     cx += w * (0.98 + Math.random() * 0.05);
   }
   g.globalAlpha = 1;
-  return cx - x;
+  return { w: cx - x, glyphs };
 }
 
-// A brushed arrowhead. Straight edges but not straight lines, and thicker on
+// DRIPS THAT HANG OFF LETTERS.
+//
+// They used to be dropped at a random x somewhere along the text, which put
+// most of them in the gaps between words and none of them touching the
+// letter they were supposed to have run out of.
+//
+// A drip has to start ON INK, and where a heavy cap carries ink at its
+// baseline is not something to guess at: A and W are hollow in the middle
+// down there, Y and V are only the stem, O is two strokes with a gap. So the
+// canvas is asked. Scan the row just inside the glyph's baseline, keep the
+// columns that came out opaque, and start the drip from one of those.
+function paintDripsFrom(g, glyphs, count, px) {
+  if (!glyphs.length) return;
+  const w = g.canvas.width, h = g.canvas.height;
+  const img = g.getImageData(0, 0, w, h).data;
+  const wide = Math.max(2.5, (px || 132) * 0.032);
+  // one drip per letter at most, and never the same letter twice
+  const pool = glyphs.slice();
+  for (let n = 0; n < count && pool.length; n++) {
+    const gl = pool.splice((Math.random() * pool.length) | 0, 1)[0];
+    const row = Math.round(gl.base) - Math.max(2, Math.round(wide));
+    if (row < 0 || row >= h) continue;
+    const x0 = Math.max(0, Math.round(gl.x));
+    const x1 = Math.min(w - 1, Math.round(gl.x + gl.w));
+    const ink = [];
+    for (let x = x0; x <= x1; x++) {
+      if (img[(row * w + x) * 4 + 3] > 120) ink.push(x);
+    }
+    if (!ink.length) continue;                 // nothing to run out of
+    // ...from the middle of a run of ink, not its edge, so the drip leaves
+    // the stroke rather than clinging to the side of it.
+    const at = ink[(Math.random() * ink.length) | 0];
+    paintDrip(g, at - wide / 2, gl.base - wide, wide,
+      wide * 2 + Math.random() * px * 0.42);
+  }
+}
+
+// A brushed arrowhead.// A brushed arrowhead. Straight edges but not straight lines, and thicker on
 // one side, because nobody paints a symmetrical triangle freehand.
 function paintArrow(g, x, y, size, dir) {
   const s = dir === 'l' ? -1 : 1;
@@ -8820,11 +8864,11 @@ function paintWear(g, w, h) {
 }
 
 // A drip, from the bottom of a letter, because the can was overloaded.
-function paintDrip(g, x, y, len) {
-  g.globalAlpha = 0.8;
-  g.fillRect(x, y, 3.5, len);
+function paintDrip(g, x, y, wide, len) {
+  g.globalAlpha = 0.82;
+  g.fillRect(x, y, wide, len);              // starts inside the letter
   g.beginPath();
-  g.arc(x + 1.75, y + len, 3.4, 0, 7);
+  g.arc(x + wide / 2, y + len, wide * 0.98, 0, 7);   // the bead at the bottom
   g.fill();
   g.globalAlpha = 1;
 }
@@ -8854,14 +8898,10 @@ function makePaintTexture(text, dir, halves) {
   const baseY = H * 0.66;
   let x = (W - total) / 2;
   if (dir === 'l') { paintArrow(g, x + 55, baseY - 34, 96, 'l'); x += aw; }
-  const drawnW = paintGlyphs(g, text, x, baseY, 0.92);
-  if (dir === 'r') paintArrow(g, x + drawnW + 70, baseY - 34, 96, 'r');
-
-  // two or three drips under whichever letters happened to hold the paint
-  for (let i = 0; i < 3; i++) {
-    paintDrip(g, x + Math.random() * Math.max(drawnW, 10), baseY + 4,
-      12 + Math.random() * 46);
-  }
+  const laid = paintGlyphs(g, text, x, baseY, 0.92);
+  if (dir === 'r') paintArrow(g, x + laid.w + 70, baseY - 34, 96, 'r');
+  // two or three of the letters held enough paint to run
+  paintDripsFrom(g, laid.glyphs, 2 + ((Math.random() * 2) | 0), 132);
   paintWear(g, W, H);
 
   const t = new THREE.CanvasTexture(c);
@@ -8977,8 +9017,8 @@ function makePaintPost(key, halves) {
     let x = PAD;
     paintArrow(g, x + ARROW * 0.45, H * 0.24, px * 0.86, 'l');
     x += ARROW + 24;
-    const w = paintGlyphs(g, t, x, H * 0.33, 0.94, px);
-    paintDrip(g, x + Math.random() * w, H * 0.34, 18 + Math.random() * 44);
+    const laid = paintGlyphs(g, t, x, H * 0.33, 0.94, px);
+    paintDripsFrom(g, laid.glyphs, 1 + ((Math.random() * 2) | 0), px);
   }
   // lower, to the right, pointing right
   {
@@ -8986,9 +9026,9 @@ function makePaintPost(key, halves) {
     g.font = PAINT_FONT.replace(/\d+px/, `${Math.round(px)}px`);
     const tw = g.measureText(t).width;
     const x = W - PAD - ARROW - 24 - tw;
-    const w = paintGlyphs(g, t, x, H * 0.82, 0.92, px);
-    paintArrow(g, x + w + ARROW * 0.6, H * 0.73, px * 0.86, 'r');
-    paintDrip(g, x + Math.random() * w, H * 0.83, 14 + Math.random() * 34);
+    const laid = paintGlyphs(g, t, x, H * 0.82, 0.92, px);
+    paintArrow(g, x + laid.w + ARROW * 0.6, H * 0.73, px * 0.86, 'r');
+    paintDripsFrom(g, laid.glyphs, 1 + ((Math.random() * 2) | 0), px);
   }
   paintWear(g, W, H);
   const t = new THREE.CanvasTexture(c);
