@@ -130,6 +130,38 @@ const run = async () => {
   await page.waitForTimeout(500);
   await shoot(page, 'dead-end-2', 'Round the corner: the second.');
 
+  // --- THE JOKE ------------------------------------------------------------
+  // Back to the step a player is actually on at the T, so the man is met the
+  // way he is met in the game rather than with a gun in hand.
+  await page.evaluate(() => window.__ts.setTutorStep('corners'));
+  await page.waitForTimeout(600);
+  const stand = async (dx, dz, yaw) => {
+    await page.evaluate(([ddx, ddz, y]) => {
+      const t = window.__ts, C = 4, o = t.hall().legs[t.hall().cur].spine[0];
+      t.player.pos.x = (o[0] + ddx) * C; t.player.pos.z = (o[1] + ddz) * C;
+      t.player.yaw = y; t.player.pitch = 0;
+      window.__ts.resyncSpine && window.__ts.resyncSpine();
+    }, [dx, dz, yaw]);
+  };
+  // He is placed on entry to the branch and takes a couple of seconds to
+  // assemble. A walking player spends twenty metres of it getting to the
+  // corner, so wait in the mouth rather than photographing the swarm.
+  // Facing -x is forward = (-sin yaw, -cos yaw) = (-1, 0) → yaw = PI/2.
+  await stand(-1, 11, Math.PI / 2);
+  await page.waitForTimeout(2800);
+  await stand(-3, 9, Math.PI / 2);
+  await page.waitForTimeout(200);
+  await shoot(page, 'the-man', 'Round the second corner: his arm is already up.');
+  // TIMED OFF THE GAME, NOT OFF A GUESS. The red holds for TUTOR.jokeHold and
+  // the whole cycle is under two seconds, so a fixed wait photographed the
+  // frame after it instead of the frame itself.
+  await page.waitForFunction(() => !window.__ts.player.alive, null, { timeout: 15000 });
+  await page.waitForTimeout(500);
+  await shoot(page, 'the-joke', 'The round arrives. No card, no button, no run filed.');
+  await page.waitForFunction(() => window.__ts.player.alive, null, { timeout: 15000 });
+  await page.waitForTimeout(400);
+  await shoot(page, 'back-at-the-t', 'Put back on the approach, reading the sign again.');
+
   writeFileSync(join(OUT, 'shots.json'), JSON.stringify({ shots, errs }, null, 2));
   if (errs.length) console.log('PAGE ERRORS:', errs.slice(0, 4));
   await ctx.close(); await b.close();

@@ -254,6 +254,41 @@ me for being curious* is entirely in the framing:
   ground, straight back to the T. `TUTORIAL-GOALS` goal 4 is satisfied: the
   junction is the anchor and nothing before it is replayed.
 
+**Built, and what "unwinnable" turned out to mean.** Speed alone cannot do
+it. Every round in this game is aimed at *where you are*, so at any finite
+speed a perfect sideways input beats it — measured, a 3.2× round crosses the
+dead end in 0.7 s and a player who sidesteps on the fire frame walks out of
+its lane. Making it fast enough to be unbeatable would make it invisible,
+which is a different lie.
+
+Three things together do it instead, and only the first is about the round:
+
+- **No sight grace.** Every other gun in the game waits `RAMP.sightGrace`
+  (0.45 s) after it can see you — the half-second that makes walking into a
+  room survivable. He does not. With the grace, a player who sidesteps the
+  instant they round the corner is back out of the branch before he ever
+  fires, so the punchline was optional.
+- **His arm is already up**, so the telegraph has nothing to animate. The gun
+  still flashes white, so the shot is still announced; there is just no
+  wind-up to read as a chance.
+- **He does not stop.** A dodge buys about a second, and the branch is one
+  cell wide and three deep. There is nowhere in it to be.
+
+Measured one cell in from the corner, holding a perfect input from the first
+frame: standing dies at 0.9 s, running back out at 1.0 s, both sidesteps at
+0.8 s. The one escape left is stopping *exactly on the corner cell* and
+sidestepping back out within a third of a second — which is not beating the
+round, it is obeying the second warning at the last possible moment, and it
+should work. `test/joke.mjs` is that measurement.
+
+**He belongs to the branch, not to the leg.** Placed when the player walks in,
+removed when they walk out. This is not tidiness: the shooting lesson advances
+on `!enemies.length`, so a man left standing round two corners behind the
+barrier is a lesson that can never be finished — by a player who went the
+wrong way once, was told to turn around, and did. It also makes the joke
+repeatable, which is the right default: Hale's warnings do not change on a
+second visit, so neither does what they warn about.
+
 ### 5.6 Nothing essential lives down the right branch
 
 Most players will take `THIS WAY`. The branch has to be pure reward for
@@ -266,11 +301,20 @@ minority who see it.
 
 ### 5.7 What this changes in the build
 
-- **Lesson 3 ends on facing, not on reaching.** A new advance condition:
-  the prompts retire when the player turns to look down the new hallway.
-  This is a better fit for `TUTORIAL-GOALS` goal 4 than the current cell
-  test — the lesson ends when the skill is demonstrated rather than when a
-  distance is covered.
+- **Lesson 3 ends on facing, not on reaching. NOT BUILT, and now the one
+  thing holding the junction back.** A new advance condition: the prompts
+  retire when the player turns to look down the new hallway. This is a better
+  fit for `TUTORIAL-GOALS` goal 4 than the current cell test — the lesson ends
+  when the skill is demonstrated rather than when a distance is covered.
+
+  It has stopped being a refinement. `corners` runs from the second turn to
+  the last one, so its two prompts are still on the glass when the player
+  reaches the T — and photographed, `DRAG TO MOVE` lands directly across
+  `THIS WAY`. That is §1 broken at the exact place the player is first asked
+  to read the world instead of the screen, and the joke's return frame lands
+  on it too. Wants an event for "reached a named mark", which `tutorEmit` has
+  no equivalent of today; the cues' `off` would then be that rather than
+  `advance`.
 - **The teaching leg grows a dead-end branch — investigated and fixed.**
   `genAuthoredLeg` already carries `extra` cells hung off the spine, which is
   the right mechanism. The problem was `tutorSpineIx`: a nearest-cell search

@@ -3688,7 +3688,10 @@ function enemyFire(e, toPlayer) {
       d.z += (Math.random() - 0.5) * 2 * spec.spread;
       d.normalize();
     }
-    spawnBullet(origin, d, false, (spec.mul || 1));
+    // `e.speedMul` ON TOP OF THE TYPE'S. The dead end's man fires a round
+    // nobody is meant to beat, and a round that merely arrives quickly reads
+    // as a skill test the player failed. See tutorPlaceJoker.
+    spawnBullet(origin, d, false, (spec.mul || 1) * (e.speedMul || 1));
   }
   muzzleFlash(origin.x, origin.y, origin.z, 0.85);
   sfx.enemyShot();
@@ -4232,7 +4235,11 @@ function updateEnemy(e, sdt) {
           performance.now() >= game.noFireBefore && !tutorHoldsFire(e) &&
           stagedArmed(e) &&
           !earlyRoundInFlight() &&
-          los && e.seenT > RAMP.sightGrace) {
+          // `noGrace` IS FOR THE ONE MAN WHO IS NOT A FIGHT. The grace
+          // exists so stepping out of cover is not the same instant as being
+          // shot at — it is what makes a room fair. The dead end is not a
+          // room and is not meant to be fair: see tutorPlaceJoker.
+          los && (e.noGrace || e.seenT > RAMP.sightGrace)) {
         // take turns on the trigger: only a couple of guns telegraph at once,
         // so fire arrives as a steady stream you can dodge, never a volley
         let aiming = 0;
@@ -4248,7 +4255,7 @@ function updateEnemy(e, sdt) {
     case 'aim': {
       // telegraph: raise the gun arm, flash the gun white just before firing
       const spec = ENEMY_TYPES[e.type];
-      const aimT = spec.aimTime * aimSpeedFactor();
+      const aimT = spec.aimTime * aimSpeedFactor() * (e.aimMul || 1);
       const t = Math.min(e.stateT / aimT, 1);
       if (!e.armRLock) e.armR.rotation.x = -t * (Math.PI / 2 - 0.06);
       setEgunFlash(e, e.stateT > aimT * 0.7 ? MAT_WHITEFLASH : MAT_BLACK);
@@ -4303,7 +4310,8 @@ function updateEnemy(e, sdt) {
             e.burstLeft = spec.burst - 1; e.burstT = 0.22;
           } else {
             e.state = 'recover'; e.stateT = 0;
-            e.fireCd = (spec.cd[0] + Math.random() * spec.cd[1]) * aimSpeedFactor();
+            e.fireCd = (spec.cd[0] + Math.random() * spec.cd[1])
+              * aimSpeedFactor() * (e.cdMul || 1);
           }
         }
       }
@@ -4318,7 +4326,8 @@ function updateEnemy(e, sdt) {
         if (e.burstLeft <= 0) {
           const spec = ENEMY_TYPES[e.type];
           e.state = 'recover'; e.stateT = 0;
-          e.fireCd = (spec.cd[0] + Math.random() * spec.cd[1]) * aimSpeedFactor();
+          e.fireCd = (spec.cd[0] + Math.random() * spec.cd[1])
+            * aimSpeedFactor() * (e.cdMul || 1);
         }
       }
       break;
@@ -8275,7 +8284,7 @@ const tutorBefore = (step) => tutorStep !== null &&
   tutorOrder().indexOf(tutorStep) < tutorOrder().indexOf(step);
 // Every round here is scripted: the AI never STARTS a telegraph of its own.
 // Once the script has pushed him into `aim`, the ordinary path runs untouched.
-const tutorHoldsFire = (e) => tutorStep !== null
+const tutorHoldsFire = (e) => tutorStep !== null && !(e && e.joke)
   && (!tutorMay('aiFire') || (e ? tutorTurnHolds(e) : false));
 const tutorHoldsSpawns = () => tutorStep !== null && !tutorMay('spawns');
 // YOU CANNOT SHOOT WHAT YOU HAVE NOT BEEN GIVEN. Tapping fired a round with no
@@ -8605,9 +8614,17 @@ function tutorPlaceWorldCue() {
   // What the text measures at a known size, so any words the tool authors are
   // scaled by their own width rather than by a constant tuned to "STAND HERE".
   // Cached against the text: offsetWidth is a layout read.
-  if (n._szText !== markup) {
+  //
+  // `n.textContent`, not `markup`. There is no `markup` in this function — it
+  // came across with the sign painter, which builds one — so this threw a
+  // ReferenceError on every frame the world cue was on screen, and the throw
+  // took the rest of the function with it: STAND HERE was never sized and
+  // never positioned after the first frame it appeared on. Found by a probe
+  // that walks past the barrier, not by reading the code.
+  const szKey = n.textContent;
+  if (n._szText !== szKey) {
     n.style.fontSize = '20px';
-    n._szText = markup;
+    n._szText = szKey;
     n._szW = n.offsetWidth || 120;
   }
   // A floor of 12 px, because below that it is not words, it is a red smudge —
@@ -8670,6 +8687,22 @@ const SIGN_MAX_PX = 44;   // a sign in a corridor, not a billboard
 const SIGN_POST_W = HALL.cell * 1.5;
 let tutorSigns = [];      // [{ at, text }] for the current leg, in path order
 
+// --- THE DEAD END ---------------------------------------------------------
+//
+// One arm of the opening T is a joke, and the joke needs three things the
+// rest of the corridor does not: to know which cells are in it, who is
+// standing at the far end, and where a death down there puts you back.
+//
+// All three are DERIVED from the leg's `dead` block the moment the leg is
+// built, in metres, so nothing downstream has to do cell arithmetic. The cell
+// list doubles as the test for "is the player in the joke" — see tutorInDead,
+// which is what turns an ordinary death into a gag.
+let tutorDeadCells = null;   // Set of "gx,gz", absolute
+let tutorDeadMan = null;     // [x, z] in metres, or null
+let tutorDeadBack = null;    // [x, z] in metres — the junction
+let tutorJoker = null;       // the man, while he is standing
+let tutorJokeDeath = false;  // this death was the joke, not a lesson failed
+
 // The signs a leg carries, built once when the leg is. Turn signs come from
 // `marks.turnLead` — one per change of direction, already two cells short of
 // the corner — and the arrow is the turn's own direction, so the words and
@@ -8677,7 +8710,24 @@ let tutorSigns = [];      // [{ at, text }] for the current leg, in path order
 function tutorBuildSigns() {
   tutorSigns = [];
   tutorClearPaint();
+  tutorDeadCells = null; tutorDeadMan = null; tutorDeadBack = null;
+  tutorRemoveJoker();
   const spec = tutorLegsOf()[tutorLegIx];
+  // The dead end, resolved to the grid. Ahead of the `marks` guard because a
+  // leg may carry a branch without carrying a single derived mark, and
+  // because the joke is furniture rather than signage.
+  const LD = hall && hall.legs[hall.cur];
+  if (spec && spec.dead && LD && LD.spine && LD.spine.length) {
+    const [ox, oz] = LD.spine[0], C = HALL.cell;
+    tutorDeadCells = new Set((spec.dead.cells || [])
+      .map(([x, z]) => `${ox + x},${oz + z}`));
+    if (spec.dead.man) {
+      tutorDeadMan = [(ox + spec.dead.man[0]) * C, (oz + spec.dead.man[1]) * C];
+    }
+    if (spec.dead.back) {
+      tutorDeadBack = [(ox + spec.dead.back[0]) * C, (oz + spec.dead.back[1]) * C];
+    }
+  }
   const marks = spec && spec.marks;
   if (!marks) return;
   // Hale's, painted on the masonry. Built with the leg's own meshes and
@@ -9267,7 +9317,10 @@ function tutorEnsureBodies(want) {
   // started is a few shards blinking out; a man who is finished looks like a
   // man leaving; a swarm nine-tenths of the way in is the phantom. So they go
   // in that order, newest first within each.
-  const heldUp = () => enemies.filter((e) => e.alive && e.hold);
+  // ...AND NOT THE ONE IN THE DEAD END. He is held (so he stands still and
+  // faces you) but he is not one of the lesson's bodies, and a beat that
+  // declares one man would otherwise trim HIM and leave the lesson's own.
+  const heldUp = () => enemies.filter((e) => e.alive && e.hold && !e.joke);
   const noticed = (e) => {
     if (e.state !== 'assemble') return 1;                       // formed
     return e.stateT / ASSEMBLE_T < 0.25 ? 0 : 2;                // barely / nearly
@@ -9276,7 +9329,7 @@ function tutorEnsureBodies(want) {
   if (over > 0) {
     const victims = enemies
       .map((e, i) => ({ e, i }))
-      .filter(({ e }) => e.alive && e.hold)
+      .filter(({ e }) => e.alive && e.hold && !e.joke)
       .sort((a, b) => noticed(a.e) - noticed(b.e) || b.i - a.i)
       .slice(0, over)
       .map(({ e }) => e);
@@ -9296,7 +9349,7 @@ function tutorEnsureBodies(want) {
     if (e) added++;
   }
   if (!tutorMark || !tutorMark.alive || enemies.indexOf(tutorMark) < 0) {
-    tutorMark = enemies.find((e) => e.alive && e.hold) || null;
+    tutorMark = enemies.find((e) => e.alive && e.hold && !e.joke) || null;
   }
   return added;
 }
@@ -9438,7 +9491,7 @@ function tutorAim(e) {
 // same man and the rounds arrive from different places.
 let tutorTurn = 0;
 function tutorAimNext() {
-  const live = enemies.filter((e) => e.alive && e.hold);
+  const live = enemies.filter((e) => e.alive && e.hold && !e.joke);
   if (!live.length) return false;
   const e = live[tutorTurn++ % live.length];
   tutorMark = e;
@@ -9532,6 +9585,89 @@ function tutorCentreX(z) {
 function tutorPlaceEnemy(z, xOff = 0) {
   return tutorPlaceEnemyAt(tutorCentreX(z) + xOff, z, 'gunner');
 }
+
+// --- THE MAN AT THE END OF THE DEAD END ------------------------------------
+//
+// Is the player standing in the joke? A cell test rather than a distance one:
+// the branch is a list of cells, so "in it" is exactly "on one of them", and
+// that stays true however the corridor is redrawn around it.
+function tutorInDead() {
+  if (!tutorDeadCells || !tutorDeadCells.size) return false;
+  const C = HALL.cell;
+  return tutorDeadCells.has(
+    `${Math.round(player.pos.x / C)},${Math.round(player.pos.z / C)}`);
+}
+
+// He is placed when the player walks into the branch and removed when they
+// walk out of it, rather than standing there for the whole leg.
+//
+// BECAUSE `cleared` COUNTS EVERY ENEMY ON THE LEVEL. The shooting lesson
+// advances on `!enemies.length`, so a man left standing round two corners
+// thirty metres behind the barrier is a lesson that can never be finished —
+// by a player who went the wrong way once, turned around when told to, and
+// did nothing else wrong. Placing him on entry is also what makes the joke
+// repeatable: go back down there and he is there again.
+//
+// Nothing sees him arrive: he is round the second corner from the first
+// warning, so his 156 shards assemble out of sight every time.
+function tutorPlaceJoker() {
+  if (tutorJoker || !tutorDeadMan) return;
+  const e = tutorPlaceEnemyAt(tutorDeadMan[0], tutorDeadMan[1], 'gunner');
+  if (!e) return;
+  tutorJoker = e;
+  // NOT ONE OF THE LESSON'S BODIES. `hold` is what pins him and turns him to
+  // face you; `joke` is what keeps the onboarding's census, its firing order
+  // and its trim from ever counting him as one of theirs.
+  e.joke = true;
+  // HIS ARM IS ALREADY UP. Locking it and raising it here means the telegraph
+  // has nothing left to animate — the gun still flashes white, so the shot is
+  // still announced, but there is no wind-up to read as a chance.
+  e.armRLock = true;
+  e.armR.rotation.x = -(Math.PI / 2 - 0.06);
+  e.aimMul = TUTOR.jokeAim;
+  e.speedMul = TUTOR.jokeSpeed;
+  // AND HE DOES NOT STOP. A round aimed at where you are is a round a perfect
+  // sideways input beats — that is true of every round in the game and cannot
+  // be fixed by making this one faster without making it invisible. What
+  // makes the dead end unwinnable is that dodging buys a second and the
+  // corridor is one cell wide and three deep: he simply fires again, and
+  // again, and there is nowhere in it to be.
+  //
+  // Measured, one cell in from the corner, holding a perfect input from the
+  // first frame: standing dies at 0.9 s, running back out at 1.0 s, and both
+  // sidesteps at 0.8 s. See test/joke.mjs, which is that measurement.
+  e.cdMul = TUTOR.jokeCd;
+  // ...AND THERE IS NO BEAT TO SEE HIM IN. Every other gun in the game waits
+  // RAMP.sightGrace after it can see you, which is the half-second that makes
+  // walking into a room survivable. Measured with it: a player who sidesteps
+  // the moment they round the corner is back out of the branch before he ever
+  // pulls the trigger, so the joke's punchline was optional. It is not.
+  e.noGrace = true;
+  e.fireCd = 0;
+  // ...AND HE IS NOT WAITING FOR THE SCRIPT. game.noFireBefore is the one
+  // global stamp that silences every gun on the level, and the beats before
+  // the barrier set it: without this he stands there with his arm up and
+  // never pulls the trigger, which is a bug that looks exactly like mercy.
+  game.noFireBefore = 0;
+}
+function tutorRemoveJoker() {
+  const e = tutorJoker;
+  tutorJoker = null;
+  if (!e) return;
+  const i = enemies.indexOf(e);
+  if (i < 0) return;                       // already swept by clearField
+  removeEnemyShards(e); removeBeam(e);
+  scene.remove(e.g);
+  enemies.splice(i, 1);
+  if (tutorMark === e) tutorMark = null;
+}
+// One call a frame from updateTutorial: the branch owns exactly one body, and
+// only while somebody is in it.
+function tutorUpdateJoke() {
+  if (tutorStep === null || !tutorDeadMan) return;
+  if (tutorInDead()) tutorPlaceJoker();
+  else if (tutorJoker) tutorRemoveJoker();
+}
 // Everything the onboarding owns, put back. Called on EVERY initHall, not
 // just the ones that teach: a barrier left behind in a previous run was still
 // blocking the corridor in a normal game, and a body left holding station was
@@ -9544,6 +9680,7 @@ function tutorResetWorld() {
   tutorMoved = 0; tutorLooked = 0; tutorFroze = false;
   tutorShotsFired = 0; tutorDodged = 0;
   tutorAwaitShot = false; tutorAnchor = null; tutorDeadPending = false;
+  tutorJokeDeath = false;
   tutorAnchorStep = null; tutorButtonShown = false; tutorFired = new Set();
   tutorSignSeen = false;
   tutorHardFreeze = false; tutorWorldHeld = false;
@@ -9567,7 +9704,8 @@ function startTutorial() {
   tutorMark = null; tutorRound = null;
   tutorShotsFired = 0; tutorDodged = 0; tutorCrossedDoor = false;
   tutorAwaitShot = false; tutorAnchor = null;
-  tutorDeadPending = false; tutorAnchorStep = null; tutorButtonShown = false;
+  tutorDeadPending = false; tutorJokeDeath = false; tutorAnchorStep = null;
+  tutorButtonShown = false;
   tutorFired = new Set(); tutorSignSeen = false;
   tutorHardFreeze = false; tutorWorldHeld = false;
   tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0; tutorBuildSigns(); tutorCrossedDoor = false;
@@ -9639,7 +9777,7 @@ function startSlowLesson() {
   tutorMoved = 0; tutorLooked = 0; tutorFroze = false;
   tutorShotsFired = 0; tutorDodged = 0; tutorCrossedDoor = false;
   tutorAwaitShot = false; tutorAnchor = null;
-  tutorDeadPending = false; tutorAnchorStep = null;
+  tutorDeadPending = false; tutorJokeDeath = false; tutorAnchorStep = null;
   tutorFired = new Set(); tutorSignSeen = false;
   tutorHardFreeze = false; tutorWorldHeld = false;
   tutorLegIx = 0; tutorSpineIx = 0; tutorTurn = 0; tutorBuildSigns();
@@ -9681,6 +9819,11 @@ function endTutorial(taught = true) {
     tutorDropBarrier();
     scene.remove(tutorBar.m); tutorBar = null;
   }
+  // ...AND SO DOES THE JOKE'S MAN. Quitting the lesson from inside the dead
+  // end would otherwise release him into the run as an ordinary enemy — one
+  // the player has to walk back round two corners to find, holding a door.
+  tutorRemoveJoker();
+  tutorJokeDeath = false;
   for (const e of enemies) e.hold = null;
   updateModeUI();
   document.body.classList.add('armed');
@@ -9966,6 +10109,8 @@ function tutorUpdateSpineIx() {
 // time, so what you see after failing is what you were looking at before it.
 function tutorRetry() {
   tutorDeadPending = false;
+  tutorJokeDeath = false;
+  tutorJoker = null;                  // clearField below sweeps him with the rest
   el.redflash.style.opacity = 0;
   clearField();                       // his body, the round, the debris
   player.alive = true;
@@ -10126,6 +10271,7 @@ function updateTutorial(dtReal, movedM, yawDelta) {
   const sp = tutorSpecOf(tutorStep);
   tutorUpdateBarrier(dtReal);
   tutorUpdateSpineIx();
+  tutorUpdateJoke();
   tutorShowMeter(tutorMeterOn);
   if (el.ammo) el.ammo.style.display = tutorMay('ammo') ? '' : 'none';
 
@@ -11670,6 +11816,10 @@ function hitPlayer(ended = false) {
   // only difference is where the button underneath it puts you back.
   if (tutorStep !== null && !ended) {
     tutorDeadPending = true;
+    // ...AND WAS IT THE JOKE? Asked here, while the player is still standing
+    // where the round found them, because the answer is a place and the retry
+    // is about to move them somewhere else.
+    tutorJokeDeath = tutorInDead();
     // ...and the world is no longer held. updateTutorial returns at
     // `deadPending` before it reaches the freeze block, so a death during the
     // telegraph left timeScale pinned at 0 and the death screen played as a
@@ -11711,6 +11861,37 @@ function hitPlayer(ended = false) {
     el.redflash.style.opacity = 1;
     sfx.die();
     vibrate([60, 40, 120]);
+  }
+  // THE JOKE HAS NO RETRY SCREEN.
+  //
+  // The corridor told the player twice not to go that way. Being handed YOU
+  // DIED · ONE HIT IS ALL IT TAKES for doing it anyway makes the gag a
+  // failure — a card, a button, a beat of reading — when the whole point is
+  // that it costs nothing. So: the same red, the same sound, the same hit,
+  // and then they are simply back at the junction looking at the sign they
+  // ignored. No card, no button, no run recorded.
+  if (tutorJokeDeath) {
+    // WHERE THE JOKE PUTS YOU BACK, which is not where the beat began: the
+    // anchor is the mouth of the corridor they walked in from, and putting
+    // them there would send them straight back down the wrong arm.
+    //
+    // MOVED NOW, NOT IN THE TIMEOUT. The death screen's panic lockout is one
+    // second and this hold is one and a half, so a tap in that half-second
+    // reaches advanceFromOverlay, which retries on `tutorDeadPending` — and
+    // would have used whatever anchor the beat left behind. Both routes have
+    // to agree about where back is.
+    if (tutorDeadBack) {
+      tutorAnchor = { x: tutorDeadBack[0], z: tutorDeadBack[1],
+        // FACING THE SIGNPOST. Forward is (-sin yaw, -cos yaw), so this is
+        // +z: the T's back wall, and both halves of what Hale wrote on it.
+        yaw: Math.PI, pitch: 0, locked: false };
+    }
+    setTimeout(() => {
+      if (game.state !== 'dead' || !tutorJokeDeath) return;
+      sfx.fadeAll(1, 0.25);   // advanceFromOverlay's job, and it is not running
+      tutorRetry();
+    }, TUTOR.jokeHold * 1000);
+    return;
   }
   setTimeout(() => {
     if (game.state !== 'dead') return;   // already retried — don't resurrect the overlay
@@ -14257,6 +14438,18 @@ window.__ts = {
     shaping: tutorShaping, legs: tutorLegsBuilt,
     dodged: tutorDodged, shots: tutorShotsFired, deadPending: tutorDeadPending,
     awaitShot: tutorAwaitShot, froze: tutorFroze,
+    // THE DEAD END, as the game currently understands it. `inDead` is the same
+    // predicate the joke death is decided by, so a screenshot can say whether
+    // the player was in the branch on the frame it was taken.
+    dead: tutorDeadCells ? {
+      cells: tutorDeadCells.size, inDead: tutorInDead(),
+      man: tutorDeadMan, back: tutorDeadBack,
+      joker: tutorJoker && tutorJoker.alive ? {
+        x: +tutorJoker.pos.x.toFixed(2), z: +tutorJoker.pos.z.toFixed(2),
+        state: tutorJoker.state, arm: +tutorJoker.armR.rotation.x.toFixed(2),
+      } : null,
+      jokeDeath: tutorJokeDeath,
+    } : null,
     anchor: tutorAnchor && { x: +tutorAnchor.x.toFixed(2), z: +tutorAnchor.z.toFixed(2) },
     // ...and whether the sign the lesson sends them to has been on screen yet,
     // which is what retires the way-out needle rather than the step changing

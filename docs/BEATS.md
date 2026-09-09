@@ -162,6 +162,11 @@ with it, then take it away while the player is still in the room.
 0. **The T-junction** (`docs/MARKS.md` §5) — the destination problem is
    answered by a decision rather than a marker, and it plants the arrow
    pattern Hale reuses for the rest of the game. This is now the first item.
+   *Geometry, paint and the joke are built* — the T, the two warnings, the
+   man with his arm already up, and the death that has no retry screen. One
+   piece is not: lesson 3's prompts still run to the last corner, so
+   `DRAG TO MOVE` sits across `THIS WAY` at the junction. See
+   `docs/MARKS.md` §5.7, first bullet.
 1. ~~**`STAND HERE` at 20 m**~~ — **cut.** On the shipped path the opening
    straight is five cells, so twenty metres *is* the first corner: an
    authored `STAND HERE` there would have stood two cells from the turn sign

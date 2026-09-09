@@ -44,6 +44,21 @@ export const TUTOR = {
   // path edit in the tool cannot strand it. Eight metres — a shade more than
   // EARLY.wayLookM, so the words land just before the needle begins to turn.
   lookLeadCells: 2,
+  // --- THE JOKE AT THE END OF THE DEAD END --------------------------------
+  // The man in the wrong arm of the T is not a difficulty spike, he is a
+  // punchline, and the three numbers below are what keep him one.
+  //
+  // His telegraph is HALF a gunner's, because his arm is already up when you
+  // round the corner — there is nothing to raise, so the wind-up would only
+  // be a pause. His round is faster than a sniper's, because a round that
+  // merely arrives quickly reads as a skill test the player failed: a player
+  // who backtracks at full speed has to plainly not make it, or the gag is a
+  // lesson about reaction time and the corridor has told a lie about what it
+  // wanted. And the red screen is short, because it is a beat, not a stop.
+  jokeAim: 0.5,         // multiplier on the gunner's telegraph
+  jokeSpeed: 3.2,       // ...and on the round's speed
+  jokeCd: 0.15,         // ...and on the wait before the next one
+  jokeHold: 1.5,        // seconds of red before you are back at the junction
   enemyCells: 4,        // cells beyond the barrier the first gunner stands
   enemyX: 1.15,         // ...and how far to either side the other two stand.
                         // A one-cell leg is 4 m of cell less 0.3 m of wall each
@@ -470,6 +485,22 @@ export const LEGS = [
     // come back there — which is where they were always going to earn their
     // keep, and where `EXIT` starts telling the story as well as the way out.
     turnSigns: false,
+    // THE DEAD END, as the leg's own furniture: which cells it is, who is
+    // standing at the end of it, and where a death down there puts you back.
+    // Held here rather than in main.js because it is content — the tool edits
+    // this file — and because the cell list is also the test for "is the
+    // player in the joke", which nothing else can derive.
+    dead: {
+      cells: TEACH_DEAD_END,
+      man: [-6, 9],       // he is round the second corner, arm already up
+      // WHERE THE JOKE PUTS YOU BACK: two cells short of the junction, facing
+      // it. Not the junction cell itself — the signpost is painted on its far
+      // wall, 1.6 m from a player standing on it, and at that range a 3.4 m
+      // message is four letters filling the screen. Photographed both: from
+      // here the whole sign is in frame at the size it was written to be read
+      // at, which is the point of being sent back to it.
+      back: [0, 9]
+    },
     // NO `EXIT` SIGN ON THIS LEG. One message in focus, and on the door beat
     // Hale's paint is what the player is reading. The building gets its
     // signage back on the doors past the onboarding.
@@ -1133,11 +1164,13 @@ export function normaliseLegs(legs) {
       // Derived turn signs are on by default and off where a lesson owns the
       // screen. Explicit `false` only — an absent flag means yes.
       turnSigns: (l && l.turnSigns) !== false,
-      // A HALF-WRITTEN SIGN MUST NOT THROW IN THE FRAME LOOP — same rule as
-      // the enemy list above. Three anchor shapes survive: a mark name, a
-      // spine index, and an explicit [gx, gz] cell for somewhere the path
-      // does not go. A signpost carries `halves` instead of `text`, so one
-      // or the other is required rather than `text` alone.
+      // The dead end's furniture. `cells` doubles as the test for whether the
+      // player is inside the joke, so a leg without one is simply not one.
+      dead: (l && l.dead && Array.isArray(l.dead.cells) && l.dead.cells.length)
+        ? { cells: l.dead.cells.map((c) => [c[0] | 0, c[1] | 0]),
+            man: Array.isArray(l.dead.man) ? [l.dead.man[0] | 0, l.dead.man[1] | 0] : null,
+            back: Array.isArray(l.dead.back) ? [l.dead.back[0] | 0, l.dead.back[1] | 0] : null }
+        : null,
       // Hale's painted messages: a leg-relative cell, which wall face it is
       // on, and the words. Filtered like everything else so a half-written
       // entry cannot reach the frame loop.
@@ -1152,6 +1185,11 @@ export function normaliseLegs(legs) {
           // cap height in metres — the number a person would give for how
           // tall the letters are. A hand's span is about right for a can.
           h: +g.h || 0.26, y: g.y != null ? +g.y : null })),
+      // A HALF-WRITTEN SIGN MUST NOT THROW IN THE FRAME LOOP — same rule as
+      // the enemy list above. Three anchor shapes survive: a mark name, a
+      // spine index, and an explicit [gx, gz] cell for somewhere the path
+      // does not go. A signpost carries `halves` instead of `text`, so one
+      // or the other is required rather than `text` alone.
       signs: ((l && l.signs) || [])
         .filter((g) => g && g.at != null
           && (g.text || (Array.isArray(g.halves) && g.halves.length === 2)))
