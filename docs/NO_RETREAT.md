@@ -210,6 +210,32 @@ arrives at all: measured, the nearest one ever got to a standing player was
 entirely, two of five bodies ended up stood on the player swinging, and a room
 scheduled to fire three together fired two.
 
+## The cue points at somebody you can see
+
+Worth knowing before you write any beat that draws a ring or a thumb on a man,
+because the trap is not obvious and it caught one.
+
+**The camera is portrait and its 80 degrees are vertical.** Measured in room 6:
+`camera.fov` 80, aspect **0.46**, so the *horizontal* field of view is **42
+degrees — twenty-one either side** of the way you are facing.
+
+**Nobody ever gets behind you.** There is no forward control and the men come
+to you: out of 2525 samples of a live man, **none** was behind the player.
+
+**The men who fall off the screen are the ones who have CLOSED.** 128 of those
+samples were off the glass, every one of them in front, at a median of **3.9 m
+and 30 degrees off-axis** — a man who has walked in to the hold line and
+strafed a couple of metres across. He is thirty degrees off, which is outside a
+42-degree view while being squarely in front of you.
+
+**And he is also the nearest.** Median distance of a man *on* screen: 15.2 m.
+Of one *off* it: 3.9 m. "Nearest" and "visible" are close to opposites in this
+mode, so `duelNearestBody` asks the camera — a body counts if its chest
+projects inside the viewport with a margin — rather than sorting by distance.
+Its comment used to claim it took the nearest man *in front*, and the code
+never checked; even the fixed version of that claim would have been wrong,
+because in front is not the same as on screen.
+
 ## The gun on the floor
 
 A shotgunner leaves his shotgun behind, and **there is no pick-up button in

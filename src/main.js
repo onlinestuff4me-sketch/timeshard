@@ -13839,18 +13839,30 @@ function duelTeachShoot() {
 // Whoever the lesson should point at: the nearest man the player CAN SEE.
 //
 // The comment here used to say "in front of the player" and the code did not
-// check. It took the nearest body in any direction, and in this mode men walk
-// all the way in to the hold line and then past it — so the nearest one is
-// routinely BEHIND you, where a ring and a thumb are drawn at a point that
-// projects off the screen and nothing appears at all. Measured: the button's
-// paired cue reported an owner, a mark and a claimed beat, and put nothing on
-// screen, four men standing in the room.
+// check — it took the nearest body in any direction. That is a real bug and
+// the reason is not the one it looks like.
 //
-// So it asks the camera. A body counts if its chest projects inside the
-// viewport with a margin — which is the actual requirement, and is not the
-// same as being in front: somebody a metre to the side at arm's length is in
-// front and off the edge of the glass. The nearest of those wins; if none of
-// them are visible, the nearest in front is better than nothing.
+// THE CAMERA IS PORTRAIT, AND ITS 80 DEGREES ARE VERTICAL. Measured, standing
+// in room 6: aspect 0.46, so the HORIZONTAL field of view is 42 degrees —
+// twenty-one either side of the way you are facing. And nobody is ever behind
+// you here; there is no forward control and the men come to you. Out of 2525
+// samples of a live man, **none** was behind the player and 128 were off the
+// screen, every one of them in front, at a median of 3.9 m and 30 degrees
+// off-axis.
+//
+// So the men who fall off the glass are the ones who have CLOSED. A man who
+// has walked in to the hold line and strafed a couple of metres across is at
+// thirty degrees, which is off the edge of a portrait screen while being very
+// much in front of you — and he is also, by then, the NEAREST. The median
+// distance of a man on screen was 15.2 m; of one off it, 3.9 m. "Nearest" and
+// "visible" were close to opposites, which is how the button's paired cue came
+// to report an owner, a mark and a claimed beat and put nothing on the glass
+// with four men in the room.
+//
+// So it asks the camera rather than the geometry. A body counts if its chest
+// projects inside the viewport with a margin, which is the actual requirement.
+// The nearest of those wins; if none are visible the nearest one in front is
+// better than nothing.
 const _vNear = new THREE.Vector3();
 function duelNearestBody() {
   let seen = null, seenD = 1e9, ahead = null, aheadD = 1e9;
