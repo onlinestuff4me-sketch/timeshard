@@ -76,12 +76,15 @@ const room1 = await page.evaluate(async () => {
     t.player.iframes = 999;
     t.player.pos.x = home.x + 1.6;
   }
-  // ...and the shooting half: fire once
+  // ...and the shooting half, which is answered by a body coming apart rather
+  // than by a trigger pull: a shot that hits nothing is the gesture without
+  // its consequence, and the card knows the difference.
   t0 = performance.now();
-  while (performance.now() - t0 < 8000 && t.simpleState().coach === 'aim') {
+  while (performance.now() - t0 < 12000 && t.simpleState().coach === 'aim') {
     await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999;
-    t.fire();
+    const m = t.enemies.find((e) => e.alive);
+    if (m) t.fireAt(m.pos.x, 1.25, m.pos.z);
   }
   // NOW measure: with the lesson answered, nothing may move the clock but the
   // player.

@@ -1435,6 +1435,14 @@ export const SIMPLE = {
       // them to dodge the round they are already dodging is the complaint this
       // whole beat attracts. See duelRoundMiss and duelWatchRound.
       warnS: 0.7,
+      // ...AND HOW LONG A ROUND HAS TO HAVE BEEN COMING AT THEM, on line, with
+      // nothing done about it, before the SECOND telling counts them as not
+      // answering it. A drag takes a moment to build speed, so on the frame a
+      // round first counts as threatening, somebody who reacted the instant it
+      // was fired still reads as somebody standing still — measured, a probe
+      // that stepped out of every lane it was put in was told twice. See
+      // `b.laneT` in duelWatchRound.
+      ignoredS: 0.55,
       // ...and the freeze lets go on its own after this, so a stopped world
       // is never a stuck one
       hold: 12,

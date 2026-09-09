@@ -3975,10 +3975,17 @@ function duelMayFire(e) {
   // and does not yet know that a tap fires it. Rounds arriving during that is
   // the room asking a question it has not finished teaching the answer to —
   // and the answer takes a moment to find, because the gesture is a tap
-  // ANYWHERE rather than a trigger in a corner. So the room waits. It is not
-  // long: it ends on the first body that shatters, which is the thing the
-  // card is asking for. See the 'aim' branch of updateDuelCoach.
-  if (duel.coach === 'aim') return false;
+  // ANYWHERE rather than a trigger in a corner. So the room waits. It ends on
+  // the first body that shatters, which is the thing the card is asking for.
+  //
+  // ONE CARD, IN ONE ROOM. `duel.holdFire` is set by the FIRST telling only,
+  // and only in the room the run opens in. Hung on the coach state instead,
+  // this held every gun in the game every time the shooting half came back —
+  // and it comes back on any room crossed without a shatter (`duel.reteach`),
+  // so a player who walked a room without killing anything got a room that
+  // never fired at them. Measured: rooms 4, 5 and 6 fired NOTHING. A hold on
+  // enemy fire is far too heavy a thing to hang on a flag that can return.
+  if (duel.holdFire && duelRoom() === duel.taughtIn) return false;
   const p = duelPlan(duelRoom());
   // THE FIRST ROUND OF A DEBUT ROOM BELONGS TO THE DEBUT.
   //
@@ -4979,7 +4986,7 @@ function updateBullets(sdt) {
     b.pos.addScaledVector(b.vel, sdt);
     b.life -= sdt;
     b.mesh.position.copy(b.pos);
-    duelWatchRound(b);   // ...and is anybody doing anything about this one?
+    duelWatchRound(b, sdt);   // ...and is anybody doing anything about this one?
 
     // trail stretches behind the bullet, longer at speed (enemy tracers extra
     // long so incoming fire reads instantly in frozen time)
@@ -8878,10 +8885,26 @@ function tutorRenderCues() {
 // round is coming" and "a round is coming and nothing is being done about
 // it". `born` is kept for the life of the round precisely so this question
 // has an answer. See SIMPLE.duel.teach.lateAt.
-function duelWatchRound(b) {
-  if (b.fromPlayer || duel.said.dodge >= 2 || duelTeaching()) return;
-  if (!duelMayTeach()) return;
+function duelWatchRound(b, sdt) {
+  if (b.fromPlayer) return;
   const T = SIMPLE.duel.teach;
+  const m = duelRoundMiss(b);
+  // HOW LONG THIS ROUND HAS BEEN COMING AT THEM WITH NOTHING DONE ABOUT IT.
+  //
+  // This is the whole of "they are not answering it", and it has to be a
+  // stretch of time rather than a single frame's reading. A player answers a
+  // round by DRAGGING, and a drag takes a moment to build speed — so on the
+  // frame the round first counts as threatening, somebody who reacted the
+  // instant it was fired still looks like somebody standing still. Measured:
+  // a probe that stepped out of every lane it was put in was told twice.
+  //
+  // Kept on the round rather than on the player because it is a fact about
+  // this round: two men firing means two clocks, and being late on one of
+  // them is not the same as ignoring both.
+  b.laneT = (m.t > 0 && m.miss <= TUTOR.dodgeLaneM) ? (b.laneT || 0) + sdt : 0;
+
+  if (duel.said.dodge >= 2 || duelTeaching()) return;
+  if (!duelMayTeach()) return;
   const first = duel.said.dodge === 0;
   // ...and never twice in the room that already said it once
   if (!first && duelRoom() === duel.saidDodgeIn) return;
@@ -8892,7 +8915,6 @@ function duelWatchRound(b) {
     const span = flown + Math.hypot(player.pos.x - b.pos.x, player.pos.z - b.pos.z);
     if (span < 1e-3 || flown / span < T.lateAt) return;
   }
-  const m = duelRoundMiss(b);
   // on line, and with time left to do something about it
   if (m.t < T.warnS || m.miss > TUTOR.dodgeLaneM) return;
   // THE CORRECTION IS PLACED IN TIME, because that is what it is about: they
@@ -8902,6 +8924,10 @@ function duelWatchRound(b) {
   // and the repeat could never fire at all. Both are seconds now, and the
   // window between them is real at every speed the mode reaches.
   if (!first && m.t > T.againBy) return;
+  // ...AND IT IS ONLY A CORRECTION IF THEY HAVE HAD A FAIR GO AT IT. A player
+  // who started their sidestep as the round left the muzzle is answering it,
+  // whatever their position happens to be while the drag builds speed.
+  if (b.laneT < T.ignoredS) return;
   duelTeachDodge(b);
 }
 
@@ -13291,7 +13317,7 @@ const duel = { walk: false, room: -1, coach: 'wait', coachT: 0,
   said: { dodge: 0, shoot: 0 }, saidDodgeIn: 0, saidWhy: [], meetKills: 0, taughtIn: 0,
   // ...and the gun on the floor: which drop is being pointed at, and whether
   // the player has ever picked one up at all. See duelWantsLoot.
-  loot: null, gotGun: false, debutDrop: -1,
+  loot: null, gotGun: false, debutDrop: -1, holdFire: false,
   shotHere: false, taught: false, reteach: false,
   // ...and the time button's own introduction, which is its own beat and not
   // a state of the coach variable. See duelNoteShot.
@@ -13327,6 +13353,7 @@ function resetSimpleState() {
   duel.loot = null;
   duel.gotGun = false;
   duel.debutDrop = -1;
+  duel.holdFire = false;
   duel.shotHere = false;
   duel.taught = false;
   duel.reteach = false;
@@ -13411,9 +13438,12 @@ function duelMeetCard(on, name, what, want, dir) {
     // ...and the longest names step the headline down rather than running off
     // the sides of it. See #duelmeet .who.
     d.classList.toggle('longname', name.length > 10);
-    // ...and so does a longer instruction. Two words fit the big type; a whole
-    // sentence wraps, and a wrapped headline stops reading as one instruction.
-    w.classList.toggle('longwhat', (what || '').length > 16);
+    // ...AND `longwhat` IS NOT DECIDED BY LENGTH. It was, briefly, and it
+    // caught the shieldbearer's STOP TIME · GET ROUND HIM — which is a long
+    // line that WANTS the big type and two rows of it, and which duelmeet.mjs
+    // rightly guards a minimum size on. Only the gun-on-the-floor card asks to
+    // stay on one line, and it asks for itself. See duelTeachLoot.
+    w.classList.remove('longwhat');
   }
   d.classList.toggle('on', !!on);
   d.classList.toggle('tap', !!on && want === 'shoot');
@@ -13767,7 +13797,12 @@ function duelTeachLoot() {
   // which way across the strip it is, from where they are standing
   const dir = drop.g.position.x >= player.pos.x ? 1 : -1;
   duelMeetCard(1, '', `${SIMPLE.duel.loot.say} ${drop.type.toUpperCase()}`, 'dodge', dir);
-  if (el.duelmeet) el.duelmeet.classList.add('noname');
+  if (el.duelmeet) {
+    el.duelmeet.classList.add('noname');
+    // ONE LINE. This is a sentence rather than a two-word instruction, and a
+    // headline that breaks in half stops reading as one thing to do.
+    el.duelmeet.querySelector('.what').classList.add('longwhat');
+  }
   vibrate(12);
 }
 function duelTeachShoot() {
@@ -13785,6 +13820,11 @@ function duelTeachShoot() {
   duel.meetShots = playerShots;
   duel.meetKills = game.kills;   // what answers it: one more than this
   duel.taughtIn = duelRoom();    // ...and only in the room that raised it
+  // ...AND ONLY THE FIRST TELLING, IN THE OPENING ROOM, HOLDS THE ROOM'S FIRE.
+  // That telling is the one where the player has never fired a shot in their
+  // life. Every later one is a reminder to somebody who has, and a reminder is
+  // not a reason to stop the fight.
+  duel.holdFire = duel.said.shoot === 1 && duelRoom() === 1;
   duelMeetCard(1, '', SIMPLE.duel.teach.shoot, 'shoot', 0);
   if (el.duelmeet) el.duelmeet.classList.add('noname', 'nostick');
 }
@@ -13911,6 +13951,7 @@ function updateDuelCoach(dtReal) {
     if (game.kills > duel.meetKills || duelRoom() !== duel.taughtIn
         || duel.coachT > SIMPLE.duel.teach.shootHold) {
       duel.taught = true;
+      duel.holdFire = false;
       duelTeachDone();
     }
     return;
