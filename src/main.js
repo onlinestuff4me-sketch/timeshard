@@ -13355,7 +13355,7 @@ const duel = { walk: false, room: -1, coach: 'wait', coachT: 0,
   said: { dodge: 0, shoot: 0 }, saidDodgeIn: 0, saidWhy: [], meetKills: 0, taughtIn: 0,
   // ...and the gun on the floor: which drop is being pointed at, and whether
   // the player has ever picked one up at all. See duelWantsLoot.
-  loot: null, gotGun: false, debutDrop: -1, holdFire: false,
+  loot: null, gotGun: false, debutDrop: -1, holdFire: false, pairSeen: false,
   shotHere: false, taught: false, reteach: false,
   // ...and the time button's own introduction, which is its own beat and not
   // a state of the coach variable. See duelNoteShot.
@@ -13392,6 +13392,7 @@ function resetSimpleState() {
   duel.gotGun = false;
   duel.debutDrop = -1;
   duel.holdFire = false;
+  duel.pairSeen = false;
   duel.shotHere = false;
   duel.taught = false;
   duel.reteach = false;
@@ -14097,10 +14098,20 @@ function updateDuelCoach(dtReal) {
     // have seen it. It has to be up long enough to read first.
     const answered = duel.pairShot && duel.coachT > 0.8
       && playerShots > duel.meetShots;
-    if (duel.coachT > 4.5 || answered) {
+    // ...AND THE BEAT WAITS FOR SOMEBODY TO POINT AT. A man still assembling
+    // has no hitbox — he is thin air until he forms — so the cue rightly skips
+    // him, and a room whose only bodies are mid-arrival has nothing to shatter
+    // and nothing to ring. Measured, that happens: the button's own room came
+    // up with two men in it and both of them still arriving. Rather than let
+    // the pairing silently not happen, the line holds longer while it has
+    // never once had anybody. `pairSeen` latches, so it cannot stretch twice.
+    if (duel.pairShot && duel.meetOwner) duel.pairSeen = true;
+    const waited = duel.pairShot && !duel.pairSeen ? SIMPLE.duel.pairWait : 4.5;
+    if (duel.coachT > waited || answered) {
       duel.coach = 'done';
       duelCoachSay('');
       duel.pairShot = false;
+      duel.pairSeen = false;
       duel.meetOwner = null;
       duel.meetMark = null;
       duelTapCue(null);

@@ -121,7 +121,12 @@ const arrived = await page.evaluate(async () => {
   let guard = 0;
   while (!up() && guard++ < 14) {
     t.crossDoor();
-    for (let i = 0; i < 6; i++) await new Promise((r) => requestAnimationFrame(r));
+    // ONE FRAME, NOT SIX. `crossDoor` carries the last room's men through with
+    // you, and they open fire from wherever they are standing within a third
+    // of a second — so six frames of settling in the button's own room was
+    // long enough for a round to fly and start the lesson, and the "before"
+    // snapshot below then reported the coach doing its job as a bug.
+    await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999;
   }
   // THE COACH'S "BEFORE", READ HERE. It used to be read after the room had
@@ -178,10 +183,16 @@ const held = await readCoach();
 await page.screenshot({ path: OUT + 'duel-coach-tap.png' });
 // answer it the way a player does
 await page.evaluate(async () => {
+  const t = window.__ts;
   document.getElementById('timebtn').dispatchEvent(new PointerEvent('pointerdown',
     { pointerId: 99, clientX: 340, clientY: 700, bubbles: true }));
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => requestAnimationFrame(r)); window.__ts.player.iframes = 999;
+  // ...AND GIVE THE PAIRED CUE A BODY TO LAND ON. A man still assembling has
+  // no hitbox, so the cue skips him — and this room can be two men both still
+  // arriving. The beat waits for one (SIMPLE.duel.pairWait); so does this.
+  for (let i = 0; i < 240; i++) {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999;
+    if (t.simpleState().pairShot && t.simpleState().owner && i > 20) break;
   }
 });
 const answered = await readCoach();
@@ -264,11 +275,18 @@ const dry = await page.evaluate(async () => {
   t.setSlow(1.0);
   t.setTimeLocked(true);
   const t0 = performance.now();
+  // NOTHING IS KILLED IN HERE. A kill puts SLOWMO.bonus seconds BACK in the
+  // bank, so a probe that clears the floor every frame to keep the room quiet
+  // is feeding the very meter it is waiting to see run out: with four men
+  // standing in the room it refilled faster than a second a second drained it,
+  // and the bank finished HIGHER than it started. The queue is emptied so
+  // nobody new arrives, iframes keep the player alive, and the drain is left
+  // alone to do the one thing this check is about.
+  t.game.spawnQueue.length = 0;
   while (performance.now() - t0 < 9000 && t.slow().locked) {
     await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999;
     t.game.spawnQueue.length = 0;
-    for (let k = t.enemies.length - 1; k >= 0; k--) t.killAt(k);
   }
   const b = document.getElementById('timebtn');
   return { locked: t.slow().locked, bank: t.slow().bank,

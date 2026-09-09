@@ -1487,6 +1487,14 @@ export const SIMPLE = {
     // arriving, and it plants and lunges at 3.4 m. Melee (1.5 m) is therefore
     // the rusher's alone now, which is what it should always have been.
     minM: 6.5,
+    // HOW LONG THE BUTTON'S SECOND LINE WILL WAIT FOR SOMEBODY TO POINT AT.
+    // It is paired with the shooting cue — a ring on a man and a thumb on his
+    // chest — and a man still assembling has no hitbox, so the cue skips him
+    // and a room whose only bodies are mid-arrival has nothing to ring.
+    // Measured, the button's own room came up with two men in it and both of
+    // them still arriving. The line normally goes at 4.5 s; while it has never
+    // once had a body, it waits this long instead.
+    pairWait: 8,
     meetHold: 10,   // seconds before a debut freeze lets go on its own
     // ...and how long a debut room holds its FIRST ROUND for the new type
     // before anyone else may fire, in world seconds. A debut has to win a turn
