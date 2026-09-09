@@ -54,6 +54,23 @@ than once.
 new type that is understood on the room it arrives in rather than three rooms
 later, and no room where the player cannot tell what changed.
 
+**Two playtests in, the answer is "the shape works and the SPEED did not".**
+Both rounds of feedback were the same complaint — *too easy, and no need for
+the time button* — and neither was a fault in the three dials. It was the
+*pace* the walk sets: one dial per room means fire moves every other room, and
+the opening cannot afford that. The first seven rooms are authored now
+(`SIMPLE.duel.open`) and the walk takes over after them. **Anyone lifting this
+ramp into the tunnel should lift the exception with it**: a ramp whose early
+rooms are walked at the same rate as its late ones will be too slow at the
+start every time. The lesson generalises — `roomPlan(mode, n)` wants an
+authored prologue per mode, not just a table of dials.
+
+**And the schedule is not the difficulty.** Both times, the tables looked right
+on paper while the mode played wrong. `test/duelheat.mjs` measures what the
+schedule cannot: rounds in the air at once, how fast they cross, how far out
+they open and how close they end. Any port needs its own version of that probe,
+or it will pass its own checks and feel like nothing.
+
 ---
 
 ## 0. Playtest the scarcity curves — before anything else

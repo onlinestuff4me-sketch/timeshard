@@ -201,10 +201,15 @@ for time in a different currency, and which currency is the better game is the
 thing the prototypes exist to find out:
 
 **NO RETREAT — you can stop time. You cannot leave.**
-The opening rooms run at full speed and are simply the fight. The time button
-arrives with a coach at `SIMPLE.duel.buttonRoom` — the peak of the first
-cycle, one room before the first new enemy type, because a debut says DODGE
-and slow time is what makes dodging survivable — on the tunnel's own bank: tap
+The opening rooms run at full speed and are simply the fight, and **the fight
+is what makes the button mean anything**: by door 5 three guns fire together
+every 2.6 s, at 11.4 m/s, from under ten metres. That was authored on purpose
+(`SIMPLE.duel.open`, and see `docs/NO_RETREAT.md`) after the mode was reported
+twice as not needing the power it was handing out — a power that arrives before
+the problem it answers is a button nobody presses. The time button arrives with
+a coach at `SIMPLE.duel.buttonRoom` — two rooms before the first new enemy
+type, because a debut says DODGE and slow time is what makes dodging
+survivable — on the tunnel's own bank: tap
 to slow, it drains while you are in it, every body you shatter puts some back,
 and it runs dry on its own. So time is priced here exactly as the tunnel
 prices it — **in seconds**, and nothing about that is new.

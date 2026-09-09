@@ -229,6 +229,25 @@ metres short of the seal, on a leg that might not have been given one. Walked
 past the seal, the property it was written to check holds. It had never once
 been checked.
 
+## A CRASHED BROWSER IS NOT A RESULT
+
+This box draws WebGL through SwiftShader, and under a long probe it sometimes
+takes the page down with it. Playwright reports that as
+`Target page, context or browser has been closed` and a non-zero exit — which
+looks exactly like a probe that found something.
+
+It is not. **Measured: `dodge.mjs` died on two runs in three against
+UNCHANGED, already-shipped code.** A check that flips on a build nobody touched
+is confessing, and what it was confessing to here was the harness rather than
+the game.
+
+So `runall.sh` tells the two apart: a crash is retried once, and a probe that
+crashes twice is reported `CRASHED` and counted separately from `FAILED`. The
+distinction matters in both directions — treating a crash as a failure sends
+you hunting a bug that is not there, and treating it as a pass is the mistake
+the rest of this page is about. If a probe crashes, re-run it by name before
+concluding anything.
+
 ## ...and the RUNNER could not fail either
 
 The worst instance of the above was not a test. `runall.sh` decided pass/fail

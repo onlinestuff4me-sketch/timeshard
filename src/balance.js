@@ -1097,7 +1097,17 @@ export const SIMPLE = {
     // So it keeps its own. A round crosses the gap in about two seconds in
     // room 1 and a bit over one by the time the button arrives — still a
     // sidestep, and no longer a stroll.
-    bullet: { openM: 7.0, stepM: 0.62, capM: 13.5 },
+    // ...AND IT WAS STILL A STROLL WHERE IT MATTERED. Playtested again at
+    // these numbers: by the room the time button arrives in, a round was
+    // 10 m/s over fifteen metres — one and a half seconds, which is a
+    // sidestep you can take twice. The power turned up before the problem it
+    // answers, and a player who never needed it never learnt it.
+    //
+    // The climb is nearly twice as steep now, so DOOR 5 is where the mode
+    // gets hard rather than door 12: 11.4 m/s there, 12.5 at the button. The
+    // ceiling is up with it, because a dial that tops out in room 9 has
+    // nothing left to say for the twenty-seven rooms after it.
+    bullet: { openM: 7.0, stepM: 1.1, capM: 15 },
     // ...AND THEY COME TO YOU, which is the mode's whole first sentence. This
     // CAPS a type's own engage distance rather than replacing it, so a
     // shotgunner still opens at its own ten metres and a gunner stops being
@@ -1105,7 +1115,13 @@ export const SIMPLE = {
     // first-sight floor, so at these numbers the back rank has to walk in
     // before it may fire at all — which is the closing-in the mode was
     // missing.
-    engage: { openM: 15, nearM: 9.5, byRoom: 10 },
+    // ...AND IT REACHES ITS CLOSEST BY DOOR 5, not door 10. Nine and a half
+    // metres is a little over sixty per cent of the way across the strip
+    // toward the player, and it is the distance the mode wants for the room
+    // the button lands in: close enough to be claustrophobic, close enough to
+    // aim at without hunting, and short enough that a round crosses it in
+    // three quarters of a second.
+    engage: { openM: 15, nearM: 9.5, byRoom: 5 },
     // ...BUT NOT FOR HIS FIRST ROUND. Measured, the second and third men in a
     // room went ten to seventeen world seconds between arriving and firing:
     // part of that is the room's own clock, which is the pacing dial and
@@ -1122,6 +1138,10 @@ export const SIMPLE = {
     // default is up to 1.4 s of cooldown before a man may even raise his gun,
     // on top of the telegraph and the room clock.
     openIn: [0.15, 0.35],
+    // THE SAFETY NET UNDER THE OPENING CARD, in seconds. The card is taken
+    // down by the first round anyone fires, not by a clock — this is only so
+    // a room where nobody ever shoots cannot leave it on screen for ever.
+    openCardMax: 9,
     slow: 0.3,
     ease: 9,            // crossing between slow and full (per second)
     // WHAT "A ROUND IS ON ITS WAY" MEANS — inside `lead` seconds and passing
@@ -1177,15 +1197,23 @@ export const SIMPLE = {
     // two dials, and taking two back off each leaves you exactly where the
     // cycle started. Every cycle peaked at 8 bodies and a single shooter, for
     // ever. One step keeps the cadence and lets the peaks climb.
+    //
+    // ...AND IT GOES ON PAST FIFTEEN, by adding a FOURTH group rather than a
+    // sixth man: `encCap` is five and a strip this wide cannot hold more than
+    // that abreast. The opening now spends the first four rungs of this table
+    // in its first five rooms (see `open`), so without something above the old
+    // top the whole dial was finished by room 12.
     groups: [
-      [1, 2, 2],   //  5
-      [2, 2, 3],   //  7
-      [2, 3, 3],   //  8
-      [3, 3, 4],   // 10
-      [3, 4, 4],   // 11
-      [4, 4, 5],   // 13
-      [4, 5, 5],   // 14
-      [5, 5, 5],   // 15
+      [1, 2, 2],      //  5
+      [2, 2, 3],      //  7
+      [2, 3, 3],      //  8
+      [3, 3, 4],      // 10
+      [3, 4, 4],      // 11
+      [4, 4, 5],      // 13
+      [4, 5, 5],      // 14
+      [5, 5, 5],      // 15
+      [4, 5, 5, 5],   // 19
+      [5, 5, 5, 5],   // 20
     ],
     encCap: 5,     // no group is ever bigger than this
     // [how many fire together, seconds the room waits after]. The gap tightens
@@ -1197,10 +1225,24 @@ export const SIMPLE = {
     // gun — measured, the room the button lands in had never once put two
     // rounds in the air together, so the power turned up before the problem
     // it answers. One tightening step at the top, then the second gun.
+    //
+    // ...AND IT WAS STILL TOO SLOW OFF THE MARK, AND STOPPED TOO LOW.
+    // Playtested: doors 6 to 8 did not need the time button, because two
+    // rounds every four and a bit seconds over fifteen metres is a sidestep
+    // with a wait afterwards. The mode has to be HARD by door 5 for the power
+    // that lands at door 6 to be the answer to anything.
+    //
+    // So the early rungs are re-cut for the opening the mode actually plays
+    // (see `open`): one gun tightening twice, two together at door 4, three
+    // together at door 5. THREE IS STILL THE CEILING — simultaneous rounds
+    // are the one shape a sidestep cannot answer, and that is an argument for
+    // reaching three EARLY, not for going past it — so the rungs the opening
+    // no longer leaves for the deep game are added as gap instead of as a
+    // fourth gun.
     fire: [
-      [1, 4.3], [1, 3.3],
-      [2, 4.3], [2, 3.3], [2, 2.3],
-      [3, 4.3], [3, 3.3], [3, 2.3],
+      [1, 4.3], [1, 3.2], [1, 2.4],
+      [2, 2.8],
+      [3, 2.6], [3, 2.2], [3, 1.9], [3, 1.6], [3, 1.35],
     ],
     // A VOLLEY IS NEVER ON ONE FRAME. Three rounds on the same frame are one
     // loud event the eye cannot take apart — it reads as a single wide muzzle
@@ -1217,6 +1259,43 @@ export const SIMPLE = {
     // disagree eventually; one of them should be arithmetic.
     volleyStep: 0.07,
     volleySlack: 0.12,   // ...plus this, so a slow frame cannot clip the last
+    // ---- THE OPENING IS AUTHORED, NOT WALKED -------------------------------
+    //
+    // Everywhere else in this mode, ONE DIAL MOVES PER ROOM and the two take
+    // it in turns. That rule is what makes a thirty-six room ramp legible: a
+    // player who has just died can name the one thing that was different.
+    //
+    // It is the wrong rule for the first five rooms. Taking turns means the
+    // fire dial only moves every OTHER room, and the opening has one job — be
+    // hard enough by door 5 that the power arriving at door 6 is the answer to
+    // something. Walked, two guns fired together for the first time in room 5
+    // and the room the button lands in had never seen three. Playtested, doors
+    // 6 to 8 did not need the button at all.
+    //
+    // So these rooms name their own two dials, as indices into `groups` and
+    // `fire` above, and the walk takes over from wherever this table leaves
+    // them:
+    //
+    //   1  five bodies, one gun every 4.3 s   the two-verb lesson lives here
+    //   2  one gun, tighter
+    //   3  seven bodies, one gun, tighter again
+    //   4  eight bodies, TWO together every 2.8 s
+    //   5  ten bodies, THREE together every 2.6 s, from 9.5 m, at 11.4 m/s
+    //   6  held  <- the time button arrives on this room
+    //   7  held
+    //
+    // Rooms 6 and 7 hold everything. The button is the new thing there, and a
+    // new thing is met in a room that is otherwise exactly the one before it —
+    // the same rule a debut follows, applied to a power instead of a type.
+    open: [
+      { bodies: 0, fire: 0 },
+      { bodies: 0, fire: 1 },
+      { bodies: 1, fire: 2 },
+      { bodies: 2, fire: 3 },
+      { bodies: 3, fire: 4 },
+      { bodies: 3, fire: 4 },
+      { bodies: 3, fire: 4 },
+    ],
     // ---- THE CAST PROGRAMME ------------------------------------------------
     //
     // A NEW TYPE ARRIVES ALONE. `with` is what joins the gunners, and it is
@@ -1250,7 +1329,7 @@ export const SIMPLE = {
     // about counting: with groups of three or four a fourth type would leave
     // no room for the gunners that carry the shot clock. See duelQueue.
     cast: [
-      { with: [], rooms: 6 },                                        // 1-6
+      { with: [], rooms: 7 },                                        // 1-7
       { with: ['shotgunner'] },                                      // 7-10
       { with: ['rusher'] },                                          // 11-14
       { with: ['shotgunner', 'rusher'], hold: 3 },                   // 15-17
@@ -1336,11 +1415,50 @@ export const SIMPLE = {
       // repeat waits until the round is nearly on them, and it will not fire
       // in the same room as the first.
       lateAt: 0.5,
-      lateAgainAt: 0.82,
+      // ...AND THE CORRECTION IS PLACED IN TIME, not along the flight. Its job
+      // is "they have had most of this round and have not moved", and as a
+      // fraction of the distance that could not survive the floor below it: at
+      // room 5's bullet speed the old 0.82 mark fell 0.45 s from the player,
+      // INSIDE `warnS`, so the two bars cancelled and the repeat could never
+      // fire at all. This is the latest it may arrive, in seconds to closest
+      // approach; `warnS` is the earliest. The window between them is real at
+      // every speed the mode reaches.
+      againBy: 1.25,
+      // ...AND NEITHER TELLING ARRIVES WITH NO TIME LEFT IN IT. `lateAt` above
+      // is a fraction of a DISTANCE, and what makes a warning useful is
+      // SECONDS: measured, the repeat fired with 0.40 s to go, on a round three
+      // metres out. Worse, a ratio silently gets meaner as the mode ramps —
+      // the same fraction of the same strip is 1.0 s at room 1's bullet speed
+      // and 0.35 s at the ceiling. This is the floor under both tellings, in
+      // seconds to closest approach, and it is measured against a player who
+      // is MOVING: somebody mid-drag is not standing anywhere, and telling
+      // them to dodge the round they are already dodging is the complaint this
+      // whole beat attracts. See duelRoundMiss and duelWatchRound.
+      warnS: 0.7,
       // ...and the freeze lets go on its own after this, so a stopped world
       // is never a stuck one
       hold: 12,
+      // THE SHOOTING HALF WAITS AS LONG AS IT TAKES. It is answered by a body
+      // shattering rather than by a trigger pull, and nobody is shooting back
+      // while it is up (duelMayFire holds the room), so there is nothing to
+      // rush. This is a safety net against a wedged run, not a lesson that
+      // gives up on somebody who is still working it out.
+      shootHold: 75,
     },
+    // ---- THE GUN ON THE FLOOR ---------------------------------------------
+    //
+    // A shotgunner leaves his shotgun behind, and a player who has never picked
+    // one up does not know that walking over it is how you take it — there is
+    // no pick-up button, and in this mode the drag is for sidestepping rounds
+    // rather than for going places. So the first time a room is cleared with a
+    // weapon lying in it, the room says so, and it keeps saying so at every
+    // cleared room until they are carrying one.
+    //
+    // It SLOWS rather than stops. A freeze is for something coming AT you; this
+    // is a thing on the floor and the player is about to be carried past it, so
+    // the world going heavy is the right amount of "look at this" — and the
+    // walk continues underneath, which is what makes the drag matter.
+    loot: { slow: 0.35, say: 'DRAG TO PICK UP', hold: 7 },
     meetHold: 10,   // seconds before a debut freeze lets go on its own
     // ...and how long a debut room holds its FIRST ROUND for the new type
     // before anyone else may fire, in world seconds. A debut has to win a turn

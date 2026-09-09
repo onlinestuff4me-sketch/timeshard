@@ -366,12 +366,41 @@ fight, and the same bodies dealt another way is not.
 |---|---|---|
 ${SIMPLE.duel.fire.map(([v, g], i) => `| ${i} | ${v} | ${n(g)} s |`).join('\n')}
 
-Tighten, tighten, tighten, then add a gun and reset the clock. A volley is
+One gun tightening twice, a second gun at step 3, a third at step 4, and
+everything above that is the gap closing on three. **Three together is the
+ceiling** — simultaneous rounds are the one shape a sidestep cannot answer,
+which is the argument for reaching three EARLY rather than for going past it.
+A volley is
 measured from its **start**, so men firing together cost the room one turn
 rather than several, and the window a man may join one in is derived —
 \`volleyStep × volley + volleySlack\` = ${n(SIMPLE.duel.volleyStep)} × volley +
 ${n(SIMPLE.duel.volleySlack)} — because a fixed window fitted two rounds and not
 three, and triples quietly fired pairs.
+
+### THE OPENING — the only rooms that are authored rather than walked
+
+Everywhere else one dial moves per room and the two take it in turns. That is
+what makes a thirty-six room ramp legible: a player who has just died can name
+the one thing that was different. It is the wrong rule for the first rooms,
+because taking turns moves **fire** only every other room, and the opening has
+one job — be hard enough by door 5 that the power arriving at door
+${n(SIMPLE.duel.buttonRoom)} is the answer to something. Walked, two guns fired
+together for the first time in room 5 and the room the button lands in had
+never seen three.
+
+| room | bodies | groups | fire |
+|---|---|---|---|
+${SIMPLE.duel.open.map((o, i) => {
+  const g = SIMPLE.duel.groups[o.bodies];
+  const [v, gap] = SIMPLE.duel.fire[o.fire];
+  return `| ${i + 1} | ${o.bodies} | ${g.join(' · ')} | ${v} every ${n(gap)} s${
+    i + 1 === SIMPLE.duel.buttonRoom ? ' — **the time button arrives**' : ''} |`;
+}).join('\n')}
+
+The last rooms hold everything: the button is the new thing there, and a new
+thing is met in a room that is otherwise exactly the one before it — the same
+rule a debut follows, applied to a power instead of a type. The walk picks up
+from wherever this table leaves the two indices.
 
 ### CAST — who is in the mix
 

@@ -64,24 +64,44 @@ duel.
 * **BODIES** — the groups a room arrives in, as an ordered list. 1·2·2 up to
   5·5·5, a group capped at five. The order survives: 3, 3, 4 is a room that
   ends on its biggest fight.
-* **FIRE** — how many shoot together and how long the room then waits. Tighten
-  three times (4.3 → 3.3 → 2.3 s), then add a gun and reset the clock. Three
-  together is the ceiling.
+* **FIRE** — how many shoot together and how long the room then waits. One gun
+  tightening twice, a second gun, a third, then the gap closing on three.
+  **Three together is the ceiling**: simultaneous rounds are the one shape a
+  sidestep cannot answer, which is the argument for reaching three EARLY rather
+  than for going past it.
 * **CAST** — which types are in the mix. A new type arrives **alone**, gunners
   filling every other slot, in a room made quieter than the one just cleared
   (the FIRE dial steps back — stepping both back flattens a four-room cycle);
   it then owns the rest of a four-room cycle. Types that have each had a cycle
   meet for a short interlude with every other dial frozen. The five debuts are
-  **shotgunner 7, rusher 11, shieldbearer 18, armored 24, heavy 28**, and the
-  ramp tops out at room 31 — five to a group and three firing together are both
+  **shotgunner 8, rusher 12, shieldbearer 19, armored 25, heavy 29**, and the
+  ramp tops out at room 32 — five to a group and three firing together are both
   chosen ceilings, so past that the mode is at maximum with only the cast
   changing.
+
+**…and the first seven rooms are AUTHORED, not walked** (`SIMPLE.duel.open`).
+This is the one exception to "one dial per room", and it is worth knowing
+before you touch `duelPlan`. Taking turns moves the fire dial only every
+*other* room, and the opening has one job: be hard enough by **door 5** that
+the time button arriving at door 6 is the answer to something. Walked, two guns
+fired together for the first time in room 5 and the button's own room had never
+seen three — reported twice as *"not enough need to use the time button"*.
+Those rooms name both their dials; the walk picks up from where the table
+leaves them; rooms 6 and 7 hold everything, because a new *power* is met the
+same way a new *type* is.
 
 The schedule is **walked forward from room 1, not solved** (`duelPlan()` in
 `src/main.js`) because the rule *is* a walk. The dials live in `SIMPLE.duel`
 in `src/balance.js` and are **generated into `docs/BALANCE.md`**, so they
 cannot drift from what the game reads. `test/duelramp.mjs` prints the schedule
 out of the running game and then checks the guns do what it says.
+
+**The schedule is not the same thing as the difficulty.** Two rounds of *"still
+too easy"* both looked right on paper first: two guns every four seconds over
+fifteen metres is two dials that read as a ramp and a room that plays as a
+wait. `test/duelheat.mjs` measures the other half — the most rounds in the air
+at once, how fast they cross, how far out they open and how close they end up —
+and it is the probe to run when the mode feels wrong but the tables look fine.
 
 **Meeting a new type.** Its first act stops the world — its first round, or for
 the rusher the frame it plants and coils. Three rows fill the still screen: its

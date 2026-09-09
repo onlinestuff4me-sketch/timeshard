@@ -447,6 +447,11 @@
               font-size:min(8.4vw,38px); letter-spacing:.06em; line-height:1.06;
               text-align:center; text-wrap:balance;
               text-shadow:0 2px 14px rgba(12,13,16,.92), 0 0 2px rgba(12,13,16,.8); }
+  /* A LONGER INSTRUCTION STEPS DOWN RATHER THAN WRAPPING, the same way the
+     name row does. Two words fit at 38px and "DRAG TO PICK UP SHOTGUN" does
+     not — and a headline that breaks across two lines stops reading as one
+     instruction. */
+  #duelmeet .what.longwhat { font-size:min(5.4vw,24px); letter-spacing:.05em; }
   /* ...and the thumb, the same disc the onboarding coaches with, travelling
      ONE WAY: which way is the whole point of it here. */
   #duelmeet .stk { position:relative; display:block; width:180px; height:86px; }
@@ -621,6 +626,15 @@
      thirteen characters and the banner does not wrap. */
   #banner .mnew { font-size:min(8.4vw,38px); letter-spacing:.06em; line-height:1.1; }
   #banner .mnew .lede { display:block; margin-bottom:9px; color:#ff2d1a;
+                  font-size:min(3.4vw,15px); letter-spacing:.34em; }
+  /* THE RUN'S OPENING CARD. Three rows: what is happening, the serial, and
+     the send-off. The serial keeps the banner's big type because it is the
+     line worth reading twice; the words around it are labels on it and are
+     sized as such. Tabular figures so a six-digit number does not jitter as
+     it is read. */
+  #banner .sim { font-size:min(11vw,52px); letter-spacing:.04em; line-height:1;
+                 font-variant-numeric:tabular-nums }
+  #banner .sim .lede { display:block; margin-bottom:10px; color:#ff2d1a;
                   font-size:min(3.4vw,15px); letter-spacing:.34em; }
   /* the warn flash shares the channel, so it shares the safe zone */
   #warn { top:auto; bottom:60%; }
@@ -903,6 +917,10 @@
   /* ---- save slots ---- */
   #saves, #askFull { position:fixed; inset:0; z-index:14; display:none;
             align-items:center; justify-content:center; background:rgba(22,24,29,.45); }
+  /* ...and the bulk confirmation sits ABOVE the list it is asking about, the
+     way the details card does, so KEEP THEM comes back to the ticked rows. */
+  #askBulk { position:fixed; inset:0; z-index:15; display:none;
+            align-items:center; justify-content:center; background:rgba(22,24,29,.45); }
   /* above the list it was opened from, so BACK returns to it rather than to
      the menu */
   #saveinfo { position:fixed; inset:0; z-index:15; display:none;
@@ -962,10 +980,15 @@
   #bulkbar.on { display:flex; }
   #bulkdel { flex:1; text-align:center; padding:9px 0; border-radius:999px;
             border:2px solid #ff2d1a; color:#ff2d1a; font-size:10px; font-weight:900;
-            letter-spacing:.14em; }
+            letter-spacing:.14em; white-space:nowrap; }
   #bulkcancel { flex:0 0 74px; text-align:center; padding:9px 0; border-radius:999px;
             border:2px solid rgba(22,24,29,.18); color:#5b616c; font-size:10px;
-            font-weight:900; letter-spacing:.14em; }
+            font-weight:900; letter-spacing:.14em; white-space:nowrap; }
+  /* THE WAY IN. It recedes like DELETE does on a row — this page is for
+     getting back into a run, and pruning is the other thing it can do. */
+  #bulkpick { flex:1; text-align:center; padding:9px 0; border-radius:999px;
+            border:2px solid rgba(22,24,29,.18); color:#5b616c; font-size:10px;
+            font-weight:900; letter-spacing:.14em; white-space:nowrap; }
   #savesfull { width:246px; font-size:10px; font-weight:800; letter-spacing:.1em;
             color:#ff2d1a; text-align:center; margin:0 0 2px; display:none; }
   #savesfull.on { display:block; }
@@ -980,8 +1003,13 @@
   .slot .smeta b { color:#16181d; font-weight:900; }
   .slot .swhen { font-size:9px; letter-spacing:.14em; color:#8b919b; margin-top:2px; }
   .slot .srow { display:flex; gap:6px; margin-top:8px; }
+  /* A PILL NEVER WRAPS. Two lines of 900-weight capitals inside a rounded
+     button reads as a broken layout, and the confirm button used to carry a
+     save's name — up to twenty-four characters of it. Names live on the row,
+     which has the width for them; buttons say what they do. */
   .slot .sbtn { flex:1; text-align:center; padding:7px 0; border:2px solid rgba(22,24,29,.32);
-            border-radius:999px; font-size:10px; font-weight:900; letter-spacing:.14em; }
+            border-radius:999px; font-size:10px; font-weight:900; letter-spacing:.14em;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .slot .sbtn.red { border-color:#ff2d1a; color:#ff2d1a; }
   /* DELETE is not styled like CONTINUE. It is the one irreversible thing on
      this screen, so it recedes until it is asked for and only then goes red. */
@@ -1544,7 +1572,12 @@
     <div class="sortb" id="sortdir" title="Reverse"><i>▼</i></div>
   </div>
   <div id="slotlist"></div>
+  <!-- ONE ROW, TWO STATES. Out of pick mode it is the way IN — the ticking
+       column had no entrance except arriving from a full list, so the bulk
+       delete existed and could not be reached by anybody who simply wanted a
+       tidy-up. In pick mode it counts what is ticked and offers CANCEL. -->
   <div id="bulkbar">
+    <div id="bulkpick">SELECT RUNS TO DELETE</div>
     <div id="bulkdel">DELETE SELECTED</div>
     <div id="bulkcancel">CANCEL</div>
   </div>
@@ -1555,6 +1588,12 @@
   <div class="sibody"></div>
   <div class="sinote">DATES AND IDENTIFIER ARE PART OF THE FILE</div>
   <div class="pbtn" id="saveinfoclose">SAVE &amp; BACK</div>
+</div></div>
+<div id="askBulk"><div class="htpcard">
+  <h3>DELETE RUNS?</h3>
+  <div class="askq" id="bulkq"></div>
+  <div class="pbtn red" id="bulkyes">DELETE</div>
+  <div class="pbtn" id="bulkno">KEEP THEM</div>
 </div></div>
 <div id="askFull"><div class="htpcard">
   <h3>ALL RUNS IN USE</h3>

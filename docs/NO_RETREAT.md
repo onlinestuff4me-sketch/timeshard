@@ -20,6 +20,9 @@
 | the schedule, checked | `test/duelramp.mjs` |
 | the debut cards, checked | `test/duelmeet.mjs` |
 | the room-1 lesson, checked | `test/duelschool.mjs` |
+| why the dodge coach spoke | `test/dodgewhy.mjs` |
+| how hot each room actually is | `test/duelheat.mjs` |
+| the gun on the floor, checked | `test/duelloot.mjs` |
 | speed and range | `SIMPLE.duel.bullet` / `.engage`, read by `duelBulletSpeed()` / `duelEngageCap()` |
 | the button and its bank | `test/duelbtn.mjs` |
 | the published plan page | https://claude.ai/code/artifact/252766fc-7ae3-41bc-aace-d6d3c2defde1 |
@@ -38,8 +41,32 @@ Three dials ramp, and **only one of them moves per room**:
 
 The schedule is **walked forward from room 1 rather than solved** (`duelPlan`),
 because the rule *is* a walk: bodies and fire take it in turns, and a new type
-steps both of them back. There is no closed form for that, and inventing one
+steps the fire dial back. There is no closed form for that, and inventing one
 would be a second description of the same thing, free to drift from it.
+
+**…except the first seven rooms, which are authored** (`SIMPLE.duel.open`).
+Taking turns moves the fire dial only every *other* room, and the opening has
+one job: be hard enough by door 5 that the power arriving at door 6 is the
+answer to something. Walked, two guns fired together for the first time in
+room 5 and the room the button lands in had never once seen three — playtested
+twice as *"still don't feel there's enough need to use the time button"*. Those
+rooms name both their dials; the walk picks up from wherever the table leaves
+them.
+
+| room | groups | fire |
+|---|---|---|
+| 1 | 1 · 2 · 2 | 1 every 4.3 s — the two-verb lesson lives here |
+| 2 | 1 · 2 · 2 | 1 every 3.2 s |
+| 3 | 2 · 2 · 3 | 1 every 2.4 s |
+| 4 | 2 · 3 · 3 | **2 together** every 2.8 s |
+| 5 | 3 · 3 · 4 | **3 together** every 2.6 s |
+| 6 | 3 · 3 · 4 | held — **the time button arrives** |
+| 7 | 3 · 3 · 4 | held |
+
+Rooms 6 and 7 hold everything, because the button is the new thing there and a
+new thing is met in a room that is otherwise exactly the one before it — the
+same rule a debut follows, applied to a power instead of a type. The
+shotgunner then debuts at **room 8**.
 
 Everything in the table below is read out of the running game by
 `test/duelramp.mjs`, which also checks that the guns do what it says.
@@ -68,13 +95,22 @@ distance came off the shared default of 19–25 m, written for a corridor you
 walk down and take cover in. This mode is thirty-one rooms long and has
 neither. So it keeps its own:
 
-| | was | is | measured after |
-|---|---|---|---|
-| bullet, room 1 | 5.4 m/s | `bullet.openM` 7.0 | 2.1 s of flight |
-| bullet, room 6 | 5.4 m/s | +`stepM` 0.62 a room | 10.1 m/s, **1.2 s** |
-| bullet, ceiling | 6.2 by room 12 | `capM` 13.5 | room 11 at 13.2 |
-| they stand at | 19.2 m | `engage` 15 → 9.5 by room 10 | 14.3 m → 7.0 m |
-| firing together at the button | **1** | fire dial reaches 2 by room 5 | **2** |
+| | shipped | then | now | measured |
+|---|---|---|---|---|
+| bullet, room 1 | 5.4 m/s | 7.0 | `bullet.openM` 7.0 | 2.7 s of flight from the far end |
+| bullet, door 5 | 5.4 m/s | 9.5 | +`stepM` **1.1** a room | **11.4 m/s** |
+| bullet, door 6 | 5.4 m/s | 10.1 | | **12.5 m/s** |
+| bullet, ceiling | 6.2 by room 12 | 13.5 | `capM` **15** | 15 by room 8 |
+| closest they fire from | 19.2 m | 9.5 by room 10 | `engage` 15 → 9.5 **by room 5** | opens at ~19 m, closes to **2.4 m** |
+| firing together at door 5 | 1 | 2 | fire dial reaches **3** | **3** |
+| rounds in the air at door 5 | 1 | — | | **3** |
+
+Those last three columns are the two passes this took. The first fixed the
+numbers and left the *schedule* walking, so the speeds arrived four rooms after
+they were needed; the second authored the opening (above) so they arrive at
+door 5. `test/duelheat.mjs` is where the "measured" column comes from — it
+stands in a room and counts what is actually in the air, which is the thing the
+schedule cannot tell you.
 
 `engage` is a **cap on a type's own engage distance**, not a replacement — a
 shotgunner still opens at its own ten metres, and a gunner stops being able to
@@ -115,18 +151,50 @@ thing this mode has to say is that a round is coming and you move.
    where the thumb went, so the cue is on the *body*, not on the stick. Firing
    puts both away.
 
-**It is said twice at most** (`SIMPLE.duel.teach`), and the second time has to
-be earned by missing it: a round that got to the player while they stood in its
-lane, or a whole room crossed without a body shattered. Past that it is nagging
-somebody who is playing.
+**The shooting half is answered by a body coming apart, not by a trigger
+pull.** It used to clear on the first tap, which is the gesture without its
+consequence: a player who tapped a wall was told they had learnt it. What this
+mode is made of is a man being there and you shattering him, so the card stays
+up until one does — any of them. **And nobody shoots back while it is up**
+(`duelMayFire`): rounds arriving during the one beat that is teaching the
+player how to shoot is the room asking a question it has not finished teaching
+the answer to. There is no rush on it for the same reason, so `shootHold` is a
+long way out — a safety net against a wedged run, not a lesson that gives up on
+you.
 
-**The two tellings are different questions, so they have different bars.** The
-first is an introduction and fires at `lateAt` — half way along the round's
-flight, while there is plenty left to step out of. The second is a *correction*,
-and at the same bar it went off almost immediately and over and over: a player
-who is mid-sidestep at half way has not failed at anything. So the repeat waits
-until `lateAgainAt` — the round nearly on them — and **never fires in the room
-that already said it once**.
+**It is said twice at most** (`SIMPLE.duel.teach`), and the second time has to
+be earned by missing it. Past that it is nagging somebody who is playing.
+
+**"It told me to dodge something that was never going to hit me."** Reported
+with screenshots, and it is a claim about three numbers rather than an
+impression, so it is measured (`test/dodgewhy.mjs` records why every telling
+fired). Two things were wrong, and both came from asking the question in the
+wrong unit:
+
+* **A distance ratio is not time.** The repeat's bar was `lateAgainAt` — 82% of
+  the way along the round's flight — and measured, that fired **0.40 s** before
+  the round arrived. That is the result being read out, not a warning. Worse, a
+  ratio silently gets meaner as the mode ramps: the same fraction of the same
+  strip is a second at room 1's bullet speed and a third of one at the ceiling.
+  Both bars are seconds now — `warnS` **0.7** is the earliest a telling is any
+  use, `againBy` **1.25** is the latest the *correction* may arrive — and the
+  window between them is real at every speed the mode reaches.
+* **A player mid-drag is not standing anywhere.** The threat test asked whether
+  the round passes close to where the player *is*. Somebody who has already
+  started their sidestep is on their way out of the lane, and freezing the world
+  to tell them to do the thing they are in the middle of doing is exactly the
+  complaint. Both are treated as moving now: closest approach of two moving
+  points (`duelRoundMiss`), which answers *given how they are going, is this
+  going to hit them*. The onboarding's own dodge lesson keeps the old test —
+  it stops the world at a scripted moment and the player there has no drag to
+  be in the middle of.
+
+The introduction is still placed along the flight (`lateAt`, half way): it
+wants to arrive with plenty of round left to step out of, and sooner is better
+for something you have never been told before. A probe that steps out of every
+lane it is put in now hears the line **once** and is never corrected.
+
+**And it never fires twice in the same room.**
 
 **And the whole lesson ends where the power begins.** The button's own room
 belongs to the button, which arrives with a coach of its own; measured, the
@@ -141,6 +209,38 @@ arrives at all: measured, the nearest one ever got to a standing player was
 7.89 m, and its debut froze on a tell it was never going to give. Removed
 entirely, two of five bodies ended up stood on the player swinging, and a room
 scheduled to fire three together fired two.
+
+## The gun on the floor
+
+A shotgunner leaves his shotgun behind, and **there is no pick-up button in
+this game** — you walk over a thing to take it. NO RETREAT never asks the player
+to go anywhere: the drag is for stepping out of the way of rounds and the
+corridor does the walking. So the one gesture that gets you the gun is the one
+gesture the mode has never used the drag for, and a player who has only ever
+played this mode has no reason to guess it.
+
+So the room says so. When a room is cleared with a weapon lying in it and the
+player is not yet carrying one (`duelWantsLoot`), the world **goes heavy** —
+`loot.slow` 0.35, not a freeze — a ring goes on the gun, and the thumb points
+the way across. It is not a freeze because *the corridor has to keep carrying
+them*: the walk is what makes the sideways drag mean something, and a stopped
+world would leave the player with nothing to drag against. It goes the moment
+they have it, or the moment they are past it and the answer is no.
+
+**It comes back at every cleared room until they are carrying one.** Missing it
+is the likeliest outcome the first time — the gun may be at the far side of a
+strip they are being walked down the middle of.
+
+**And the room guarantees there is something to point at.** A weapon drop is
+normally a roll (`DROPS`, `scarcity`), which is the lever the whole game hangs
+off — but a room that introduces a type exists to introduce it, and what he was
+carrying is part of meeting him. One guaranteed drop per room, only while the
+player has yet to pick a weapon up at all; past their first weapon it is
+ordinary loot again, and loot is meant to be scarce.
+
+Checked end to end by `test/duelloot.mjs`, which wins rooms 1 to 7 rather than
+warping to 8 — `warpDoor` moves the room number and not the fight in front of
+you.
 
 ## The schedule, as the game reads it out
 
@@ -241,8 +341,9 @@ time would drop the tail of that list silently.
 That composition is what guarantees the new type is on the floor and at the
 front of it in the room that debuts it — which is what the freeze needs to land
 on. Before it, a debut room was composed from the TUNNEL's introduction table:
-the roster let a shotgunner in and no code ever put one in the queue, so room 7
-filled with gunners and the debut never happened. An empty permission.
+the roster let a shotgunner in and no code ever put one in the queue, so the
+debut room filled with gunners and the debut never happened. An empty
+permission.
 
 ## Meeting a new type
 
@@ -314,7 +415,7 @@ dodging is what those words asked for both times they were said. `meetHold: 10`
 seconds is the last resort, so a stopped world nobody knows how to un-stop
 cannot happen. Once per type per run, and only in the room that type debuts in
 — a shotgunner met again three cycles later in a combination room is not a
-debut. The five debuts land in rooms **7, 11, 18, 24 and 28**.
+debut. The five debuts land in rooms **8, 12, 19, 25 and 29**.
 
 The card carried a sentence of tactics per type once ("FIVE PELLETS, WIDE ·
 STEP EARLY AND STEP FAR", and four more like it). Every one was true and none
@@ -323,17 +424,20 @@ loading screen. It was then a small plate pinned on the body with a cue tucked
 down by the stick, which is a card that is scattered rather than one that is
 read.
 
-**The button comes first.** `buttonRoom: 6` is the peak of the opening, one
-room before the first debut, because a debut says DODGE and slow time is what
-makes dodging survivable. The opening entry in the cast programme names its own
-length (`rooms: 6`) rather than taking a debut's cycle, because the rooms
-before the first debut are not a debut's ramp — they are the mode being taught
-by playing it, and they have to outlast the button arriving inside them.
+**The button comes first.** `buttonRoom: 6`, two rooms before the first debut,
+because a debut says DODGE and slow time is what makes dodging survivable. The
+opening entry in the cast programme names its own length (`rooms: 7`) rather
+than taking a debut's cycle, because the rooms before the first debut are not a
+debut's ramp — they are the mode being taught by playing it, and they have to
+outlast both the button arriving inside them and the two rooms that hold the
+difficulty steady around it.
 
 ## Time
 
-Rooms 1 to 5 run at full speed and are simply the fight. From room 6 the button
-is the player's, on the tunnel's own bank: 5 s at wave start, 10 s ceiling, 2 s
+Rooms 1 to 5 run at full speed and are simply the fight — and by room 5 that
+fight is three guns firing together every 2.6 s at 11.4 m/s from under ten
+metres, which is the point: the power has to be the answer to a question the
+player has already been asked. From room 6 the button is the player's, on the tunnel's own bank: 5 s at wave start, 10 s ceiling, 2 s
 back per kill, 1 s spent per second frozen. It runs dry on its own and lets go.
 Slow time here is `SIMPLE.duel.slow: 0.3` — 0.13 shipped once, and at that
 speed a round takes 23 seconds to cross the strip against a bank that holds

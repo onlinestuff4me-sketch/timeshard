@@ -86,22 +86,52 @@ if (!armed.tap) bad('no thumb on the man');
 if (armed.cue !== 'press') bad('the card shows a swipe under a TAP instruction: ' + armed.cue);
 if (armed.stick) bad('a thumb on the card AND a thumb on the man: two places, one instruction');
 
-// ---- firing puts it away --------------------------------------------------
+// ---- A SHOT THAT HITS NOTHING IS NOT AN ANSWER ---------------------------
+// The card used to clear on the first trigger pull, which is the gesture
+// without its consequence: tap a wall and the game told you you had learnt
+// it. It asks for a body to come apart, so a fistful of shots into the far
+// wall must leave it exactly where it is. Nobody is shooting back while it is
+// up, so there is no cost to taking the time.
+const missed = await page.evaluate(async () => {
+  const t = window.__ts;
+  const t0 = performance.now();
+  let shots = 0;
+  while (performance.now() - t0 < 2500) {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999;
+    // straight up at the ceiling: a real trigger pull that hits nobody
+    t.fireAt(t.player.pos.x, 40, t.player.pos.z + 2);
+    shots++;
+  }
+  return { shots, kills: t.game.kills, incoming: t.bullets.filter((b) => !b.fromPlayer).length };
+});
+const stillUp = await read();
+console.log('shots at nothing: ' + JSON.stringify(missed));
+console.log('after missing:   ' + JSON.stringify(stillUp));
+if (stillUp.coach !== 'aim') bad('a shot that hit nothing answered the card');
+if (missed.kills !== 0) bad('the probe hit something it was aiming away from');
+// ...AND NOBODY SHOT BACK WHILE IT WAS UP. Rounds arriving during the one
+// beat that is teaching the player how to shoot is the room asking a question
+// it has not finished teaching the answer to.
+if (missed.incoming) bad('the room fired at a player still being taught to shoot');
+
+// ---- SHATTERING ONE PUTS IT AWAY -----------------------------------------
 await page.evaluate(async () => {
   const t = window.__ts;
   const t0 = performance.now();
-  while (performance.now() - t0 < 4000 && t.simpleState().coach === 'aim') {
+  while (performance.now() - t0 < 6000 && t.simpleState().coach === 'aim') {
     await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999;
-    t.fire();
+    const m = t.enemies.find((e) => e.alive);
+    if (m) t.fireAt(m.pos.x, 1.25, m.pos.z);
   }
   await new Promise((r) => setTimeout(r, 400));
 });
 const after = await read();
-console.log('after shooting:  ' + JSON.stringify(after));
-if (after.coach === 'aim') bad('shooting did not answer the card');
-if (after.card) bad('the card survived the shot that answered it');
-if (after.tap) bad('the thumb survived the shot that answered it');
+console.log('after a shatter: ' + JSON.stringify(after));
+if (after.coach === 'aim') bad('shattering a body did not answer the card');
+if (after.card) bad('the card survived the shatter that answered it');
+if (after.tap) bad('the thumb survived the shatter that answered it');
 if (after.said.dodge !== 1 || after.said.shoot !== 1) {
   bad('the lesson has been said the wrong number of times: ' + JSON.stringify(after.said));
 }

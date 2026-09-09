@@ -771,6 +771,8 @@ running game and then checks the guns do what it says.
 | 5 | 4 · 4 · 5 | 13 |
 | 6 | 4 · 5 · 5 | 14 |
 | 7 | 5 · 5 · 5 | 15 |
+| 8 | 4 · 5 · 5 · 5 | 19 |
+| 9 | 5 · 5 · 5 · 5 | 20 |
 
 A group is capped at **5** bodies. The list stays a list,
 in order: 3, 3, 4 is a room that ends on its biggest
@@ -781,26 +783,57 @@ fight, and the same bodies dealt another way is not.
 | step | together | gap |
 |---|---|---|
 | 0 | 1 | 4.3 s |
-| 1 | 1 | 3.3 s |
-| 2 | 2 | 4.3 s |
-| 3 | 2 | 3.3 s |
-| 4 | 2 | 2.3 s |
-| 5 | 3 | 4.3 s |
-| 6 | 3 | 3.3 s |
-| 7 | 3 | 2.3 s |
+| 1 | 1 | 3.2 s |
+| 2 | 1 | 2.4 s |
+| 3 | 2 | 2.8 s |
+| 4 | 3 | 2.6 s |
+| 5 | 3 | 2.2 s |
+| 6 | 3 | 1.9 s |
+| 7 | 3 | 1.6 s |
+| 8 | 3 | 1.35 s |
 
-Tighten, tighten, tighten, then add a gun and reset the clock. A volley is
+One gun tightening twice, a second gun at step 3, a third at step 4, and
+everything above that is the gap closing on three. **Three together is the
+ceiling** — simultaneous rounds are the one shape a sidestep cannot answer,
+which is the argument for reaching three EARLY rather than for going past it.
+A volley is
 measured from its **start**, so men firing together cost the room one turn
 rather than several, and the window a man may join one in is derived —
 `volleyStep × volley + volleySlack` = 0.07 × volley +
 0.12 — because a fixed window fitted two rounds and not
 three, and triples quietly fired pairs.
 
+### THE OPENING — the only rooms that are authored rather than walked
+
+Everywhere else one dial moves per room and the two take it in turns. That is
+what makes a thirty-six room ramp legible: a player who has just died can name
+the one thing that was different. It is the wrong rule for the first rooms,
+because taking turns moves **fire** only every other room, and the opening has
+one job — be hard enough by door 5 that the power arriving at door
+6 is the answer to something. Walked, two guns fired
+together for the first time in room 5 and the room the button lands in had
+never seen three.
+
+| room | bodies | groups | fire |
+|---|---|---|---|
+| 1 | 0 | 1 · 2 · 2 | 1 every 4.3 s |
+| 2 | 0 | 1 · 2 · 2 | 1 every 3.2 s |
+| 3 | 1 | 2 · 2 · 3 | 1 every 2.4 s |
+| 4 | 2 | 2 · 3 · 3 | 2 every 2.8 s |
+| 5 | 3 | 3 · 3 · 4 | 3 every 2.6 s |
+| 6 | 3 | 3 · 3 · 4 | 3 every 2.6 s — **the time button arrives** |
+| 7 | 3 | 3 · 3 · 4 | 3 every 2.6 s |
+
+The last rooms hold everything: the button is the new thing there, and a new
+thing is met in a room that is otherwise exactly the one before it — the same
+rule a debut follows, applied to a power instead of a type. The walk picks up
+from wherever this table leaves the two indices.
+
 ### CAST — who is in the mix
 
 | entry | with | rooms it owns |
 |---|---|---|
-| 0 | gunners only (the opening) | 6 |
+| 0 | gunners only (the opening) | 7 |
 | 1 | shotgunner | 4 |
 | 2 | rusher | 4 |
 | 3 | shotgunner + rusher | 3 — an interlude, every dial frozen |
@@ -825,7 +858,7 @@ still, because there the pairing is what is new.
 The last entry is never advanced past, so whatever it carries is the mix from
 there on — which is why it is the whole roster rather than the last trio that
 happened to be scheduled. **Both dials top out before it**, at
-15
+20
 bodies and 3 firing
 together: five to a group and three at once are chosen ceilings, so the deep
 game is the mode at maximum with only the cast changing.

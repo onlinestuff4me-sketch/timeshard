@@ -42,6 +42,8 @@ const rows = await page.evaluate((n) => {
   }
   return out;
 }, N);
+// THE AUTHORED OPENING, read out of the game rather than typed here twice.
+const OPEN = await page.evaluate(() => window.__ts.duelOpen());
 
 console.log('room  groups     bodies  together  gap    cast');
 for (const x of rows) {
@@ -76,6 +78,18 @@ for (let i = 1; i < rows.length; i++) {
   } else if (b.combo) {
     if (moved) bad('the combination at room ' + b.r + ' moved another dial');
     if (b.cast.length < 3) bad('the combination at room ' + b.r + ' is not combining anything');
+  } else if (b.r <= OPEN.length) {
+    // ...UNLESS IT IS THE OPENING, WHICH IS AUTHORED RATHER THAN WALKED. The
+    // first rooms name both their dials (SIMPLE.duel.open) because taking
+    // turns moves fire every other room and these rooms have one job: be hard
+    // by door 5, so the button landing at door 6 answers something. The check
+    // that matters here is not "one dial moved" but "the table was obeyed".
+    const want = OPEN[b.r - 1];
+    if (b.step.bodies !== want.bodies || b.step.fire !== want.fire) {
+      bad('room ' + b.r + ' does not match the authored opening: got bodies '
+        + b.step.bodies + ' fire ' + b.step.fire
+        + ', wanted ' + want.bodies + '/' + want.fire);
+    }
   } else if (moved !== 1) {
     // ...UNLESS THERE IS NOTHING LEFT TO MOVE. Both tables have a last step —
     // five to a group and three firing together, both of them ceilings
