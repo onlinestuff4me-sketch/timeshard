@@ -4526,11 +4526,11 @@ function updateEnemy(e, sdt) {
       // on and drifted over. He may still turn and strafe, so he is plainly a
       // man waiting rather than a prop.
       if (!stagedArmed(e) && dir.z < 0) dir.z = 0;
-      // ...AND IN NO RETREAT, A MAN WITH A GUN NEVER COMES INSIDE THE
-      // STAND-OFF. There is no look control in this mode: you face down the
-      // strip and you shoot where your thumb lands. A man who has walked onto
-      // you cannot be answered — you cannot turn to him, you cannot step round
-      // him, and at that range his round crosses in a fifth of a second.
+      // ...AND IN NO RETREAT, NOBODY WALKS ONTO YOU. There is no look control
+      // in this mode: you face down the strip and you shoot where your thumb
+      // lands. A man who has closed onto you cannot be answered — you cannot
+      // turn to him, you cannot step round him, and at that range his round
+      // crosses in a fifth of a second.
       //
       // WORSE, HE CANNOT EVEN BE SEEN. The camera's eighty degrees are
       // VERTICAL and the screen is portrait, so the view is 42 degrees wide —
@@ -4540,27 +4540,59 @@ function updateEnemy(e, sdt) {
       // of the glass. `minM` is the distance at which the widest strafe they
       // actually make is still in frame.
       //
-      // The rusher is exempt, and has to be: it has no gun, its whole act is
-      // arriving, and it plants and lunges at 3.4 m. Melee therefore becomes
-      // the rusher's alone, which is what it should always have been.
+      // TWO RULES, NOT ONE. At the line, only the CLOSING half of his heading
+      // is taken: he may strafe all he likes, around the stand-off rather than
+      // through it, so it reads as a man holding his distance rather than a man
+      // hitting a wall. INSIDE the line he walks back out of it.
       //
-      // Only the CLOSING half of his heading is taken. He may still strafe all
-      // he likes — around the stand-off rather than through it — so this reads
-      // as a man holding his distance rather than a man hitting a wall.
-      if (game.mode === 'duel' && e.type !== 'rusher') {
+      // The way out is what the RUSHER needs. It holds the stand-off like
+      // everyone else and BREAKS it to attack — that is its whole act — and
+      // when the charge is spent it is standing on you with its claws down.
+      // Left there it would be the thing this rule exists to prevent, so the
+      // retreat is the same rule everybody else gets, doing its job on the one
+      // type that is ever inside. Its `lungeCd` and its 3.4 m/s walk come out
+      // near enough the same: about a second and a half to back off and set up
+      // the next charge.
+      //
+      // The lunge itself is untouched — it has its own case below and its own
+      // position update, so nothing here can clip a charge in flight.
+      let backOut = false;
+      if (game.mode === 'duel') {
         const ndx = player.pos.x - e.pos.x, ndz = player.pos.z - e.pos.z;
         const nd = Math.hypot(ndx, ndz);
         if (nd > 1e-4 && nd <= SIMPLE.duel.minM) {
           const nx = ndx / nd, nz = ndz / nd;
-          const closing = dir.x * nx + dir.z * nz;
-          if (closing > 0) { dir.x -= nx * closing; dir.z -= nz * closing; }
+          if (nd < SIMPLE.duel.minM - SIMPLE.duel.standBand) {
+            dir.x = -nx; dir.z = -nz;               // clearly inside: walk out
+            backOut = true;
+          } else {
+            const closing = dir.x * nx + dir.z * nz;   // at the line: hold it
+            if (closing > 0) { dir.x -= nx * closing; dir.z -= nz * closing; }
+          }
         }
       }
-      e.pos.x += dir.x * moveSpeed * sdt;
-      e.pos.z += dir.z * moveSpeed * sdt;
+      // ...AND IT SPRINGS BACK RATHER THAN STROLLING. Measured, a rusher that
+      // walked out at its own 3.4 m/s spent 1.65 s crossing back from where its
+      // charge left it — and every second of that is a second it is inside the
+      // distance this rule exists to keep, where it cannot be turned to or
+      // stepped round. "Directly following the attack" is the ask, and a
+      // creature that has just coiled and sprung is the right shape to bounce
+      // off you.
+      const outSpeed = backOut ? moveSpeed * SIMPLE.duel.backSpeed : moveSpeed;
+      e.pos.x += dir.x * outSpeed * sdt;
+      e.pos.z += dir.z * outSpeed * sdt;
       resolveEnemyCollisions(e);   // hard guarantee: steering can fail, this can't
 
-      if (e.type === 'rusher' && dist < 3.4 && (e.lungeCd || 0) <= 0) {
+      // A RUSHER CHARGES FROM ITS HOLDING DISTANCE. Everywhere else it closes
+      // to 3.4 m and coils; here it holds the stand-off with everyone else, so
+      // the trigger is "I am at my line" rather than "I am close". The upper
+      // bound is what stops it charging again from where the last one left it
+      // — it has to be back out before it may come in again, which is the
+      // whole shape the retreat is for.
+      const lungeAt = game.mode === 'duel'
+        ? Math.abs(dist - SIMPLE.duel.minM) < SIMPLE.duel.lungeFrom
+        : dist < 3.4;
+      if (e.type === 'rusher' && lungeAt && (e.lungeCd || 0) <= 0) {
         e.state = 'windup'; e.stateT = 0;
         // A RUSHER HAS NO FIRST ROUND. Its debut has to land on the only tell
         // it gives — the plant and the coil — or it lands after the hit.
@@ -4714,10 +4746,20 @@ function updateEnemy(e, sdt) {
     case 'lunge': {
       e.g.rotation.y = e.lungeYaw;
       e.armR.rotation.x = 1.5 - Math.min(e.stateT / 0.14, 1) * 3.8;   // the swipe
-      e.pos.x += e.lungeDx * 10.5 * sdt;
-      e.pos.z += e.lungeDz * 10.5 * sdt;
+      e.pos.x += e.lungeDx * RUSH_LUNGE * sdt;
+      e.pos.z += e.lungeDz * RUSH_LUNGE * sdt;
       resolveEnemyCollisions(e);
-      if (dist < 1.35 || e.stateT >= 0.34) {
+      // HOW LONG THE CHARGE LASTS IS DERIVED FROM WHAT IT HAS TO CROSS, not
+      // typed next to it. In NO RETREAT it starts at the stand-off rather than
+      // at 3.4 m, so a 0.34 s charge — 3.6 m of travel — would stop three
+      // metres short and the rusher would never reach anybody again. Two
+      // numbers describing one shape disagree eventually; one of them should
+      // be arithmetic. The speed is unchanged, so the charge feels the same
+      // and simply commits for longer, which is also what makes it dodgeable:
+      // it flies at where you WERE.
+      const lungeCap = game.mode === 'duel'
+        ? (SIMPLE.duel.minM + 0.6) / RUSH_LUNGE : 0.34;
+      if (dist < 1.35 || e.stateT >= lungeCap) {
         if (dist < 1.35) hitPlayer();
         e.state = 'lungerest'; e.stateT = 0; e.lungeCd = 1.5;
       }
@@ -14197,6 +14239,9 @@ function tapAim(sx, sy) {
   return v.sub(camera.position).normalize().multiplyScalar(30).add(camera.position);
 }
 const SIMPLE_CHEST_Y = 1.25;
+// How fast a rusher's charge travels. Its DURATION is derived from the
+// distance it has to cross — see the 'lunge' case in updateEnemy.
+const RUSH_LUNGE = 10.5;
 const _vTap = new THREE.Vector3();
 
 // The corridor walks you to the door. Runs on REAL time, not the world clock:

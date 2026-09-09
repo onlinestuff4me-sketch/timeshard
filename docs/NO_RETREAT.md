@@ -23,6 +23,7 @@
 | why the dodge coach spoke | `test/dodgewhy.mjs` |
 | how hot each room actually is | `test/duelheat.mjs` |
 | the gun on the floor, checked | `test/duelloot.mjs` |
+| the rusher's cycle, checked | `test/duelrush.mjs` |
 | speed and range | `SIMPLE.duel.bullet` / `.engage`, read by `duelBulletSpeed()` / `duelEngageCap()` |
 | the button and its bank | `test/duelbtn.mjs` |
 | the published plan page | https://claude.ai/code/artifact/252766fc-7ae3-41bc-aace-d6d3c2defde1 |
@@ -203,10 +204,15 @@ This lesson is for the rooms *before* there is anything else to be told.
 
 ### How close they get
 
-**A man with a gun stops at 6.5 m** (`SIMPLE.duel.minM`). **A rusher does not
-have to** — it carries no gun, its whole act is arriving, and it plants and
-lunges at 3.4 m. Melee (inside 1.5 m) is therefore the rusher's alone, which is
-what it should always have been.
+**Nobody comes inside 6.5 m** (`SIMPLE.duel.minM`) — **including the rusher**,
+which holds that line like everyone else and *breaks* it to attack. Melee
+(inside 1.5 m) is the rusher's alone, which is what it should always have been.
+
+**Two rules, not one.** *At* the line only the closing half of a man's heading
+is taken, so he can strafe all he likes — around the stand-off rather than
+through it — and reads as somebody holding his distance rather than somebody
+hitting a wall. *Inside* the line (by more than `standBand`) he walks back out
+of it, at `backSpeed` × his own pace.
 
 **There is no look control in this mode**, and that is the whole reason for the
 number. You face down the strip and shoot where your thumb lands, so a man who
@@ -232,6 +238,45 @@ make in frame with a little room:
 That last row is the other half of it: at 2.7 m a round crossed in a fifth of a
 second, which is not a dodge, it is a result. Half a second is a sidestep.
 
+### The rusher: hold, charge, back off
+
+Its whole act is arriving, so it has to be able to break the stand-off — but
+what it must not do is *stay* there, claws down, inside the distance everybody
+else respects. So the cycle is hold, coil, charge, and spring back out.
+
+Three numbers moved to make that work, and two of them are now derived rather
+than typed, because two numbers describing one shape disagree eventually:
+
+* **It charges from its line, not from 3.4 m.** The trigger is *"I am at my
+  holding distance"* (within `lungeFrom`), which is also what stops it charging
+  again from wherever the last charge left it — it has to be back out before it
+  may come in again.
+* **The charge lasts long enough to cross what it starts from.** A 0.34 s
+  lunge is 3.6 m of travel, tuned for a 3.4 m start; from 6.5 m it would stop
+  three metres short and the rusher would never reach anybody again. The
+  duration is now `(minM + 0.6) / RUSH_LUNGE`. **The speed is unchanged**, so it
+  feels the same and simply commits for longer — which is also what keeps it
+  dodgeable, since it flies at where you *were*.
+* **It springs back rather than strolling** (`backSpeed`). Walking out at its
+  own 3.4 m/s took **1.65 s**, and every second of that is a second it is
+  inside the distance the rule exists to keep.
+
+Traced over a minute with a single rusher and a player standing still
+(`test/duelrush.mjs` — standing still on purpose, because a charge commits to
+where you were, so a probe that dodges never sees one land):
+
+| | |
+|---|---|
+| charges | 22 |
+| coiled from | 6.16 – 7.08 m |
+| closest the charge got | **0.31 m** — it arrives |
+| longest unbroken visit inside the stand-off | **1.92 s** |
+
+That last number is the one that matters: the charge, the free-kill window it
+ends in, and the spring back are one visit, and its *length* is what a player
+feels as "I could not get away from him". Counting frames spent inside proves
+nothing — it has to pass through there both ways.
+
 **`holdM: 2.6` is still there and still does its own job** — it is a *z* clamp
 on the door approach, so the last few of a wave never walk back down the
 corridor and round a corner, and the fight that opens the door is always fought
@@ -239,7 +284,9 @@ with the door in frame. The stand-off is a *radial* rule and only NO RETREAT
 has it. Held at the tunnel's own line instead — the door approach, eight metres
 out — the rusher never arrives at all: measured, the nearest one ever got to a
 standing player was 7.89 m, and its debut froze on a tell it was never going to
-give.
+give. (That is the same failure the derived charge length prevents, one layer
+up: a rusher that cannot reach anybody is a telegraph with no consequence, and
+a player learns to ignore it.)
 
 ## The cue points at somebody you can see
 

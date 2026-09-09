@@ -1487,6 +1487,25 @@ export const SIMPLE = {
     // arriving, and it plants and lunges at 3.4 m. Melee (1.5 m) is therefore
     // the rusher's alone now, which is what it should always have been.
     minM: 6.5,
+    // ...AND THE BAND AROUND IT. Inside the stand-off by more than this, a man
+    // walks back OUT of it; within it, he simply stops closing and is free to
+    // strafe. Two behaviours rather than one, because "hold your distance" and
+    // "get back out" look completely different and a single rule doing both
+    // reads as a man shoved by an invisible hand.
+    standBand: 0.35,
+    // ...and how fast he leaves it. Measured, a rusher walking out at its own
+    // 3.4 m/s took 1.65 s to cross back from where its charge left it, and
+    // every second of that is a second spent inside the distance this rule
+    // exists to keep. It springs back instead — which is also the right shape
+    // for something that has just coiled and pounced.
+    backSpeed: 1.9,
+    // HOW NEAR ITS HOLDING DISTANCE A RUSHER HAS TO BE TO CHARGE. It holds the
+    // stand-off like everyone else and breaks it to attack, so the trigger is
+    // "I am at my line" rather than "I am close" — and the window is what
+    // stops it charging again from where the last charge left it. It has to be
+    // back out before it may come in again, which is the whole point of the
+    // retreat.
+    lungeFrom: 0.8,
     // HOW LONG THE BUTTON'S SECOND LINE WILL WAIT FOR SOMEBODY TO POINT AT.
     // It is paired with the shooting cue — a ring on a man and a thumb on his
     // chest — and a man still assembling has no hitbox, so the cue skips him
