@@ -9945,6 +9945,13 @@ function tutorNext(step) {
   // ...and the ammo readout, because what it says depends on whether a lesson
   // is running and the magazine no longer changes to trigger a redraw.
   updateAmmoHud();
+  // ASKED BEFORE `enter`, NOT AFTER IT. A retry puts the player back at the
+  // junction approach already looking down the hallway, so a step entered
+  // there is entered with its looking lesson already satisfied — and asking
+  // on the next frame instead meant DRAG TO MOVE and DRAG TO LOOK painted for
+  // one frame and vanished. Emitting first means the cue never goes live at
+  // all, because `live()` reads both halves of a cue's life at once.
+  tutorNoteFaced();
   tutorEmit('enter');
 }
 
@@ -10061,6 +10068,38 @@ function tutorResyncSpineIx() {
   // Clearing here is the same rule as the index above: arriving somewhere is
   // not the same as having walked there.
   for (const g of tutorSigns) if (g.from == null) g.seen = false;
+}
+
+// HAVE THEY TURNED TO LOOK DOWN THE NEW HALLWAY?
+//
+// The looking lesson is the only one in the onboarding whose completion is a
+// LOOK rather than a place, and it used to end on a cell four cells past the
+// T — so DRAG TO MOVE was still on the glass when Hale's signpost came into
+// frame, which is the one-message rule broken at the exact place the player
+// is first asked to read the world instead of the screen.
+//
+// Two halves, and both are derived from the leg rather than typed. The place
+// is `marks.secondJogEnd`, the corner where the second jog rejoins the axis;
+// the direction is the leg's own spine either side of it, so a path redrawn
+// in the tool carries this with it and there is no heading to keep in step.
+const tutorFacedCos = () => Math.cos((TUTOR.facedDeg || 40) * Math.PI / 180);
+function tutorNoteFaced() {
+  if (tutorStep === null || tutorFired.has('faced')) return;
+  const L = hall && hall.legs[hall.cur];
+  const marks = (tutorLegsOf()[tutorLegIx] || {}).marks;
+  const at = marks && marks.secondJogEnd;
+  if (at == null || !L || !L.spine || !L.spine.length) return;
+  if (tutorSpineIx < at) return;
+  const i = Math.min(at, L.spine.length - 1);
+  const j = Math.min(at + 1, L.spine.length - 1);
+  const a = L.spine[i], b = L.spine[j];
+  let hx = b[0] - a[0], hz = b[1] - a[1];
+  const m = Math.hypot(hx, hz);
+  if (m < 1e-6) return;             // the mark is the last cell: no hallway
+  hx /= m; hz /= m;
+  // Forward is (-sin yaw, -cos yaw) — the same convention the move stick uses.
+  const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+  if (fx * hx + fz * hz >= tutorFacedCos()) tutorEmit('faced');
 }
 
 function tutorUpdateSpineIx() {
@@ -10271,6 +10310,7 @@ function updateTutorial(dtReal, movedM, yawDelta) {
   const sp = tutorSpecOf(tutorStep);
   tutorUpdateBarrier(dtReal);
   tutorUpdateSpineIx();
+  tutorNoteFaced();
   tutorUpdateJoke();
   tutorShowMeter(tutorMeterOn);
   if (el.ammo) el.ammo.style.display = tutorMay('ammo') ? '' : 'none';

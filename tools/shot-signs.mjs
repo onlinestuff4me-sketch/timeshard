@@ -108,10 +108,24 @@ const run = async () => {
     document.getElementById('overlay').classList.contains('hidden'), null, { timeout: 20000 });
   await page.waitForTimeout(1400);
 
-  // The lesson prompts own the frame early, so jump past them to photograph
-  // the cell-anchored signs on their own.
-  await page.evaluate(() => window.__ts.setTutorStep('exit'));
+  // ON THE STEP A PLAYER IS ACTUALLY ON. These used to be shot from `exit`,
+  // four lessons later, to get the coach prompts out of the frame — which
+  // meant the pictures showed the junction with a gun in hand and the wrong
+  // HUD line, and could not show whether the prompts clear it. They do:
+  // `corners` retires them on `faced`, at the corner three cells back.
+  await page.evaluate(() => window.__ts.setTutorStep('corners'));
   await page.waitForTimeout(900);
+  // THE MOMENT THE SCREEN HANDS OVER. Two frames from the same cell: the
+  // corner the second jog rejoins the axis at, looking back the way they came
+  // and then looking down the hallway. Nothing else changes between them.
+  const AT = await page.evaluate(() => {
+    const L = window.__ts.hall().legs[window.__ts.hall().cur];
+    return (L.proto.tutorLeg || {}).marks.secondJogEnd;
+  });
+  await standAt(page, AT, -1);
+  await shoot(page, 'at-the-corner', 'At the corner, still looking back: the prompts are up.');
+  await standAt(page, AT, 1);
+  await shoot(page, 'turned', 'Turned to look down the hallway: they go, and the divider with them.');
   await standAt(page, 15, 2);
   await shoot(page, 'approach-t', 'Walking the short hall toward the junction.');
   await standAt(page, 16, 1);
@@ -133,8 +147,6 @@ const run = async () => {
   // --- THE JOKE ------------------------------------------------------------
   // Back to the step a player is actually on at the T, so the man is met the
   // way he is met in the game rather than with a gun in hand.
-  await page.evaluate(() => window.__ts.setTutorStep('corners'));
-  await page.waitForTimeout(600);
   const stand = async (dx, dz, yaw) => {
     await page.evaluate(([ddx, ddz, y]) => {
       const t = window.__ts, C = 4, o = t.hall().legs[t.hall().cur].spine[0];

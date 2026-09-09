@@ -301,20 +301,42 @@ minority who see it.
 
 ### 5.7 What this changes in the build
 
-- **Lesson 3 ends on facing, not on reaching. NOT BUILT, and now the one
-  thing holding the junction back.** A new advance condition: the prompts
-  retire when the player turns to look down the new hallway. This is a better
-  fit for `TUTORIAL-GOALS` goal 4 than the current cell test — the lesson ends
-  when the skill is demonstrated rather than when a distance is covered.
+- **Lesson 3's prompts end on facing, not on reaching — built.** They used to
+  run to the last corner, four cells past the T, so `DRAG TO MOVE` landed
+  directly across `THIS WAY`: §1 broken at the exact place the player is first
+  asked to read the world instead of the screen, and the joke's return frame
+  landed on it too.
 
-  It has stopped being a refinement. `corners` runs from the second turn to
-  the last one, so its two prompts are still on the glass when the player
-  reaches the T — and photographed, `DRAG TO MOVE` lands directly across
-  `THIS WAY`. That is §1 broken at the exact place the player is first asked
-  to read the world instead of the screen, and the joke's return frame lands
-  on it too. Wants an event for "reached a named mark", which `tutorEmit` has
-  no equivalent of today; the cues' `off` would then be that rather than
-  `advance`.
+  **The prompts leave before the step does, and this is the only place in the
+  build where those are different moments.** The step still has to run to the
+  last corner — that is where the barrier comes into view and where `stand` is
+  built to begin. Its words do not: they retire on a new event, `faced`, which
+  is the player standing at `marks.secondJogEnd` and turned to look down the
+  hallway on the other side of it.
+
+  Both halves are derived. The place is the corner where the second jog
+  rejoins the axis — the one `turnLead` deliberately skips, because turning
+  back onto the axis is not a decision and gets no sign. The direction is the
+  leg's own spine either side of that cell, so a path redrawn in the tool
+  carries this with it. `TUTOR.facedDeg` is 40°, which is roughly the width of
+  the corridor on a portrait phone: "the hallway fills the frame", not "the
+  hallway is somewhere on screen".
+
+  It is also the honest end of the lesson, which is `TUTORIAL-GOALS` goal 2:
+  `DRAG TO LOOK` is satisfied by having looked, not by having walked
+  somewhere. The three cells between the corner and the T are the screen
+  handing the frame over with nothing on it, so what arrives next arrives
+  alone.
+
+  The divider moved from the step to the cues — a shape `tutorRenderCues`
+  already supported — so it leaves with the words instead of hanging over an
+  empty corridor all the way to the junction.
+
+  One ordering trap, and it is why `tutorNext` asks before it emits `enter`
+  rather than after: the joke's death puts the player back on the approach
+  already facing the hallway and re-enters the step, so asking on the next
+  frame instead painted both prompts for one frame and took them away again.
+  `test/faced.mjs` holds all of it down, that case included.
 - **The teaching leg grows a dead-end branch — investigated and fixed.**
   `genAuthoredLeg` already carries `extra` cells hung off the spine, which is
   the right mechanism. The problem was `tutorSpineIx`: a nearest-cell search

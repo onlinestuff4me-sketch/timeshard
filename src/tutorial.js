@@ -44,6 +44,14 @@ export const TUTOR = {
   // path edit in the tool cannot strand it. Eight metres — a shade more than
   // EARLY.wayLookM, so the words land just before the needle begins to turn.
   lookLeadCells: 2,
+  // HOW CLOSE TO STRAIGHT DOWN THE HALLWAY COUNTS AS FACING IT — see the
+  // `faced` event. Forty degrees either side: the corridor is about forty-two
+  // degrees wide on a portrait phone, so this is "the hallway fills the
+  // frame" rather than "the hallway is somewhere on screen". Tighter and a
+  // player walking the corner on a diagonal never satisfies it and carries
+  // DRAG TO MOVE all the way to the T; looser and it fires while they are
+  // still looking at the corner wall.
+  facedDeg: 40,
   // --- THE JOKE AT THE END OF THE DEAD END --------------------------------
   // The man in the wrong arm of the T is not a difficulty spike, he is a
   // punchline, and the three numbers below are what keep him one.
@@ -341,6 +349,19 @@ export function marksFromPlan(plan) {
     // of the first corner is its own moment and does not collide with
     // anything.
     firstJogEnd: runs.length > 1 ? runs[1].at : n,
+    // WHERE THE SECOND JOG PUTS THEM BACK ON THE AXIS, and therefore where
+    // the hallway they are about to walk down BEGINS. This is the corner
+    // `turnLead` deliberately skips — turning back onto the axis is not a
+    // decision the player makes, so it gets no sign — but it is exactly the
+    // moment the looking lesson has been proved: they came round a corner and
+    // pointed themselves down what is on the other side of it.
+    //
+    // Off the lateral runs rather than off a raw index, because `runs[3]` is
+    // only the second jog for a path that happens to start with a straight.
+    // (`firstJogEnd` above is the same number by a shakier route; it is left
+    // alone because every leg in the build reads it and none of them starts
+    // with a turn.)
+    secondJogEnd: turns.length > 1 ? turns[1].at : n,
     // THE LAST CORNER — the last place the path CHANGES DIRECTION, which is
     // not the same as the end of the last lateral run. A leg that finishes
     // going sideways (the teaching leg does now: its last move is the run the
@@ -668,6 +689,14 @@ export const CUE_EVENTS = [
   ['resume',  'the player lets time run again'],
   ['ready',   'they have slowed AND resumed time in this area'],
   ['shot',    'they pull the trigger'],
+  // THE LOOKING LESSON IS OVER WHEN THEY HAVE LOOKED. Fired when the player
+  // has walked to `marks.secondJogEnd` — the corner the second jog rejoins
+  // the axis at — and has turned to face down the hallway on the other side
+  // of it. A lesson about a thumb ends when the thumb has done the thing,
+  // not when a distance has been covered; and the T is a few cells past this
+  // corner, so this is also the last moment the screen can hand the frame to
+  // the world before Hale's signpost is in it.
+  ['faced',   'they turn to look down the new hallway'],
   ['advance', 'the step ends'],
 ];
 // `advance` as a HIDE is the same as "stays until the step ends", because the
@@ -794,17 +823,38 @@ export const STEPS = [
     // comes into view, which is what makes it a place rather than an
     // announcement.
     advance: { kind: 'reached', need: 'finalRun' },
+    // THE PROMPTS LEAVE BEFORE THE STEP DOES, and this is the only step in the
+    // build where those are different moments.
+    //
+    // The step has to run to the last corner: that is where the barrier comes
+    // into view and where `stand` is built to begin. But the T is at cell 17,
+    // four cells before it, and Hale's signpost is painted across its back
+    // wall — so a step whose prompts ran to cell 21 put DRAG TO MOVE directly
+    // across THIS WAY. Photographed; it is the one-message rule broken at the
+    // exact place the player is first asked to read the world instead of the
+    // screen.
+    //
+    // So they retire on `faced` — the player at the corner the second jog
+    // rejoins the axis at, turned to look down the hallway on the other side
+    // of it. Which is also the honest end of the lesson: DRAG TO LOOK is
+    // satisfied by having looked, not by having walked somewhere. The three
+    // cells between there and the T are the screen handing the frame over
+    // with nothing on it, so what arrives next arrives alone.
+    //
     // THE DIVIDER BELONGS TO THE WORDS, not to a particular lesson. It names
     // which half of the glass each instruction is about, so it has to be
     // there for as long as DRAG TO MOVE and DRAG TO LOOK are — and this step
     // shows both of them while having switched it off, so the line vanished
-    // under the player mid-corridor for no reason they could see.
-    grants: { way: true }, divider: true,
+    // under the player mid-corridor for no reason they could see. Now that
+    // the words go before the step does, it is declared on the CUES rather
+    // than on the step, so it leaves with them instead of hanging over an
+    // empty corridor all the way to the junction.
+    grants: { way: true },
     cues: [
       { text: 'DRAG TO MOVE', slot: 'left', arrow: 'none', hand: 'up',
-        pulse: false, on: 'enter', off: 'advance' },
+        pulse: false, on: 'enter', off: 'faced', divider: true },
       { text: 'DRAG TO LOOK', slot: 'right', arrow: 'none', hand: 'side',
-        pulse: false, on: 'enter', off: 'advance' },
+        pulse: false, on: 'enter', off: 'faced', divider: true },
     ],
   },
   // --- 4. STAND HERE -------------------------------------------------------
