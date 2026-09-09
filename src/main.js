@@ -13896,12 +13896,17 @@ function duelCoachTapped() {
 // own: no card of its own, no freeze, no state change — just the ring and the
 // thumb on a body, put away when the beat that raised them is over.
 function duelPairShot() {
-  const man = duelNearestBody();
-  if (!man) return;
   duel.meetMark = 'body';
-  duel.meetOwner = man;
   duel.meetRounds.length = 0;
   duel.pairShot = true;
+  // ...AND IT DOES NOT NEED A BODY YET. This used to give up if the floor
+  // happened to be empty on the frame the button was tapped — which it often
+  // is, because the tap comes out of a FREEZE and the room carries on filling
+  // afterwards — and having given up, the per-frame code below never looked
+  // again, because it only looks while `pairShot` is set. So the beat that
+  // says "shatter" showed nothing to shatter. It claims the beat here and
+  // finds somebody as soon as there is somebody.
+  duel.meetOwner = duelNearestBody();
 }
 function updateDuelCoach(dtReal) {
   // ...a room went by with nothing shattered in it: say the shooting half

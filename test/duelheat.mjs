@@ -85,9 +85,15 @@ const heat = await page.evaluate(async (rooms) => {
       // probe that lets them arrive ends up standing in a scrum that fires
       // three rounds in forty-six seconds. Room 5 read as the quietest room in
       // the mode for exactly that reason.
-      const near = t.enemies.findIndex((e) => e.alive
-        && Math.hypot(e.pos.x - home.x, e.pos.z - home.z) < 3.2);
-      if (near >= 0) t.killAt(near);
+      // ...BUT ONLY WHILE THERE ARE MORE COMING. Clearing the floor with an
+      // empty queue behind it wins the room, and `warpDoor` moves the room
+      // NUMBER and not the fight — so every room after this one measured an
+      // empty strip and reported the mode as firing nothing at all.
+      if (t.game.spawnQueue.length) {
+        const near = t.enemies.findIndex((e) => e.alive
+          && Math.hypot(e.pos.x - home.x, e.pos.z - home.z) < 3.2);
+        if (near >= 0) t.killAt(near);
+      }
       const inc = t.bullets.filter((b) => !b.fromPlayer);
       if (inc.length > air) air = inc.length;
       for (const b of inc) {

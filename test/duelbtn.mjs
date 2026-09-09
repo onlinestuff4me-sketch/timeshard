@@ -153,6 +153,10 @@ const READ = `() => {
   return { text: c.textContent.trim(), on: c.classList.contains('on'),
     atbtn: c.classList.contains('atbtn'), atmeter: c.classList.contains('atmeter'),
     scale: t.simpleState().timeScale, coach: t.simpleState().coach,
+    // ...and how many men are actually on the floor: the paired cue points at
+    // one, and "it pointed at nobody" and "there was nobody to point at" are
+    // different bugs.
+    men: t.enemies.filter((e) => e.alive).length,
     pins, tap: document.getElementById('dueltap').classList.contains('on') };
 }`;
 const readCoach = () => page.evaluate('(' + READ + ')()');
