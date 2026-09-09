@@ -67,12 +67,44 @@ const ROOMS = [4, 5, 6, 8, 15];
 const heat = await page.evaluate(async (rooms) => {
   const t = window.__ts, C = 4;
   const out = [];
-  for (const r of rooms) {
-    t.warpDoor(r);
-    await new Promise((x) => setTimeout(x, 700));
+  // IT PLAYS FORWARD RATHER THAN WARPING. `warpDoor` moves the room NUMBER and
+  // not the fight in front of you, and every way round that turned out to be
+  // worse than the disease: leaving the last room's men measures bodies placed
+  // against another leg's geometry (room 4 read 14% of its men off the screen,
+  // on men who belonged to room 2), and clearing them WINS the room, which
+  // opens the door and lets the corridor carry the player into the next one
+  // (room 5 printed room 6's bullet speed). So it wins rooms honestly and
+  // measures whichever it is standing in.
+  //
+  // And it can simply STAND there now. It used to have to shoot whoever
+  // reached it, because a man inside a metre and a half switches to melee and
+  // stops firing, so a stationary probe ended up in a silent scrum. With the
+  // stand-off (SIMPLE.duel.minM) nobody gets that close, and the reason for
+  // the hack went with it.
+  const want = new Set(rooms);
+  const last = Math.max(...rooms);
+  let guard = performance.now();
+  while (performance.now() - guard < 420000) {
+    const at = t.hall().doorsPassed + 1;
+    if (at > last) break;
+    if (!want.has(at)) {
+      // win this one and move on
+      await new Promise((x) => requestAnimationFrame(x));
+      t.player.iframes = 999;
+      if (t.simpleState().coach === 'dodge') { t.player.pos.x += 0.06; continue; }
+      const k = t.enemies.findIndex((e) => e.alive);
+      if (k >= 0) t.killAt(k);
+      continue;
+    }
+    want.delete(at);
     const L = t.hall().legs[t.hall().cur];
     const home = { x: L.spine[0][0] * C, z: L.spine[0][1] * C };
     let air = 0, speeds = [], fired = [], shots = 0;
+    let closest = 1e9, widest = 0, offscreen = 0, looks = 0;
+    // the HORIZONTAL half-view: the camera's fov is vertical and the screen is
+    // portrait, so this is a good deal narrower than eighty degrees suggests
+    const hHalf = Math.atan(Math.tan(t.camera.fov / 2 * Math.PI / 180)
+      * t.camera.aspect) * 180 / Math.PI;
     const seen = new Set();
     const w0 = t.worldClock().now;
     while (t.worldClock().now - w0 < 46) {
@@ -94,6 +126,21 @@ const heat = await page.evaluate(async (rooms) => {
           && Math.hypot(e.pos.x - home.x, e.pos.z - home.z) < 3.2);
         if (near >= 0) t.killAt(near);
       }
+      // ...and how close a man with a gun ever gets, and how far off the way
+      // you are facing he is when he does. There is no look control here, so
+      // both of those are the difference between a fight and a mugging.
+      for (const e of t.enemies) {
+        if (!e.alive || e.state === 'assemble' || e.type === 'rusher') continue;
+        const ex = e.pos.x - home.x, ez = e.pos.z - home.z;
+        const d = Math.hypot(ex, ez);
+        const fx = -Math.sin(t.player.yaw), fz = -Math.cos(t.player.yaw);
+        const along = ex * fx + ez * fz;
+        const deg = Math.atan2(Math.abs(ex * fz - ez * fx), along) * 180 / Math.PI;
+        if (d < closest) closest = d;
+        if (along > 0 && deg > widest) widest = deg;
+        looks++;
+        if (along <= 0 || deg > hHalf) offscreen++;
+      }
       const inc = t.bullets.filter((b) => !b.fromPlayer);
       if (inc.length > air) air = inc.length;
       for (const b of inc) {
@@ -106,7 +153,7 @@ const heat = await page.evaluate(async (rooms) => {
     }
     const med = (a) => (a.length ? a.slice().sort((p, q) => p - q)[a.length >> 1] : 0);
     const p = t.simpleState().plan;
-    out.push({ r, volley: p.volley, gap: p.gap, shots,
+    out.push({ r: at, at, volley: p.volley, gap: p.gap, shots,
       air,                                   // most rounds in the air at once
       speed: +med(speeds).toFixed(1),
       from: +med(fired).toFixed(1),
@@ -117,21 +164,32 @@ const heat = await page.evaluate(async (rooms) => {
       // wherever he is standing, and it is that number the engage cap is
       // about.
       open: +(fired.length ? Math.max(...fired) : 0).toFixed(1),
-      flight: +(med(fired) / Math.max(1e-6, med(speeds))).toFixed(2) });
+      flight: +(med(fired) / Math.max(1e-6, med(speeds))).toFixed(2),
+      closest: +(closest === 1e9 ? 0 : closest).toFixed(2),
+      widest: +widest.toFixed(1),
+      off: looks ? +(100 * offscreen / looks).toFixed(1) : 0,
+      hHalf: +hHalf.toFixed(1) });
+    guard = performance.now();   // measuring a room is not being stuck in one
   }
   return out;
 }, ROOMS);
 
-console.log('room  set to        shots  most in air  m/s   opens from  closes to  flight');
+console.log('room  set to        shots  in air  m/s  opens  fires  flight  nearest  widest  off');
 for (const h of heat) {
-  console.log(String(h.r).padStart(4) + '  ' + (h.volley + ' every ' + h.gap + 's').padEnd(13)
-    + String(h.shots).padStart(5) + String(h.air).padStart(13)
-    + String(h.speed).padStart(6) + String(h.open).padStart(12) + ' m'
-    + String(h.from).padStart(10) + ' m'
-    + String(h.flight).padStart(7) + ' s');
+  console.log(String(h.at).padStart(4) + '  ' + (h.volley + ' every ' + h.gap + 's').padEnd(13)
+    + String(h.shots).padStart(5) + String(h.air).padStart(8)
+    + String(h.speed).padStart(5) + String(h.open).padStart(7)
+    + String(h.from).padStart(7) + String(h.flight).padStart(7) + 's'
+    + String(h.closest).padStart(9) + String(h.widest).padStart(8) + 'd'
+    + String(h.off).padStart(6) + '%');
 }
+console.log(`(the view is ${heat[0].hHalf} degrees either side of the way you face)`);
 
-const at = (r) => heat.find((h) => h.r === r);
+// ...and look rooms up by the one they MEASURED, not the one asked for.
+const at = (r) => heat.find((h) => h.at === r) || heat.find((h) => h.r === r);
+for (const h of heat) {
+  if (h.at !== h.r) console.log(`(asked for room ${h.r}, stood in room ${h.at})`);
+}
 // DOOR 5 IS WHERE THE MODE GETS HARD. Three guns firing together, from about
 // sixty per cent of the way across the strip, with rounds that cross it in
 // well under a second — so that the button arriving at door 6 is the answer
@@ -156,6 +214,24 @@ if (at(5).from > 12) bad('door 5 rounds are still fired from ' + at(5).from + ' 
 // ...but they still OPEN from range and walk in, which is the thing the player
 // watches happen. A room where every round is point blank never closed in.
 if (at(5).open < 8) bad('nobody opened from range at door 5: ' + at(5).open + ' m');
+
+// ---- AND A MAN WITH A GUN NEVER WALKS ONTO YOU ---------------------------
+// There is no look control in this mode. You face down the strip and shoot
+// where your thumb lands, so a man inside the stand-off cannot be answered —
+// you cannot turn to him, you cannot step round him, and his round crosses in
+// a fifth of a second. He also cannot be SEEN: the view is only ~21 degrees
+// either side (portrait screen, vertical fov), and 2.3 m of strafe — which is
+// as far across as they get — is 37 degrees at three metres out.
+const MIN = await page.evaluate(() => window.__ts.duelMinM());
+for (const h of heat) {
+  if (h.closest && h.closest < MIN - 0.35) {
+    bad('room ' + h.r + ': a man with a gun got to ' + h.closest
+      + ' m, inside the ' + MIN + ' m stand-off');
+  }
+  if (h.off > 2) {
+    bad('room ' + h.r + ': a live man was off the screen ' + h.off + '% of the time');
+  }
+}
 
 done('duelheat', errs);
 await browser.close();

@@ -13,7 +13,7 @@
 | the dials | `SIMPLE.duel` in `src/balance.js` |
 | the walk that reads them | `duelPlan()` in `src/main.js` |
 | who is in a room | `duelQueue()`, called from `hallWave()` |
-| how close they may come | `duelHold()` |
+| how close they may come | `SIMPLE.duel.minM`, applied in `updateEnemy`; `duelHold()` is the separate z clamp on the door approach |
 | the shot clock | `duelMayFire()` / `duelTookShot()` / `shotGap()` |
 | the debut cards | `duelNoteMeet()`, `duelMeetCard()`, `duelPlaceMeetPins()` |
 | generated tables | `docs/BALANCE.md` → *NO RETREAT — the three dials* |
@@ -101,7 +101,7 @@ neither. So it keeps its own:
 | bullet, door 5 | 5.4 m/s | 9.5 | +`stepM` **1.1** a room | **11.4 m/s** |
 | bullet, door 6 | 5.4 m/s | 10.1 | | **12.5 m/s** |
 | bullet, ceiling | 6.2 by room 12 | 13.5 | `capM` **15** | 15 by room 8 |
-| closest they fire from | 19.2 m | 9.5 by room 10 | `engage` 15 → 9.5 **by room 5** | opens at ~19 m, closes to **2.4 m** |
+| closest they fire from | 19.2 m | 9.5 by room 10 | `engage` 15 → 9.5 **by room 5** | opens at ~19 m, fires from **6.0 m** |
 | firing together at door 5 | 1 | 2 | fire dial reaches **3** | **3** |
 | rounds in the air at door 5 | 1 | — | | **3** |
 
@@ -132,7 +132,7 @@ a man up to 1.4 s of thinking time before he could even raise his gun.
 | first body, arriving to firing | 3.5 s | **1.3 s** |
 | the ones behind it | 10 – 16.7 s | 4.6 – 7.1 s (the room clock) |
 | opens from | 14 m | ~19 m |
-| ends up at | — | **2.6 – 3.7 m**, the hold line |
+| ends up at | — | **6.4 m**, the stand-off (see below) |
 
 The telegraph rides the same staircase (`diffT`), so a mode with its own
 speeds does not keep the tunnel's reaction times.
@@ -201,14 +201,45 @@ belongs to the button, which arrives with a coach of its own; measured, the
 dodge repeat fired in room 6 and stopped that introduction happening at all.
 This lesson is for the rooms *before* there is anything else to be told.
 
-**How close they get: 2.6 m** (`SIMPLE.duel.holdM`), measured from where you
-stand. That number sits between two others. A man inside **1.5 m** switches to
-melee and stops shooting; a rusher plants and lunges at **3.4 m**. Held at the
-tunnel's own line — the door approach, eight metres out — the rusher never
-arrives at all: measured, the nearest one ever got to a standing player was
-7.89 m, and its debut froze on a tell it was never going to give. Removed
-entirely, two of five bodies ended up stood on the player swinging, and a room
-scheduled to fire three together fired two.
+### How close they get
+
+**A man with a gun stops at 6.5 m** (`SIMPLE.duel.minM`). **A rusher does not
+have to** — it carries no gun, its whole act is arriving, and it plants and
+lunges at 3.4 m. Melee (inside 1.5 m) is therefore the rusher's alone, which is
+what it should always have been.
+
+**There is no look control in this mode**, and that is the whole reason for the
+number. You face down the strip and shoot where your thumb lands, so a man who
+has walked onto you cannot be answered: you cannot turn to him and you cannot
+step round him.
+
+**The number comes from the camera, not from taste.** Its eighty degrees are
+*vertical* and the screen is portrait (aspect 0.46), so the view is **42
+degrees wide — twenty-one either side**. Measured over 3049 samples of a live
+non-rusher, they strafe up to **2.31 m** across; 2.31 m across at **6.0 m** out
+is exactly twenty-one degrees. Below that they start going off the edge of the
+glass — at the old 2.6 m hold line, **39%** of them were off it, and 14% of a
+live man's frames had him unshootable. 6.5 m puts every strafe they actually
+make in frame with a little room:
+
+| | at the 2.6 m hold line | at the 6.5 m stand-off |
+|---|---|---|
+| nearest a gunman got | 2.3 m | **6.4 m** |
+| frames with a live man off screen | 14% | **0%** |
+| widest he ever got, off your facing | 34° | **20.7°** (view is 21.1°) |
+| flight time of his round, door 6 | 0.22 s | **0.53 s** |
+
+That last row is the other half of it: at 2.7 m a round crossed in a fifth of a
+second, which is not a dodge, it is a result. Half a second is a sidestep.
+
+**`holdM: 2.6` is still there and still does its own job** — it is a *z* clamp
+on the door approach, so the last few of a wave never walk back down the
+corridor and round a corner, and the fight that opens the door is always fought
+with the door in frame. The stand-off is a *radial* rule and only NO RETREAT
+has it. Held at the tunnel's own line instead — the door approach, eight metres
+out — the rusher never arrives at all: measured, the nearest one ever got to a
+standing player was 7.89 m, and its debut froze on a tell it was never going to
+give.
 
 ## The cue points at somebody you can see
 

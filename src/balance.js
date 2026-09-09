@@ -1467,6 +1467,26 @@ export const SIMPLE = {
     // the world going heavy is the right amount of "look at this" — and the
     // walk continues underneath, which is what makes the drag matter.
     loot: { slow: 0.35, say: 'DRAG TO PICK UP', hold: 7 },
+    // HOW CLOSE A MAN WITH A GUN MAY GET. There is no look control here: you
+    // face down the strip and shoot where your thumb lands, so a man who has
+    // walked onto you cannot be answered — you cannot turn to him and you
+    // cannot step round him.
+    //
+    // The number comes from the CAMERA, not from taste. Its eighty degrees are
+    // vertical and the screen is portrait (aspect 0.46), so the view is 42
+    // degrees wide — twenty-one either side. Measured over 3049 samples of a
+    // live non-rusher: they strafe up to 2.31 m across, and 2.31 m across at
+    // 6.0 m out is exactly twenty-one degrees. Below that they start going off
+    // the edge of the glass — at the 2.6 m hold line, 39% of them were off it.
+    // 6.5 puts every strafe they actually make in frame with a little room.
+    //
+    // It also buys the dodge back: a round from 6.5 m at the button room's
+    // 12.5 m/s is half a second in the air, where one from 2.7 m was a fifth.
+    //
+    // THE RUSHER IS EXEMPT and has to be — it carries no gun, its whole act is
+    // arriving, and it plants and lunges at 3.4 m. Melee (1.5 m) is therefore
+    // the rusher's alone now, which is what it should always have been.
+    minM: 6.5,
     meetHold: 10,   // seconds before a debut freeze lets go on its own
     // ...and how long a debut room holds its FIRST ROUND for the new type
     // before anyone else may fire, in world seconds. A debut has to win a turn

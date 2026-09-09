@@ -4526,6 +4526,36 @@ function updateEnemy(e, sdt) {
       // on and drifted over. He may still turn and strafe, so he is plainly a
       // man waiting rather than a prop.
       if (!stagedArmed(e) && dir.z < 0) dir.z = 0;
+      // ...AND IN NO RETREAT, A MAN WITH A GUN NEVER COMES INSIDE THE
+      // STAND-OFF. There is no look control in this mode: you face down the
+      // strip and you shoot where your thumb lands. A man who has walked onto
+      // you cannot be answered — you cannot turn to him, you cannot step round
+      // him, and at that range his round crosses in a fifth of a second.
+      //
+      // WORSE, HE CANNOT EVEN BE SEEN. The camera's eighty degrees are
+      // VERTICAL and the screen is portrait, so the view is 42 degrees wide —
+      // twenty-one either side. Measured over 3049 samples of a non-rusher:
+      // they strafe up to 2.31 m across, and 2.31 m across at three metres out
+      // is thirty-seven degrees. 14% of the time a live man was off the edge
+      // of the glass. `minM` is the distance at which the widest strafe they
+      // actually make is still in frame.
+      //
+      // The rusher is exempt, and has to be: it has no gun, its whole act is
+      // arriving, and it plants and lunges at 3.4 m. Melee therefore becomes
+      // the rusher's alone, which is what it should always have been.
+      //
+      // Only the CLOSING half of his heading is taken. He may still strafe all
+      // he likes — around the stand-off rather than through it — so this reads
+      // as a man holding his distance rather than a man hitting a wall.
+      if (game.mode === 'duel' && e.type !== 'rusher') {
+        const ndx = player.pos.x - e.pos.x, ndz = player.pos.z - e.pos.z;
+        const nd = Math.hypot(ndx, ndz);
+        if (nd > 1e-4 && nd <= SIMPLE.duel.minM) {
+          const nx = ndx / nd, nz = ndz / nd;
+          const closing = dir.x * nx + dir.z * nz;
+          if (closing > 0) { dir.x -= nx * closing; dir.z -= nz * closing; }
+        }
+      }
       e.pos.x += dir.x * moveSpeed * sdt;
       e.pos.z += dir.z * moveSpeed * sdt;
       resolveEnemyCollisions(e);   // hard guarantee: steering can fail, this can't
@@ -15195,6 +15225,8 @@ window.__ts = {
   // the authored opening, so a test checks the game's own table rather than
   // a copy of it that can drift
   duelOpen: () => SIMPLE.duel.open.map((o) => ({ ...o })),
+  // ...and the stand-off, so a test checks the game's number rather than a copy
+  duelMinM: () => SIMPLE.duel.minM,
   fire: playerFire,
   // ...and the same trigger pull AIMED somewhere, which is what a thumb on
   // the glass actually does. `fire` takes a Vector3 and a test has no THREE.
