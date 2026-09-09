@@ -8755,6 +8755,12 @@ const legHasSign = () => {
 function tutorBuildSigns() {
   tutorSigns = [];
   tutorClearPaint();
+  // A NEW LEG'S SIGN HAS NOT BEEN READ YET. The latch used to be reset once
+  // per run, which was fine while it only gated a lesson that happens once —
+  // and wrong the moment it started retiring the run's needle, because one
+  // sign seen on the first leg would have kept the needle off for fifty
+  // doors. It belongs to the leg, so it is cleared where the leg's signs are.
+  tutorSignSeen = false;
   tutorDeadCells = null; tutorDeadMan = null; tutorDeadBack = null;
   tutorRemoveJoker();
   const spec = legStorySpec();
@@ -11588,7 +11594,23 @@ function wayArrowShows() {
   if (game.spawnQueue.length) return false;
   // ...and a short debounce on top, so a gap between two releases in the same
   // stretch cannot blink it either.
-  return !enemies.length && wayClearT >= EARLY.waySettleS;
+  //
+  // AND THE SIGN TAKES OVER FROM IT. This is the hand-off the onboarding used
+  // to have and the run never did: the needle carries the corridor while the
+  // door is still a red rectangle in the distance, and retires the moment
+  // `EXIT` above that door is readable. Both answer "which way now", and the
+  // one written on the building is the better answer — it names the place
+  // instead of pointing at it, and it is where the story's own lines will
+  // arrive.
+  //
+  // Only THIS branch. `wayFacingAway()` above is a different question: a
+  // player who has turned their back cannot read a sign that is behind them,
+  // so the needle still answers there even after the sign has been seen.
+  //
+  // Latched per leg — `tutorBuildSigns` clears it with the leg's signs —
+  // because a mark that returns every time the player glances away is the
+  // flicker this whole thing exists to remove.
+  return !enemies.length && wayClearT >= EARLY.waySettleS && !tutorSignSeen;
 }
 
 function updateWayArrow(playing, dt) {

@@ -97,17 +97,51 @@ already exists (`tutorSignSeen` retires the needle once the sign is in frame)
 and is currently dead outside the lesson. Reviving it is a pacing decision,
 not a tidy-up.
 
-### Phase 2 · The ordered list, placed
+### Phase 2 · The ordered list, placed — **the script is data; placement is not**
 
-`SCRIPT.md` §5 is already written as arithmetic rather than as door numbers,
-which is the hard part done. What is missing is the function.
+**Done: `src/story.js`.** All twenty-five lines, in order, with voice, the ten
+rewrites, and the two anchored beats. Not one door number in the file — §5's
+whole point, and `test/story.mjs` asserts it, along with the per-act counts,
+that only the programme decodes, and that every line fits three rows on a
+phone.
 
-- `storyBeats(U, F)` → `door → { voice, text, page }`, spacing each act's span
-  by `range ÷ beats` per §5.1.
-- **U** exists: `unlockDoor()` in `balance.js`.
-- **F does not exist.** There is no finale door in the build — `finaleWave` is
-  the last group at an ordinary door, not a story beat. Acts 1–3 can be placed
-  today; acts 4–5 cannot. See Q-A below.
+**Not done: the placement.** Writing the arithmetic turned up three things the
+documents do not settle, and guessing any of them produces a script that is
+silently in the wrong place.
+
+1. **§5.1's spans account for 20 of the 25 beats.** The table gives acts 1–2
+   eleven beats over door 1 → U, act 3 one beat *on* U, act 4 five, act 5
+   three. That is 20. §6's act 3 has **six** lines, five of which sit before U
+   and appear in no span. §5.3's worked illustration (`U = 46` → "every 4
+   doors") matches eleven beats over 46 doors, not sixteen — so the two
+   sections disagree about how crowded the run-up to the unlock is.
+
+2. **How F derives.** Q-A says derive it like U, and U is a *speed*: the door
+   where the bullet-speed staircase first reaches `unlockM`. The shape is
+   settled; the threshold is not. There is no finale in the build to measure
+   against.
+
+3. **Where on a leg a line sits.** `EXIT` is at the door. §6 says the authored
+   lines are "between them", so a story line is not on a door — but "between"
+   is a stretch of corridor, not a place. The two readings are materially
+   different: at the leg's **mouth**, where it replaces the headline card the
+   player used to get on crossing, or at its **last corner**, read on the way
+   out with the door already in view.
+
+**Also found, and it is a writing question rather than a build one.** §3.2
+says the programme "can only jam individual words", so a rewritten line is
+"a real sentence with one or two words wrong" sharing the true version's
+skeleton. Three of the ten replace more than half of it:
+
+| beat | reads | after its page | kept |
+|---|---|---|---|
+| `anomaly4` | `THIS CHANNEL IS MONITORED FOR YOUR SAFETY` | `…IS WRITTEN OVER BY THE PROGRAMME` | 3/7 |
+| `watchers4` | `YOU WILL BE SENT HOME WHEN YOU FINISH` | `NO ONE HAS EVER BEEN SENT HOME` | 2/7 |
+| `copy1` | `THE LAST DOOR OPENS WHEN YOU ARE READY` | `…HOLDS SOMETHING WEARING YOUR FACE` | 3/8 |
+
+`test/story.mjs` reports these rather than failing them — they are the
+document's own lines — and fails only a rewrite that shares nothing at all,
+which would be a redraft rather than a jam.
 
 ### Phase 3 · The two registers, past the tutorial
 

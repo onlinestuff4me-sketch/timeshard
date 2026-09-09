@@ -128,5 +128,71 @@ if (!head.hasSign) bad('the leg has no sign, so the headline rule is untested');
 if (!head.promises && stands) bad('a plain leg shows DOOR N over its own EXIT sign');
 if (head.promises && !stands) bad('a leg that promises something was silenced');
 
+// ---- 6. the needle hands the corridor over to the sign --------------------
+//
+// Both answer "which way now". The needle carries it while the door is a red
+// rectangle in the distance; `EXIT` takes over as it becomes readable, and
+// the needle retires. But only for THAT question: a player who has turned
+// their back cannot read a sign behind them, so the needle still answers
+// there even after the sign has been seen.
+const hand = await page.evaluate(async () => {
+  const t = window.__ts, C = 4;
+  const frames = (n) => new Promise((done) => {
+    let i = 0;
+    const step = () => (++i >= n ? done() : requestAnimationFrame(step));
+    requestAnimationFrame(step);
+  });
+  for (let i = t.enemies.length - 1; i >= 0; i--) t.enemies.splice(i, 1);
+  t.game.spawnQueue.length = 0;
+  const L = t.hall().legs[t.hall().cur];
+  const end = L.spine[L.spine.length - 1];
+  const from = L.spine[Math.max(0, L.spine.length - 6)];
+  const face = () => {
+    const dx = (end[0] - from[0]) * C, dz = (end[1] - from[1]) * C;
+    if (dx || dz) t.player.yaw = Math.atan2(-dx, -dz);
+  };
+  t.player.pos.x = from[0] * C; t.player.pos.z = from[1] * C;
+  face();
+  t.player.iframes = 999;
+  await frames(70);                    // let the clear-leg debounce settle
+
+  // (a) the sign not yet read: looking at the FLOOR, so it is off-frame
+  // vertically while the player is still facing down the corridor — which is
+  // not the turned-your-back case.
+  // PITCH FIRST, THEN CLEAR. The camera takes the player's pitch in the
+  // render loop, so clearing the latch in the same tick as the turn left one
+  // frame where the sign was still projected on the OLD camera — it latched
+  // again immediately and the probe measured its own race.
+  t.player.pitch = -1.1;
+  await frames(10);
+  t.rebuildSigns();                    // clears the per-leg latch
+  await frames(20);
+  const before = { needle: t.way().on, seen: t.tutor().signSeen,
+    sign: t.signs().onScreen };
+
+  // (b) look up: the sign comes into frame and the needle stands down
+  t.player.pitch = 0;
+  await frames(30);
+  const after = { needle: t.way().on, seen: t.tutor().signSeen,
+    sign: t.signs().onScreen };
+
+  // (c) turn around: a sign behind you answers nothing, so the needle is back
+  t.player.yaw += Math.PI;
+  await frames(40);
+  const back = { needle: t.way().on, seen: t.tutor().signSeen,
+    sign: t.signs().onScreen };
+  t.player.pitch = 0; face();
+  return { before, after, back };
+});
+const fmt = (o) => `needle=${o.needle} sign=${o.sign} seen=${o.seen}`;
+console.log(`  sign unread   ${fmt(hand.before)}`);
+console.log(`  sign in frame ${fmt(hand.after)}`);
+console.log(`  back turned   ${fmt(hand.back)}`);
+if (!hand.before.needle) bad('the needle is not carrying the corridor before the sign is read');
+if (hand.before.sign) bad('the probe never got the sign off screen, so nothing was tested');
+if (!hand.after.sign) bad('the sign did not come into frame');
+if (hand.after.needle) bad('the needle did not retire for the sign');
+if (!hand.back.needle) bad('turning your back left you with neither mark');
+
 done('exitsign', errs);
 await browser.close();
