@@ -47,6 +47,9 @@ const standAt = (ix, look) => page.evaluate(([i, la]) => {
     if (dx || dz) t.player.yaw = Math.atan2(-dx, -dz);   // forward = (-sin, -cos)
   }
   t.player.pitch = 0; t.player.vel.set(0, 0, 0);
+  // The needle walk below crosses the beats that place gunners, and a probe
+  // shot dead mid-sweep reports "no needle" for the wrong reason.
+  t.player.iframes = 999;
   t.resyncSpine && t.resyncSpine();
 }, [ix, look]);
 
@@ -125,6 +128,33 @@ console.log(`  after a joke death  back at [${flash.at.x}, ${flash.at.z}] step=$
 console.log(`                      frames with a prompt on screen: ${flash.frames} (want 0)`);
 if (!flash.inDead) bad('the probe never got into the dead end, so nothing was tested');
 if (flash.frames) bad(`the retry flashed the prompts for ${flash.frames} frames`);
+
+// ---- 5. AND NO NEEDLE, ANYWHERE IN THE LESSON ----------------------------
+// The way-out needle points a few metres along the WALKED path, which at the
+// junction is the left arm — the same arm Hale's paint names. With it up the
+// programme answers the question the graffiti asks and a player never has to
+// read either. Walked here rather than argued: every step of the onboarding,
+// each on the cell it is played on.
+const WALK = [
+  // One cell short of `look`'s own end, or it advances into `corners` on
+  // arrival and the sweep never actually stands on the looking lesson.
+  ['move',    2],  ['look',    7],  ['corners', 14],
+  ['stand',  21],  ['dodge',  24],  ['shoot',  24],  ['exit', 33],
+];
+const seen = [];
+for (const [step, ix] of WALK) {
+  await page.evaluate((s) => window.__ts.setTutorStep(s), step);
+  await standAt(ix, 1);
+  await page.waitForTimeout(320);
+  const w = await page.evaluate(() => ({ on: window.__ts.way().on,
+    may: window.__ts.tutorGrants().way, step: window.__ts.tutor().step }));
+  seen.push(`${w.step}${w.on ? ' NEEDLE' : ''}`);
+  if (w.on) bad(`the needle is up during "${w.step}"`);
+  if (w.may) bad(`"${w.step}" still grants the needle`);
+}
+console.log(`  no needle in the lesson: ${seen.join(' · ')}`);
+// (That it is not gone from the GAME, only from the lesson, is `wayback` and
+// `waydoor`: both seed `timeshard_taught` and measure the needle at door 6.)
 
 done('faced', errs);
 await browser.close();

@@ -258,6 +258,11 @@ question already answered. It is off for the combat course and off for all
 three ramp areas. Past the onboarding it returns only on a hallway with
 nobody left in it, which was already the late rule.
 
+> **Superseded.** No step of the onboarding grants `way` at all now: at the
+> T-junction the needle pointed down the same arm Hale's paint names, which
+> made the choice fake and taught the player that the writing on the walls is
+> decoration. See `docs/MARKS.md` §5.8.
+
 `EARLY.wayDoors` still exists and still means door 9 — but only for the SMALL
 per-enemy marks. The two used to share one test and they are two different
 questions.

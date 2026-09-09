@@ -115,6 +115,15 @@ const run = async () => {
   // `corners` retires them on `faced`, at the corner three cells back.
   await page.evaluate(() => window.__ts.setTutorStep('corners'));
   await page.waitForTimeout(900);
+  // LESSON 1, WHICH IS WHAT THE NEEDLE USED TO BE FOR. No needle, no sign:
+  // the corridor is one route and the geometry does the leading, so this is
+  // the frame that has to work on its own.
+  await page.evaluate(() => window.__ts.setTutorStep('move'));
+  await standAt(page, 1, 3);
+  await shoot(page, 'lesson-one', 'The opening straight. The corner is the only place to go.');
+  await page.evaluate(() => window.__ts.setTutorStep('corners'));
+  await page.waitForTimeout(500);
+
   // THE MOMENT THE SCREEN HANDS OVER. Two frames from the same cell: the
   // corner the second jog rejoins the axis at, looking back the way they came
   // and then looking down the hallway. Nothing else changes between them.

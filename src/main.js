@@ -8587,13 +8587,15 @@ function tutorPlaceWorldCue() {
   const off = _vWorld.z > 1 || Math.abs(_vWorld.x) > 1.15 || Math.abs(_vWorld.y) > 1.15;
   if (off || !inFinalRun || !onPath) { n.style.visibility = 'hidden'; return; }
   n.style.visibility = '';
-  // ...AND THAT IS THE MOMENT THE WAY-OUT NEEDLE HAS DONE ITS JOB. Not the
-  // moment the step changed: `stand` begins when the player reaches the last
-  // corner, which they can do without having turned their head, so the mark
-  // was going out before there was anything on screen to replace it. This is
-  // the only place in the build that knows the sign is genuinely being
-  // looked at. Latched, because a mark that comes back every time the player
-  // glances away is the flicker this whole thing exists to remove.
+  // THE SIGN IS GENUINELY BEING LOOKED AT, and this is the only place in the
+  // build that knows it. Latched, because a fact that comes back every time
+  // the player glances away is the flicker this whole thing exists to remove.
+  //
+  // It used to be the hand-off: the way-out needle ran until the sign was in
+  // frame and then retired. No step of the onboarding asks for the needle
+  // any more — see the `way` grant in src/tutorial.js — so nothing reads this
+  // during a lesson today. It stays because it is still true, and because
+  // wayArrowShows() still honours it for a step that turns the needle back on.
   tutorSignSeen = true;
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
   // ...AND IT IS THE SIZE OF THE SIGN, not a number that happens to grow.
@@ -9251,13 +9253,9 @@ function tutorPlaceSign() {
   n.style.fontSize = `${px}px`;
   n.style.visibility = '';
   n.classList.add('show');
-  // ...AND THIS IS WHERE THE NEEDLE'S JOB ENDS, for the same reason the
-  // barrier's sign ends it: the player is being sent somewhere that is on
-  // screen, and a red mark on the floor pointing at it is a second answer to
-  // a question already answered. Two reds meaning the same thing is the
-  // clutter `updateEdgeArrows` documents; two reds is also just noise.
-  // Latched, like `tutorPlaceWorldCue` does it, so glancing away does not
-  // bring it back.
+  // Same latch as `tutorPlaceWorldCue` sets, for the same reason and with the
+  // same caveat: it used to be where the needle's job ended, and the
+  // onboarding no longer runs a needle for it to end.
   tutorSignSeen = true;
   const half = (n.offsetWidth || 200) / 2 + 6;
   const want = (_vSignEye.x * 0.5 + 0.5) * w;
@@ -11475,16 +11473,24 @@ function wayArrowShows() {
   // rule because a needle spinning on the spot is wrong in both.
   const wpts = wayPath();
   if (wpts && wayRemaining(wpts, wayProject(wpts)) < EARLY.wayDoneM) return false;
-  // THE ONBOARDING ASKS FOR IT BY NAME. It is held by the three walking
-  // lessons and dropped the moment STAND HERE goes up on the barrier: from
-  // there the player is being sent to a PLACE that is on screen, and a needle
-  // pointing at it is a second answer to a question already answered. It is
-  // off for the whole combat course and off for the ramp, which are fights
-  // and not navigation.
-  // ...and it is retired by the SIGN, not by the step. `stand` begins when the
-  // player reaches the last corner, which they can reach without having turned
-  // to look down the straight — so keying the hand-off to the step took the
-  // mark away while there was still nothing on screen to replace it.
+  // THE ONBOARDING HAS TO ASK FOR IT BY NAME, AND NOTHING IN IT DOES.
+  //
+  // It was held by the three walking lessons, and at the T that made the
+  // junction a lie: the needle points a few metres along the walked path, and
+  // at the junction the walked path is the LEFT arm — the same arm Hale's
+  // paint names. The programme answered the question the graffiti asks, so a
+  // player never had to read either, and a player taught to follow a needle
+  // first has been taught that the writing on the walls is decoration.
+  //
+  // The corridor leads on its own there: one route, one branch, and the paint
+  // at the only place a choice exists. The needle arrives when the onboarding
+  // is over, on the terms below — a hallway with nobody left in it, or a
+  // player who has turned their back on the way out.
+  //
+  // The gate stays a grant rather than a flat `false`, so the tool can still
+  // hand the needle to a step and get the old hand-off (retired by the SIGN,
+  // not by the step: `stand` begins at the last corner, which the player can
+  // reach without having turned to look down the straight).
   if (tutorStep !== null) return !!tutorMay('way') && !tutorSignSeen;
   // ...AND WHENEVER THEY HAVE TURNED THEIR BACK ON THE WAY OUT, cleared leg
   // or not. Everything below this line is about a corridor with nothing left

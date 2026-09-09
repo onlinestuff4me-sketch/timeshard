@@ -369,6 +369,33 @@ minority who see it.
   anything to look at, or the player is already mid-turn when it appears.
   Worth keeping the lead.
 
+### 5.8 No way-out needle anywhere in the onboarding
+
+Photographing the finished junction turned up the one thing that could defeat
+the painted arrows. The needle points a few metres along the **walked path**,
+and at the T the walked path is the left arm — the same arm `THIS WAY` names.
+So the programme was answering the question the graffiti asks, and a player
+never had to read either one.
+
+The deeper cost is not the junction, it is the habit. A player taught to
+follow a needle through lessons 1–3 has been taught that the writing on the
+walls is decoration, and every painted message after this one inherits that.
+
+So no step of the onboarding grants it. The corridor leads on its own here:
+one route, one branch, and paint at the only place a choice exists — which is
+also §9's rule, that a player who never reads a word should still reach the
+door. The needle arrives once the onboarding is over, on the terms it always
+had past that point: a hallway with nobody left in it, or a player who has
+turned their back on the way out.
+
+`way` stays in the grant list rather than being deleted. It is still a real
+capability, the tool can still hand it to a step, and `wayArrowShows()` still
+honours the old hand-off (retired by the SIGN, not by the step) for anything
+that does. Nothing in the shipped sequence does. `test/faced.mjs` walks all
+seven lessons and asserts the needle is down on every one of them; `wayback`
+and `waydoor` still measure it at door 6, which is the other side of the same
+rule.
+
 ---
 
 ## 6. The glitch is a grammar, not a one-off

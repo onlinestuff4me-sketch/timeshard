@@ -645,12 +645,24 @@ export const MECHANICS = [
   ['aiFire', 'Enemies may fire', 'Off, only the script pulls a trigger. Their walk and aim are untouched.'],
   ['spawns', 'Spawn queue runs', 'Off, the queue is held: nobody arrives unless the script places them.'],
   ['score',  'Door / enemy line','The HUD line at the top left.'],
-  // THE WAY-OUT NEEDLE, and it belongs to the WALKING lessons and nothing
-  // else. Once STAND HERE is on the barrier the player is not being sent
-  // anywhere any more — they are being sent to a PLACE that is on screen, and
-  // a second mark pointing at it is one answer too many. Past that it comes
-  // back on its own terms: only on a hallway with nobody left in it, where
-  // "which way now" is a real question. See wayArrowShows() in main.js.
+  // THE WAY-OUT NEEDLE, WHICH NO STEP OF THE ONBOARDING ASKS FOR ANY MORE.
+  //
+  // It used to be held by the three walking lessons, and at the junction that
+  // made the T a lie: the needle points a few metres along the walked path,
+  // which at the junction is down the LEFT arm — the same arm Hale's paint
+  // names. So the programme answered the question the graffiti asks, and a
+  // player never had to read either. Photographed; it is the one thing that
+  // could defeat the painted arrows.
+  //
+  // Teaching a player to follow a needle first also teaches them that the
+  // writing on the walls is decoration. The corridor leads on its own here —
+  // it is one route with one branch — so the geometry does lesson 1's work
+  // and the paint does the junction's. The needle arrives once the onboarding
+  // is over, on its own terms: a hallway with nobody left in it, or a player
+  // who has turned their back on the way out. See wayArrowShows() in main.js.
+  //
+  // Left in the list, not deleted: it is still a real capability and the tool
+  // can still hand it to a step. Nothing in the shipped sequence does.
   ['way',    'Way-out needle',   'The big red needle that points along the corridor.'],
 ];
 
@@ -794,7 +806,7 @@ export const STEPS = [
     // THE BARRIER IS A FIXTURE, not something lesson 4 conjures. It stands
     // from the first frame of the run, so turning the last corner shows you a
     // corridor with a thing in it rather than a corridor that grows one.
-    grants: { way: true }, divider: true, buildBarrier: true,
+    grants: {}, divider: true, buildBarrier: true,
     cues: [{ text: 'DRAG TO MOVE', slot: 'left', arrow: 'none', hand: 'up',
       pulse: false, on: 'enter', off: 'advance' }],
   },
@@ -805,7 +817,7 @@ export const STEPS = [
     id: 'look', label: '2 · Look',
     hud: 'PROCEED DOWN THE HALLWAY',
     advance: { kind: 'reached', need: 'firstJogEnd' },
-    grants: { way: true }, divider: true,
+    grants: {}, divider: true,
     cues: [
       { text: 'DRAG TO MOVE', slot: 'left', arrow: 'none', hand: 'up',
         pulse: false, on: 'enter', off: 'advance' },
@@ -849,7 +861,7 @@ export const STEPS = [
     // the words go before the step does, it is declared on the CUES rather
     // than on the step, so it leaves with them instead of hanging over an
     // empty corridor all the way to the junction.
-    grants: { way: true },
+    grants: {},
     cues: [
       { text: 'DRAG TO MOVE', slot: 'left', arrow: 'none', hand: 'up',
         pulse: false, on: 'enter', off: 'faced', divider: true },
@@ -863,13 +875,14 @@ export const STEPS = [
     id: 'stand', label: '4 · Stand here',
     hud: 'GO TO THE BARRIER',
     advance: { kind: 'atBarrier' },
-    // THE NEEDLE IS STILL HELD HERE, and dropped by the SIGN rather than by
-    // this step starting. `stand` begins the moment the player reaches the
-    // last corner, which they can do without having turned to look down the
-    // straight — so retiring the mark on the step took it away while there
-    // was still nothing on screen to replace it. wayArrowShows() waits for
-    // tutorPlaceWorldCue to put STAND HERE in frame.
-    grants: { way: true },
+    // NO NEEDLE HERE EITHER, and this is the step that used to make the case
+    // for one: STAND HERE is a place, and the mark that points at it was
+    // handed over the moment the sign came into frame. But the sign IS the
+    // answer — a needle pointing at a label the player can already read is a
+    // second answer to a question that has one — and the walk to the barrier
+    // is one straight corridor. See the `way` grant's own note above for why
+    // none of the onboarding asks for it now.
+    grants: {},
     cues: [{ text: 'STAND HERE', slot: 'world', arrow: 'none', hand: 'none',
       pulse: true, on: 'enter', off: 'advance' }],
   },

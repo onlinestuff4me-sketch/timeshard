@@ -120,13 +120,21 @@ first in lesson 1 reads the second in lesson 5 without thinking about it.
 | new world message | screen text it removes |
 |---|---|
 | `EXIT` above the door | `GO TO THE NEXT DOOR` |
-| `EXIT →` at the turns | the way-out needle, for the whole tutorial |
+| *(nothing — the geometry leads)* | the way-out needle, for the whole tutorial |
 | `TAKE IT` on the gun | the `WALK OVER IT TO TAKE IT` banner |
 | `STEP HERE` | nothing — it joins `DODGE THE ROUNDS`, then both go |
 | `STAND HERE` at 20 m | nothing — it gives `DRAG TO MOVE` a target it did not have |
 
 Net effect: two screen strings and one HUD element removed, two added to the
-world, and every lesson gains a visible destination.
+world.
+
+The needle's row is the one that changed shape. `EXIT →` at the turns was
+going to replace it, and on the teaching leg it does not: turn signs are off
+there (§1 — the screen owns the frame while a control is being taught), so
+lessons 1–3 have no destination marker at all. That is deliberate. The
+teaching leg is one route with one branch, so the corridor itself leads, and
+the first thing the player is ever asked to *read* is Hale's signpost at the
+junction. See `docs/MARKS.md` §5.8.
 
 ---
 
