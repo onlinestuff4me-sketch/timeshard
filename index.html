@@ -635,7 +635,13 @@
      "EXIT >" break onto two rows the moment the player walked up to it. In
      em the limit travels with the font size, so a short sign is one row at
      every distance and only a genuinely long line ever splits. */
-  #ts-sign { left:0; top:0; width:max-content; max-width:13em;
+  /* OUTSIDE `#tutor`, DELIBERATELY. A corridor sign belongs to the LEG, not
+     to the lesson, and `#tutor` is `display:none` unless `body.tutoring` is
+     set — so while it lived in there the sign could not be drawn on any door
+     of the run no matter what the script said. It keeps `#tutor`'s z-index so
+     nothing else about its stacking changes; `#hud` is `inset:0` fixed, which
+     is the same box `#tutor` was giving it to be absolute against. */
+  #ts-sign { z-index:11; left:0; top:0; width:max-content; max-width:13em;
            white-space:normal; text-wrap:balance;
            max-height:3.12em; overflow:hidden;
            padding:0 .34em;
@@ -1309,7 +1315,8 @@
   <div id="flash"></div>
   <div id="warn"></div>
   <div id="banner"></div>
-  <div id="tutor"><div id="tutorline"></div><div id="tutorhand"></div><div id="tutorhand2"></div><div id="tutorarrow"></div><div id="tutorup"></div><div id="ts-top" class="tslot top"></div><div id="ts-mid" class="tslot mid"></div><div id="ts-dodge" class="tslot dodge"></div><div id="ts-left" class="tslot left"></div><div id="ts-right" class="tslot right"></div><div id="ts-atbtn" class="tslot atbtn"></div><div id="ts-world" class="tslot world"></div><div id="ts-sign" class="tslot sign"></div><div id="tutorpin"></div></div>
+  <div id="tutor"><div id="tutorline"></div><div id="tutorhand"></div><div id="tutorhand2"></div><div id="tutorarrow"></div><div id="tutorup"></div><div id="ts-top" class="tslot top"></div><div id="ts-mid" class="tslot mid"></div><div id="ts-dodge" class="tslot dodge"></div><div id="ts-left" class="tslot left"></div><div id="ts-right" class="tslot right"></div><div id="ts-atbtn" class="tslot atbtn"></div><div id="ts-world" class="tslot world"></div><div id="tutorpin"></div></div>
+  <div id="ts-sign" class="tslot sign"></div>
   <div id="wayarrow"><i></i></div>
   <div id="ammo">PISTOL · ∞</div>
   <div id="reloadbar"><div id="reloadfill"></div></div>

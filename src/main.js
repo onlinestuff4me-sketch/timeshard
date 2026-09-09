@@ -8705,6 +8705,49 @@ let tutorDeadBack = null;    // [x, z] in metres — the junction
 let tutorJoker = null;       // the man, while he is standing
 let tutorJokeDeath = false;  // this death was the joke, not a lesson failed
 
+// --- WHAT THIS LEG HAS WRITTEN ON IT --------------------------------------
+//
+// The message system used to belong to a LESSON. It belongs to a LEG.
+//
+// Everything below the onboarding was drawn behind `tutorStep !== null`, so
+// `SCRIPT.md` §6 opened with "EXIT sits above every door for the whole game"
+// while it sat above none of them. The lesson's legs are authored and say for
+// themselves what is written on them; every other leg is the run, and what it
+// carries is derived from the door it is.
+//
+// The `tutor` prefix on everything here is now half a lie. Renaming is real
+// work and touches every probe, so it is deferred deliberately rather than
+// forgotten — see docs/ROADMAP.md.
+function legStorySpec() {
+  const taught = tutorStep !== null ? tutorLegsOf()[tutorLegIx] : null;
+  if (taught) return taught;
+  return runLegSpec(hall ? hall.doorsPassed + 1 : 1);
+}
+// WHAT THE RUN'S DOORS SAY. Phase 1 of docs/ROADMAP.md, and its whole
+// payload: `EXIT` above every door, which is the first line of `SCRIPT.md` §6
+// and the smallest thing that proves a leg can carry a message at all.
+//
+// The twenty-five authored lines go here next, spaced against `unlockDoor()`
+// and the finale rather than pinned to door numbers — `SCRIPT.md` §5. The
+// signature already takes the door so that arrives without a reshape.
+function runLegSpec(door) {
+  return {
+    signs: [{ at: 'door', text: 'EXIT' }],
+    paint: [],
+    // Derived turn signs need `marks`, which a generated leg has none of —
+    // its corridor is rolled rather than authored. Said out loud so the
+    // absence is a decision rather than an accident of data.
+    turnSigns: false,
+    door,
+  };
+}
+// DOES THIS LEG SAY ANYTHING IN THE WORLD? Read by the headline, which stands
+// down for it — see the crossing.
+const legHasSign = () => {
+  const sp = legStorySpec();
+  return !!(sp && ((sp.signs || []).length || (sp.paint || []).length));
+};
+
 // The signs a leg carries, built once when the leg is. Turn signs come from
 // `marks.turnLead` — one per change of direction, already two cells short of
 // the corner — and the arrow is the turn's own direction, so the words and
@@ -8714,7 +8757,7 @@ function tutorBuildSigns() {
   tutorClearPaint();
   tutorDeadCells = null; tutorDeadMan = null; tutorDeadBack = null;
   tutorRemoveJoker();
-  const spec = tutorLegsOf()[tutorLegIx];
+  const spec = legStorySpec();
   // The dead end, resolved to the grid. Ahead of the `marks` guard because a
   // leg may carry a branch without carrying a single derived mark, and
   // because the joke is furniture rather than signage.
@@ -8730,8 +8773,13 @@ function tutorBuildSigns() {
       tutorDeadBack = [(ox + spec.dead.back[0]) * C, (oz + spec.dead.back[1]) * C];
     }
   }
+  // MARKS ARE OPTIONAL NOW. They were not while only authored legs carried
+  // messages: an authored leg always has a plan, so it always has derived
+  // marks, and bailing without them was free. A generated leg has neither, so
+  // this early return was the second gate keeping the run's doors bare —
+  // `tutorPlaceSign` was the first. Only the mark-derived parts need them.
   const marks = spec && spec.marks;
-  if (!marks) return;
+  if (!spec) return;
   // Hale's, painted on the masonry. Built with the leg's own meshes and
   // dropped with them, so nothing is created while a fight is running.
   for (const s of (spec.paint || [])) tutorAddPaint(s);
@@ -8750,7 +8798,7 @@ function tutorBuildSigns() {
     // is no mark to hang it on — see docs/MARKS.md §3.
     const at = s.at === 'door' ? -1
       : Array.isArray(s.at) ? [s.at[0] | 0, s.at[1] | 0]
-      : typeof s.at === 'string' ? marks[s.at] : s.at;
+      : typeof s.at === 'string' ? (marks ? marks[s.at] : null) : s.at;
     if (at == null) continue;
     tutorSigns.push({
       at,
@@ -8762,7 +8810,7 @@ function tutorBuildSigns() {
       text: s.text || '', halves: s.halves || null, seen: false,
     });
   }
-  for (const t of (spec.turnSigns === false ? [] : (marks.turnLead || []))) {
+  for (const t of (spec.turnSigns === false || !marks ? [] : (marks.turnLead || []))) {
     // A SOLID TRIANGLE, not an arrow glyph. U+2192 is drawn from a different
     // part of most system fonts and comes out visibly lighter and smaller
     // than the caps beside it; U+25C0/U+25B6 are the same weight as the
@@ -9192,7 +9240,11 @@ function tutorPlaceSign() {
     const t = el.tslot[k];
     if (t && t.classList.contains('show')) { cueUp = true; break; }
   }
-  if (cueUp || tutorStep === null) return hide();
+  // THE LESSON'S GATE IS GONE. This used to refuse to draw anything at all
+  // outside the onboarding, which is what kept `EXIT` off fifty doors. What
+  // decides now is whether this leg has anything written on it, which
+  // `tutorSignPick` answers by returning nothing.
+  if (cueUp) return hide();
   // ...AND PAINT COUNTS AS A MESSAGE. Hale's are the only ones actually in
   // the room, so when one is in front of the player it IS the message and a
   // floating label beside it is the second one the rule forbids. The
@@ -12866,6 +12918,13 @@ function initHall(from = 1) {
   // invisible — requestIdleCallback was worse than useless because it can
   // just as easily fire mid-fight.
   warmUp();
+  // THE FIRST LEG OF A RUN HAS SIGNS TOO. `tutorResetWorld` above also calls
+  // tutorBuildSigns, and cannot be the one that counts: it runs BEFORE `hall`
+  // is rebuilt, so it reads the corridor of the run that just ended. Every
+  // later leg is built by the crossing; this is the one at the start. (A
+  // taught run rebuilds again inside startTutorial, which is where the
+  // authored leg's own paint comes from.)
+  tutorBuildSigns();
   el.ammo.style.display = '';
   setTimeLocked(false);
   slowBank = SLOWMO.base;
@@ -12875,8 +12934,16 @@ function initHall(from = 1) {
   // Settings — which then disarms, because it is a one-shot, not a mode.
   if (tutorShaping) {
     tutorPrevX = player.pos.x; tutorPrevZ = player.pos.z; tutorPrevYaw = player.yaw;
-    startTutorial();
-  } else if (game.mode === 'duel') {
+    startTutorial();   // ...which builds the taught leg's own signs
+  } else {
+    // THE FIRST LEG OF A RUN HAS SIGNS TOO. `tutorResetWorld` above also calls
+    // this, and cannot be the one that counts: it runs before `hall` is
+    // rebuilt, so it reads the corridor of the run that just ended. Every
+    // later leg is built by the crossing; this is the one at the start.
+    tutorBuildSigns();
+  }
+  if (tutorShaping) { /* the lesson speaks for itself */ }
+  else if (game.mode === 'duel') {
     showBanner('THEY COME TO YOU · DRAG TO SIDESTEP', 3000);
   } else if (game.mode === 'stop') {
     showBanner('TIME MOVES WHEN YOU DO', 3000);
@@ -13208,6 +13275,15 @@ function crossHallDoor() {
   prev.door.slab.material = DOOR_SEAL_MAT;
   prev.door.slab.position.y = 1.36;
   hall.cur++;
+  // WHAT THE NEW LEG HAS WRITTEN ON IT, built with the leg. Signs and paint
+  // are furniture: made once when the corridor is, never while a fight is
+  // running (PILLARS 8). This used to happen only on a tutorial crossing —
+  // inside the `tutorStep !== null` branch below — which is the third and
+  // last reason the run's doors were bare.
+  //
+  // Before the lesson's own bookkeeping below, because that advances
+  // `tutorLegIx` and the taught legs are read through it.
+  if (tutorStep === null) tutorBuildSigns();
   // A TUTORIAL DOOR IS NOT A DOOR OF THE RUN. The onboarding's seven legs used
   // to advance the wave, which meant the generated game resumed at wave 8 with
   // every one of the EARLY allowances (oneBodyDoors, soloDoors,
@@ -13300,7 +13376,18 @@ function crossHallDoor() {
     } else if (!openedModes.length) {
       // ...and when a mode opened, the mode IS the headline: the shape of the
       // corridor can wait for the next door.
-      showBanner(legHeadline(hall.legs[hall.cur] && hall.legs[hall.cur].proto), 2000);
+      //
+      // ONE MESSAGE IN FOCUS, OUTSIDE THE LESSON TOO. `DOOR 7` on the glass
+      // and `EXIT` on the door at the end of it are the same sentence twice,
+      // and the one in the room is the one to keep — same rule that makes
+      // Hale's paint suppress a floating sign, applied to the card.
+      //
+      // Only the bare fallback stands down. A leg that PROMISES something —
+      // TIGHT TURNS, NO COVER · DO NOT STOP — is making a claim about the
+      // corridor rather than naming the way out, and no wall sign says that.
+      // `legPromises` is the predicate that already knows the difference.
+      const proto = hall.legs[hall.cur] && hall.legs[hall.cur].proto;
+      if (legPromises(proto) || !legHasSign()) showBanner(legHeadline(proto), 2000);
     }
     // A DOOR CAN GIVE YOU TWO THINGS. The duel's gate is door 5, which is
     // crossed on the same step that hands over slow motion — and that branch
@@ -13328,7 +13415,8 @@ function crossHallDoor() {
     // all read from the NEXT authored leg, and the course ran out of legs one
     // crossing early. (The barrier survived only by accident of ordering — it
     // is built inside tutorNext, before this line.)
-    if (!enteredSlow) { tutorLegIx++; tutorBuildSigns(); }
+    if (!enteredSlow) { tutorLegIx++; }
+    tutorBuildSigns();
     tutorSpineIx = 0;
     tutorCrossedDoor = true;
     if (tutorLegsOf()[tutorLegIx]) {
@@ -14365,7 +14453,10 @@ function frame(now) {
   if (game.state === 'menu') updateShimmer(now / 1000);
   sfx.update(playing || game.state === 'clear' ? timeScale : 1, dt);
   el.crosshair.classList.toggle('hot', player.fireCd > 0);
-  if (tutorStep !== null) { tutorPlaceWorldCue(); tutorPlaceSign(); }
+  // The world cue is the LESSON's — it is anchored to the barrier and there
+  // is no barrier outside the onboarding. The sign is the LEG's.
+  if (tutorStep !== null) tutorPlaceWorldCue();
+  tutorPlaceSign();
 
   renderFrame(dt);
   // THE VEIL COMES OFF ON THE FIRST REAL PICTURE, not when the module has
@@ -14529,7 +14620,13 @@ window.__ts = {
       inScene: !!m.parent, w: +m.geometry.parameters.width.toFixed(2),
     })),
     cam: [+player.pos.x.toFixed(1), +player.pos.z.toFixed(1), +player.yaw.toFixed(2)],
-    paintSpec: ((tutorLegsOf()[tutorLegIx] || {}).paint || []).length,
+    paintSpec: ((legStorySpec() || {}).paint || []).length,
+    // WHOSE SPEC THIS LEG IS READING. A probe cannot tell an authored leg's
+    // empty sign list from a generated leg that was never asked.
+    spec: (() => { const sp = legStorySpec() || {};
+      return { source: sp.door != null ? 'run' : 'taught', door: sp.door || null,
+        signs: (sp.signs || []).length, paint: (sp.paint || []).length }; })(),
+    hasSign: legHasSign(),
     spineIx: tutorSpineIx,
     may: !enemies.length,
     cueUp: Object.keys(el.tslot || {}).some((k) =>
@@ -14683,6 +14780,9 @@ window.__ts = {
   // the walking. This is the same two calls the corridor makes, in the same
   // order, so everything they trigger — the leg beyond being composed, the
   // lesson being armed and then entered — happens exactly as it does in play.
+  // Build a leg's signs on demand, so a probe can time the thing the crossing
+  // does rather than time a crossing.
+  rebuildSigns: () => tutorBuildSigns(),
   crossDoor: () => {
     if (!hall) return null;
     openHallDoor();

@@ -14,28 +14,30 @@ of truth for their own subject and are referenced rather than copied.
 in five acts, ten of which decode. Ten of Hale's logs, five drafted. A
 one-time-pad economy, a reveal sequence, a board, a finale, an ending.
 
-**Built:** the onboarding's message system, and nothing else.
+**Built:** the carrier, as of phase 1 — a leg can now say something, and every
+door of the run says `EXIT`. None of the twenty-five lines is placed.
 
 | | state |
 |---|---|
-| floating signs (`#ts-sign`) | built — onboarding only |
-| painted walls (`tutorAddPaint`) | built — onboarding only |
-| world cues (`STAND HERE`) | built — onboarding only |
-| `EXIT` above a door | built as a capability, **authored on no leg** |
+| floating signs (`#ts-sign`) | built — **every leg**, phase 1 |
+| painted walls (`tutorAddPaint`) | built — the carrier is general, no run leg authors any yet |
+| world cues (`STAND HERE`) | built — onboarding only, and correctly so |
+| `EXIT` above a door | **above every door of the run** |
 | wall lines past the tutorial | none |
 | the pad, the board, the reveal | none |
 | transmissions, Hale's audio | none |
 | the finale, the clone, the ending | none |
 
-**The gap, in one line.** `SCRIPT.md` §6 opens *"`EXIT` sits above every door
-for the whole game."* It sits above none. Every message the game can currently
-draw is behind one gate in the frame loop:
+**The gap this started from.** `SCRIPT.md` §6 opens *"`EXIT` sits above every
+door for the whole game."* It sat above none: every message the game could
+draw was behind one gate in the frame loop —
 
 ```js
 if (tutorStep !== null) { tutorPlaceWorldCue(); tutorPlaceSign(); }
 ```
 
-Everything below is downstream of removing that line honestly.
+— and behind three more nobody had found. Phase 1 is that line, honestly
+removed. Everything below is downstream of it.
 
 ---
 
@@ -44,28 +46,56 @@ Everything below is downstream of removing that line honestly.
 Ordered by dependency, not by appeal. Each phase is a thing that can be
 played; none of them is a refactor with no visible result.
 
-### Phase 1 · The carrier leaves the tutorial
+### Phase 1 · The carrier leaves the tutorial — **BUILT**
 
-The message system belongs to a **leg**, not to a **lesson**.
+The message system belongs to a **leg**, not to a **lesson**. `EXIT` is above
+every door of the run, which is the first line of `SCRIPT.md` §6 and was true
+of no door before this.
 
-- Drive the painter from the leg rather than from `tutorStep`.
-- `tutorBuildSigns()` runs on tutorial resets and `tutorLegIx++` only; it
-  needs to run whenever any leg is built.
-- Signs and paint come from `tutorLegsOf()[tutorLegIx]`, an authored spec.
-  Ordinary legs are *generated* (`genleg.js`) and have no spec, so a leg needs
-  a story spec derived from its door number.
-- The `tutor*` prefix stops being true. Renaming is not urgent and is not free
-  — it touches every probe — so it is called out here and deferred.
+**There were four gates, not one**, and each of them was the same mistake:
 
-**Proof it works:** `EXIT` above every door. Smallest possible payload, and it
-is the first line of `SCRIPT.md` §6.
+1. the frame loop drew the painter only inside `if (tutorStep !== null)`
+2. `tutorPlaceSign` refused again on its own, `if (cueUp || tutorStep === null)`
+3. `tutorBuildSigns` ran on tutorial resets and `tutorLegIx++` only, so a
+   run's legs were never asked what they carry
+4. **`#ts-sign` lived inside `#tutor`, which is `display:none` unless
+   `body.tutoring` is set** — so even with the first three open the sign was
+   built, picked, positioned and invisible. Found by measuring the element's
+   box, not by reading the CSS: the probe reported `onScreen=true` at 0×0 px.
 
-**The risk to measure:** `PILLARS` §8, no stall the player can feel. Paint is
-a canvas, a texture, a material and a mesh per message. In the onboarding
-those are built once with a leg the player is standing still in front of.
-Ordinary legs are built as you walk. `__ts.render()` already reports draw
-calls and triangles; the cost wants measuring before the second phase leans on
-it, not after.
+`legStorySpec()` now answers "what is written on this leg": an authored
+onboarding leg says for itself, and everything else is the run and derives
+from its door. `runLegSpec(door)` is where the twenty-five lines go next — it
+already takes the door, so phase 2 fills it in rather than reshaping it.
+
+`marks` became optional along the way. They were free while only authored legs
+carried messages (an authored leg always has a plan, so it always has derived
+marks); a generated leg has neither, and bailing without them was the second
+gate in disguise.
+
+**The risk, measured.** `PILLARS` §8 — building a leg's signs costs **0.1 ms
+at worst** over thirty runs, against a 16.7 ms frame. It is furniture: made
+once with the corridor, never while a fight is running. `test/exitsign.mjs`
+holds the number down along with the rest.
+
+**Q-B applied.** A plain leg's `DOOR N` card stands down for the `EXIT` sign
+at the end of that same corridor — the same sentence twice, and the one in the
+room wins. Only the bare fallback: a leg that *promises* something (`TIGHT
+TURNS`, `NO COVER · DO NOT STOP`) is making a claim no wall sign makes, and
+still says it. `legPromises()` already knew the difference.
+
+**Still deferred:** the `tutor*` prefix is now half a lie. Renaming touches
+every probe and is not free, so it stays on this list rather than in this
+commit.
+
+**Noticed while measuring, not changed.** On a cleared run corridor the
+way-out needle points at the same door `EXIT` names. They are sequential
+rather than simultaneous — the needle is legible at nine cells where the sign
+is not, and the sign takes over as it becomes readable — but for the last few
+metres both are on screen saying the same thing. The machinery to hand over
+already exists (`tutorSignSeen` retires the needle once the sign is in frame)
+and is currently dead outside the lesson. Reviving it is a pacing decision,
+not a tidy-up.
 
 ### Phase 2 · The ordered list, placed
 
@@ -118,6 +148,17 @@ wipe. Needs F to exist (phase 2), the last three wall lines (phase 2), and
 
 Five decisions. The eleven open questions in `STORY.md` §10 are mostly colour
 and can be answered late; these five change what gets written.
+
+**All five are answered.** Recorded on the roadmap artifact and repeated here,
+because a decision that lives only in a page nobody re-opens is not settled:
+
+| | answer | what it means for the build |
+|---|---|---|
+| **Q-A** | Derive **F** like **U**, from the ramp | The finale is a *speed*, not a door number — same shape as `unlockDoor()`, so it moves when the ramp is retuned and the script does not care. Phase 2 needs the derivation before acts 4–5. |
+| **Q-B** | The rule holds everywhere — a wall line suppresses the headline | **Applied in phase 1.** A plain leg's `DOOR N` card stands down for its own `EXIT`; a leg that promises something still speaks. |
+| **Q-C** | Keep twenty-five and accept most are late | No cut. The back half is for players who go deep, and that is a known, chosen cost rather than an oversight. |
+| **Q-D** | Same signage, but it **arrives differently** | The engineers do not get a third look. Whatever separates them from the programme is in the arrival — when it appears, how, what it interrupts — which is a phase 3 design problem, not a palette one. |
+| **Q-E** | Build the pad — the turn is the story | Phase 4 stays in. It is still the largest single build here, and it is now committed to rather than deferred. |
 
 | | question | what it blocks |
 |---|---|---|
