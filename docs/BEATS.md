@@ -86,7 +86,7 @@ where they were always going to earn their keep.
 | **Move** | yes — a destination | a long straight with no visible end: forward is the only option | `STAND HERE` at 20 m |
 | **Look** | yes — around the corner | the corridor turns, and the sign is off-axis so you cannot read it without turning your head | `EXIT →` on the wall the turn faces |
 | **Walk to a thing** | yes | the barrier stands there from the first frame | `STAND HERE` *(built)* |
-| **Dodge** | yes — the spot out of the line | the corridor widens at this beat so a sidestep is visibly available | `STEP HERE` on the floor, **first dodge only** |
+| **Dodge** | yes — the spot out of the line | the corridor widens at this beat so a sidestep is visibly available | none — the room teaches it |
 | **Shoot** | no — the target is a person | the enemy raises his arm before firing | none — stays on screen |
 | **Take a gun** | yes — the gun on the floor | the drop magnetises when you are close | `TAKE IT` on the gun |
 | **Go through the door** | yes | the barrier sinks, the door opens | `EXIT` above it |
@@ -94,24 +94,25 @@ where they were always going to earn their keep.
 | **Headshot the armored** | no — a body part | the head is already bright red on a gunmetal body | none — already taught |
 | **Slow time** | no — it is a button | the barrier and `STAND HERE` return, so the player knows to stop and read | none — the screen cue owns it |
 
-Five mechanics get a world message. Five do not, and saying so is the point:
-the ones that stay on screen are the ones with no place to stand.
+Four mechanics get a world message. Six do not, and saying so is the point:
+the ones that stay on screen are the ones with no place to stand — plus the
+dodge, which has a place and gets geometry instead of a label. See §6.
 
 ---
 
 ## 3. The vocabulary
 
-Three shapes, five strings.
+Three shapes, four strings.
 
 | shape | strings | means |
 |---|---|---|
-| `<VERB> HERE` | `STAND HERE`, `STEP HERE` | put yourself on this spot |
+| `<VERB> HERE` | `STAND HERE` | put yourself on this spot |
 | direction | `EXIT →` | the way out is this way |
 | destination | `EXIT` | the way out is through here |
 | object label | `TAKE IT` | pick this up |
 
-`STAND HERE` and `STEP HERE` rhyming is deliberate — a player who learned the
-first in lesson 1 reads the second in lesson 5 without thinking about it.
+`STEP HERE` used to be the second string in the first row, rhyming with
+`STAND HERE` on purpose. It is cut — see §6.
 
 ---
 
@@ -122,7 +123,6 @@ first in lesson 1 reads the second in lesson 5 without thinking about it.
 | `EXIT` above the door | `GO TO THE NEXT DOOR` |
 | *(nothing — the geometry leads)* | the way-out needle, for the whole tutorial |
 | `TAKE IT` on the gun | the `WALK OVER IT TO TAKE IT` banner |
-| `STEP HERE` | nothing — it joins `DODGE THE ROUNDS`, then both go |
 | `STAND HERE` at 20 m | nothing — it gives `DRAG TO MOVE` a target it did not have |
 
 Net effect: two screen strings and one HUD element removed, two added to the
@@ -140,12 +140,35 @@ junction. See `docs/MARKS.md` §5.8.
 
 ## 5. The two that need geometry, not text
 
-**The dodge corridor widens.** The teaching leg is one cell wide. A sidestep
-of 0.85 m in a four-metre corridor is possible but does not *look* possible,
-and the beat is asking a first-time player to invent a movement under
-pressure. Widening this stretch to three cells makes the sideways room
-obvious before `STEP HERE` names it. This is the single most valuable change
-in the document, because it fixes a lesson rather than labelling one.
+**The dodge corridor widens — built.** The teaching leg was one cell wide. A
+sidestep of 0.85 m in a four-metre corridor is possible but does not *look*
+possible, and the beat was asking a first-time player to invent a movement
+under pressure. The stretch running up to the barrier is now three cells
+across.
+
+Measured on the beat itself, at the moment the world freezes with the round in
+the air: clearing the lane takes **0.76 m** of sideways movement, and the room
+either side went from **1.5 m to 5.5 m**. The step the beat asks for was 57%
+of the floor available to make it in; it is now 15%. A first-timer swiping in
+a panic used to end up against masonry.
+
+**What it costs, honestly.** `tutorBuildBarrier` sizes the slab to the row it
+stands in, so a three-cell room means a 13.2 m barrier. Photographed from the
+last corner that is the point — the corridor visibly opens out into a space
+with something across it, which is the "obvious before anything names it" this
+section asked for. Photographed from two cells short it is not: the side walls
+have left the frame, the barrier runs off both edges, and it reads as a wall
+rather than as an object standing in a room. The width is legible at distance
+and invisible up close, which on a 42° horizontal frame is what `PILLARS` §5
+means by *width is the axis the screen doesn't have*.
+
+The open follow-up is whether the barrier should stop being full-width — a
+parapet with visible ends, standing in a room the player can see past, rather
+than a wall spanning it. That would put the sideways room in the middle of the
+picture where the frame can see it, and it would make the tutorial's first
+piece of cover behave like every other piece of cover in the game. It also
+means the player can walk around it, which changes what lesson 4 is asking,
+so it is a decision rather than a tidy-up.
 
 **The first corner comes with a reason to look.** A sign placed on the wall
 the turn faces cannot be read without turning the head — so `DRAG TO LOOK` is
@@ -154,14 +177,29 @@ where they are going.
 
 ---
 
-## 6. `STEP HERE` appears once
+## 6. `STEP HERE` is cut
 
-On the first of three dodges, and never again. Dodges two and three have no
-mark.
+It was going to appear on the floor at the spot out of the round's line, on
+the first of three dodges and never again — floating world UI in the same
+register as `STAND HERE`, and rhyming with it on purpose.
 
-Otherwise the lesson teaches *go to the painted spot* instead of *get out of
-the line*, and the mark becomes a crutch the real game never provides. Teach
-with it, then take it away while the player is still in the room.
+Two reasons it is not being built.
+
+**The screen already owns that frame, and should.** During the freeze the
+player has `DODGE THE BULLET` and a swipe hand under it. §1.2 says a world
+message replaces a screen one rather than joining it, so `STEP HERE` would
+have had to take the frame — and the swipe hand is the only place in the game
+that shows a first-time player *how* to sidestep. Trading the control lesson
+for a destination label is the wrong way round.
+
+**And a mark is less clear than a hand here.** `STAND HERE` works because it
+names a fixture that is standing there whether or not you are looking at it.
+A dodge target is a spot on empty floor that exists for one second and is
+different every round; naming it teaches *go to the painted spot* rather than
+*get out of the line*, which is a crutch the real game never provides.
+
+The geometry does the work instead. §5's widening is what makes the sidestep
+available; nothing labels it.
 
 ---
 
@@ -189,7 +227,8 @@ with it, then take it away while the player is still in the room.
    something.
 3. **`EXIT` above the door** — *built.* Anchored to the last cell of the
    walked path.
-4. **Widen the dodge stretch**, then add `STEP HERE` to the first dodge.
+4. ~~**Widen the dodge stretch**, then add `STEP HERE` to the first dodge.~~
+   The widening is *built* (§5). `STEP HERE` is *cut* (§6).
 5. **`TAKE IT` on dropped guns.**
 
 ---

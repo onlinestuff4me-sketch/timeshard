@@ -298,6 +298,29 @@ const TEACH_DEAD_END = [
   [-3, 10], [-3, 9],                     // first turn — TURN AROUND
   [-4, 9], [-5, 9], [-6, 9],             // second turn — and the man
 ];
+// --- THE DODGE ROOM --------------------------------------------------------
+//
+// The corridor around the barrier, three cells wide instead of one.
+//
+// Lesson 5 asks a first-time player to sidestep a round under a freeze, and a
+// one-cell corridor is 3.4 m of floor: a sidestep fits, but it does not LOOK
+// like it fits, and the beat was asking somebody to invent a movement in a
+// space that reads as too narrow for it. Widening the stretch makes the
+// sideways room obvious before anything names it — which is the point, and
+// is why nothing names it. See docs/BEATS.md §5.
+//
+// A LITERAL, LIKE THE DEAD END, and for the same reason. These are cells the
+// spine does not go through, so there is no mark to hang them on (§3 of
+// docs/MARKS.md) — and `plan.extra` is also what the level tool's floor brush
+// writes, so authoring it here is authoring it in the one place the tool can
+// show and edit. A derived room the tool could not draw would make its
+// preview lie about the corridor the game builds.
+//
+// TIED TO THE BARRIER BY ARITHMETIC, so if the path is redrawn these move:
+// the barrier stands `TUTOR.barrierCells` past `marks.finalRun`, which on
+// TEACH_MOVES is cell [4, 11] + 5 = row 16. The room is the four rows up to
+// it, one column either side of the spine's own column.
+const TEACH_ROOM = [13, 14, 15, 16].flatMap((z) => [[3, z], [5, z]]);
 // --- marks: named cells on the walked path ---------------------------------
 // DERIVED, NEVER TYPED. A mark is a place in the lesson — "the first corner",
 // "where the fork rejoins" — and the level tool lets the path be redrawn. Held
@@ -421,35 +444,25 @@ export function marksFromPlan(plan) {
       dir: dot > 0 ? 'r' : 'l',
     });
   }
+  // WHERE THE BARRIER STANDS, NAMED RATHER THAN GUESSED.
+  //
+  // This used to be inferred from `plan.extra`: cells that touched the spine
+  // at two separated points were read as a fork, and the barrier was put just
+  // past the rejoin. That fork is gone — it left the spine at the split, ran
+  // alongside and came back, and both routes reached the same place, which
+  // was all it ever said — so the heuristic has been guessing about a shape
+  // no leg has for a while, and guessing badly. It put the barrier at the T
+  // the first time the junction's dead end went in, and it would have put it
+  // five cells past the dodge room the moment that room was widened, because
+  // `extra` is ALSO what the level tool's floor brush writes. Any floor
+  // painted anywhere near the route moved the barrier.
+  //
+  // So: the last corner, unless the plan names a different mark. Everything
+  // past the last corner is one straight run, which is what makes it the
+  // place the barrier is first seen from — see `finalRun` above.
   marks.barrierAt = marks.finalRun;
-  // The rejoin is the one mark the moves alone cannot state, because the fork's
-  // second lane is `extra` cells hanging off the spine. It is the furthest cell
-  // of the walked path that any of them touches.
-  const extra = (plan && plan.extra) || [];
-  if (extra.length) {
-    let lo = Infinity, hi = -1;
-    for (const [ex, ez] of extra) {
-      for (let i = 0; i < spine.length; i++) {
-        if (Math.abs(spine[i][0] - ex) + Math.abs(spine[i][1] - ez) <= 1) {
-          if (i < lo) lo = i;
-          if (i > hi) hi = i;
-        }
-      }
-    }
-    // A FORK REJOINS. A DEAD END DOES NOT, and telling them apart matters
-    // because this mark is where the barrier stands.
-    //
-    // The onboarding's `extra` used to be one thing: a second lane that left
-    // the spine and came back, so the furthest cell it touched was the
-    // rejoin and the barrier belonged just past it. A dead-end branch —
-    // the junction's right arm, which is a joke and not the route — touches
-    // the spine at ONE place, the junction itself, and reading that as a
-    // rejoin put the barrier at the T with the whole second half of the leg
-    // behind it.
-    //
-    // So: touched at two separated points is a fork; touched at one is a
-    // branch, and the marks are left where the path put them.
-    if (hi > lo + 2) { marks.forkEnd = hi; marks.barrierAt = hi; }
+  if (plan && typeof plan.barrierAt === 'string' && marks[plan.barrierAt] != null) {
+    marks.barrierAt = marks[plan.barrierAt];
   }
   return marks;
 }
@@ -482,7 +495,7 @@ export const LEGS = [
     id: 'teaching', form: 'corridor', barrier: true, countsAsDoor: false,
     note: 'Lessons 1-9. Straight run, two jogs left, then the straight where '
       + 'the barrier stands and the combat lesson happens.',
-    plan: { moves: TEACH_MOVES, extra: TEACH_DEAD_END, approach: 4 },
+    plan: { moves: TEACH_MOVES, extra: [...TEACH_DEAD_END, ...TEACH_ROOM], approach: 4 },
     // ONE MESSAGE IN FOCUS, AND IN THE TEACHING LEG THE SCREEN HAS IT.
     //
     // Lessons 1-3 are `DRAG TO MOVE` and `DRAG TO LOOK`, and a sign twenty

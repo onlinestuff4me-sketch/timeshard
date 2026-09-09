@@ -207,5 +207,61 @@ if (new Set(turns.owners.filter((o) => o >= 0)).size < 2) {
   bad('one man is taking every turn: ' + JSON.stringify(turns.owners));
 }
 
+
+// ---- 6. AND THERE IS ROOM TO DODGE IN --------------------------------------
+//
+// The beat asks a first-time player to sidestep a round under a freeze. In a
+// one-cell corridor that is 1.5 m of floor either side for a step the game
+// itself requires to be 0.85 m — 57% of the room, and a hard swipe puts them
+// against masonry. The stretch running up to the barrier is three cells wide
+// now; this is the measurement that says so, taken on the beat rather than
+// off the plan, because what matters is the floor beside the player at the
+// moment the world stops.
+const room = await page.evaluate(async () => {
+  const t = window.__ts, C = 4;
+  t.setTutorStep('dodge');
+  t.player.pos.x = 16; t.player.pos.z = 62.4; t.player.yaw = Math.PI;
+  for (let f = 0; f < 900 && !t.tutor().held; f++) {
+    await new Promise((r) => requestAnimationFrame(r));
+    t.player.iframes = 999;
+  }
+  const b = t.bullets.find((x) => !x.fromPlayer);
+  if (!b) return { err: 'no round in the air to dodge' };
+  // The game's own question — see tutorRoundThreatens: how wide of the player
+  // does the round pass? Slide sideways until it stops being a threat.
+  const LANE = 0.75;   // TUTOR.dodgeLaneM
+  const wide = (px) => {
+    const vx = b.vel.x, vz = b.vel.z, s2 = vx * vx + vz * vz;
+    const dx = px - b.pos.x, dz = t.player.pos.z - b.pos.z;
+    const k = (dx * vx + dz * vz) / s2;
+    return Math.hypot(dx - vx * k, dz - vz * k);
+  };
+  let need = null;
+  for (let d = 0; d <= 8; d += 0.01) {
+    if (wide(t.player.pos.x + d) > LANE) { need = +d.toFixed(2); break; }
+  }
+  const L = t.hall().legs[t.hall().cur];
+  const gz = Math.round(t.player.pos.z / C);
+  const xs = L.cells.filter((c) => c[1] === gz).map((c) => c[0]);
+  const lo = Math.min(...xs), hi = Math.max(...xs);
+  return { need, cells: hi - lo + 1,
+    // wall face, less the player's own radius
+    left: +(t.player.pos.x - ((lo - 0.5) * C + 0.15) - 0.35).toFixed(2),
+    right: +(((hi + 0.5) * C - 0.15) - t.player.pos.x - 0.35).toFixed(2) };
+});
+if (room.err) bad(room.err);
+else {
+  console.log(`  dodge room  ${room.cells} cells wide · needs ${room.need} m · ` +
+    `${room.left} m left, ${room.right} m right`);
+  if (room.cells < 3) bad(`the dodge stretch is ${room.cells} cell(s) wide, not three`);
+  // Twice the step the beat asks for (TUTOR.dodgeStepM 0.85), each way, so a
+  // panicked swipe does not end against a wall.
+  if (room.left < 1.7 || room.right < 1.7) {
+    bad(`only ${room.left}/${room.right} m to move in — a swipe hits masonry`);
+  }
+  if (room.need > room.left || room.need > room.right) {
+    bad(`the round cannot be cleared: needs ${room.need} m`);
+  }
+}
 done('dodge', errs);
 await browser.close();
