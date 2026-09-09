@@ -8923,11 +8923,19 @@ function duelWatchRound(b, sdt) {
   // the 0.82 mark is 0.45 s out, INSIDE the floor, so the two bars cancelled
   // and the repeat could never fire at all. Both are seconds now, and the
   // window between them is real at every speed the mode reaches.
-  if (!first && m.t > T.againBy) return;
-  // ...AND IT IS ONLY A CORRECTION IF THEY HAVE HAD A FAIR GO AT IT. A player
-  // who started their sidestep as the round left the muzzle is answering it,
-  // whatever their position happens to be while the drag builds speed.
-  if (b.laneT < T.ignoredS) return;
+  // ...AND THE CORRECTION IS ONLY A CORRECTION IF THEY HAVE HAD A FAIR GO AT
+  // IT: late in the round's flight, AND with the round having been on line
+  // that whole time with nothing done about it. A player who started their
+  // sidestep as it left the muzzle is answering it, whatever their position
+  // happens to be while the drag builds speed.
+  //
+  // Neither applies to the INTRODUCTION. That one is not a judgement on the
+  // player — it is the first time this mode has told them what the verb is,
+  // and gating it on having ignored something means a player who dodges by
+  // instinct is never told the rule at all. (Which is what happened: with
+  // this on both tellings, a probe that plays well was taught nothing in
+  // seventy seconds.)
+  if (!first && (m.t > T.againBy || b.laneT < T.ignoredS)) return;
   duelTeachDodge(b);
 }
 
