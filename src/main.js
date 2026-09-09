@@ -13828,16 +13828,40 @@ function duelTeachShoot() {
   duelMeetCard(1, '', SIMPLE.duel.teach.shoot, 'shoot', 0);
   if (el.duelmeet) el.duelmeet.classList.add('noname', 'nostick');
 }
-// Whoever the lesson should point at: the nearest man in front of the player,
-// because a thumb on somebody behind a wall teaches nothing.
+// Whoever the lesson should point at: the nearest man the player CAN SEE.
+//
+// The comment here used to say "in front of the player" and the code did not
+// check. It took the nearest body in any direction, and in this mode men walk
+// all the way in to the hold line and then past it — so the nearest one is
+// routinely BEHIND you, where a ring and a thumb are drawn at a point that
+// projects off the screen and nothing appears at all. Measured: the button's
+// paired cue reported an owner, a mark and a claimed beat, and put nothing on
+// screen, four men standing in the room.
+//
+// So it asks the camera. A body counts if its chest projects inside the
+// viewport with a margin — which is the actual requirement, and is not the
+// same as being in front: somebody a metre to the side at arm's length is in
+// front and off the edge of the glass. The nearest of those wins; if none of
+// them are visible, the nearest in front is better than nothing.
+const _vNear = new THREE.Vector3();
 function duelNearestBody() {
-  let best = null, bestD = 1e9;
+  let seen = null, seenD = 1e9, ahead = null, aheadD = 1e9;
+  // FORWARD, as the movement code defines it: pushing the stick up gives
+  // (-sin yaw, -cos yaw), which at the duel's yaw of PI is +z — the direction
+  // the corridor runs. Getting this backwards would point the cue at exactly
+  // the men it is meant to skip.
+  const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
   for (const e of enemies) {
     if (!e.alive || e.state === 'assemble') continue;
-    const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
-    if (d < bestD) { bestD = d; best = e; }
+    const dx = e.pos.x - player.pos.x, dz = e.pos.z - player.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (dx * fx + dz * fz <= 0) continue;          // behind you
+    if (d < aheadD) { aheadD = d; ahead = e; }
+    _vNear.set(e.pos.x, SIMPLE_CHEST_Y * e.g.scale.y, e.pos.z).project(camera);
+    if (_vNear.z > 1 || Math.abs(_vNear.x) > 0.92 || Math.abs(_vNear.y) > 0.92) continue;
+    if (d < seenD) { seenD = d; seen = e; }
   }
-  return best;
+  return seen || ahead;
 }
 function duelTeachDone() {
   duel.coach = 'done';
@@ -15168,7 +15192,8 @@ window.__ts = {
     // ...and WHICH gun on the floor is being pointed at, if any
     loot: duel.loot ? { x: +duel.loot.g.position.x.toFixed(2),
       z: +duel.loot.g.position.z.toFixed(2), type: duel.loot.type } : null,
-    gotGun: duel.gotGun,
+    gotGun: duel.gotGun, pairShot: duel.pairShot,
+    owner: duel.meetOwner ? duel.meetOwner.type + ':' + duel.meetOwner.state : null,
     openCard: duel.openCard,
     tap: el.dueltap ? el.dueltap.classList.contains('on') : false,
     gun: gun.visible,

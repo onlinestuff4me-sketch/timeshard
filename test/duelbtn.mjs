@@ -157,6 +157,8 @@ const READ = `() => {
     // one, and "it pointed at nobody" and "there was nobody to point at" are
     // different bugs.
     men: t.enemies.filter((e) => e.alive).length,
+    pair: t.simpleState().pairShot, mark: t.simpleState().mark,
+    owner: t.simpleState().owner,
     pins, tap: document.getElementById('dueltap').classList.contains('on') };
 }`;
 const readCoach = () => page.evaluate('(' + READ + ')()');
