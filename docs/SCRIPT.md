@@ -189,12 +189,31 @@ Everything else is spaced between them.
 
 | act | span | beats |
 |---|---|---|
-| **1–2** | door 1 → **U** | 11 |
-| **3** | ends **on U** | 1 |
-| **4** | end of school → **F − 4** | 5 |
+| **1–3** | door 1 → **U − 1** | 16 |
+| **3's last** | **on U** | 1 |
+| **4** | end of school → **F − 6** | 5 |
 | **5** | the last four doors | 3 |
 
-Spacing inside a span is `range ÷ beats`, rounded to even doors.
+Spacing inside a span is `range ÷ beats`, with the last beat landing on the
+span's final door.
+
+**Corrected while building it.** This table used to give acts 1–2 eleven beats
+and act 3 one, which accounts for twenty of the twenty-five: act 3's other
+five sit before **U** and appeared in no span at all. It also put act 4's last
+beat and act 5's first both on **F − 4**, which is one door carrying two
+lines. Act 4 now stops two doors clear of the closing stretch
+(`STORY_PACE.tailClear`).
+
+`src/story.js` is the implementation and `test/story.mjs` checks it against
+seven different ramps. Every number above is a knob there, because the ramp is
+going to move.
+
+**And U is not `unlockDoor(SPEED)`.** There are two unlock doors in the build:
+`powerUnlockDoor()` is where the time button is handed over (door 10) and
+`unlockDoor(SPEED)` is where rounds get fast (door 46). §5.1 says U is "where
+slow time arrives", which is the first — and against it the script does not
+fit. See `docs/ROADMAP.md` phase 2; it is an open decision rather than an
+arithmetic error.
 
 ### 5.2 The one beat that is anchored, not spaced
 
@@ -270,7 +289,7 @@ which is when a name means something.
 | 40 | S | *they did not build this place* | — |
 | 42 | P | `THIS SIMULATION WAS BUILT IN 1947` **(page)** | `THIS PLACE WAS FOUND IN 1947` |
 | 44 | S | *no engineer is on the payroll · i checked* | — |
-| 45 | P | `THIS CHANNEL IS MONITORED FOR YOUR SAFETY` **(page)** | `THIS CHANNEL IS WRITTEN OVER BY THE PROGRAMME` |
+| 45 | P | `THIS CHANNEL IS MONITORED FOR YOUR SAFETY` **(page)** | `THIS CHANNEL IS REWRITTEN FOR YOUR SAFETY` |
 | 45 | S | *i could never read the numbers · you might* | — |
 | **U** | **B** | `WE ARE THE ENGINEERS · THAT IS THEIR WORD` | — |
 
@@ -287,7 +306,7 @@ used in its own filing for eighty years without knowing what it meant.
 | 58 | B | `WE LEFT THIS PLACE RUNNING AND WALKED AWAY` | — |
 | 62 | B | `IT IS NOT A WEAPON · IT IS A TEST` | — |
 | 66 | P | `ELEVEN PEOPLE HAVE BEEN THROUGH THIS PLACE` **(page)** | `ELEVEN THOUSAND HAVE BEEN THROUGH THIS PLACE` |
-| 70 | P | `YOU WILL BE SENT HOME WHEN YOU FINISH` **(page)** | `NO ONE HAS EVER BEEN SENT HOME` |
+| 70 | P | `YOU WILL BE SENT HOME WHEN YOU FINISH` **(page)** | `NO ONE WILL BE SENT HOME WHEN THEY FINISH` |
 | 74 | B | `PASS THE TEST AND WE WILL SPEAK WITH YOU` | — |
 
 `ELEVEN` reads as believable — eight before the player, plus a few
@@ -298,7 +317,7 @@ used in its own filing for eighty years without knowing what it meant.
 
 | door | | reads | after its page |
 |---|---|---|---|
-| **F−4** | P | `THE LAST DOOR OPENS WHEN YOU ARE READY` **(page)** | `THE LAST DOOR HOLDS SOMETHING WEARING YOUR FACE` |
+| **F−4** | P | `THE LAST DOOR OPENS WHEN YOU ARE READY` **(page)** | `THE LAST DOOR OPENS WHEN YOU ARE COPIED` |
 | **F−2** | S | *i died behind the last door* | — |
 | **F** | P | `HOLD STILL AND TIME WILL SLOW FOR YOU` **(page)** | `HOLD PERFECTLY STILL AND TIME WILL STOP` |
 
@@ -354,3 +373,8 @@ lands (§5), so the ramp can be retuned without touching a line of it.
 - **Five more logs.**
 - **Does the rewritten wall need the false word visible?** Struck through
   keeps the drama and doubles the text on a phone screen.
+- **Three lines were tightened.** §3.2 says the programme can only jam
+  individual words, so a rewrite is a real sentence with one or two wrong.
+  Three of the ten replaced most of the sentence; they now keep six or seven
+  words of it, and all ten keep a majority. `test/story.mjs` prints both
+  versions of every one, and `src/story.js` records what each used to say.

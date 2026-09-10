@@ -146,7 +146,11 @@ const hand = await page.evaluate(async () => {
   t.game.spawnQueue.length = 0;
   const L = t.hall().legs[t.hall().cur];
   const end = L.spine[L.spine.length - 1];
-  const from = L.spine[Math.max(0, L.spine.length - 6)];
+  // FOUR CELLS OUT, not six. The hand-off waits for the sign to be readable
+  // rather than merely drawn, and at six cells it is still a smudge — which
+  // is the whole point of SIGN_READ_PX and is what `waydoor` measures at
+  // twenty metres from the door.
+  const from = L.spine[Math.max(0, L.spine.length - 4)];
   const face = () => {
     const dx = (end[0] - from[0]) * C, dz = (end[1] - from[1]) * C;
     if (dx || dz) t.player.yaw = Math.atan2(-dx, -dz);
@@ -168,29 +172,32 @@ const hand = await page.evaluate(async () => {
   t.rebuildSigns();                    // clears the per-leg latch
   await frames(20);
   const before = { needle: t.way().on, seen: t.tutor().signSeen,
-    sign: t.signs().onScreen };
+    sign: t.signs().onScreen, px: t.signs().px };
 
   // (b) look up: the sign comes into frame and the needle stands down
   t.player.pitch = 0;
   await frames(30);
   const after = { needle: t.way().on, seen: t.tutor().signSeen,
-    sign: t.signs().onScreen };
+    sign: t.signs().onScreen, px: t.signs().px, readPx: t.signs().readPx };
 
   // (c) turn around: a sign behind you answers nothing, so the needle is back
   t.player.yaw += Math.PI;
   await frames(40);
   const back = { needle: t.way().on, seen: t.tutor().signSeen,
-    sign: t.signs().onScreen };
+    sign: t.signs().onScreen, px: t.signs().px };
   t.player.pitch = 0; face();
   return { before, after, back };
 });
-const fmt = (o) => `needle=${o.needle} sign=${o.sign} seen=${o.seen}`;
+const fmt = (o) => `needle=${o.needle} sign=${o.sign} seen=${o.seen} ${o.px}px`;
 console.log(`  sign unread   ${fmt(hand.before)}`);
 console.log(`  sign in frame ${fmt(hand.after)}`);
 console.log(`  back turned   ${fmt(hand.back)}`);
 if (!hand.before.needle) bad('the needle is not carrying the corridor before the sign is read');
 if (hand.before.sign) bad('the probe never got the sign off screen, so nothing was tested');
 if (!hand.after.sign) bad('the sign did not come into frame');
+if (hand.after.px < hand.after.readPx) {
+  bad(`the sign is only ${hand.after.px}px — under the ${hand.after.readPx}px hand-off, so nothing was tested`);
+}
 if (hand.after.needle) bad('the needle did not retire for the sign');
 if (!hand.back.needle) bad('turning your back left you with neither mark');
 

@@ -114,4 +114,109 @@ for (const b of STORY_BEATS) {
 }
 console.log(`  registers: ${Object.entries(byReg).map(([k, n]) => `${k} ${n}`).join(' · ')}`);
 
+// ---- placement, across the ramps the game might actually ship with -------
+//
+// The whole point of §5 is that no line owns a door: the script re-spaces
+// itself when the difficulty ramp is retuned. The unlock could come down from
+// door 46 to 15, so this walks a spread of ramps and checks the shape holds
+// on every one of them.
+import { SPEED, unlockDoor, finaleDoor, speedAt } from '../src/balance.js';
+import { storyDoors, STORY_PACE } from '../src/story.js';
+
+console.log('');
+console.log('  ramp             U    F  speed@F  placed   cut');
+const RAMPS = [
+  ['shipped', {}],
+  ['stepM 0.6', { stepM: 0.6 }],
+  ['stepM 1.0', { stepM: 1.0 }],
+  ['stepM 1.44', { stepM: 1.44 }],
+  ['stepM 2.4', { stepM: 2.4 }],
+  ['stepDoors 2', { stepDoors: 2 }],
+  ['school 4', { stepM: 1.44, schoolDoors: 4 }],
+];
+for (const [label, over] of RAMPS) {
+  const S = { ...SPEED, ...over };
+  const U = unlockDoor(S), F = finaleDoor(S);
+  const m = storyDoors({ unlock: U, finale: F, schoolDoors: S.schoolDoors });
+  console.log(`  ${label.padEnd(15)}${String(U).padStart(3)} ${String(F).padStart(4)}` +
+    `   ${speedAt(F, S).toFixed(1).padStart(5)}    ${String(m.beats.length).padStart(2)}/25   ` +
+    (m.cut.length ? m.cut.map((x) => x.id).join(',') : 'none'));
+
+  // THE ORDER IS THE THING TO PROTECT (§5.3). A line out of sequence is worse
+  // than a line missing: the reveal about being the ninth subject arriving
+  // after Hale says he was the eighth is the story told backwards.
+  for (let i = 1; i < m.beats.length; i++) {
+    if (m.beats[i].door <= m.beats[i - 1].door) {
+      fail(`${label}: ${m.beats[i].id} on door ${m.beats[i].door} is not after ` +
+        `${m.beats[i - 1].id} on ${m.beats[i - 1].door}`);
+      break;
+    }
+  }
+  // ...and the ordered list stays ordered: what is placed must be a
+  // subsequence of the script, never a reshuffle.
+  const script = STORY_BEATS.map((b) => b.id);
+  let at = -1;
+  for (const b of m.beats) {
+    const ix = script.indexOf(b.id);
+    if (ix <= at) { fail(`${label}: ${b.id} is out of script order`); break; }
+    at = ix;
+  }
+
+  // The two anchored beats land exactly on their anchors — §5.2. The
+  // engineers identify themselves on the door the power arrives on, and the
+  // win condition is on the last door.
+  const onUnlock = m.beats.find((b) => b.at === 'unlock');
+  const onFinale = m.beats.find((b) => b.at === 'finale');
+  if (!onUnlock || onUnlock.door !== U) {
+    fail(`${label}: the engineers' line is on ${onUnlock && onUnlock.door}, not the unlock door ${U}`);
+  }
+  if (!onFinale || onFinale.door !== F) {
+    fail(`${label}: the win condition is on ${onFinale && onFinale.door}, not the last door ${F}`);
+  }
+  // The closing act owns the last few doors and nothing else is in there.
+  const tailFrom = F - STORY_PACE.tailDoors;
+  const inTail = m.beats.filter((b) => b.door >= tailFrom);
+  if (inTail.some((b) => b.act !== 'copy')) {
+    fail(`${label}: ${inTail.filter((b) => b.act !== 'copy').map((b) => b.id).join(',')} ` +
+      `is inside the closing stretch`);
+  }
+  // Nothing lands past the last door, or before the first.
+  for (const b of m.beats) {
+    if (b.door < 1 || b.door > F) fail(`${label}: ${b.id} is on door ${b.door}`);
+  }
+  // A cut beat is cut, not silently placed somewhere.
+  for (const c of m.cut) {
+    if (m.beats.some((b) => b.id === c.id)) fail(`${label}: ${c.id} is both cut and placed`);
+  }
+  if (m.beats.length + m.cut.length !== 25) {
+    fail(`${label}: ${m.beats.length} placed + ${m.cut.length} cut is not 25`);
+  }
+}
+
+// The shipped ramp has to carry the whole script. If it cannot, the script is
+// too long for the game rather than the game too short for the script.
+const now = storyDoors({ unlock: unlockDoor(), finale: finaleDoor(),
+  schoolDoors: SPEED.schoolDoors });
+if (now.cut.length) fail(`the shipped ramp cuts ${now.cut.length} beats`);
+
+// ---- the decode log ------------------------------------------------------
+// Both versions of every line that turns over, with how much of the sentence
+// survives. The goal is a majority kept — the player should recognise the
+// sentence they read before — without it being a rule that blocks a line
+// whose meaning has to change.
+console.log('');
+console.log('  beat        kept  reads → after its page');
+const words = (t) => new Set(t.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean));
+let majority = 0;
+for (const b of storyPages()) {
+  const a = words(b.text), c = words(b.after);
+  let k = 0;
+  for (const x of a) if (c.has(x)) k++;
+  if (k / a.size >= 0.5) majority++;
+  console.log(`  ${b.id.padEnd(11)} ${String(k) + '/' + a.size}   ${b.text}`);
+  console.log(`  ${' '.repeat(11)}      → ${b.after}${b.was ? '   (was: ' + b.was + ')' : ''}`);
+}
+console.log(`  ${majority} of ${storyPages().length} keep a majority of the sentence`);
+if (majority < 9) fail(`only ${majority} of 10 rewrites keep a majority`);
+
 console.log(`errors: ${bad}`);

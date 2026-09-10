@@ -111,6 +111,33 @@ export const SPEED = {
   unlockM: 13,
   schoolDoors: 10,     // ...and the staircase holds there for this many doors
                        // while slow time is taught. See SCHOOL.
+  // WHERE THE LAST DOOR IS. Not a door number either — the same shape as
+  // `unlockM` above, and for the same reason: pinned to an integer it breaks
+  // the moment somebody drags a tread, and the story is spaced against it.
+  //
+  // 18 m/s. The staircase resumes at 13 after the school and tops out at
+  // `capM` on door 98, which is far past where anybody plays; 18 is the point
+  // where a round crosses a sixteen-metre room in under a second and reading
+  // it stops being enough on its own. Lands on door 80 with the shipped ramp,
+  // which leaves acts 4 and 5 the room docs/SCRIPT.md §6 illustrates.
+  //
+  // It moves with the ramp, which is the point: a retune that puts the power
+  // on door 15 puts the last door on 28, and the script re-spaces itself
+  // between them without an edit.
+  finaleM: 18,
+  // ...AND NEVER CLOSER THAN THIS MANY DOORS PAST THE SCHOOL. A speed alone
+  // is not enough, and the reason only shows up on a steep ramp: with a tall
+  // tread the staircase crosses 13 → 18 m/s in three doors, so the last door
+  // lands three doors after slow time is taught and the entire back half of
+  // the story has nowhere to go. Measured at `stepM` 1.44 — where the power
+  // arrives on door 15 — the middle act lost all five of its lines, and
+  // neither a shorter school nor a higher `finaleM` recovered them, because
+  // both move the last door as well.
+  //
+  // Twelve, because that is what the back half needs: five beats at the
+  // one-per-door floor, two doors of clearance, and the four the closing act
+  // owns. See STORY_PACE in src/story.js, which is where those come from.
+  finaleFloor: 12,
   capM: 21.6,          // hard ceiling. Superhot runs 19-34 m/s while you move;
                        // we deliberately do NOT match that. The power fantasy
                        // depends on rounds you can still read.
@@ -157,6 +184,36 @@ export function unlockDoor(S = SPEED) {
   const den = Math.round(v.stepM * 1e6);
   const treads = Math.max(1, Math.ceil(num / den));
   return first + (treads - 1) * v.stepDoors;
+}
+
+// WHERE THE LAST DOOR IS, solved the same way the unlock is: the first door
+// the staircase reaches `finaleM` on. Past the school the staircase climbs
+// from `unlockM` again, so this counts treads from the far side of the
+// plateau rather than from the opening doors.
+//
+// Integer arithmetic for the same reason `unlockDoor` uses it — see the note
+// there. `(18 - 13) / 0.2` is 25.000000000000004 in floats, which ceils one
+// tread too high and answers with a door the staircase has not reached the
+// speed on.
+export function finaleDoor(S = SPEED) {
+  const v = dials(S);
+  const gate = unlockDoor(S);
+  const plateau = Math.max(v.schoolDoors, v.stepDoors);
+  // A finale at or below the unlock speed is not a finale; hold it one tread
+  // above, the same clamp `unlockM` gets against `holdM`.
+  const want = Math.max(v.unlockM + v.stepM, +S.finaleM || v.unlockM + v.stepM);
+  // ...and never past the ceiling: a threshold above `capM` is unreachable,
+  // which would put the last door at infinity and the ending out of the game.
+  const capped = Math.min(want, v.capM);
+  const num = Math.round((capped - v.unlockM) * 1e6);
+  const den = Math.round(v.stepM * 1e6);
+  const treads = Math.max(1, Math.ceil(num / den));
+  const bySpeed = gate + plateau + (treads - 1) * v.stepDoors;
+  // The floor, and it only ever pushes the door OUT. On the shipped ramp the
+  // speed answer is thirty-four doors past the school and the floor never
+  // binds; on a steep one it is what keeps the ending far enough away to have
+  // an ending in it.
+  return Math.max(bySpeed, gate + plateau + Math.max(0, S.finaleFloor | 0));
 }
 
 // Enemy bullet speed in m/s on door `d`. The only reader of SPEED.

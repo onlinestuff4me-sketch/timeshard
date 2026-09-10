@@ -497,6 +497,8 @@ wayLookN         : 4
 wayEase          : 7
 wayDoneM         : 10
 waySettleS       : 0.7
+wayBackDeg       : 135
+wayBackOffDeg    : 105
 ```
 
 ### The condition tax

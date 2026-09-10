@@ -88,62 +88,102 @@ still says it. `legPromises()` already knew the difference.
 every probe and is not free, so it stays on this list rather than in this
 commit.
 
-**Noticed while measuring, not changed.** On a cleared run corridor the
-way-out needle points at the same door `EXIT` names. They are sequential
-rather than simultaneous — the needle is legible at nine cells where the sign
-is not, and the sign takes over as it becomes readable — but for the last few
-metres both are on screen saying the same thing. The machinery to hand over
-already exists (`tutorSignSeen` retires the needle once the sign is in frame)
-and is currently dead outside the lesson. Reviving it is a pacing decision,
-not a tidy-up.
+**The hand-off, revived.** The needle carries the corridor while the door is a
+red rectangle in the distance and retires once `EXIT` above it is readable —
+both answer "which way now", and the one written on the building names the
+place instead of pointing at it. Only that branch: a player who has turned
+their back cannot read a sign behind them, so the needle still answers there.
 
-### Phase 2 · The ordered list, placed — **the script is data; placement is not**
+**Drawn is not read**, and that distinction cost a probe. The first version
+handed over the instant the sign was projected, which at forty metres is a few
+pixels — `waydoor` walks a real leg at door 12 and reported the needle never
+appearing at all, because the sign was technically on screen for the whole
+walk. `SIGN_READ_PX` is 26 against a 44 px ceiling, so the hand-off happens
+around twenty metres out. Measured after: the needle is up for 37 frames of
+that walk and retires 20.5 m from the door, where it used to run to 10.2 m.
 
-**Done: `src/story.js`.** All twenty-five lines, in order, with voice, the ten
-rewrites, and the two anchored beats. Not one door number in the file — §5's
-whole point, and `test/story.mjs` asserts it, along with the per-act counts,
-that only the programme decodes, and that every line fits three rows on a
-phone.
+The latch moved with it. `tutorSignSeen` was cleared once per run, which was
+fine while it gated a lesson that happens once and wrong the moment it started
+retiring the run's needle — one sign read on the first leg would have kept the
+needle off for fifty doors. It belongs to the leg now.
 
-**Not done: the placement.** Writing the arithmetic turned up three things the
-documents do not settle, and guessing any of them produces a script that is
-silently in the wrong place.
+### Phase 2 · The ordered list, placed — **arithmetic built, one anchor wrong**
 
-1. **§5.1's spans account for 20 of the 25 beats.** The table gives acts 1–2
-   eleven beats over door 1 → U, act 3 one beat *on* U, act 4 five, act 5
-   three. That is 20. §6's act 3 has **six** lines, five of which sit before U
-   and appear in no span. §5.3's worked illustration (`U = 46` → "every 4
-   doors") matches eleven beats over 46 doors, not sixteen — so the two
-   sections disagree about how crowded the run-up to the unlock is.
+**The script is data.** `src/story.js` holds all twenty-five lines in order,
+with voice, the ten rewrites and the two anchored beats. No door numbers.
 
-2. **How F derives.** Q-A says derive it like U, and U is a *speed*: the door
-   where the bullet-speed staircase first reaches `unlockM`. The shape is
-   settled; the threshold is not. There is no finale in the build to measure
-   against.
+**The last door exists.** `finaleDoor()` in `balance.js`, the same shape as
+`unlockDoor()`: the first door the speed staircase reaches `finaleM` (18 m/s)
+on. Door 80 on the shipped ramp, and it moves with a retune. It carries a
+floor as well as a speed — `finaleFloor`, twelve doors past the school —
+because on a steep ramp the staircase crosses 13 → 18 m/s in three doors, and
+measured at `stepM` 1.44 the entire middle act lost all five of its lines with
+nowhere to go. Neither a shorter school nor a higher threshold recovered them;
+both move the last door too.
 
-3. **Where on a leg a line sits.** `EXIT` is at the door. §6 says the authored
-   lines are "between them", so a story line is not on a door — but "between"
-   is a stretch of corridor, not a place. The two readings are materially
-   different: at the leg's **mouth**, where it replaces the headline card the
-   player used to get on crossing, or at its **last corner**, read on the way
-   out with the door already in view.
+**The spacing works.** `storyDoors({ unlock, finale, schoolDoors })` drips the
+beats between the anchors, cuts rather than crowds when a span is too short
+(`SCRIPT.md` §5.3), and every knob is in one `STORY_PACE` object because the
+ramp is going to move. `test/story.mjs` walks seven ramps and checks the shape
+holds on all of them: strictly increasing doors, the placed beats a
+subsequence of the script, the engineers' line exactly on the unlock, the win
+condition exactly on the last door, nothing but the closing act inside the
+last four doors.
 
-**Also found, and it is a writing question rather than a build one.** §3.2
-says the programme "can only jam individual words", so a rewritten line is
-"a real sentence with one or two words wrong" sharing the true version's
-skeleton. Three of the ten replace more than half of it:
-
-| beat | reads | after its page | kept |
+| ramp | slow time | last door | placed |
 |---|---|---|---|
-| `anomaly4` | `THIS CHANNEL IS MONITORED FOR YOUR SAFETY` | `…IS WRITTEN OVER BY THE PROGRAMME` | 3/7 |
-| `watchers4` | `YOU WILL BE SENT HOME WHEN YOU FINISH` | `NO ONE HAS EVER BEEN SENT HOME` | 2/7 |
-| `copy1` | `THE LAST DOOR OPENS WHEN YOU ARE READY` | `…HOLDS SOMETHING WEARING YOUR FACE` | 3/8 |
+| shipped | 46 | 80 | 25 / 25 |
+| `stepM` 0.6 | 22 | 44 | 25 / 25 |
+| `stepM` 1.0 | 18 | 40 | 25 / 25 |
+| `stepM` 1.44 | 15 | 37 | 23 / 25 |
+| `stepM` 2.4 | 13 | 35 | 21 / 25 |
 
-`test/story.mjs` reports these rather than failing them — they are the
-document's own lines — and fails only a rewrite that shares nothing at all,
-which would be a redraft rather than a jam.
+**The rewrites are tightened**, per the answer to log both versions and keep
+as many words as possible while the meaning still turns over. Three lines were
+redrafts; all ten now keep a majority of the sentence, and the probe prints
+the before, the after, and what each one used to say.
 
-### Phase 3 · The two registers, past the tutorial
+| beat | kept | was |
+|---|---|---|
+| `anomaly4` | 6/7 | 3/7 — `THIS CHANNEL IS WRITTEN OVER BY THE PROGRAMME` |
+| `watchers4` | 6/7 | 2/7 — `NO ONE HAS EVER BEEN SENT HOME` |
+| `copy1` | 7/8 | 3/8 — `THE LAST DOOR HOLDS SOMETHING WEARING YOUR FACE` |
+
+#### What is still wrong, and it is the anchor
+
+**`SCRIPT.md` §5.1 defines U as "where slow time arrives". Slow time arrives
+on door 10.**
+
+There are two unlock doors in this build and the story is spaced against the
+wrong one:
+
+| | | |
+|---|---|---|
+| `powerUnlockDoor()` | **10** | where the time button is actually handed over — derived from the first door that fields a group too big to sidestep |
+| `unlockDoor(SPEED)` | **46** | where rounds get genuinely fast; the speed staircase's own landmark, and where it levels off |
+
+`BALANCE.md` records the move: the power used to be on 46 and was brought
+forward deliberately, because *"what a player cannot answer with a sidestep is
+not one fast round — it is three rounds at once, and that arrives forty doors
+earlier."* Every illustration in `SCRIPT.md` §5.3 assumes 46.
+
+Against the door slow time really arrives on, the script does not fit:
+
+```
+U=10   1:test1 2:test3 3:test5 4:others1 5:others3 6:others4
+       7:anomaly1 8:anomaly3 9:anomaly5 10:anomaly6
+       30:watchers1 41:watchers2 52:watchers3 63:watchers4 74:watchers5
+       76:copy1 78:copy2 80:copy3          18 of 25 — seven cut
+```
+
+Seventeen beats want the nine doors before the power arrives, so seven are
+cut, and the five that survive to the back half are spread eleven doors apart
+across a sixty-door desert. §5.2's best beat still works — the engineers name
+themselves on the door the ability changes — but two thirds of act 1 and 2 are
+gone and the middle of the game is empty.
+
+This is a decision, not a bug. Three shapes, and the machinery evaluates all
+of them because `storyDoors` takes the anchors as plain numbers.### Phase 3 · The two registers, past the tutorial
 
 Already true in the onboarding and mostly free here: the programme is
 stencilled floating signage, Hale is paint on the masonry. This phase is

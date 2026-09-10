@@ -8685,6 +8685,17 @@ const SIGN_W = 3.0;
 // overlapped into one unreadable block.
 const SIGN_H = HALL.h - 0.45;
 const SIGN_MAX_PX = 44;   // a sign in a corridor, not a billboard
+// WHEN IT IS BIG ENOUGH TO HAND THE CORRIDOR OVER TO. The needle retires for
+// the sign, and "on screen" is not the test: a sign forty metres away is a
+// few pixels wide and drawn, which took the mark away and left the player
+// with a word they could not read. Measured on a real leg — `waydoor` walks
+// one at door 12 and reported the needle never appearing at all.
+//
+// 26 px against a 44 px ceiling: past halfway to full size, which is about
+// six cells out, and by then it is a word rather than a smudge. Below it the
+// sign is still drawn — it should grow as you approach — the needle just
+// keeps doing its job until it means something.
+const SIGN_READ_PX = 26;
 // A T's back wall is the corridor's width, and a signpost is painted across it.
 const SIGN_POST_W = HALL.cell * 1.5;
 let tutorSigns = [];      // [{ at, text }] for the current leg, in path order
@@ -9311,10 +9322,9 @@ function tutorPlaceSign() {
   n.style.fontSize = `${px}px`;
   n.style.visibility = '';
   n.classList.add('show');
-  // Same latch as `tutorPlaceWorldCue` sets, for the same reason and with the
-  // same caveat: it used to be where the needle's job ended, and the
-  // onboarding no longer runs a needle for it to end.
-  tutorSignSeen = true;
+  // ...AND THIS IS WHERE THE NEEDLE'S JOB ENDS — but only once the sign is
+  // big enough to be one. See SIGN_READ_PX: drawn is not read.
+  if (px >= SIGN_READ_PX) tutorSignSeen = true;
   const half = (n.offsetWidth || 200) / 2 + 6;
   const want = (_vSignEye.x * 0.5 + 0.5) * w;
   n.style.left = `${Math.max(half, Math.min(w - half, want))}px`;
@@ -14634,6 +14644,11 @@ window.__ts = {
       return g ? (g.text || (g.halves || []).join(' | ')) : null;
     })(),
     onScreen: el.tsign ? el.tsign.classList.contains('show') : false,
+    // HOW BIG IT IS DRAWN, which is what decides whether the needle hands the
+    // corridor over. "On screen" and "readable" are different questions and
+    // the difference is about ten metres — see SIGN_READ_PX.
+    px: el.tsign ? Math.round(parseFloat(getComputedStyle(el.tsign).fontSize) || 0) : 0,
+    readPx: SIGN_READ_PX,
     post: el.tsign ? el.tsign.classList.contains('post') : false,
     paint: paintMeshes.length,
     paintAt: paintMeshes.map((m) => ({
