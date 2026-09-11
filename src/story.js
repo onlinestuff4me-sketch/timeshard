@@ -270,6 +270,25 @@ export function storyDoors({ unlock, finale, schoolDoors = 0 } = {}) {
   return { unlock: U, finale: F, beats: placed, cut };
 }
 
+// THE EARLIEST UNLOCK DOOR THE WHOLE SCRIPT FITS BEFORE.
+//
+// Every beat ahead of the anchored one wants a door of its own at the floor
+// in STORY_PACE, so this is simply how many of them there are, plus the
+// anchor's own door. Computed rather than written down, because the answer
+// changes the moment a line is added to or cut from acts 1 to 3.
+//
+// WHY IT MATTERS RIGHT NOW. The difficulty ramp is being reworked in another
+// session so that rounds get fast ON the door the time button arrives, rather
+// than thirty-six doors later — today `powerUnlockDoor()` is 10 and
+// `unlockDoor(SPEED)` is 46, and they are meant to become one number. If that
+// number lands below this one, the script does not fit in front of it and the
+// fix is to cut beats from the early acts rather than to crowd them
+// (docs/SCRIPT.md §5.3). See docs/ROADMAP.md.
+export function storyMinUnlock() {
+  const before = STORY_BEATS.findIndex((b) => b.at === 'unlock');
+  return before * STORY_PACE.minGap + 1;
+}
+
 // A count check that lives with the data rather than in a comment, because
 // the script is transcribed from a document and a dropped line is silent.
 export const STORY_SHAPE = {

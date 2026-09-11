@@ -4,6 +4,7 @@
 //
 //   node tools/gen-balance-doc.mjs
 //
+import { storyMinUnlock } from '../src/story.js';
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -385,6 +386,13 @@ if (prelude) {
   // not be regenerated at all. Solve it rather than excuse it: an
   // <!--door-ok--> here would switch off checking for a checkable number.
   ok.add(capDoor);
+  // ...AND THE DOOR THE STORY NEEDS THE UNLOCK TO BE AT OR PAST. The prelude
+  // now carries a handoff to the ramp work: the twenty-five wall lines are
+  // spaced against the unlock door and sixteen of them sit in front of it, so
+  // there is a floor. That floor is derived from the script — cut a line from
+  // the early acts and it drops — which makes it exactly the kind of number
+  // this guard exists to allow: solved, never typed.
+  ok.add(storyMinUnlock());
   const bad = [];
   // A CHARACTER WINDOW, NOT A LINE. The first version of this check tested
   // each LINE for the words unlock/school/power and then for a door number,

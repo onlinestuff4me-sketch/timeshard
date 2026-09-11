@@ -175,6 +175,20 @@ treads of 0.2 from 5.8 — because that is still the door bullets get genuinely
 fast on, and the staircase levels off there. The two are separate questions now
 and each has its own answer. `/tool` → **RAMP** prints both.
 
+> **Open: the two should become one.** Handing over the time button on door 10
+> and making rounds fast on door 46 is the mitigation arriving thirty-six doors
+> before the problem. The button is the answer to a round you cannot walk out
+> of, so the speed should reach `unlockM` on the door the button arrives —
+> which means bringing `stepM` up, `unlockM` down, or both.
+>
+> **The story is spaced against the unlock door, and needs door 17 or later** to
+> carry all twenty-five wall lines: sixteen of them sit before it and each
+> wants a door of its own. `storyMinUnlock()` in `src/story.js` computes the
+> requirement and `test/story.mjs` prints it on every run, so it stays true if
+> the script is edited. Below 17 the script cuts beats rather than crowding
+> them — at door 10 it loses seven, including both of act 1's decoding lines.
+> See `docs/ROADMAP.md` phase 2.
+
 **The opening, one new thing at a time.** The power is the FIRST new thing after
 the tutorial, and it gets its door to itself (`EARLY.gunnerOnlyDoors` is 6):
 

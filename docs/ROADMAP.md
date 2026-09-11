@@ -149,41 +149,47 @@ the before, the after, and what each one used to say.
 | `watchers4` | 6/7 | 2/7 — `NO ONE HAS EVER BEEN SENT HOME` |
 | `copy1` | 7/8 | 3/8 — `THE LAST DOOR HOLDS SOMETHING WEARING YOUR FACE` |
 
-#### What is still wrong, and it is the anchor
+#### The anchor, and what it is waiting on
 
-**`SCRIPT.md` §5.1 defines U as "where slow time arrives". Slow time arrives
-on door 10.**
-
-There are two unlock doors in this build and the story is spaced against the
-wrong one:
+**`SCRIPT.md` §5.1 anchors the story to "where slow time arrives". There are
+two doors that could mean, and they are 36 apart:**
 
 | | | |
 |---|---|---|
-| `powerUnlockDoor()` | **10** | where the time button is actually handed over — derived from the first door that fields a group too big to sidestep |
-| `unlockDoor(SPEED)` | **46** | where rounds get genuinely fast; the speed staircase's own landmark, and where it levels off |
+| `powerUnlockDoor()` | **10** | where the time button is handed over — derived from the first door that fields a group too big to sidestep |
+| `unlockDoor(SPEED)` | **46** | where rounds get genuinely fast; the speed staircase's own landmark |
 
-`BALANCE.md` records the move: the power used to be on 46 and was brought
-forward deliberately, because *"what a player cannot answer with a sidestep is
-not one fast round — it is three rounds at once, and that arrives forty doors
-earlier."* Every illustration in `SCRIPT.md` §5.3 assumes 46.
+**This is being fixed in the balance session, not here.** Rounds should get
+fast *on* the door the time button arrives, because the button is the answer
+to fast rounds — handing over the mitigation thirty-six doors before the
+problem is backwards. The two numbers become one.
 
-Against the door slow time really arrives on, the script does not fit:
+**What the story needs from that work: the unlock door at 17 or later.**
 
-```
-U=10   1:test1 2:test3 3:test5 4:others1 5:others3 6:others4
-       7:anomaly1 8:anomaly3 9:anomaly5 10:anomaly6
-       30:watchers1 41:watchers2 52:watchers3 63:watchers4 74:watchers5
-       76:copy1 78:copy2 80:copy3          18 of 25 — seven cut
-```
+Sixteen beats sit ahead of the anchored one and each wants a door of its own
+at the one-per-door floor, so `storyMinUnlock()` computes 17 and
+`test/story.mjs` prints it every run. It is derived, not typed — cut a line
+from acts 1–3 and the requirement drops with it.
 
-Seventeen beats want the nine doors before the power arrives, so seven are
-cut, and the five that survive to the back half are spread eleven doors apart
-across a sixty-door desert. §5.2's best beat still works — the engineers name
-themselves on the door the ability changes — but two thirds of act 1 and 2 are
-gone and the middle of the game is empty.
+| unlock door | script |
+|---|---|
+| 10 (today's button) | 18 / 25 — seven cut |
+| **17** | **25 / 25** |
+| 46 (today's speed) | 25 / 25 |
 
-This is a decision, not a bug. Three shapes, and the machinery evaluates all
-of them because `storyDoors` takes the anchors as plain numbers.### Phase 3 · The two registers, past the tutorial
+If the ramp settles below 17, the script is what gives: `SCRIPT.md` §5.3 is
+explicit that the fix is to cut beats rather than crowd them, and
+`storyDoors()` already does exactly that and reports what it dropped. At door
+10 it would lose `test2`, `test4`, `test6`, `others2`, `others5`, `anomaly2`
+and `anomaly4` — which includes both of act 1's rewrites, so the first time a
+wall turns over would move from act 1 to act 2.
+
+**Placement is not wired to a leg yet, and should not be until that number
+settles** — wiring it now wires it to a door that is about to move. Everything
+else is ready: `storyDoors` takes the anchors as plain numbers, so the day the
+ramp lands this is one call.
+
+### Phase 3 · The two registers, past the tutorial
 
 Already true in the onboarding and mostly free here: the programme is
 stencilled floating signage, Hale is paint on the masonry. This phase is

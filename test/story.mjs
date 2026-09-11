@@ -121,7 +121,7 @@ console.log(`  registers: ${Object.entries(byReg).map(([k, n]) => `${k} ${n}`).j
 // door 46 to 15, so this walks a spread of ramps and checks the shape holds
 // on every one of them.
 import { SPEED, unlockDoor, finaleDoor, speedAt } from '../src/balance.js';
-import { storyDoors, STORY_PACE } from '../src/story.js';
+import { storyDoors, STORY_PACE, storyMinUnlock } from '../src/story.js';
 
 console.log('');
 console.log('  ramp             U    F  speed@F  placed   cut');
@@ -198,6 +198,38 @@ for (const [label, over] of RAMPS) {
 const now = storyDoors({ unlock: unlockDoor(), finale: finaleDoor(),
   schoolDoors: SPEED.schoolDoors });
 if (now.cut.length) fail(`the shipped ramp cuts ${now.cut.length} beats`);
+
+// ---- what the script needs from the difficulty ramp -----------------------
+//
+// §5.1 anchors the story to "where slow time arrives". There are two unlock
+// doors in the build and they are meant to become one: `powerUnlockDoor()` is
+// where the time button is handed over, `unlockDoor(SPEED)` is where rounds
+// get fast, and the ramp is being reworked in another session so that rounds
+// get fast ON the door the button arrives rather than thirty-six doors later.
+//
+// Reported rather than asserted, because the ramp is mid-revision and a red
+// probe here would be this session failing another session's work in
+// progress. The number is what matters: it is what the story needs.
+import { powerUnlockDoor } from '../src/balance.js';
+const need = storyMinUnlock();
+const power = powerUnlockDoor();
+const F2 = finaleDoor();
+const live = storyDoors({ unlock: power, finale: F2, schoolDoors: SPEED.schoolDoors });
+console.log('');
+console.log(`  the script needs the unlock door at ${need} or later for all 25 beats`);
+console.log(`  today: time button on ${power} · rounds get fast on ${unlockDoor()} · last door ${F2}`);
+console.log(`  against the door the button actually arrives on: ` +
+  `${live.beats.length}/25 placed, ${live.cut.length} cut`);
+if (live.cut.length) console.log(`    would lose: ${live.cut.map((x) => x.id).join(', ')}`);
+// What IS asserted: the requirement is reachable at all, and the machinery
+// still produces a sane script at the tightest anchor the game could hand it.
+if (need > 40) fail(`the script needs door ${need}, which no sane ramp will reach`);
+for (let i = 1; i < live.beats.length; i++) {
+  if (live.beats[i].door <= live.beats[i - 1].door) {
+    fail(`at the live anchor the script falls out of order at ${live.beats[i].id}`);
+    break;
+  }
+}
 
 // ---- the decode log ------------------------------------------------------
 // Both versions of every line that turns over, with how much of the sentence
