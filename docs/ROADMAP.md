@@ -189,6 +189,63 @@ settles** — wiring it now wires it to a door that is about to move. Everything
 else is ready: `storyDoors` takes the anchors as plain numbers, so the day the
 ramp lands this is one call.
 
+#### The drip is one arc, not four schedules
+
+The story is one strand of something bigger, and looking at the strands
+together — `tools/arc.mjs`, which prints every new thing a run introduces
+door by door — says something none of them says alone.
+
+**A brand-new player's run:**
+
+```
+  1   corridor · gunner · first wall line
+  2   service run · vault · alcoves · Hale
+  3-6 story only
+  7   rusher
+  9   shotgunner
+ 10   the time button
+ 11-29  ·················· nineteen doors with nothing new at all
+ 30   story
+ 41   story
+ 52   story        (~ten-door gaps to the end)
+```
+
+Everything a first-time player has not seen is spent by **door 10**, and then
+there are **nineteen doors of corridor with nothing in them but faster
+bullets**. That is the shape to fix, and a faster ramp does not fix it — it
+makes the empty stretch arrive sooner and hotter.
+
+**Most of the drip is already specified and not built.** Twenty-eight registry
+rows can be introduced; **ten of them are `impl: false`** — which is precisely
+the material the arc is short of:
+
+| kind | waiting to be built |
+|---|---|
+| form | `GALLERY`, `STAIRWELL`, `SPIRAL` |
+| condition | `FOG`, `BLACKOUT`, `FLOOD`, `DEAD AIR` |
+| measure | `BREACH WALLS`, `GRINDER`, `TURRET` |
+
+They also carry `unlockAt` values from 40 to 260 lifetime doors, so a new
+player would not meet them even once they exist. Both dials — when a thing is
+built and how long a player must have played to meet it — decide what the
+first run feels like, and neither is a story dial.
+
+**A mode break is a new kind.** The registry has `form`, `condition`,
+`measure` and `enemy`. Walking through a door into City Streets — where
+enemies come out of a crowd and shooting a pedestrian kills you — is none of
+those: it is a leg that is a different game. It slots in as a fifth kind with
+the same two keys, which means the arc tool would schedule it alongside
+everything else the moment it exists. The crowd, the sleepers and the mark
+already exist for Rush Hour; the pedestrian rule does not.
+
+**What this changes for the story.** Nothing about the lines, and everything
+about where they go. `storyDoors()` currently spaces the beats against two
+anchors in isolation; if the arc is going to be a designed schedule, a story
+beat should land on a door that has *nothing else* arriving on it, rather than
+competing with a new enemy type for the player's attention — which is the
+one-message rule again, at the scale of a run instead of a screen. That is a
+small change to the spacing and it needs the arc settled first.
+
 ### Phase 3 · The two registers, past the tutorial
 
 Already true in the onboarding and mostly free here: the programme is
