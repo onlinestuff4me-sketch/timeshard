@@ -74,18 +74,66 @@ await page.screenshot({ path: OUT + 'saves-pick.png' });
 // nothing is pre-ticked, and the button says so
 const label0 = await page.$eval('#bulkdel', (n) => n.textContent.trim());
 console.log('with nothing ticked: "' + label0 + '"');
-if (!/SELECT/.test(label0)) bad('the delete button is armed before anything is chosen');
-// tick two and delete
+if (!/PICK RUNS/.test(label0)) bad('the delete button is armed before anything is chosen');
+// tick two
 await page.tap('#slotlist .slot:nth-child(1)'); await page.waitForTimeout(250);
 await page.tap('#slotlist .slot:nth-child(2)'); await page.waitForTimeout(250);
 const label2 = await page.$eval('#bulkdel', (n) => n.textContent.trim());
 console.log('with two ticked:     "' + label2 + '"');
 if (!/2 RUNS/.test(label2)) bad('the button does not count the selection: ' + label2);
-await page.tap('#bulkdel'); await page.waitForTimeout(800);
+
+// ---- ...AND IT ASKS BEFORE IT WIPES THEM --------------------------------
+// Deleting several runs at once is the one irreversible thing on this page,
+// one tap away from a column of checkboxes a thumb has been running down.
+await page.tap('#bulkdel'); await page.waitForTimeout(600);
+const askB = await boxOf(page, '#askBulk');
+const bulkQ = await page.$eval('#bulkq', (n) => n.textContent.trim());
+const bulkYes = await page.$eval('#bulkyes', (n) => n.textContent.trim());
+console.log('confirm: ' + (askB ? 'asks' : 'DID NOT ASK') + '  "' + bulkQ + '"  yes="' + bulkYes + '"');
+if (!askB) bad('a bulk delete wiped runs without asking');
+if (!/2 RUNS/.test(bulkQ)) bad('the question does not say how many: ' + bulkQ);
+if (!/2 RUNS/.test(bulkYes)) bad('the confirm button does not say how many: ' + bulkYes);
+await page.screenshot({ path: OUT + 'saves-bulkask.png' });
+// KEEP THEM changes nothing and comes back to the ticked rows
+await page.tap('#bulkno'); await page.waitForTimeout(500);
+const kept = await page.$$eval('#slotlist .slot', (ns) => ns.length);
+const stillTicked = await page.$eval('#bulkdel', (n) => n.textContent.trim());
+console.log('after KEEP THEM:     ' + kept + ' runs, button "' + stillTicked + '"');
+if (kept !== 6) bad('KEEP THEM deleted something anyway: ' + kept + ' left');
+if (!/2 RUNS/.test(stillTicked)) bad('KEEP THEM lost the selection: ' + stillTicked);
+// ...and now through with it
+await page.tap('#bulkdel'); await page.waitForTimeout(500);
+await page.tap('#bulkyes'); await page.waitForTimeout(800);
 const left = await page.$$eval('#slotlist .slot', (ns) => ns.length);
 console.log('after deleting two:  ' + left + ' runs left');
 if (left !== 4) bad('bulk delete removed ' + (6 - left) + ' runs, not 2');
 if (!(await boxOf(page, '#newsave'))) bad('NEW RUN did not come back once there was room');
+
+// ---- THE WAY IN, FROM THE ORDINARY PAGE ---------------------------------
+// The ticking column used to be reachable only by arriving from a full list,
+// so a player who simply wanted a tidy-up could not find the bulk delete at
+// all — the machinery was all there and had no door.
+const pickBtn = await boxOf(page, '#bulkpick');
+console.log('out of pick mode:    ' + (pickBtn ? 'SELECT RUNS TO DELETE is on the page' : 'NO WAY IN'));
+if (!pickBtn) bad('the runs page offers no way into the checkbox column');
+await page.tap('#bulkpick'); await page.waitForTimeout(500);
+const cks2 = await page.$$eval('#slotlist .sck', (ns) => ns.length);
+console.log('after tapping it:    ' + cks2 + ' checkboxes');
+if (cks2 !== 4) bad('SELECT RUNS TO DELETE did not bring the checkboxes: ' + cks2);
+
+// ---- AND NO PILL WRAPS TO TWO LINES -------------------------------------
+// A button that carries a save's name is a button with up to twenty-four
+// characters in it, and these pills are about a hundred and sixty wide.
+await page.tap('#bulkcancel'); await page.waitForTimeout(400);
+await page.tap('#slotlist .slot:nth-child(1) .del'); await page.waitForTimeout(400);
+const tall = await page.$$eval('#saves .sbtn, #bulkbar > div, #askBulk .pbtn',
+  (ns) => ns.filter((n) => n.offsetParent !== null)
+    .map((n) => ({ t: n.textContent.trim(), h: n.getBoundingClientRect().height,
+      lines: Math.round(n.getBoundingClientRect().height / parseFloat(getComputedStyle(n).lineHeight || 14)) }))
+    .filter((b) => b.lines > 1));
+console.log('pills over one line: ' + JSON.stringify(tall));
+if (tall.length) bad('a button wraps: ' + JSON.stringify(tall));
+await page.screenshot({ path: OUT + 'saves-confirm.png' });
 
 done('saves', errs);
 await browser.close();

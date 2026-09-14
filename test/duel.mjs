@@ -1,5 +1,5 @@
 import { boot, done } from './lib.mjs';
-// CORRIDOR DUEL CAN BE FINISHED.
+// NO RETREAT CAN BE FINISHED.
 //
 // The mode gives the player no forward control on purpose — they come to you,
 // and the corridor carries you on once the door opens. That makes the leg's

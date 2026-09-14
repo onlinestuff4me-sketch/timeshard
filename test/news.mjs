@@ -1,5 +1,5 @@
 import { boot, boxOf, done, OUT } from './lib.mjs';
-// A save deep enough that CORRIDOR DUEL has opened, and nothing has been told
+// A save deep enough that NO RETREAT has opened, and nothing has been told
 // to the player about it yet.
 const SEED = () => { try {
   const now = Date.now();
@@ -50,6 +50,6 @@ console.log('cards  ' + cards.map((c) => c.mode + (c.tag ? '[' + c.tag + ']' : '
 const tunnel = cards.find((c) => c.mode === 'hall');
 if (tunnel && tunnel.tag) bad('THE TUNNEL is wearing a ' + tunnel.tag + ' badge');
 const duel = cards.find((c) => c.mode === 'duel');
-if (!duel || duel.tag !== 'NEW') bad('CORRIDOR DUEL is open and unplayed but not marked NEW');
+if (!duel || duel.tag !== 'NEW') bad('NO RETREAT is open and unplayed but not marked NEW');
 done('news', errs);
 await browser.close();

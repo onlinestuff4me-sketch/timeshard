@@ -1199,6 +1199,9 @@ function setWeapon(type, clips) {
 // you already carry it (capped), and a pistol clip just tops the pistol up.
 function takePickup(type) {
   recordMet([type === CLIP ? 'pistol' : type]);   // ids match the registry's
+  // ...and once they are carrying one, the room stops explaining how. A CLIP
+  // is not what that beat is about.
+  if (type !== CLIP) duel.gotGun = true;
   if (type === CLIP) {
     if (player.weapon === 'pistol') {
       player.clips = Math.min(WEAPONS.pistol.maxClips, player.clips + 1);
@@ -1233,8 +1236,23 @@ function startReload() {
   if (player.reloadT > 0 || spec.mag === Infinity) return;
   if (player.mag >= spec.mag) return;
   if (player.clips <= 0) {
-    if (player.mag <= 0) dropToKnife();
-    return;
+    // THE DUEL HAS NO WAY TO GO AND GET MORE, so running dry there is not a
+    // hard beat, it is a dead end. Everywhere else the knife is a real choice
+    // — it is lethal, and it asks you to close the distance. Here you cannot:
+    // there is no forward control, the drops fall fifteen to twenty-four
+    // metres away on the spine, and the corridor only carries you once the
+    // room is CLEAR, which needs the gun you have just run out of. A player
+    // handed a knife in a strip they cannot cross is holding an unwinnable
+    // room, which is the same shape as the deadlock this mode already had.
+    //
+    // The reload stays — those seconds where all you can do is dodge are the
+    // risk, and they are worth keeping. What is not a resource here is the
+    // RESERVE. See updateReload, which does not spend one, and updateAmmoHud,
+    // which does not count them.
+    if (game.mode !== 'duel') {
+      if (player.mag <= 0) dropToKnife();
+      return;
+    }
   }
   player.reloadT = spec.reload;
   sfx.pickup();
@@ -1251,7 +1269,7 @@ function updateReload(dt) {
   player.reloadT -= dt;
   if (player.reloadT <= 0) {
     player.reloadT = 0;
-    player.clips--;
+    if (game.mode !== 'duel') player.clips--;   // the duel reloads off a belt
     player.mag = spec.mag;
     vibrate(12);
   }
@@ -2944,7 +2962,7 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       // of the player, so it overflows into the next stretch.
       if (ownIx < 0) ownIx = Math.min(here + 1, finLast);
     }
-    // CORRIDOR DUEL HAS ONE PLACE TO COME FROM, AND IT IS THE FAR END.
+    // NO RETREAT HAS ONE PLACE TO COME FROM, AND IT IS THE FAR END.
     //
     // Everything here places a body in the stretch that is PAYING for him,
     // which is right in the tunnel: you walk the leg, so the stretch you are
@@ -3054,7 +3072,7 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     // one that belongs in a fix about where bodies are PLACED. The two were
     // only ever coupled by the bug. They are separate now: `finale` chooses
     // the spawn pool, this chooses how close he may come.
-    if (L.approach && L.approach.length) holdZ = approachZ - C;
+    if (L.approach && L.approach.length) holdZ = duelHold(L, approachZ - C);
     let fbX = 0, fbZ = 0, fbOk = false;
     // A VOLLEY STANDS TOGETHER. In the slow-time school the answer to several
     // men firing at once is to slow time and sweep across them, and that only
@@ -3289,10 +3307,16 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     walkPhase: Math.random() * Math.PI * 2,
     strafe: Math.random() < 0.5 ? 1 : -1,
     strafeT: 1 + Math.random() * 2,
-    fireCd: ((type === 'sniper' ? 1.2 : 0.3) + Math.random() * 1.1) * aimSpeedFactor(),
+    fireCd: (game.mode === 'duel' && type !== 'sniper'
+      ? SIMPLE.duel.openIn[0] + Math.random() * SIMPLE.duel.openIn[1]
+      : (type === 'sniper' ? 1.2 : 0.3) + Math.random() * 1.1) * aimSpeedFactor(),
     engageDist: spec.engage
       ? spec.engage[0] + Math.random() * spec.engage[1]
       : 19 + Math.random() * 6,           // guns come up early — pressure from range
+    // NO RETREAT CAPS THIS FROM THE SECOND ROUND ON, not from the first: a man
+    // opens from wherever he is standing and closes afterwards. See
+    // SIMPLE.duel.engage and duelEngage().
+    opened: false,
     burstLeft: 0,
     burstT: 0,
     tell: 0,                              // fire-telegraph heat, 0..1
@@ -3591,7 +3615,24 @@ function killEnemy(i, impulseDir) {
   // hangs off, and it is not a lever a player can feel before they know what
   // it is costing them — so the lesson hands the ammo back every time and the
   // curve starts at the first real door.
-  if (tutorStep !== null && armed) spawnPickup(e.pos, CLIP);
+  // A TYPE'S DEBUT ROOM LEAVES ITS WEAPON BEHIND. Everywhere else a weapon
+  // drop is a roll, which is the scarcity lever the whole game hangs off — but
+  // a debut room exists to introduce the type, and what it was carrying is
+  // part of meeting it. Leaving it to a roll means the room that teaches the
+  // shotgunner often teaches nothing about shotguns, and the beat that points
+  // at the gun on the floor (duelTeachLoot) has nothing to point at.
+  //
+  // ONE PER ROOM, and only while the player has yet to pick a weapon up at
+  // all. Not once per run: missing the gun is the likeliest outcome the first
+  // time — it may be at the far side of a strip they are being walked down the
+  // middle of — and the beat that points at it is meant to come back at every
+  // cleared room until they are carrying one. It cannot come back if there is
+  // nothing left lying there. Past their first weapon it is ordinary loot
+  // again, and loot is meant to be scarce.
+  const debut = game.mode === 'duel' && kind && !duel.gotGun
+    && duel.debutDrop !== duelRoom() && duelPlan(duelRoom()).cast.includes(e.type);
+  if (debut) { duel.debutDrop = duelRoom(); spawnPickup(e.pos, kind); }
+  else if (tutorStep !== null && armed) spawnPickup(e.pos, CLIP);
   else if (typeof drop === 'string') spawnPickup(e.pos, drop);      // named loot
   else if (kind && r < drop * scarcity('weaponDrop', door) * condTax(cond, 'weaponDrop')) {
     spawnPickup(e.pos, kind);
@@ -3601,6 +3642,7 @@ function killEnemy(i, impulseDir) {
   scene.remove(e.g);
   enemies.splice(i, 1);
   game.kills++;
+  duel.shotHere = true;   // ...and this room has had a body taken out of it
   // ...and the save's lifetime count, run kills only — never the menu's
   // attract fight, which shatters somebody every few seconds forever.
   if (game.state === 'play' || game.state === 'intro' || game.state === 'clear') {
@@ -3626,6 +3668,10 @@ function killEnemy(i, impulseDir) {
 // room holds a single floor: whoever is second waits his turn.
 let lastEnemyShotAt = -1e9;
 let worldT = 0;
+// How many times anybody has pulled a trigger, and the world-seconds between
+// the last sixty of them. See enemyFire.
+let enemyShots = 0;
+const shotGaps = [];
 // Measured in WORLD seconds, not real ones: in bullet time the gap has to
 // stretch with everything else or the stagger collapses the moment you freeze.
 // It is a RAMP now rather than a constant — see shotGap().
@@ -3671,6 +3717,21 @@ function enemyFire(e, toPlayer) {
     return;
   }
   schoolNoteShot();           // ...counted into the volley before the clock moves
+  duelNoteShot();             // ...and the duel's button lesson waits on the first one
+  duelNoteMeet(e);            // ...and a debut stops the world on its first round
+  // THE ROOM'S FIRING, AS THE ROOM SEES IT. Counting BULLETS from outside is
+  // not the same measurement: a shot may be several pellets, and a probe that
+  // scans once a frame reads two shots fired on consecutive frames as one
+  // event. Both errors were live in the fire probe at once, which is how it
+  // reported gaps of `0 0 0 0` — some of those were one shotgun blast and
+  // some were two rounds it never saw apart. The game knows exactly when it
+  // pulled a trigger, so it says so.
+  e.opened = true;   // his first round is away; from here he has to close in
+  duelCloseOpenCard();   // ...and the opening card goes on the first shot
+  enemyShots++;
+  // ...and the first shot of a room has nothing to be a gap from
+  if (lastEnemyShotAt > 0) shotGaps.push(+(worldT - lastEnemyShotAt).toFixed(3));
+  if (shotGaps.length > 60) shotGaps.shift();
   lastEnemyShotAt = worldT;   // the room's shot floor: everyone else waits
   const origin = _v2.set(e.pos.x, 1.35, e.pos.z).addScaledVector(toPlayer, 0.45);
   // shots go where you ARE — if you don't slide out of the way, they connect
@@ -3692,6 +3753,14 @@ function enemyFire(e, toPlayer) {
     // nobody is meant to beat, and a round that merely arrives quickly reads
     // as a skill test the player failed. See tutorPlaceJoker.
     spawnBullet(origin, d, false, (spec.mul || 1) * (e.speedMul || 1));
+  }
+  // THE ROUNDS THE CARD IS ABOUT. `duelNoteMeet` runs above, before a single
+  // pellet exists, so the ring cannot be aimed there — this is where the
+  // blast becomes real and gets handed to the card that is naming it.
+  if (duel.meetOwner === e && duel.meetMark === 'rounds') {
+    for (let k = Math.max(0, bullets.length - (spec.pellets || 1)); k < bullets.length; k++) {
+      duel.meetRounds.push(bullets[k]);
+    }
   }
   muzzleFlash(origin.x, origin.y, origin.z, 0.85);
   sfx.enemyShot();
@@ -3741,7 +3810,10 @@ function setEgunFlash(e, mat) {
 function diffT() {
   const v = game.mode === 'rush'
     ? speedAt(1 + rushT / 25, SPEED, false)
-    : speedAt(game.wave);
+    // ...and the telegraph tightens with whatever staircase this mode is on,
+    // so a mode with its own speeds does not keep the tunnel's reaction times.
+    : game.mode === 'duel' ? duelBulletSpeed(duelRoom())
+      : speedAt(game.wave);
   const span = Math.max(0.01, SPEED.capM - SPEED.openM);
   return Math.min(1, Math.max(0, (v - SPEED.openM) / span));
 }
@@ -3753,7 +3825,11 @@ function diffT() {
 // Everything below is a read of it; nothing here decides anything.
 // ---------------------------------------------------------------------------
 // How many corridors and rooms stand behind one door.
-const doorLegs = (d) => Math.min(OPENING.legsCap, ramp(d, OPENING.legsEvery));
+// HOW MANY CORRIDORS STAND BEHIND ONE DOOR. One, always, in the duel: a room
+// there is a self-contained fight that ends with a door, and splitting a
+// door's plan across two of them is what made the headcount saw-tooth.
+const doorLegs = (d) => (game.mode === 'duel' ? 1
+  : Math.min(OPENING.legsCap, ramp(d, OPENING.legsEvery)));
 // ...how many bodies the WHOLE door holds, across all of them: the sum of its
 // encounters. See OPENING.encounters — a door is a list of GROUPS, not a count.
 const doorBodies = (d) => doorEncounters(d).reduce((a, b) => a + b, 0);
@@ -3765,7 +3841,214 @@ const doorAlive = (d) => Math.max(1, ...doorEncounters(d));
 // HOW ONE DOOR'S ENCOUNTERS ARE SPLIT BETWEEN ITS LEGS. Dealt round-robin from
 // the largest down, so every corridor behind a door gets a mix: one leg does
 // not take all the threes and leave the next a row of singles.
+// WHAT ROOM `d` OF NO RETREAT IS, on all three dials at once.
+//
+// Walked forward from room 1 rather than solved, because the rule IS a walk:
+// one dial moves per room, alternating bodies and fire, and a new type steps
+// the other two back. There is no closed form for that and inventing one
+// would be a second description of the same thing, free to drift from it. It
+// is a dozen iterations of arithmetic on a room number; the caller can afford
+// it. See SIMPLE.duel for the tables and the reasoning.
+function duelPlan(d) {
+  const D = SIMPLE.duel;
+  const room = Math.max(1, d | 0);
+  // How many rooms an entry owns: a combination is a short interlude of
+  // exactly `hold` rooms, anything else is the room it arrives in plus its
+  // ramp — unless it names its own `rooms`, which the OPENING does, because
+  // the rooms before the first debut are not a debut's ramp. They are the
+  // mode being taught by playing it, and they have to outlast the time
+  // button (SIMPLE.duel.buttonRoom) arriving inside them.
+  const span = (e) => (e.rooms || (e.hold ? e.hold : 1 + D.rampRooms));
+  const OP = D.open;
+  let b = OP[0].bodies, f = OP[0].fire, turn = 0;
+  let idx = 0, at = 1, fresh = null, combo = false;
+  for (let r = 2; r <= room; r++) {
+    fresh = null;
+    if (r - at >= span(D.cast[idx]) && idx + 1 < D.cast.length) {
+      idx++; at = r;
+      const e = D.cast[idx];
+      // A DEBUT IS MET IN A QUIETER ROOM than the one just cleared, so the
+      // new thing is the only new thing. A COMBINATION is not a debut — both
+      // types are known — so it takes the dials exactly as it finds them:
+      // what is new there is the pairing, and nothing else may move under it.
+      if (!e.hold) {
+        // THE DEBUT ROOM IS QUIETER ON THE FIRE DIAL, and only that one.
+        //
+        // It used to step BOTH back, which was affordable on a six-room cycle
+        // and is not on a four-room one: three moves a cycle, two of them
+        // spent climbing back to where the last cycle ended, and the peaks
+        // came out 10, 10, 11, 11 — a ramp that is a flat line with debuts
+        // drawn on it. Measured by test/duelramp.mjs, which is exactly what
+        // that check is for.
+        //
+        // FIRE is the one worth spending it on. Bodies decide how crowded the
+        // room looks; the shared clock decides how much is coming AT you, and
+        // a player being shown a new silhouette needs the beats between
+        // rounds more than they need one fewer man at the back.
+        f = Math.max(0, f - D.typeDrop);
+        fresh = e.with[e.with.length - 1] || null;
+      }
+      continue;
+    }
+    // AN INTERLUDE HOLDS EVERY DIAL STEADY — for its own rooms, and not one
+    // more. The programme's LAST entry can never be advanced past, so an
+    // unqualified `continue` here froze the whole game solid from the last
+    // interlude onward: past room 44 the old list stopped ramping for ever.
+    // A run that deep is rare and a difficulty curve that quietly flatlines
+    // is not something a player would report, which is exactly why it has to
+    // be right here rather than watched for.
+    if (D.cast[idx].hold && r - at < span(D.cast[idx])) continue;
+    // ...AND THE OPENING NAMES ITS OWN DIALS RATHER THAN WALKING THEM. Taking
+    // turns moves fire every other room, and the first five rooms have one job
+    // — be hard by door 5, so the button arriving at door 6 is the answer to
+    // something. See SIMPLE.duel.open. The walk picks up from wherever this
+    // leaves the two indices, so nothing downstream has to know about it.
+    if (idx === 0 && r <= OP.length) {
+      b = OP[r - 1].bodies; f = OP[r - 1].fire;
+      continue;
+    }
+    // one dial per room, taking it in turns; a dial that has topped out hands
+    // its turn to the other rather than wasting the room
+    if (turn === 0 && b + 1 < D.groups.length) b++;
+    else if (f + 1 < D.fire.length) f++;
+    else if (b + 1 < D.groups.length) b++;
+    turn ^= 1;
+  }
+  const [volley, gap] = D.fire[f];
+  const entry = D.cast[idx];
+  // ...and it is only a combination while it is still ON, which for the last
+  // entry in the programme is not for ever. See the interlude guard above.
+  combo = !!entry.hold && room - at < span(entry);
+  return {
+    groups: D.groups[b].map((v) => Math.min(D.encCap, v)),
+    volley, gap, fresh, combo,
+    // GUNNERS FILL EVERY OTHER SLOT. `with` is what joins them, never a
+    // running total of everything met so far.
+    cast: ['gunner'].concat(entry.with.filter((t) => t !== 'gunner')),
+    step: { bodies: b, fire: f, cast: idx },
+  };
+}
+
+// WHO IS IN THE ROOM, in the order they come out of the door.
+//
+// The room's groups are the shape and the cast is the content: each group
+// leads with one of every type the schedule put in this room, then gunners
+// fill it out. That is what puts the new type on the floor, at the front of
+// it, in the room that debuts it — which is what the freeze needs to land on,
+// and the rule the ramp was written on.
+function duelQueue(plan) {
+  const extras = plan.cast.filter((t) => t !== 'gunner');
+  const q = [];
+  let off = 0;
+  for (const g of plan.groups) {
+    // GUNNERS FILL EVERY OTHER SLOT, and "every other" means at least one:
+    // a three-type room whose groups are threes would otherwise be three
+    // specials and no gunner at all, which is not the rule the ramp is
+    // written on — and the shot clock is carried by whoever can actually
+    // pull a trigger, so a room with no gunners in it fires fewer rounds
+    // together than its own schedule says.
+    //
+    // ...AND THE TYPES ROTATE ACROSS THE GROUPS, so a room carrying more
+    // types than a group has room for still shows all of them. Taking the
+    // first few every time drops the tail of the list SILENTLY — the deep
+    // rooms carry the whole roster, and the last type on that list would
+    // simply never have been released.
+    const grp = [];
+    const take = Math.min(Math.max(0, g - 1), extras.length);
+    for (let i = 0; i < take; i++) grp.push(extras[(off + i) % extras.length]);
+    if (extras.length) off = (off + take) % extras.length;
+    while (grp.length < g) grp.push('gunner');
+    q.push(...grp);
+  }
+  return q;
+}
+
+// The room the player is standing in. `doorsPassed` is the count behind them.
+function duelRoom() { return hall ? hall.doorsPassed + 1 : 1; }
+
+// A VOLLEY IS SEVERAL MEN FIRING AS ONE EVENT. `duelVolleyAt` is when the
+// current one began and `duelVolleyN` how many have joined it; the room's gap
+// is measured from the START of a volley, not from its last round, so two men
+// firing together cost the room one turn rather than two.
+let duelVolleyAt = -1e9, duelVolleyN = 0;
+function duelMayFire(e) {
+  // NOBODY SHOOTS AT SOMEBODY WHO HAS NOT BEEN GIVEN THE VERB YET.
+  //
+  // TAP HERE TO SHOOT is up because the player has just been handed a pistol
+  // and does not yet know that a tap fires it. Rounds arriving during that is
+  // the room asking a question it has not finished teaching the answer to —
+  // and the answer takes a moment to find, because the gesture is a tap
+  // ANYWHERE rather than a trigger in a corner. So the room waits. It ends on
+  // the first body that shatters, which is the thing the card is asking for.
+  //
+  // ONE CARD, IN ONE ROOM. `duel.holdFire` is set by the FIRST telling only,
+  // and only in the room the run opens in. Hung on the coach state instead,
+  // this held every gun in the game every time the shooting half came back —
+  // and it comes back on any room crossed without a shatter (`duel.reteach`),
+  // so a player who walked a room without killing anything got a room that
+  // never fired at them. Measured: rooms 4, 5 and 6 fired NOTHING. A hold on
+  // enemy fire is far too heavy a thing to hang on a flag that can return.
+  if (duel.holdFire && duelRoom() === duel.taughtIn) return false;
+  const p = duelPlan(duelRoom());
+  // THE FIRST ROUND OF A DEBUT ROOM BELONGS TO THE DEBUT.
+  //
+  // A room that introduces a type introduces it on that type's first act, and
+  // that act has to win a turn on a clock four gunners are also queuing for.
+  // Measured, a shieldbearer — which may only fire while it is facing you, so
+  // it forfeits most turns it does win — went more than forty seconds before
+  // its card appeared, and by then the player had met it, been shot by it and
+  // learned it the hard way. The introduction has to come first or it is not
+  // an introduction.
+  //
+  // Only until it has fired once: `duel.met` gets the type on that round, and
+  // from the next one the room is an ordinary room.
+  //
+  // AND NEVER INTO A DEADLOCK. A reservation held on somebody who is not
+  // coming is a room where nobody may ever fire — the duel bypasses the
+  // anti-deadlock valve every other mode has, because its clock is a volley
+  // schedule rather than a queue, so this one has to carry its own way out.
+  // Two of them: the reservation is off the moment no live body of that type
+  // is on the floor (the player shot it before it opened), and it expires on
+  // its own after `meetLead` world seconds however the room got there.
+  if (p.fresh && SIMPLE.duel.meet[p.fresh] && !duel.met.has(p.fresh)
+      && e && e.type !== p.fresh) {
+    // ...AND THE CLOCK ON IT STARTS WHEN THE DEBUT IS ACTUALLY ABLE TO FIRE,
+    // not when the room opened. A shotgunner opens fire at 10 m and is placed
+    // past the 13 m first-sight floor, so it has to WALK a third of the strip
+    // in before it may take a turn at all — and it strafes on the way, so it
+    // covers that at well under its 1.8 m/s. Measured against a fixed
+    // twelve-second lead the room ran out of patience while the man it exists
+    // to introduce was still crossing the floor, handed the clock to the
+    // gunners, and never introduced him. Everyone else is in range from the
+    // moment they arrive, so for them nothing changes.
+    const fresh = enemies.filter((x) => x.alive && x.type === p.fresh);
+    if (fresh.length) {
+      if (!fresh.some((x) => Math.hypot(x.pos.x - player.pos.x, x.pos.z - player.pos.z)
+          < x.engageDist)) {
+        if (hall) hall.duelFreshAt = worldT;   // it has not had its chance yet
+        return false;
+      }
+      if (worldT - ((hall && hall.duelFreshAt) || 0) < SIMPLE.duel.meetLead) return false;
+    }
+  }
+  // joining the volley in progress: inside its window, and a breath behind
+  // whoever fired last, so three men read as three men
+  const window = SIMPLE.duel.volleyStep * p.volley + SIMPLE.duel.volleySlack;
+  if (duelVolleyN < p.volley
+    && worldT - duelVolleyAt <= window
+    && worldT - lastEnemyShotAt >= SIMPLE.duel.volleyStep) return true;
+  return worldT - duelVolleyAt >= p.gap;
+}
+function duelTookShot() {
+  const p = duelPlan(duelRoom());
+  if (worldT - duelVolleyAt >= p.gap) { duelVolleyAt = worldT; duelVolleyN = 1; }
+  else duelVolleyN++;
+}
+
 function legEncounters(d, i) {
+  // ONE ROOM, ONE PLAN. The duel has a single leg per door (see doorLegs), so
+  // there is nothing to deal out and the room simply is the door's fight.
+  if (game.mode === 'duel') return duelPlan(d).groups;
   const all = doorEncounters(d).slice().sort((a, b) => b - a);
   const legs = Math.max(1, doorLegs(d)), out = [];
   for (let k = 0; k < all.length; k++) if (k % legs === i) out.push(all[k]);
@@ -3776,6 +4059,9 @@ function legEncounters(d, i) {
 // enough that every round is its own event — closing to the deep game's gap.
 function shotGap() {
   if (!inHall()) return OPENING.gapTo;   // every corridor mode, not just the tunnel
+  // NO RETREAT keeps its own clock: it tightens three times, then the volley
+  // grows and it resets. See SIMPLE.duel.fire.
+  if (game.mode === 'duel') return duelPlan(duelRoom()).gap;
   const sch = schoolGap();               // the school overrides the ramp outright
   if (sch !== null) return sch;
   const d = hall ? hall.doorsPassed + 1 : 1;
@@ -3831,7 +4117,7 @@ function schoolFloor(door) {
   // THE MODE GATE HAS TO BE HERE TOO. `schoolDoor()` refuses outside the
   // tunnel, but this does not go through it — it is a pure function of the
   // door number — so gating only `schoolDoor` left the school's BODY FLOOR
-  // still raising the leg budget in corridor duel and stand still: four bodies
+  // still raising the leg budget in NO RETREAT and stand still: four bodies
   // a leg in modes that have no way to slow time. Caught by modes.js, which
   // had been a zero-byte file reported green.
   if (game.mode !== 'hall' || tutorStep !== null) return 0;
@@ -3999,7 +4285,33 @@ function enemyBulletSpeed() {
   // ten-door plateau — which on its run clock landed as a flat stretch from
   // 2000 to 2250 seconds for no reason a player could ever discover.
   if (game.mode === 'rush') return speedAt(1 + rushT / 25, SPEED, false);
+  // NO RETREAT KEEPS ITS OWN STAIRCASE. See SIMPLE.duel.bullet: the tunnel's
+  // is written for a forty-six door climb and this mode is thirty-one rooms
+  // long, so inheriting it left rounds in the air for the best part of four
+  // seconds right through the room the time button arrives in.
+  if (game.mode === 'duel') return duelBulletSpeed(duelRoom());
   return speedAt(game.wave);
+}
+// The staircase itself: a speed for room 1, a tread per room, a ceiling.
+function duelBulletSpeed(room) {
+  const B = SIMPLE.duel.bullet;
+  return Math.min(B.capM, B.openM + B.stepM * Math.max(0, room - 1));
+}
+// ...AND HOW CLOSE THEY FIGHT, as a CAP on a type's own engage distance
+// rather than a replacement for it: a shotgunner still opens at its own ten
+// metres, and a gunner stops being able to plink from the far wall.
+function duelEngageCap(room) {
+  const E = SIMPLE.duel.engage;
+  const t = Math.min(1, Math.max(0, (room - 1) / Math.max(1, E.byRoom - 1)));
+  return E.openM + (E.nearM - E.openM) * t;
+}
+// How far out THIS man may fire from, right now. The cap is on his second
+// round and everything after it — his first comes from wherever he is, so a
+// room announces itself instead of spending its opening seconds on a walk.
+function duelEngage(e) {
+  if (game.mode !== 'duel') return e.engageDist;
+  if (SIMPLE.duel.openAnywhere && !e.opened) return e.engageDist;
+  return Math.min(e.engageDist, duelEngageCap(duelRoom()));
 }
 
 // Telegraphs and cooldowns ride the same dial: leisurely on the opening
@@ -4217,12 +4529,77 @@ function updateEnemy(e, sdt) {
       // on and drifted over. He may still turn and strafe, so he is plainly a
       // man waiting rather than a prop.
       if (!stagedArmed(e) && dir.z < 0) dir.z = 0;
-      e.pos.x += dir.x * moveSpeed * sdt;
-      e.pos.z += dir.z * moveSpeed * sdt;
+      // ...AND IN NO RETREAT, NOBODY WALKS ONTO YOU. There is no look control
+      // in this mode: you face down the strip and you shoot where your thumb
+      // lands. A man who has closed onto you cannot be answered — you cannot
+      // turn to him, you cannot step round him, and at that range his round
+      // crosses in a fifth of a second.
+      //
+      // WORSE, HE CANNOT EVEN BE SEEN. The camera's eighty degrees are
+      // VERTICAL and the screen is portrait, so the view is 42 degrees wide —
+      // twenty-one either side. Measured over 3049 samples of a non-rusher:
+      // they strafe up to 2.31 m across, and 2.31 m across at three metres out
+      // is thirty-seven degrees. 14% of the time a live man was off the edge
+      // of the glass. `minM` is the distance at which the widest strafe they
+      // actually make is still in frame.
+      //
+      // TWO RULES, NOT ONE. At the line, only the CLOSING half of his heading
+      // is taken: he may strafe all he likes, around the stand-off rather than
+      // through it, so it reads as a man holding his distance rather than a man
+      // hitting a wall. INSIDE the line he walks back out of it.
+      //
+      // The way out is what the RUSHER needs. It holds the stand-off like
+      // everyone else and BREAKS it to attack — that is its whole act — and
+      // when the charge is spent it is standing on you with its claws down.
+      // Left there it would be the thing this rule exists to prevent, so the
+      // retreat is the same rule everybody else gets, doing its job on the one
+      // type that is ever inside. Its `lungeCd` and its 3.4 m/s walk come out
+      // near enough the same: about a second and a half to back off and set up
+      // the next charge.
+      //
+      // The lunge itself is untouched — it has its own case below and its own
+      // position update, so nothing here can clip a charge in flight.
+      let backOut = false;
+      if (game.mode === 'duel') {
+        const ndx = player.pos.x - e.pos.x, ndz = player.pos.z - e.pos.z;
+        const nd = Math.hypot(ndx, ndz);
+        if (nd > 1e-4 && nd <= SIMPLE.duel.minM) {
+          const nx = ndx / nd, nz = ndz / nd;
+          if (nd < SIMPLE.duel.minM - SIMPLE.duel.standBand) {
+            dir.x = -nx; dir.z = -nz;               // clearly inside: walk out
+            backOut = true;
+          } else {
+            const closing = dir.x * nx + dir.z * nz;   // at the line: hold it
+            if (closing > 0) { dir.x -= nx * closing; dir.z -= nz * closing; }
+          }
+        }
+      }
+      // ...AND IT SPRINGS BACK RATHER THAN STROLLING. Measured, a rusher that
+      // walked out at its own 3.4 m/s spent 1.65 s crossing back from where its
+      // charge left it — and every second of that is a second it is inside the
+      // distance this rule exists to keep, where it cannot be turned to or
+      // stepped round. "Directly following the attack" is the ask, and a
+      // creature that has just coiled and sprung is the right shape to bounce
+      // off you.
+      const outSpeed = backOut ? moveSpeed * SIMPLE.duel.backSpeed : moveSpeed;
+      e.pos.x += dir.x * outSpeed * sdt;
+      e.pos.z += dir.z * outSpeed * sdt;
       resolveEnemyCollisions(e);   // hard guarantee: steering can fail, this can't
 
-      if (e.type === 'rusher' && dist < 3.4 && (e.lungeCd || 0) <= 0) {
+      // A RUSHER CHARGES FROM ITS HOLDING DISTANCE. Everywhere else it closes
+      // to 3.4 m and coils; here it holds the stand-off with everyone else, so
+      // the trigger is "I am at my line" rather than "I am close". The upper
+      // bound is what stops it charging again from where the last one left it
+      // — it has to be back out before it may come in again, which is the
+      // whole shape the retreat is for.
+      const lungeAt = game.mode === 'duel'
+        ? Math.abs(dist - SIMPLE.duel.minM) < SIMPLE.duel.lungeFrom
+        : dist < 3.4;
+      if (e.type === 'rusher' && lungeAt && (e.lungeCd || 0) <= 0) {
         e.state = 'windup'; e.stateT = 0;
+        // A RUSHER HAS NO FIRST ROUND. Its debut has to land on the only tell
+        // it gives — the plant and the coil — or it lands after the hit.
+        duelNoteMeet(e);
         break;
       }
       // visibility grace: stepping out of cover doesn't mean instant fire —
@@ -4230,7 +4607,7 @@ function updateEnemy(e, sdt) {
       const los = hasLineOfSight(_v2.set(e.pos.x, 1.35, e.pos.z),
         _v3.set(player.pos.x, EYE_HEIGHT - 0.3, player.pos.z));
       e.seenT = los ? (e.seenT || 0) + sdt : 0;
-      if (e.type !== 'rusher' && dist < e.engageDist && e.fireCd <= 0 &&
+      if (e.type !== 'rusher' && dist < duelEngage(e) && e.fireCd <= 0 &&
           (!ENEMY_TYPES[e.type].shielded || Math.cos(e.g.rotation.y - wantYaw) > 0.8) &&
           performance.now() >= game.noFireBefore && !tutorHoldsFire(e) &&
           stagedArmed(e) &&
@@ -4297,12 +4674,28 @@ function updateEnemy(e, sdt) {
         // held the pose longer, because what he was waiting for was `gap`
         // (4.3s at door 1), not the script. The dial I could see was not the
         // one that was binding.
-        if (!e.scriptShot && worldT - lastEnemyShotAt < gap
-            && held < gap * queued + OPENING.holdSlack) {
+        // NO RETREAT FIRES IN VOLLEYS, ON PURPOSE. Everywhere else the room
+        // lets exactly one round go and then waits; here the schedule says how
+        // many go together and how long the room waits after — see
+        // SIMPLE.duel.fire. The gap is measured from the START of a volley, so
+        // three men firing as one cost the room one turn rather than three,
+        // which is what makes a wider shape affordable rather than simply
+        // three times the danger.
+        // ...AND THE VALVE IS A DOOR, NOT A GATE LIFTED FOR EVERYONE AT ONCE.
+        // Each man's allowance is his own, so a crowd that has all outwaited
+        // it releases on the same frame — measured, two rounds at door 5 with
+        // a gap of zero between them. See OPENING.valveFloor.
+        const valve = held >= gap * queued + OPENING.holdSlack
+          && worldT - lastEnemyShotAt >= OPENING.valveFloor;
+        const holding = game.mode === 'duel'
+          ? !duelMayFire(e)
+          : (worldT - lastEnemyShotAt < gap && !valve);
+        if (!e.scriptShot && holding) {
           e.holdFireT = held + sdt;
         } else {
           e.holdFireT = 0;
           e.scriptShot = false;   // one turn, one round
+          if (game.mode === 'duel') duelTookShot();
           enemyFire(e, toPlayer);
           setEgunFlash(e, MAT_BLACK);
           if (spec.burst) {   // heavies always fire exactly spec.burst rounds
@@ -4362,10 +4755,20 @@ function updateEnemy(e, sdt) {
     case 'lunge': {
       e.g.rotation.y = e.lungeYaw;
       e.armR.rotation.x = 1.5 - Math.min(e.stateT / 0.14, 1) * 3.8;   // the swipe
-      e.pos.x += e.lungeDx * 10.5 * sdt;
-      e.pos.z += e.lungeDz * 10.5 * sdt;
+      e.pos.x += e.lungeDx * RUSH_LUNGE * sdt;
+      e.pos.z += e.lungeDz * RUSH_LUNGE * sdt;
       resolveEnemyCollisions(e);
-      if (dist < 1.35 || e.stateT >= 0.34) {
+      // HOW LONG THE CHARGE LASTS IS DERIVED FROM WHAT IT HAS TO CROSS, not
+      // typed next to it. In NO RETREAT it starts at the stand-off rather than
+      // at 3.4 m, so a 0.34 s charge — 3.6 m of travel — would stop three
+      // metres short and the rusher would never reach anybody again. Two
+      // numbers describing one shape disagree eventually; one of them should
+      // be arithmetic. The speed is unchanged, so the charge feels the same
+      // and simply commits for longer, which is also what makes it dodgeable:
+      // it flies at where you WERE.
+      const lungeCap = game.mode === 'duel'
+        ? (SIMPLE.duel.minM + 0.6) / RUSH_LUNGE : 0.34;
+      if (dist < 1.35 || e.stateT >= lungeCap) {
         if (dist < 1.35) hitPlayer();
         e.state = 'lungerest'; e.stateT = 0; e.lungeCd = 1.5;
       }
@@ -4478,6 +4881,10 @@ let pendingFireAim = null;
 function playerFire(aimAt = null) {
   if (!player.alive || game.state !== 'play') return;
   if (tutorHoldsPlayerFire()) return;   // no weapon on screen yet, no round
+  if (duelHoldsGun()) return;           // ...and the same while room 1 is
+                                        // teaching the dodge with no gun on
+                                        // screen: a round fired into a stopped
+                                        // world hangs there and reads as a bug
   if (player.reloadT > 0) return;                       // hands are busy
   if (player.fireCd > 0) {
     pendingFireUntil = performance.now() + 300;
@@ -4487,6 +4894,7 @@ function playerFire(aimAt = null) {
   const spec = WEAPONS[player.weapon];
   if (spec.melee) { knifeStrike(spec); return; }
   if (player.mag <= 0) { startReload(); return; }       // dry: rack a new mag
+  playerShots++;   // SHOOT THIS is answered by this going up
   player.fireCd = spec.cd;
   // THE LESSON DOES NOT COUNT ROUNDS. The magazine is on screen, and it fills
   // itself: running dry and being made to read RELOADING is a fourth thing to
@@ -4559,7 +4967,11 @@ function playerFire(aimAt = null) {
   player.mag--;
   updateAmmoHud();
   if (player.mag <= 0) {
-    if (player.clips > 0) startReload();   // auto-rack the moment it goes dry
+    // THE SECOND WAY TO THE KNIFE, and the one that actually fires: the shot
+    // that empties the magazine racks the next clip, or hands you the blade.
+    // The duel always racks — see startReload for why a knife is a dead end
+    // in a strip you cannot cross.
+    if (player.clips > 0 || game.mode === 'duel') startReload();
     else dropToKnife();                    // nothing left to rack
   }
 }
@@ -4655,6 +5067,7 @@ function updateBullets(sdt) {
     b.pos.addScaledVector(b.vel, sdt);
     b.life -= sdt;
     b.mesh.position.copy(b.pos);
+    duelWatchRound(b, sdt);   // ...and is anybody doing anything about this one?
 
     // trail stretches behind the bullet, longer at speed (enemy tracers extra
     // long so incoming fire reads instantly in frozen time)
@@ -5073,6 +5486,10 @@ function onPointerDown(ev) {
       // them opens the list set up to make the choice easy.
       if (ev.target.closest('#fullList')) { closeAskFull(); openSaves(true); return; }
       if (ev.target.closest('#fullBack')) { closeAskFull(); return; }
+      // ...and the bulk confirmation, which sits above the list so KEEP THEM
+      // comes back to the rows still ticked
+      if (ev.target.closest('#bulkyes')) { doBulkDelete(); return; }
+      if (ev.target.closest('#bulkno')) { closeAskBulk(); return; }
       // THE STATS BLOCK IS THE UNLOCKS DOOR — anywhere on it opens the
       // panel. It replaced both the leaderboard and the menu row's UNLOCKS
       // link, because two doors to one screen is the mistake the SAVES link
@@ -5108,15 +5525,14 @@ function onPointerDown(ev) {
         renderSlots();
         return;
       }
+      if (ev.target.closest('#bulkpick')) {
+        savePickMode = true; savePicked.clear();
+        renderSlots();
+        return;
+      }
       if (ev.target.closest('#bulkdel')) {
         if (!savePicked.size) return;   // the button says so; do not act on nothing
-        for (const i of [...savePicked]) deleteSave(i);
-        savePicked.clear();
-        // ...and once there is room, the page has done its job
-        const left = savesByRecent(null).length;
-        if (left < MAX_SAVES) savePickMode = false;
-        renderSlots();
-        refreshMenuPrimary();
+        askBulkDelete();
         return;
       }
       if (ev.target.closest('#discover')) { openUnlocks(); return; }
@@ -5196,6 +5612,7 @@ function onPointerDown(ev) {
     timeBtnWasLocked = timeLocked;
     timeBtnYaw = player.yaw; timeBtnPitch = player.pitch;
     if (!timeLocked) setTimeLocked(true);
+    duelCoachTapped();   // the duel's lesson is over the moment it is answered
     vibrate(8);
     // AND it is a look pointer from this instant. The button is 146 px in
     // the bottom-right corner, which is half of where a right thumb
@@ -6489,7 +6906,16 @@ const sfx = (() => {
         // and a hard noise spike in front of it for the attack. selfRate()
         // still stretches and drowns it in bullet time, where the cavernous
         // version is the one that sounds right.
-        if (playSample('shotgun', { rate: r * 0.92, gainMul: 1.25, send: 0.12 * r, fadeAfter: 1.4 })) {
+        // ...AND IT WAS STILL SIX DECIBELS UNDER THE PISTOL. Measured off the
+        // two mp3s with their own gains applied — the file gain times this
+        // multiplier — the pistol peaked at -2.1 dBFS with its loudest 50 ms
+        // at -10.1, and the shotgun at -4.4 and -15.7: nearly six dB of body
+        // missing from the bigger gun. (An EBU integrated reading says the
+        // opposite, and is wrong here: these are two-second one-shots and the
+        // gate throws away most of both.) 2.05 is what the sample takes
+        // without going past full scale — peak -0.12 dBFS — and lands its
+        // body inside a decibel and a half of the pistol's.
+        if (playSample('shotgun', { rate: r * 0.92, gainMul: 2.05, send: 0.12 * r, fadeAfter: 1.4 })) {
           noise(0.035, 5200, 0.7, 0.5, 1, 0.02);        // the crack, real-time
           tone(150, 32, 0.28, 0.5, 'sine', r, 0.08);    // sub-thump under it
           return;
@@ -7201,13 +7627,13 @@ function discoverData() {
 // has EVER reached, across every save — unlocking belongs to the player, like
 // UNLOCKS itself, not to the run they happen to be in.
 //
-// TUNNEL DOORS ONLY. Corridor Duel and Stand Still are built on the tunnel's
+// TUNNEL DOORS ONLY. NO RETREAT and Stand Still are built on the tunnel's
 // legs (`inHall`), so they cross doors and write `rdoor` too. Counting those
 // would make "REACH DOOR 5 IN THE TUNNEL" a lie on the one card that says it,
 // and would let the modes bought with the climb pay for each other.
 // ---------------------------------------------------------------------------
 // THE HIGH-WATER MARK, kept per PLAYER and only ever raised. It is not
-// derived from the saves: a player who earns Corridor Duel at door 5 and then
+// derived from the saves: a player who earns NO RETREAT at door 5 and then
 // deletes that run must not find it locked again, and a number recomputed
 // from whatever saves happen to exist does exactly that.
 //
@@ -7605,7 +8031,7 @@ function renderSlots() {
     // default name the player may well have replaced.
     //
     // ...AND THE NAME DOES NOT REPEAT IT. A default name IS the game plus a
-    // number ("CORRIDOR DUEL 1"), so printing both put the same two words on
+    // number ("NO RETREAT 1"), so printing both put the same two words on
     // two consecutive lines of every unnamed save. The row shows the number
     // instead; `saveName` is untouched, because the rename field and the
     // delete confirmation are not standing next to a line that says the game.
@@ -7640,10 +8066,20 @@ function renderSlots() {
   // on nothing and never has to be guessed at
   const bar = document.getElementById('bulkbar');
   const del = document.getElementById('bulkdel');
-  if (bar) bar.classList.toggle('on', savePickMode);
+  const pk = document.getElementById('bulkpick');
+  // THE ROW IS ALWAYS THERE ONCE THERE IS MORE THAN ONE RUN — out of pick
+  // mode as the way in, in pick mode as the count and the way out. Ticking
+  // used to be reachable only by arriving from a full list, which meant the
+  // bulk delete could not be found by anybody who was simply tidying up.
+  const many = savesByRecent(null).length > 1;
+  if (bar) bar.classList.toggle('on', savePickMode || many);
+  if (pk) pk.style.display = savePickMode ? 'none' : '';
+  if (del) del.style.display = savePickMode ? '' : 'none';
+  const cancel = document.getElementById('bulkcancel');
+  if (cancel) cancel.style.display = savePickMode ? '' : 'none';
   if (del) {
     del.textContent = savePicked.size
-      ? `DELETE ${savePicked.size} RUN${savePicked.size > 1 ? 'S' : ''}` : 'SELECT RUNS TO DELETE';
+      ? `DELETE ${savePicked.size} RUN${savePicked.size > 1 ? 'S' : ''}` : 'PICK RUNS TO DELETE';
     del.style.opacity = savePicked.size ? '1' : '.45';
   }
 }
@@ -7729,11 +8165,48 @@ function askDelete(i) {
   const row = [...el.slotlist.querySelectorAll('.slot')]
     .find((n) => n.querySelector('.del') && +n.querySelector('.del').dataset.i === i);
   if (!row) return;
-  const e = savesByRecent().find((x) => x.i === i) || { i };
+  // THE NAME IS ON THE ROW, NOT IN THE BUTTON. It used to read
+  // `DELETE <name>`, and a name is up to twenty-four characters inside a pill
+  // about a hundred and sixty wide — two lines of 900-weight capitals in a
+  // rounded button, which reads as a broken layout rather than as a warning.
+  // The row directly above says which run this is.
   row.querySelector('.srow').innerHTML =
-    `<div class="sbtn red delyes" data-i="${i}">DELETE ${escHtml(saveName(e))}</div>`
+    `<div class="sbtn red delyes" data-i="${i}">DELETE THIS RUN</div>`
     + '<div class="sbtn delno">KEEP</div>';
 }
+// DELETING SEVERAL AT ONCE IS THE ONE THING ON THIS PAGE THAT CANNOT BE
+// UNDONE, and it is a single tap away from a column of checkboxes a thumb has
+// been running down. A row's own DELETE already asks twice; a bar that wipes
+// four runs on one press asked nothing at all. The question names the count
+// rather than the runs — six names would not fit, and the ticked rows are on
+// screen behind it.
+function askBulkDelete() {
+  if (!savePicked.size || !el.askBulk) return;
+  const n = savePicked.size;
+  const q = document.getElementById('bulkq');
+  const yes = document.getElementById('bulkyes');
+  if (q) q.textContent = n === 1
+    ? 'ONE RUN WILL BE DELETED. THIS CANNOT BE UNDONE.'
+    : `${n} RUNS WILL BE DELETED. THIS CANNOT BE UNDONE.`;
+  // ...and the button says the count, not the names: a pill is one line.
+  if (yes) yes.textContent = n === 1 ? 'DELETE THE RUN' : `DELETE ${n} RUNS`;
+  el.askBulk.style.display = 'flex';
+}
+function closeAskBulk() {
+  if (el.askBulk) el.askBulk.style.display = 'none';
+}
+function doBulkDelete() {
+  closeAskBulk();
+  if (!savePicked.size) return;
+  for (const i of [...savePicked]) deleteSave(i);
+  savePicked.clear();
+  // ...and once there is room, the page has done its job
+  const left = savesByRecent(null).length;
+  if (left < MAX_SAVES) savePickMode = false;
+  renderSlots();
+  refreshMenuPrimary();
+}
+
 // SIX RUNS AND NOWHERE TO PUT A SEVENTH. Both answers leave every save intact:
 // one opens the list set up to make the pruning easy, the other backs out.
 function askFullSaves() {
@@ -8488,6 +8961,92 @@ function tutorRenderCues() {
 // that is inside the lane. Nothing else is a threat, and the moment it stops
 // being true the player HAS dodged, whether or not they moved the distance
 // some other rule wanted.
+// A ROUND THEY ARE NOT ANSWERING. How far along its flight it has got, with
+// the player still standing in its lane — which is the difference between "a
+// round is coming" and "a round is coming and nothing is being done about
+// it". `born` is kept for the life of the round precisely so this question
+// has an answer. See SIMPLE.duel.teach.lateAt.
+function duelWatchRound(b, sdt) {
+  if (b.fromPlayer) return;
+  const T = SIMPLE.duel.teach;
+  const m = duelRoundMiss(b);
+  // HOW LONG THIS ROUND HAS BEEN COMING AT THEM WITH NOTHING DONE ABOUT IT.
+  //
+  // This is the whole of "they are not answering it", and it has to be a
+  // stretch of time rather than a single frame's reading. A player answers a
+  // round by DRAGGING, and a drag takes a moment to build speed — so on the
+  // frame the round first counts as threatening, somebody who reacted the
+  // instant it was fired still looks like somebody standing still. Measured:
+  // a probe that stepped out of every lane it was put in was told twice.
+  //
+  // Kept on the round rather than on the player because it is a fact about
+  // this round: two men firing means two clocks, and being late on one of
+  // them is not the same as ignoring both.
+  b.laneT = (m.t > 0 && m.miss <= TUTOR.dodgeLaneM) ? (b.laneT || 0) + sdt : 0;
+
+  if (duel.said.dodge >= 2 || duelTeaching()) return;
+  if (!duelMayTeach()) return;
+  const first = duel.said.dodge === 0;
+  // ...and never twice in the room that already said it once
+  if (!first && duelRoom() === duel.saidDodgeIn) return;
+  if (first) {
+    // THE INTRODUCTION IS PLACED ALONG THE ROUND'S FLIGHT. It wants to arrive
+    // with plenty of round left to step out of, and half way is that.
+    const flown = Math.hypot(b.pos.x - b.born.x, b.pos.z - b.born.z);
+    const span = flown + Math.hypot(player.pos.x - b.pos.x, player.pos.z - b.pos.z);
+    if (span < 1e-3 || flown / span < T.lateAt) return;
+  }
+  // on line, and with time left to do something about it
+  if (m.t < T.warnS || m.miss > TUTOR.dodgeLaneM) return;
+  // THE CORRECTION IS PLACED IN TIME, because that is what it is about: they
+  // have had most of the round's flight and have not moved. Stated as a ratio
+  // of the distance it could not survive `warnS` — at room 5's bullet speed
+  // the 0.82 mark is 0.45 s out, INSIDE the floor, so the two bars cancelled
+  // and the repeat could never fire at all. Both are seconds now, and the
+  // window between them is real at every speed the mode reaches.
+  // ...AND THE CORRECTION IS ONLY A CORRECTION IF THEY HAVE HAD A FAIR GO AT
+  // IT: late in the round's flight, AND with the round having been on line
+  // that whole time with nothing done about it. A player who started their
+  // sidestep as it left the muzzle is answering it, whatever their position
+  // happens to be while the drag builds speed.
+  //
+  // Neither applies to the INTRODUCTION. That one is not a judgement on the
+  // player — it is the first time this mode has told them what the verb is,
+  // and gating it on having ignored something means a player who dodges by
+  // instinct is never told the rule at all. (Which is what happened: with
+  // this on both tellings, a probe that plays well was taught nothing in
+  // seventy seconds.)
+  if (!first && (m.t > T.againBy || b.laneT < T.ignoredS)) return;
+  duelTeachDodge(b);
+}
+
+// IS THIS ROUND WORTH STOPPING THE WORLD FOR — asked of the player who is
+// actually holding the phone, rather than of a snapshot of where they happen
+// to be standing this frame.
+//
+// The ratio above is a fraction of a DISTANCE, and the two things that decide
+// whether a warning is any use are not distances:
+//
+//   HOW LONG THEY HAVE LEFT. Measured, the repeat fired with 0.40 s to go —
+//   the round three metres out at eight metres a second. That is not coaching,
+//   it is the result being read out. And the ratio cannot see it coming: as
+//   the bullet dial climbs from 7 m/s to 13.5, the same fraction of the same
+//   strip buys steadily less time, so a bar that was fair in room 2 is a
+//   photo-finish by room 12. `warnS` states the thing that was meant.
+//
+//   WHETHER THEY ARE ALREADY ANSWERING IT. `tutorRoundThreatens` asks whether
+//   the round passes close to where the player IS. A player mid-drag is not
+//   standing anywhere — they are on their way out of the lane, and freezing
+//   the world to tell them to do the thing they are in the middle of doing is
+//   the complaint this beat gets. So both are treated as moving: closest
+//   approach of two moving points, which answers "given how they are going, is
+//   this going to hit them".
+//
+// The onboarding's own dodge lesson keeps `tutorRoundThreatens` — it stops the
+// world at a scripted moment on a corridor built for it, and the player there
+// has no drag to be in the middle of.
+
+
 function tutorRoundThreatens(b) {
   if (!b) return false;
   const vx = b.vel.x, vz = b.vel.z;
@@ -10816,6 +11375,9 @@ const el = {
   gtime: document.getElementById('gtime'),
   slowmeter: document.getElementById('slowmeter'),
 
+  duelmeet: document.getElementById('duelmeet'),
+  dueltap: document.getElementById('dueltap'),
+  duelpins: [...document.querySelectorAll('#duelpins i')],
   tutorhand: document.getElementById('tutorhand'),
   tutorline: document.getElementById('tutorline'),
   tutorarrow: document.getElementById('tutorarrow'),
@@ -10841,6 +11403,7 @@ const el = {
   modesel: document.getElementById('modesel'),
   mslist: document.getElementById('mslist'),
   mssum: document.getElementById('mssum'),
+  duelcoach: document.getElementById('duelcoach'),
   mstoast: document.getElementById('mstoast'),
   mstut: document.getElementById('mstut'),
   mstutbox: document.getElementById('mstutbox'),
@@ -10848,6 +11411,7 @@ const el = {
   slowfill: document.getElementById('slowfill'),
   flash: document.getElementById('flash'),
   banner: document.getElementById('banner'),
+  askBulk: document.getElementById('askBulk'),
   tint: document.getElementById('tint'),
   redflash: document.getElementById('redflash'),
   crosshair: document.getElementById('crosshair'),
@@ -11181,7 +11745,11 @@ function updateAmmoHud() {
       + '<i class="pip out"></i>'.repeat(Math.max(spec.mag - live, 0));
     // ...and during the lesson the magazine does not run down, so the count
     // of spare clips is a number about a system nobody has met.
-    const spare = tutorStep === null && player.clips > 0 ? ' · +' + player.clips : '';
+    // ...and the duel has no reserve to count: the magazine is the whole of
+    // the resource there, so a spare tally would be a number about a system
+    // that mode does not have.
+    const spare = tutorStep === null && player.clips > 0 && game.mode !== 'duel'
+      ? ' · +' + player.clips : '';
     el.ammo.innerHTML = `${name} · <b class="mag">${pips}</b>${spare}`;
   }
   el.ammo.classList.remove('shotgun');   // the HUD stays ink; red is the bank
@@ -11883,6 +12451,18 @@ function pumpMessages() {
     pumpMessages._t = setTimeout(pumpMessages, m.dur + 520);
   }
 }
+// TAKE THE CARD DOWN NOW, without waiting out its timer — and give the
+// channel back, because `messageBusyUntil` is what stops the next banner
+// arriving on top of this one and a card that left early has stopped owning
+// the screen. See duelOpenCard, which is up for as long as it takes rather
+// than for a number of seconds.
+function hideBanner() {
+  clearTimeout(showBanner._t);
+  if (el.banner) el.banner.classList.remove('show');
+  messageBusyUntil = performance.now() + 320;   // the fade, and no longer
+  clearTimeout(pumpMessages._t);
+  pumpMessages._t = setTimeout(pumpMessages, 360);
+}
 function clearMessages() {
   messageQueue.length = 0;
   messageBusyUntil = 0;
@@ -11929,8 +12509,18 @@ function maxAlive() {
   if (inHall()) {
     // A condition thins the crowd as well as the loot: two bodies met
     // separately are two searches, where a clump is one problem solved once.
-    return Math.max(1, schoolFloor(game.wave), Math.round(doorAlive(game.wave)
+    const n = Math.max(1, schoolFloor(game.wave), Math.round(doorAlive(game.wave)
       * condTax(legCondition(), 'groupSize')));
+    // ...BUT A GROUP MUST BE ABLE TO STAND UP TOGETHER. The duel's rooms are
+    // written as groups (SIMPLE.duel.encounters) and a group arriving together
+    // is the whole point of one — a three dealt out one man at a time is three
+    // singles a beat apart, which is the easier fight and not the one the room
+    // was written to be. So the crowd ceiling never sits under the room's
+    // biggest group.
+    if (game.mode === 'duel') {
+      return Math.max(n, ...duelPlan(duelRoom()).groups);
+    }
+    return n;
   }
   return Math.min(PACING.cityAliveBase + Math.floor(game.wave / 2), PACING.cityAliveCap);
 }
@@ -12050,7 +12640,11 @@ function hitPlayer(ended = false) {
     // A run that showed you something new says so. It is the only place the
     // unlocks advertises itself, and dying with a find is the moment you are
     // most likely to go and look at it.
-    const filed = runFiled ? `<div class="filed">+${runFiled} FILED TO UNLOCKS</div>` : '';
+    // ...and it says NEW UNLOCKS, because that is what it counts: `recordMet`
+    // only tallies ids the save had never seen. "FILED TO UNLOCKS" described
+    // the plumbing — where the number went — rather than the thing the player
+    // just earned.
+    const filed = runFiled ? `<div class="filed">+${runFiled} NEW UNLOCK${runFiled === 1 ? '' : 'S'}</div>` : '';
     r.innerHTML = (game.mode === 'rush'
       ? `<div class="stats">RUSH HOUR · ${markPips} ${markPips === 1 ? 'MARK' : 'MARKS'} · ` +
         `${game.kills} SHATTERED · ${Math.round(runPlayT)}S</div>`
@@ -12309,7 +12903,7 @@ function clearHall() {
 // ONE LEG, FOR THE MENU TO STAND IN. A corridor mode with no corridor built
 // yet had nothing to show: the hall environment hides the floor and the city,
 // so a first launch got four enemies floating in an empty fog void, and the
-// alternative — falling back to the city — puts CORRIDOR DUEL over a street.
+// alternative — falling back to the city — puts NO RETREAT over a street.
 function buildMenuHall() {
   clearHall();
   hall = { legs: [], grid: new Set(), cur: 0, doorsPassed: 0,
@@ -12836,25 +13430,66 @@ function hallWave(n) {
     }
     hallWant = want;
   }
+  // THE DUEL'S GROUPS, IN THE ORDER THEY WERE WRITTEN. Everywhere else the
+  // encounter list only sets the leg's TOTAL and the groups are re-derived per
+  // stretch — which is fine in a corridor you walk down, where the stretch you
+  // are standing in is what decides the next arrival. The duel has one stretch
+  // you can reach and a room that is meant to BUILD, so its list has to
+  // survive as a list: 3, 3, 4 is a room that ends on its biggest fight, and
+  // 4, 4, 2 is the same ten men arriving in the wrong order.
+  if (game.mode === 'duel' && hall) {
+    // A ROOM CROSSED WITH NOTHING SHATTERED IN IT is the shooting half of the
+    // lesson going unlearned, and the one thing that earns saying it again.
+    // Asked here, on the composition of the NEXT room, because that is the
+    // moment the last one is over.
+    if (duel.taught && !duel.shotHere && duel.said.shoot < 2) duel.reteach = true;
+    duel.shotHere = false;
+    hall.duelGroups = duelPlan(n).groups.slice();
+    // ...and when the room opened, which is what the debut's reservation on
+    // the first round is timed out against. See duelMayFire.
+    hall.duelFreshAt = worldT;
+  }
   // ...and the CAST is composed the same way it always was — the ramp decides
   // how many, never who. A door that debuts a type still leads with it.
   const sub = { laser: 'rusher', sniper: 'gunner', rocketeer: 'heavy', bomber: 'shotgunner' };
-  // A CORRIDOR DUEL HAS NO BACK. You hold one end of the strip and cannot
-  // give ground, so an enemy whose answer is "retreat" is unanswerable here:
-  // a rusher does not fire, it simply arrives. Everything else stays — a
-  // shotgunner closing to spread range is a fight you can still win by
-  // sidestepping, which is the mode's whole verb.
+  // NO RETREAT HAS NO BACK, and that is what makes a rusher worth having
+  // rather than impossible. It used to be substituted out on the reasoning
+  // that an enemy whose answer is "retreat" is unanswerable in a strip you
+  // cannot retreat down — but the mode has a time button now, and stopping
+  // the world to shatter something on its way in is exactly what the button
+  // is for. It arrives on the schedule, after slow time, never before: see
+  // SIMPLE.duel.cast.
   //
-  // `laser` maps to `rusher` above and this map is applied in ONE hop, so it
-  // has to be redirected here too or a laser arrives as the rusher this
-  // line exists to remove.
-  if (game.mode === 'duel') { sub.rusher = 'gunner'; sub.laser = 'gunner'; }
+  // What stays substituted is what the strip genuinely cannot host. A sniper
+  // is a gunner at 24 m, and a laser sweep cannot be answered by stepping out
+  // of a lane. `laser` maps to `rusher` above and the map is applied in ONE
+  // hop, so it is redirected here or a laser arrives as a rusher.
+  if (game.mode === 'duel') { sub.laser = 'gunner'; }
   // Only types this player has actually unlocked may appear — the same two
   // keys the protocols use, so the cast is metered across runs too.
-  const roster = n <= EARLY.gunnerOnlyDoors ? new Set(['gunner'])
-    : new Set(enemyRoster(n, lifetimeDoors).map((t) => sub[t] || t));
+  // NO RETREAT CASTS FROM ITS OWN SCHEDULE, not from the tunnel's door
+  // numbers: the whole point of the cast dial is that a type arrives when the
+  // ramp says it does — in a room deliberately made quieter to receive it —
+  // rather than when a shared table happens to introduce it.
+  const roster = game.mode === 'duel'
+    ? new Set(duelPlan(n).cast.map((t) => sub[t] || t))
+    : n <= EARLY.gunnerOnlyDoors ? new Set(['gunner'])
+      : new Set(enemyRoster(n, lifetimeDoors).map((t) => sub[t] || t));
   roster.add('gunner');
-  const q = composeWave(n).map((t) => sub[t] || t).filter((t) => roster.has(t));
+  // NO RETREAT COMPOSES ITS OWN ROOM, group by group.
+  //
+  // Everywhere else the cast comes out of `composeWave`, which reads the
+  // TUNNEL's introduction table — so a room this mode's schedule says debuts
+  // the shotgunner was filled with gunners and nothing else, because door 7
+  // is not the door that table introduces shotgunners on. The roster let the
+  // type in and no code ever put one in the queue: an empty permission.
+  //
+  // Here the plan IS the cast list. Every group leads with the types the room
+  // is about — one of each, in the order the schedule named them — and
+  // gunners fill the rest, which is the rule the ramp was written on.
+  const q = game.mode === 'duel'
+    ? duelQueue(duelPlan(n)).map((t) => sub[t] || t)
+    : composeWave(n).map((t) => sub[t] || t).filter((t) => roster.has(t));
   // The leg's size comes from the leg itself: every stretch is worth a few
   // bodies and the approach is worth one last group. A wave is therefore
   // always exactly as big as there is corridor to fight it in.
@@ -12868,7 +13503,7 @@ function hallWave(n) {
     leg.budget = 0;
     want = leg.quota.reduce((a, b) => a + b, 0);
   }
-  const filler = roster.has('rusher') ? ['gunner', 'rusher'] : ['gunner'];
+  const filler = roster.has('rusher') && game.mode !== 'duel' ? ['gunner', 'rusher'] : ['gunner'];
   while (q.length < want) q.push(filler[Math.floor(Math.random() * filler.length)]);
   q.length = Math.min(q.length, want);
   // the leg's debut enemy leads the wave, so the introduction actually lands
@@ -12967,16 +13602,8 @@ function initHall(from = 1) {
   if (tutorShaping) {
     tutorPrevX = player.pos.x; tutorPrevZ = player.pos.z; tutorPrevYaw = player.yaw;
     startTutorial();   // ...which builds the taught leg's own signs
-  } else {
-    // THE FIRST LEG OF A RUN HAS SIGNS TOO. `tutorResetWorld` above also calls
-    // this, and cannot be the one that counts: it runs before `hall` is
-    // rebuilt, so it reads the corridor of the run that just ended. Every
-    // later leg is built by the crossing; this is the one at the start.
-    tutorBuildSigns();
-  }
-  if (tutorShaping) { /* the lesson speaks for itself */ }
-  else if (game.mode === 'duel') {
-    showBanner('THEY COME TO YOU · DRAG TO SIDESTEP', 3000);
+  } else if (game.mode === 'duel') {
+    duelOpenCard();
   } else if (game.mode === 'stop') {
     showBanner('TIME MOVES WHEN YOU DO', 3000);
   } else {
@@ -13263,9 +13890,39 @@ function updateFog(dtReal) {
   updateContacts();
 }
 
+// EVERY ENEMY ROUND STILL IN THE AIR, PUT OUT. Only NO RETREAT needs this,
+// and it needs it badly: the corridor CARRIES the player forward there, so a
+// round the last man got off before he went down is one the game then walks
+// you into. Nothing about that is a dodge you missed — the room was won, and
+// the thing that killed you arrived after it was over and while the controls
+// were not yours.
+//
+// They shatter rather than blink out, because a round that simply vanished
+// would read as a frame drop, and they do it in SILENCE: the door is about to
+// announce itself and a handful of little impacts underneath that is noise
+// where the player is listening for the room being over. Sparks and the
+// whoosh stopping is the whole of it. Player rounds are left alone; they are
+// already flying away from you.
+function clearEnemyRounds() {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    if (bullets[i].fromPlayer) continue;
+    killBullet(i, bullets[i].pos);
+  }
+}
+
 function openHallDoor() {
   const L = hall.legs[hall.cur];
   L.door.open = true;
+  // ...before the announcement, and well before the walk: `duel.walk` is not
+  // set until the next updateSimple, so the room is clear by the time the
+  // player is moved through it.
+  if (game.mode === 'duel') {
+    clearEnemyRounds();
+    // ...AND THE GUN ON THE FLOOR GETS ITS MOMENT, before the walk starts.
+    // `duel.walk` is not set until the next updateSimple, so this lands in the
+    // beat between the last man going down and the corridor taking over.
+    if (duelWantsLoot()) duelTeachLoot();
+  }
   if (!L.nextBuilt) {   // the corridor beyond appears as the door opens
     L.nextBuilt = true;
     // WHICH DOOR THE NEXT LEG BELONGS TO. With more than one leg behind a
@@ -13395,7 +14052,16 @@ function crossHallDoor() {
     // headline is what just arrived rather than what the corridor is shaped
     // like — and the button makes the same entrance the onboarding used to
     // give it, because that animation is what says "this is new".
-    if (doorDone && hall.doorsPassed + 1 === SLOWMO.unlockDoor) {
+    // ...IN THE TUNNEL. `SLOWMO.unlockDoor` is the TUNNEL's gate, and this
+    // branch never asked which game it was in — so NO RETREAT, which hands
+    // the button over itself at `SIMPLE.duel.buttonRoom` with a coach of its
+    // own, announced SLOW MOTION UNLOCKED again four rooms later for a power
+    // the player had been using since room 6. (It also ran `tutorRevealButton`
+    // a second time, re-playing the arrival animation for a button already on
+    // screen.) The lesson underneath was always guarded — `slowLessonWanted`
+    // asks for `game.mode === 'hall'` — and only its announcement was not.
+    if (doorDone && game.mode === 'hall'
+        && hall.doorsPassed + 1 === SLOWMO.unlockDoor) {
       showBanner('SLOW MOTION UNLOCKED', 2200);
       // THE LESSON IS NOT THE ONLY WAY THE BUTTON ARRIVES, and forgetting that
       // broke the unlock for everybody who had already been taught. The lesson
@@ -13570,7 +14236,7 @@ function updateHallFlow() {
     // survivors of earlier spawns inherit the hold too: whoever happens to
     // be last is the one you finish in front of the door, not just whoever
     // was queued last
-    const line = L.approach[0][1] * C - C;
+    const line = duelHold(L, L.approach[0][1] * C - C);
     for (const e of enemies) if (e.holdZ === undefined) e.holdZ = line;
   }
   if (!rally) {
@@ -13618,7 +14284,7 @@ function hallSteer(e) {
 }
 
 // ---------------------------------------------------------------------------
-// THE SIMPLIFIED MODES — CORRIDOR DUEL and STAND STILL
+// THE SIMPLIFIED MODES — NO RETREAT and STAND STILL
 //
 // One movement mechanic and nothing else. There is no look axis, no time
 // button and no bank: you drag to move and you tap to shoot, and that is the
@@ -13632,11 +14298,15 @@ function hallSteer(e) {
 // each mode charges in a different currency, and which one works is the
 // question these two prototypes exist to answer:
 //
-//   CORRIDOR DUEL — time is not yours at all. It drops on its own while a
-//     round is in the air and comes back when the air is clear, so slow
-//     motion is a window the enemy opens, not a resource you hold. You never
-//     advance: they come to you, and the corridor walks you to the door once
-//     the floor is clear.
+//   NO RETREAT — you can stop time; you cannot leave. From SIMPLE.duel
+//     .buttonRoom it has the bank and the button, priced in seconds exactly as the tunnel prices
+//     them, so the COST is not what differs here. The PAYOFF is. In the
+//     tunnel a bought second buys MOVEMENT — out of a lane, behind a pillar,
+//     across the last stretch to a door. Here there is no forward control at
+//     all, so the same second buys a sidestep and nothing else. One prototype
+//     changes what time costs; this one changes what it is worth.
+//     (It used to slow itself whenever a round was inbound, which was a rule
+//     the player could neither see nor cause. See SIMPLE.duel.)
 //
 //   STAND STILL — time is yours, and it costs movement. The world runs at your
 //     thumb's speed, so standing still stops it; but every SHOT spends a
@@ -13662,16 +14332,96 @@ function simpleLegPlan() {
   return { moves: [['f', n]], extra, approach: 4 };
 }
 
+// HOW CLOSE THEY MAY COME.
+//
+// Everywhere else the answer is the door approach: an enemy may close on you
+// but never comes nearer than the band in front of the exit, so the fight that
+// opens the door is fought with the door in frame. NO RETREAT has no walk to
+// the door — you hold your end and the corridor carries you through once the
+// room is dead — so that line means something else here: eight metres, which
+// is where "they come to you" stops being true. See SIMPLE.duel.holdM for the
+// two numbers this one sits between.
+//
+// The player never moves in z in this mode, so the leg's own start IS where
+// they are standing, and the line is measured from there.
+function duelHold(L, otherwise) {
+  if (game.mode !== 'duel') return otherwise;
+  return L.spine && L.spine.length
+    ? L.spine[0][1] * HALL.cell + SIMPLE.duel.holdM : otherwise;
+}
+
 // Duel state. `walk` is the corridor carrying you to the open door: the mode
 // gives the player no forward control, so progress cannot be theirs to make.
-const duel = { walk: false, room: -1 };
+// `coach` is the one-time introduction of the time button (SIMPLE.duel
+// .buttonRoom), and it is a small state machine because its beats each wait on
+// something different: 'wait' is armed and watching for the first round anyone
+// fires, 'tap' has the world stopped with the prompt on the button, 'refill'
+// is the line about the meter, 'meet' is a new type's debut freeze, and 'done'
+// never runs again this run.
+const duel = { walk: false, room: -1, coach: 'wait', coachT: 0,
+  // types whose debut freeze has already played, this run
+  met: new Set(), meetType: null, meetFrom: 0, meetDir: 0,
+  // what the ring is drawn round, who it belongs to, and what answers it
+  meetMark: null, meetOwner: null, meetRounds: [],
+  meetWant: 'dodge', meetShots: 0,
+  // THE ROOM-1 LESSON. `said` counts how many times each beat has been shown
+  // — twice is the ceiling, and the second time has to be earned by missing
+  // it. `shotHere` is whether anything has been shattered in THIS room, which
+  // is what the shooting half is judged on when a door closes behind you.
+  said: { dodge: 0, shoot: 0 }, saidDodgeIn: 0, saidWhy: [], meetKills: 0, taughtIn: 0,
+  // ...and the gun on the floor: which drop is being pointed at, and whether
+  // the player has ever picked one up at all. See duelWantsLoot.
+  loot: null, gotGun: false, debutDrop: -1, holdFire: false, pairSeen: false,
+  shotHere: false, taught: false, reteach: false,
+  // ...and the time button's own introduction, which is its own beat and not
+  // a state of the coach variable. See duelNoteShot.
+  btnSaid: false,
+  // ...and the run's opening card, which is up until the first round flies.
+  openCard: false,
+  // ...whose second half raises the shooting cue alongside it, so "spend the
+  // seconds" and "here is what on" are one beat. See duelPairShot.
+  pairShot: false };
+// EVERY SHOT THE PLAYER HAS EVER TAKEN. Only ever compared against itself —
+// a card that says SHOOT THIS is answered by the count going up, which is a
+// question no flag anybody else owns can be asked without clearing it.
+let playerShots = 0;
 // Dead-stop state: seconds of full-speed world time owed by shots already
 // fired. See SIMPLE.stop.shotTime.
 let stopDebt = 0;
 
 function resetSimpleState() {
+  duelVolleyAt = -1e9;
+  duelVolleyN = 0;
+  duel.met = new Set();
+  duel.meetType = null;
+  duel.meetDir = 0;
+  duel.meetOwner = null;
+  duel.meetMark = null;
+  duel.meetRounds.length = 0;
+  duel.meetWant = 'dodge';
+  duel.said = { dodge: 0, shoot: 0 };
+  duel.saidDodgeIn = 0;
+  duel.saidWhy.length = 0;
+  duel.meetKills = 0;
+  duel.taughtIn = 0;
+  duel.loot = null;
+  duel.gotGun = false;
+  duel.debutDrop = -1;
+  duel.holdFire = false;
+  duel.pairSeen = false;
+  duel.shotHere = false;
+  duel.taught = false;
+  duel.reteach = false;
+  duel.btnSaid = false;
+  duel.openCard = false;
+  duel.pairShot = false;
+  duelTapCue(null);
   duel.walk = false;
   duel.room = -1;
+  duel.coach = 'wait';
+  duel.coachT = 0;
+  duelCoachSay('');
+  duelMeetCard(0);
   stopDebt = 0;
 }
 
@@ -13701,10 +14451,690 @@ function roundInbound() {
 // cross to it. Returned together because the two are one decision: duel eases
 // (a window opening), stand still tracks the thumb almost rigidly (the world
 // is an extension of your hand, and lag there reads as input lag).
-// THE DUEL'S TIME BUTTON, AND WHICH ROOM IT ARRIVES IN. Room 1 is the
-// introduction — they come to you, drag to sidestep, and the world slows
-// itself so you can see what slow time IS. From room 2 it is yours to press.
+// THE DUEL'S TIME BUTTON, AND WHICH ROOM IT ARRIVES IN. The opening rooms are
+// simply the fight — they come to you, drag to sidestep — and the button
+// arrives at the peak of the first cycle, one room before the first new type,
+// because a debut says DODGE and slow time is what makes dodging survivable.
 // See SIMPLE.duel.buttonRoom.
+// THE COACH. Three beats, and every one of them waits on the player rather
+// than on a clock — except the last resort below, which exists because a
+// stopped world nobody knows how to un-stop is the deadlock this mode has
+// already had once.
+//
+//   1. The first round anyone fires once the button exists stops the world,
+//      and the prompt sits ON the button. Not in the middle of the screen: the instruction is
+//      "press this", and a sentence that names a control should be next to it.
+//   2. Pressing it releases into ordinary slow time — the thing they just
+//      asked for happens, immediately, which is the whole of the lesson.
+//   3. ...and then the second line, at the meter that is now visibly draining,
+//      because "it refills when you shatter" is only meaningful while the
+//      player can see it going down.
+function duelCoachSay(text, where) {
+  const el2 = el.duelcoach;
+  if (!el2) return;
+  el2.firstChild.textContent = text || '';
+  el2.classList.toggle('on', !!text);
+  el2.classList.toggle('atbtn', where === 'btn');
+  el2.classList.toggle('atmeter', where === 'meter');
+}
+// THE DEBUT CARD: three rows on a stopped world — who it is, what to do, and
+// a thumb doing it. `dir` is +1 for a swipe to the right of the screen, -1
+// for the left; 0 takes the whole card down.
+// `want` decides the third row as well as the release: a card that says DODGE
+// shows a thumb crossing the stick, and one that says SHOOT shows a thumb
+// pressing — the gesture is the instruction, so it cannot be the wrong one.
+function duelMeetCard(on, name, what, want, dir) {
+  const d = el.duelmeet;
+  if (!d) return;
+  if (on) {
+    d.querySelector('.who').textContent = name;
+    const w = d.querySelector('.what');
+    w.textContent = what;
+    // ...and the longest names step the headline down rather than running off
+    // the sides of it. See #duelmeet .who.
+    d.classList.toggle('longname', name.length > 10);
+    // ...AND `longwhat` IS NOT DECIDED BY LENGTH. It was, briefly, and it
+    // caught the shieldbearer's STOP TIME · GET ROUND HIM — which is a long
+    // line that WANTS the big type and two rows of it, and which duelmeet.mjs
+    // rightly guards a minimum size on. Only the gun-on-the-floor card asks to
+    // stay on one line, and it asks for itself. See duelTeachLoot.
+    w.classList.remove('longwhat');
+  }
+  d.classList.toggle('on', !!on);
+  d.classList.toggle('tap', !!on && want === 'shoot');
+  d.classList.toggle('right', !!on && want !== 'shoot' && dir > 0);
+  d.classList.toggle('left', !!on && want !== 'shoot' && dir < 0);
+  if (!on) {
+    for (const p of el.duelpins || []) p.classList.remove('on');
+    duel.meetOwner = null;
+    duel.meetMark = null;
+    duel.meetRounds.length = 0;
+    if (el.timebtn) el.timebtn.classList.remove('wanted');
+    d.querySelector('.who').textContent = '';
+    d.querySelector('.what').textContent = '';
+  }
+}
+
+// WHERE THE RING GOES, and how big it is.
+//
+// Same ring the onboarding draws on the round it is telling you to dodge: a
+// pellet fourteen metres away is four pixels, so DODGE THIS without it is an
+// instruction pointing at nothing. The size comes from the WORLD — a head is a
+// head, a body is a body — with a floor, so a ring never pretends a pellet is
+// the size of a man and never shrinks to something you cannot find either.
+const _vPin = new THREE.Vector3();
+const _vPinUp = new THREE.Vector3();
+// A ring has to be findable and has to still be a RING: at three metres a
+// rusher's body projects wider than the screen, and a circle bigger than the
+// frame is not a mark on a thing, it is a vignette.
+const PIN_MIN = 15, PIN_MAX = 108;   // screen radius, px
+function duelMeetTargets(out) {
+  out.length = 0;
+  // THE GUN ON THE FLOOR has no owner — it is the one mark that is not on a
+  // man — so it is answered before the rest of this asks for one.
+  if (duel.meetMark === 'loot') {
+    const p = duel.loot;
+    if (p && pickups.indexOf(p) >= 0) {
+      out.push([p.g.position.x, p.spin.position.y, p.g.position.z, 0.55]);
+    }
+    return out;
+  }
+  const e = duel.meetOwner;
+  if (!e) return out;
+  const sx = Math.max(e.g.scale.x, 1), sy = e.g.scale.y;
+  if (duel.meetMark === 'rounds') {
+    for (const b of duel.meetRounds) {
+      if (bullets.indexOf(b) >= 0) out.push([b.pos.x, b.pos.y, b.pos.z, 0.12]);
+    }
+  } else if (duel.meetMark === 'body' && e.alive) {
+    out.push([e.pos.x, 0.95 * sy, e.pos.z, 0.62 * sx]);
+  } else if (duel.meetMark === 'head' && e.alive) {
+    // the same sphere the hit test uses, so the ring is drawn round the thing
+    // that actually takes the shot rather than round a guess at where it is
+    out.push([e.pos.x, 1.62 * sy, e.pos.z, (e.type === 'armored' ? 0.3 : 0.24) * sx]);
+  } else if (duel.meetMark === 'shield' && e.alive) {
+    // the plate's own corner of his local frame — see the shielded hit test
+    const c = Math.cos(e.g.rotation.y), s = Math.sin(e.g.rotation.y);
+    const lx = -0.24 * sx, lz = 0.52 * sx;
+    out.push([e.pos.x + lx * c + lz * s, 1.125 * sy, e.pos.z - lx * s + lz * c,
+      0.55 * sx]);
+  }
+  return out;
+}
+// THE THUMB ON A BODY. The dodge coach points at the stick; TAP HERE TO
+// SHOOT points at the MAN, because in this mode a shot goes where the thumb
+// went and pointing at a control the player is not being asked to use would
+// be teaching the wrong gesture. Placed every frame, so it stays on him while
+// he walks.
+const _vTapCue = new THREE.Vector3();
+function duelTapCue(e) {
+  const n = el.dueltap;
+  if (!n) return;
+  if (!e || !e.alive) { n.classList.remove('on'); return; }
+  _vTapCue.set(e.pos.x, 1.25 * e.g.scale.y, e.pos.z).project(camera);
+  if (_vTapCue.z > 1 || Math.abs(_vTapCue.x) > 1 || Math.abs(_vTapCue.y) > 1) {
+    n.classList.remove('on');
+    return;
+  }
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  n.style.left = `${(_vTapCue.x * 0.5 + 0.5) * w}px`;
+  n.style.top = `${(-_vTapCue.y * 0.5 + 0.5) * h}px`;
+  n.classList.add('on');
+}
+
+const _pinTargets = [];
+function duelPlaceMeetPins() {
+  const pins = el.duelpins;
+  if (!pins || !pins.length) return;
+  const on = (duel.coach === 'meet' || duel.coach === 'loot' || duelTeaching() || duel.pairShot)
+    ? duelMeetTargets(_pinTargets) : [];
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  for (let i = 0; i < pins.length; i++) {
+    const t = on[i];
+    if (!t) { pins[i].classList.remove('on'); continue; }
+    _vPin.set(t[0], t[1], t[2]).project(camera);
+    if (_vPin.z > 1 || Math.abs(_vPin.x) > 1.2 || Math.abs(_vPin.y) > 1.2) {
+      pins[i].classList.remove('on');
+      continue;
+    }
+    _vPinUp.set(t[0], t[1] + t[3], t[2]).project(camera);
+    const r = Math.max(PIN_MIN, Math.min(PIN_MAX,
+      Math.abs(_vPinUp.y - _vPin.y) * 0.5 * h));
+    const d = r * 2;
+    pins[i].style.width = d + 'px';
+    pins[i].style.height = d + 'px';
+    pins[i].style.left = ((_vPin.x * 0.5 + 0.5) * w - r) + 'px';
+    pins[i].style.top = ((-_vPin.y * 0.5 + 0.5) * h - r) + 'px';
+    pins[i].classList.add('on');
+  }
+}
+// WHICH WAY IS OUT, as a screen direction.
+//
+// Away from his line. The camera never turns in this mode, so the corridor's
+// cross-axis IS the screen's left/right axis, and the lateral part of the gap
+// between the two of you projected onto it is the whole answer — the forward
+// part falls out on its own, because forward is at right angles to it.
+//
+// ...unless that side has run out of strip. Twelve metres is not much, and a
+// coach pointing a first-time player into a wall is worse than no coach.
+function duelDodgeDir(e) {
+  const cs = Math.cos(player.yaw), sn = Math.sin(player.yaw);
+  const across = (player.pos.x - e.pos.x) * cs - (player.pos.z - e.pos.z) * sn;
+  let dir = across >= 0 ? 1 : -1;
+  const L = hall && hall.legs[hall.cur];
+  const spineX = L && L.spine && L.spine.length ? L.spine[0][0] * HALL.cell : 0;
+  const off = (player.pos.x - spineX) * cs;   // how far off centre they already are
+  if (off * dir > SIMPLE.duel.dodgeRoom) dir = -dir;
+  return dir;
+}
+
+// MEETING A NEW TYPE. The world stops on its first act — its first round, or
+// for the rusher the frame it plants and coils.
+//
+// IT IS THE ONBOARDING'S DODGE BEAT, WITH A NAME ON TOP. Three rows fill the
+// still screen — who it is, the same DODGE line that lesson taught, and a
+// thumb going the way that answers it — and a sidestep starts the world
+// again, which is what those words asked for both times.
+//
+// It used to be a sentence of tactics per type, every one of them true and
+// none of them read: a stopped screen with a paragraph on it is a loading
+// screen. Then it was a small plate pinned on the body with a cue tucked down
+// by the stick, which is a card that is scattered rather than one that is
+// read. Once per type per run.
+function duelNoteMeet(e) {
+  if (!e || game.mode !== 'duel' || game.state !== 'play') return;
+  if (duel.coach === 'tap' || duel.coach === 'meet') return;   // one card at a time
+  const card = SIMPLE.duel.meet[e.type];
+  if (!card || duel.met.has(e.type)) return;
+  // ...and only the type this room exists to introduce. A shotgunner met
+  // again three cycles later in a combination room is not a debut.
+  if (duelPlan(duelRoom()).fresh !== e.type) return;
+  duel.met.add(e.type);
+  duel.meetType = e.type;
+  duel.coach = 'meet';
+  duel.coachT = 0;
+  duel.meetFrom = player.pos.x;
+  duel.meetDir = duelDodgeDir(e);
+  duel.meetOwner = e;
+  duel.meetMark = card.mark;
+  duel.meetRounds.length = 0;
+  duel.meetWant = card.want;
+  duel.meetShots = playerShots;
+  duelMeetCard(1, e.type.toUpperCase(), card.say, card.want, duel.meetDir);
+  // ...AND THE BUTTON LIT, on the one type whose answer starts with it. A
+  // shieldbearer turns to follow you, so stepping off his line at full speed
+  // only buys the beat he needs to come round; the card says stop time first,
+  // and the control it names wears the same pulse the button lesson uses.
+  if (card.button && duelButtonOn() && el.timebtn) el.timebtn.classList.add('wanted');
+  vibrate([14, 50, 14]);
+}
+// ---------------------------------------------------------------------------
+// THE ROOM-1 LESSON. Two beats, and the second one is the reason the first
+// exists: you are shown what a round does to you before you are handed
+// anything to do about it.
+//
+//   DODGE   the first round anyone fires stops the world, gets a ring, and
+//           says the one thing there is to do. Answered by stepping aside.
+//   SHOOT   the world starts again, the pistol arrives, and a man gets a ring
+//           and a thumb pressing on his chest. Answered by firing.
+//
+// Said TWICE AT MOST — see SIMPLE.duel.teach. The second time has to be
+// earned by missing it: a round that got half way while the player stood in
+// its lane, or a whole room crossed without a body shattered.
+// ---------------------------------------------------------------------------
+// THE RUN'S OPENING CARD. What was here read "THEY COME TO YOU · DRAG TO
+// SIDESTEP" — two instructions and no reason, on a mode whose whole first
+// sentence is already told by the room: they walk in, you cannot walk away.
+// A player does not need to be told the verb before anything has happened.
+//
+// So it says where you are instead. The number is the point of it: a serial
+// in the tens of thousands says, without a word of story, that a great many
+// people have stood exactly here and that the room does not care which one
+// you are. It is drawn fresh every run, because a fixed number is a label and
+// a changing one is a count.
+//
+// AND IT IS NOT ON A TIMER. It holds while the first men walk to their
+// places and goes when the first round is fired — see duelCloseOpenCard,
+// called from enemyFire. `openCardMax` is only the safety net for a room
+// where, somehow, nobody ever shoots.
+function duelOpenCard() {
+  duel.openCard = true;
+  const n = 12000 + Math.floor(Math.random() * 78000);
+  showBanner('<div class="sim"><span class="lede">STARTING SIMULATION</span>#'
+    + n.toLocaleString('en-US') + '<small>GOOD LUCK</small></div>',
+    SIMPLE.duel.openCardMax * 1000);
+}
+function duelCloseOpenCard() {
+  if (!duel.openCard) return;
+  duel.openCard = false;
+  hideBanner();
+}
+function duelTeaching() {
+  return duel.coach === 'dodge' || duel.coach === 'aim';
+}
+// THE LESSON BELONGS TO THE OPENING, AND NOWHERE ELSE.
+//
+// It is about the two things this mode is made of — a round comes and you
+// move, a man is there and you tap him — and the rooms before the first new
+// type are exactly the rooms that are about only those two things. Past that
+// the debut cards own the screen, and a probe walking to room 7 without ever
+// having been shot at found both of them talking at once: the lesson froze
+// the world over a shotgunner's introduction and the introduction never
+// happened.
+//
+// `step.cast === 0` is the opening entry of the cast programme — the same
+// rooms `SIMPLE.duel.cast[0].rooms` names — so this moves if the programme
+// does, rather than being a room number typed twice.
+function duelMayTeach() {
+  if (game.mode !== 'duel' || game.state !== 'play') return false;
+  if (duel.coach === 'tap' || duel.coach === 'meet' || duel.coach === 'loot') return false;
+  // ...AND IT ENDS WHERE THE POWER BEGINS. The button's own room belongs to
+  // the button, which arrives with a coach of its own and a shooting cue
+  // paired to it — measured, the dodge repeat fired in room 6 and stopped
+  // that introduction happening at all. This lesson is for the rooms BEFORE
+  // there is anything else to be told.
+  if (duelButtonOn()) return false;
+  const p = duelPlan(duelRoom());
+  if (p.step.cast !== 0) return false;
+  // ...and never over a debut that has not landed yet, even inside it
+  return !(p.fresh && !duel.met.has(p.fresh));
+}
+// THE PISTOL IS NOT ON SCREEN UNTIL THE DODGE BEAT IS ANSWERED. A weapon in
+// frame is an invitation to use it, and the first thing this mode has to say
+// is that a round is coming and you move — so room 1 opens with nothing in
+// your hands, and the gun arrives on the beat you earn it.
+//
+// ...WITH A WAY OUT. If nobody ever fires, the lesson never starts and a
+// player would be stood in a corridor unarmed for ever. The room's own clock
+// (see duelMayFire) is what that is measured against.
+function duelHoldsGun() {
+  if (game.mode !== 'duel' || duelRoom() !== 1) return false;
+  if (duel.said.shoot > 0 || duel.taught) return false;
+  const since = worldT - ((hall && hall.duelFreshAt) || 0);
+  return since < SIMPLE.duel.teach.hold * 2;
+}
+// HOW CLOSE THIS ROUND COMES TO THE PLAYER, and how long until it does —
+// with BOTH of them moving. `t` is seconds to closest approach and is
+// negative once it is behind them. One function, because the decision and the
+// record of why the decision was made must not be two different sums.
+const _miss = { miss: Infinity, t: -1 };
+function duelRoundMiss(b) {
+  _miss.miss = Infinity; _miss.t = -1;
+  if (!b) return _miss;
+  const rvx = b.vel.x - player.vel.x, rvz = b.vel.z - player.vel.z;
+  const sp2 = rvx * rvx + rvz * rvz;
+  if (sp2 < 1e-6) return _miss;
+  const dx = player.pos.x - b.pos.x, dz = player.pos.z - b.pos.z;
+  const t = (dx * rvx + dz * rvz) / sp2;
+  _miss.t = t;
+  _miss.miss = Math.hypot(dx - rvx * t, dz - rvz * t);
+  return _miss;
+}
+function duelTeachDodge(b) {
+  if (!duelMayTeach() || duelTeaching()) return;
+  if (duel.said.dodge >= 2 || !b) return;
+  // WHY IT SAID IT. Kept because the complaint this beat attracts is always
+  // "it told me to dodge something that was never going to hit me", and that
+  // is a claim about three numbers: how far along the round was, how close it
+  // was going to come, and how long the player had. An impression cannot be
+  // regression-tested; these can.
+  duel.saidWhy.push({
+    room: duelRoom(),
+    ratio: +(Math.hypot(b.pos.x - b.born.x, b.pos.z - b.born.z)
+      / Math.max(1e-6, Math.hypot(b.pos.x - b.born.x, b.pos.z - b.born.z)
+        + Math.hypot(player.pos.x - b.pos.x, player.pos.z - b.pos.z))).toFixed(3),
+    miss: +duelRoundMiss(b).miss.toFixed(3),
+    eta: +duelRoundMiss(b).t.toFixed(2),
+    dist: +Math.hypot(player.pos.x - b.pos.x, player.pos.z - b.pos.z).toFixed(2),
+  });
+  duel.said.dodge++;
+  duel.saidDodgeIn = duelRoom();
+  duel.coach = 'dodge';
+  duel.coachT = 0;
+  duel.meetFrom = player.pos.x;
+  duel.meetMark = 'rounds';
+  duel.meetOwner = b.turnOwner || enemies.find((e) => e.alive) || null;
+  duel.meetRounds.length = 0;
+  duel.meetRounds.push(b);
+  duel.meetWant = 'dodge';
+  // ...which way. Away from where the round is going, which for a round
+  // already in the air is the side of it the player is not on.
+  const cs = Math.cos(player.yaw), sn = Math.sin(player.yaw);
+  const across = (player.pos.x - b.pos.x) * cs - (player.pos.z - b.pos.z) * sn;
+  duel.meetDir = across >= 0 ? 1 : -1;
+  duelMeetCard(1, '', SIMPLE.duel.teach.dodge, 'dodge', duel.meetDir);
+  if (el.duelmeet) el.duelmeet.classList.add('noname');
+  vibrate([14, 50, 14]);
+}
+// THE GUN ON THE FLOOR, POINTED AT.
+//
+// A shotgunner drops his shotgun. There is no pick-up button in this game —
+// you walk over a thing to take it — and NO RETREAT never asks the player to
+// go anywhere: the drag is for stepping out of the way of rounds, and the
+// corridor does the walking. So the one gesture that gets you the gun is the
+// one gesture the mode has never used the drag for, and a player who has only
+// ever played this mode has no reason to guess it.
+//
+// So the room says it, once the fighting is over and while the corridor is
+// carrying them past: the world goes heavy, a ring goes on the gun, and the
+// thumb points the way. It is not a freeze — the walk has to continue under it
+// or the drag has nothing to be a drag against — and it goes the moment they
+// have it, or the moment they are past it and the answer is no.
+//
+// AND IT ASKS AGAIN AT EVERY CLEARED ROOM UNTIL THEY ARE CARRYING ONE. Missing
+// it is the likeliest outcome the first time: the gun may be at the far side
+// of a strip they are being walked down the middle of.
+function duelWantsLoot() {
+  if (game.mode !== 'duel' || duel.gotGun) return false;
+  if (duel.coach === 'meet' || duelTeaching()) return false;
+  return !!duelLootDrop();
+}
+// The weapon lying furthest UP the strip — the one they have most room left to
+// reach. Clips are not weapons and are not what this is about.
+function duelLootDrop() {
+  let best = null;
+  for (const p of pickups) {
+    if (p.type === CLIP || p.life < PICKUP_SINK) continue;
+    if (p.g.position.z - player.pos.z < 1.2) continue;   // already level with it
+    if (!best || p.g.position.z < best.g.position.z) best = p;
+  }
+  return best;
+}
+function duelTeachLoot() {
+  const drop = duelLootDrop();
+  if (!drop) return;
+  duel.coach = 'loot';
+  duel.coachT = 0;
+  duel.loot = drop;
+  duel.meetMark = 'loot';
+  duel.meetOwner = null;
+  duel.meetRounds.length = 0;
+  // which way across the strip it is, from where they are standing
+  const dir = drop.g.position.x >= player.pos.x ? 1 : -1;
+  duelMeetCard(1, '', `${SIMPLE.duel.loot.say} ${drop.type.toUpperCase()}`, 'dodge', dir);
+  if (el.duelmeet) {
+    el.duelmeet.classList.add('noname');
+    // ONE LINE. This is a sentence rather than a two-word instruction, and a
+    // headline that breaks in half stops reading as one thing to do.
+    el.duelmeet.querySelector('.what').classList.add('longwhat');
+  }
+  vibrate(12);
+}
+function duelTeachShoot() {
+  if (!duelMayTeach()) return;
+  if (duel.said.shoot >= 2) return;
+  const man = duelNearestBody();
+  if (!man) return;
+  duel.said.shoot++;
+  duel.coach = 'aim';
+  duel.coachT = 0;
+  duel.meetMark = 'body';
+  duel.meetOwner = man;
+  duel.meetRounds.length = 0;
+  duel.meetWant = 'shoot';
+  duel.meetShots = playerShots;
+  duel.meetKills = game.kills;   // what answers it: one more than this
+  duel.taughtIn = duelRoom();    // ...and only in the room that raised it
+  // ...AND ONLY THE FIRST TELLING, IN THE OPENING ROOM, HOLDS THE ROOM'S FIRE.
+  // That telling is the one where the player has never fired a shot in their
+  // life. Every later one is a reminder to somebody who has, and a reminder is
+  // not a reason to stop the fight.
+  duel.holdFire = duel.said.shoot === 1 && duelRoom() === 1;
+  duelMeetCard(1, '', SIMPLE.duel.teach.shoot, 'shoot', 0);
+  if (el.duelmeet) el.duelmeet.classList.add('noname', 'nostick');
+}
+// Whoever the lesson should point at: the nearest man the player CAN SEE.
+//
+// The comment here used to say "in front of the player" and the code did not
+// check — it took the nearest body in any direction. That is a real bug and
+// the reason is not the one it looks like.
+//
+// THE CAMERA IS PORTRAIT, AND ITS 80 DEGREES ARE VERTICAL. Measured, standing
+// in room 6: aspect 0.46, so the HORIZONTAL field of view is 42 degrees —
+// twenty-one either side of the way you are facing. And nobody is ever behind
+// you here; there is no forward control and the men come to you. Out of 2525
+// samples of a live man, **none** was behind the player and 128 were off the
+// screen, every one of them in front, at a median of 3.9 m and 30 degrees
+// off-axis.
+//
+// So the men who fall off the glass are the ones who have CLOSED. A man who
+// has walked in to the hold line and strafed a couple of metres across is at
+// thirty degrees, which is off the edge of a portrait screen while being very
+// much in front of you — and he is also, by then, the NEAREST. The median
+// distance of a man on screen was 15.2 m; of one off it, 3.9 m. "Nearest" and
+// "visible" were close to opposites, which is how the button's paired cue came
+// to report an owner, a mark and a claimed beat and put nothing on the glass
+// with four men in the room.
+//
+// So it asks the camera rather than the geometry. A body counts if its chest
+// projects inside the viewport with a margin, which is the actual requirement.
+// The nearest of those wins; if none are visible the nearest one in front is
+// better than nothing.
+const _vNear = new THREE.Vector3();
+function duelNearestBody() {
+  let seen = null, seenD = 1e9, ahead = null, aheadD = 1e9;
+  // FORWARD, as the movement code defines it: pushing the stick up gives
+  // (-sin yaw, -cos yaw), which at the duel's yaw of PI is +z — the direction
+  // the corridor runs. Getting this backwards would point the cue at exactly
+  // the men it is meant to skip.
+  const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+  for (const e of enemies) {
+    if (!e.alive || e.state === 'assemble') continue;
+    const dx = e.pos.x - player.pos.x, dz = e.pos.z - player.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (dx * fx + dz * fz <= 0) continue;          // behind you
+    if (d < aheadD) { aheadD = d; ahead = e; }
+    _vNear.set(e.pos.x, SIMPLE_CHEST_Y * e.g.scale.y, e.pos.z).project(camera);
+    if (_vNear.z > 1 || Math.abs(_vNear.x) > 0.92 || Math.abs(_vNear.y) > 0.92) continue;
+    if (d < seenD) { seenD = d; seen = e; }
+  }
+  return seen || ahead;
+}
+function duelTeachDone() {
+  duel.coach = 'done';
+  duel.meetOwner = null;
+  duel.meetMark = null;
+  duel.meetRounds.length = 0;
+  duelMeetCard(0);
+  duelTapCue(null);
+  if (el.duelmeet) el.duelmeet.classList.remove('noname', 'nostick');
+}
+
+// Called from enemyFire, on every enemy shot in the game — so the first thing
+// it does is decide this is none of its business.
+function duelNoteShot() {
+  if (!duelButtonOn() || game.state !== 'play') return;
+  // ONCE, AND NOT OFF THE BACK OF THE COACH STATE. `duel.coach` is one
+  // variable shared by every held beat this mode has, and this used to demand
+  // it be 'wait' — which is true only before ANYTHING has been said. The
+  // room-1 lesson now always speaks first and leaves it 'done', so the time
+  // button's own introduction could never fire again for a real player: the
+  // power arrived silently, with nothing on screen to say what it was.
+  if (duel.btnSaid) return;
+  if (duel.coach !== 'wait' && duel.coach !== 'done') return;   // one at a time
+  duel.btnSaid = true;
+  duel.coach = 'tap';
+  duel.coachT = 0;
+  duelCoachSay('TAP TO SLOW TIME', 'btn');
+  el.timebtn.classList.add('hint');
+  vibrate([12, 40, 12]);
+}
+// The button was pressed while the world was held for it: that IS the lesson,
+// so it ends here and the meter line takes over.
+function duelCoachTapped() {
+  if (!duelButtonOn()) return;              // the tunnel's button is not this
+  if (duel.coach !== 'tap' && duel.btnSaid) return;
+  if (duel.coach === 'meet' || duelTeaching()) return;   // something else is talking
+  duel.btnSaid = true;
+  duel.meetShots = playerShots;
+  // FOUND IT THEMSELVES? Then the first line has nothing left to say, and
+  // saying it anyway — stopping the world to teach a control they are already
+  // holding — is the most annoying thing a tutorial can do. Skip to the half
+  // they have not been told.
+  duel.coach = 'refill';
+  duel.coachT = 0;
+  duelCoachSay('SHATTER ENEMIES TO REFILL YOUR METER', 'meter');
+  el.timebtn.classList.remove('hint');
+  // ...AND WHAT THE SECONDS ARE FOR. The meter line asks the player to shatter
+  // and says nothing about how, at the one moment the world has slowed down
+  // to let them. So the button's coach is PAIRED with the shooting cue: a ring
+  // on a man and a thumb pressing on his chest, in the slowed room, while the
+  // line about refilling is on screen. Stopping time and taking a shot are one
+  // idea and this is the beat that has both halves of it in frame.
+  duelPairShot();
+}
+// The shooting cue raised ALONGSIDE another beat rather than as one of its
+// own: no card of its own, no freeze, no state change — just the ring and the
+// thumb on a body, put away when the beat that raised them is over.
+function duelPairShot() {
+  duel.meetMark = 'body';
+  duel.meetRounds.length = 0;
+  duel.pairShot = true;
+  // ...AND IT DOES NOT NEED A BODY YET. This used to give up if the floor
+  // happened to be empty on the frame the button was tapped — which it often
+  // is, because the tap comes out of a FREEZE and the room carries on filling
+  // afterwards — and having given up, the per-frame code below never looked
+  // again, because it only looks while `pairShot` is set. So the beat that
+  // says "shatter" showed nothing to shatter. It claims the beat here and
+  // finds somebody as soon as there is somebody.
+  duel.meetOwner = duelNearestBody();
+}
+function updateDuelCoach(dtReal) {
+  // ...a room went by with nothing shattered in it: say the shooting half
+  // once more, as soon as there is a man on the floor to point at.
+  if (duel.reteach && duel.coach === 'done' && game.state === 'play'
+      && duelNearestBody()) {
+    duel.reteach = false;
+    duelTeachShoot();
+  }
+  // ---- the room-1 lesson --------------------------------------------------
+  if (duelTeaching()) {
+    if (game.state !== 'play') { duelTeachDone(); return; }
+    duel.coachT += dtReal;
+    if (duel.coach === 'dodge') {
+      // stepping aside is what the words asked for, and it is also the only
+      // control the player has been given yet
+      const across = Math.abs(player.pos.x - duel.meetFrom);
+      if (across >= TUTOR.dodgeStepM || duel.coachT > SIMPLE.duel.teach.hold) {
+        duelTeachDone();
+        // ...AND THE PISTOL ARRIVES ON THE BEAT THEY EARNED IT. Straight into
+        // the second half, because "you moved, now here is what you moved
+        // FOR" is one thought and two screens of it is two.
+        duelTeachShoot();
+      }
+      return;
+    }
+    // 'aim': the world is running. Firing is the answer, and the thumb rides
+    // the man it is about until then.
+    duelTapCue(duel.meetOwner && duel.meetOwner.alive ? duel.meetOwner
+      : (duel.meetOwner = duelNearestBody()));
+    // ...AND IT IS ANSWERED BY A BODY COMING APART, NOT BY A TRIGGER PULL.
+    // The card taught the gesture and cleared on the first tap, which is the
+    // gesture without its consequence: a player who tapped the wrong part of
+    // the screen, or tapped a wall, was told they had learnt it. What this
+    // mode is made of is a man being there and you shattering him, so the
+    // card stays up until one does. ANY of them counts — the cue rides the
+    // nearest live body and the player may well pick a different one.
+    //
+    // There is no rush on it, because nobody is shooting back until it goes
+    // (see duelMayFire), so `shootHold` is a very long way out: it exists so
+    // a run can never wedge, not as a lesson that gives up on you.
+    // ...AND IT NEVER OUTLIVES ITS OWN ROOM. The card holds the room's fire
+    // while it is up, so a card that somehow survived a door would be a room
+    // full of men who never shoot. In play the door cannot open while it is
+    // showing — clearing the room is what answers it — but "cannot happen" is
+    // not a thing to leave a fire-hold resting on.
+    if (game.kills > duel.meetKills || duelRoom() !== duel.taughtIn
+        || duel.coachT > SIMPLE.duel.teach.shootHold) {
+      duel.taught = true;
+      duel.holdFire = false;
+      duelTeachDone();
+    }
+    return;
+  }
+  if (duel.coach === 'loot') {
+    duel.coachT += dtReal;
+    const p = duel.loot;
+    const got = !p || pickups.indexOf(p) < 0;          // walked over: it is gone
+    // ...OR THEY ARE PAST IT AND THE ANSWER IS NO. The corridor keeps walking
+    // under this beat, so "past it" is a real answer and arrives on its own.
+    const past = !got && player.pos.z > p.g.position.z + 1.0;
+    if (got || past || game.state !== 'play'
+        || duel.coachT > SIMPLE.duel.loot.hold) {
+      duel.coach = 'done';
+      duel.loot = null;
+      duelMeetCard(0);
+    }
+    return;
+  }
+  if (duel.coach === 'meet') {
+    // A HELD WORLD IS ONLY HELD WHILE THERE IS A FIGHT TO HOLD. If the run
+    // ended on the round that triggered the card, nothing is going to dodge
+    // it, and `simpleTime` would keep the clock at zero for ever.
+    if (game.state !== 'play') {
+      duel.coach = 'done'; duel.meetType = null;
+      duelMeetCard(0);
+      return;
+    }
+    duel.coachT += dtReal;
+    // WHAT THE CARD ASKED FOR IS WHAT ANSWERS IT. A card released by anything
+    // else is a card nobody has to read: DODGE THIS goes when they step aside
+    // — the onboarding's own rule, measured from where they were standing
+    // when it stopped — and SHOOT THIS goes when they pull the trigger.
+    const done = duel.meetWant === 'shoot'
+      ? playerShots > duel.meetShots
+      : Math.abs(player.pos.x - duel.meetFrom) >= TUTOR.dodgeStepM;
+    if (done || duel.coachT > SIMPLE.duel.meetHold) {
+      duel.coach = 'done';
+      duel.meetType = null;
+      duelMeetCard(0);
+    }
+    return;
+  }
+  if (duel.coach === 'tap') {
+    duel.coachT += dtReal;
+    // A STOPPED WORLD HAS TO HAVE A WAY OUT THAT IS NOT THE PLAYER. They may
+    // not understand the prompt, or may have put the phone down. Twelve
+    // seconds is long past reading it, and letting go into the ordinary fight
+    // is strictly better than a screen that never moves again.
+    if (duel.coachT > 12) { duel.coach = 'done'; duelCoachSay(''); el.timebtn.classList.remove('hint'); }
+  } else if (duel.coach === 'refill') {
+    duel.coachT += dtReal;
+    // the paired shooting cue rides this beat: it follows a live body, and it
+    // goes when the line it came with goes — or the moment they take the shot
+    // it was asking for, because then it has been answered.
+    if (duel.pairShot) {
+      if (!duel.meetOwner || !duel.meetOwner.alive) duel.meetOwner = duelNearestBody();
+      duelTapCue(duel.meetOwner);
+    }
+    // ...AND A CUE THAT GOES IN THE FRAME IT ARRIVED WAS NEVER SHOWN. You
+    // shoot in this mode by tapping ANYWHERE, and the time button is on the
+    // screen — so the very tap that raises this cue also pulls the trigger,
+    // and "they took the shot it asked for" was true before the player could
+    // have seen it. It has to be up long enough to read first.
+    const answered = duel.pairShot && duel.coachT > 0.8
+      && playerShots > duel.meetShots;
+    // ...AND THE BEAT WAITS FOR SOMEBODY TO POINT AT. A man still assembling
+    // has no hitbox — he is thin air until he forms — so the cue rightly skips
+    // him, and a room whose only bodies are mid-arrival has nothing to shatter
+    // and nothing to ring. Measured, that happens: the button's own room came
+    // up with two men in it and both of them still arriving. Rather than let
+    // the pairing silently not happen, the line holds longer while it has
+    // never once had anybody. `pairSeen` latches, so it cannot stretch twice.
+    if (duel.pairShot && duel.meetOwner) duel.pairSeen = true;
+    const waited = duel.pairShot && !duel.pairSeen ? SIMPLE.duel.pairWait : 4.5;
+    if (duel.coachT > waited || answered) {
+      duel.coach = 'done';
+      duelCoachSay('');
+      duel.pairShot = false;
+      duel.pairSeen = false;
+      duel.meetOwner = null;
+      duel.meetMark = null;
+      duelTapCue(null);
+    }
+  }
+}
+
 function duelButtonOn() {
   return game.mode === 'duel' && timeMode === 'toggle' && !!hall
     && hall.doorsPassed + 1 >= SIMPLE.duel.buttonRoom;
@@ -13713,15 +15143,38 @@ function duelButtonOn() {
 function simpleTime() {
   const m = simple();
   if (m === 'duel') {
-    // WHOSE TIME IS IT? In room 1, nobody's: the world slows itself the moment
-    // a round is on its way. That is a demonstration and it is deliberately
-    // free — but as a RULE it is invisible (a round arriving inside 1.1s and
-    // passing within 2.6m), so played on it reads as the world slowing down at
-    // random, which is what was reported. From room 2 the button owns it, and
-    // the bank underneath is the tunnel's: it drains while you are in it and
-    // every body you shatter puts some back.
-    const on = duelButtonOn() ? timeLocked : roundInbound();
-    return { target: on ? SIMPLE.duel.slow : TIME_FULL, ease: SIMPLE.duel.ease };
+    // TIME IS THE PLAYER'S HERE, OR IT IS NOBODY'S BUSINESS.
+    //
+    // The mode used to slow itself whenever a round was on its way. That is a
+    // real rule — inside `lead` seconds, passing within `miss` metres — and an
+    // invisible one: nothing states it and the player cannot cause it, so from
+    // the outside the world slowed down at random. Room 1 kept it briefly as a
+    // demonstration and that was worse, not better: a mode whose time rule
+    // changes between its first room and its second teaches the player
+    // something in room 1 that is not true in room 2.
+    //
+    // So the opening rooms run at full speed and are simply the fight; the
+    // button arrives with a coach at SIMPLE.duel.buttonRoom, and from there
+    // slow time is a thing you do.
+    // THE TWO HELD BEATS: meeting the button, and meeting a new type. A debut
+    // stops the world the way the ONBOARDING stops it — TUTOR.holdEase, not a
+    // snap — because it is the same beat: three rows on a still screen, and
+    // the sidestep they ask for is what starts it again.
+    // ...and the room-1 dodge beat stops it the same way a debut does. The
+    // SHOOTING half deliberately does not: a pistol that arrives in a stopped
+    // world has not arrived, it has been drawn on the screen.
+    if (duel.coach === 'meet' || duel.coach === 'dodge') {
+      return { target: 0, ease: TUTOR.holdEase };
+    }
+    if (duel.coach === 'tap') return { target: 0, ease: 30 };
+    // ...and the gun on the floor SLOWS rather than stops: the corridor has
+    // to keep carrying them, or the drag it is asking for has nothing to be
+    // a drag against.
+    if (duel.coach === 'loot') {
+      return { target: SIMPLE.duel.loot.slow, ease: SIMPLE.duel.ease };
+    }
+    return { target: (duelButtonOn() && timeLocked) ? SIMPLE.duel.slow : TIME_FULL,
+      ease: SIMPLE.duel.ease };
   }
   const s = Math.min(Math.hypot(input.stickX, input.stickY), 1);
   let target = SIMPLE.stop.still +
@@ -13760,6 +15213,9 @@ function tapAim(sx, sy) {
   return v.sub(camera.position).normalize().multiplyScalar(30).add(camera.position);
 }
 const SIMPLE_CHEST_Y = 1.25;
+// How fast a rusher's charge travels. Its DURATION is derived from the
+// distance it has to cross — see the 'lunge' case in updateEnemy.
+const RUSH_LUNGE = 10.5;
 const _vTap = new THREE.Vector3();
 
 // The corridor walks you to the door. Runs on REAL time, not the world clock:
@@ -13770,6 +15226,7 @@ function updateSimple(dt) {
   if (!m || !hall) return;
   if (stopDebt > 0) stopDebt = Math.max(0, stopDebt - dt * timeScale);
   if (m !== 'duel') return;
+  updateDuelCoach(dt);
   const L = hall.legs[hall.cur];
   duel.walk = !!(L && L.door.open && game.state === 'play');
   // THE BUTTON ARRIVES ON A ROOM, AND NOTHING ELSE WOULD NOTICE. `updateModeUI`
@@ -13980,7 +15437,11 @@ function frame(now) {
   // nothing creeps while the player reads the prompt. Their own controls keep
   // working throughout — they can look around at the man about to shoot them,
   // which is rather the point.
-  if (tutorWorldHeld && timeScale < 0.004) timeScale = 0;   // ...and it does stop
+  // ...and it does stop. The duel's two held beats want the same true zero: a
+  // world creeping at 0.003 while somebody reads three words is a world that
+  // arrives at them mid-sentence.
+  if ((tutorWorldHeld || duel.coach === 'tap' || duel.coach === 'meet'
+    || duel.coach === 'dodge') && timeScale < 0.004) timeScale = 0;
   const sdt = dt * timeScale;   // scaled dt: the world's clock
   worldT += sdt;                // ...and its running total, for world-time gaps
 
@@ -14164,7 +15625,7 @@ function frame(now) {
       camera.lookAt(0, 1.2, 0);
     }
   } else {
-    gun.visible = tutorMay('gun');
+    gun.visible = tutorMay('gun') && !duelHoldsGun();
     // the crosshair and the pause button ride with the weapon — see index.html
     document.body.classList.toggle('armed', gun.visible);
     camera.position.set(player.pos.x, EYE_HEIGHT, player.pos.z);
@@ -14281,7 +15742,12 @@ function frame(now) {
         // out of it here would skip everything after the spawner — the
         // enemies' own update, the HUD, the lot — on any frame a placement was
         // refused. Only the rest of THIS arrival is skipped.
-        if (born && next === 'rusher') {
+        // ...but NOT IN NO RETREAT, where the room's groups are the plan.
+        // A pack pulled from anywhere in the queue would take bodies the
+        // room had promised to a later group and skip the group list
+        // entirely, so a combination room that opens on a rusher would
+        // quietly stop building.
+        if (born && next === 'rusher' && game.mode !== 'duel') {
           // rushers hunt in packs of 3-4: pull the rest of the pack from
           // anywhere in the wave and send them out the same alley together
           let extra = Math.min(2 + (Math.random() < 0.5 ? 1 : 0),
@@ -14312,8 +15778,14 @@ function frame(now) {
           // separate searches — the harder and more interesting version of a
           // corridor you cannot see down.
           const LG = hall.legs[hall.cur];
-          const owes = !legCondition() && LG && LG.fill && LG.lastOwn >= 0
-            ? LG.fill[LG.lastOwn] || 0 : 0;
+          // THE DUEL TAKES ITS GROUP OFF THE ROOM'S LIST, in order, so the
+          // room builds. One man is already born on the line above, so the
+          // group owes the rest of itself.
+          const owes = game.mode === 'duel'
+            ? ((hall.duelGroups && hall.duelGroups.length
+              ? hall.duelGroups.shift() : 1) - 1)
+            : (!legCondition() && LG && LG.fill && LG.lastOwn >= 0
+              ? LG.fill[LG.lastOwn] || 0 : 0);
           let extra = Math.min(owes, game.spawnQueue.length,
             maxAlive() - enemies.length);
           while (extra-- > 0) spawnEnemy(game.spawnQueue.shift(), null, true);
@@ -14489,6 +15961,7 @@ function frame(now) {
   // is no barrier outside the onboarding. The sign is the LEG's.
   if (tutorStep !== null) tutorPlaceWorldCue();
   tutorPlaceSign();
+  if (game.mode === 'duel') duelPlaceMeetPins();
 
   renderFrame(dt);
   // THE VEIL COMES OFF ON THE FIRST REAL PICTURE, not when the module has
@@ -14569,6 +16042,10 @@ window.__ts = {
       // them used to be visible from outside.
       taught: (L.proto && L.proto.tutorLeg && L.proto.tutorLeg.id) || null,
       stretches: (L.stretches || []).map((s) => ({ z0: s.z0, z1: s.z1, n: s.cells.length })),
+      // THE TWO DIALS THAT DECIDE WHAT A ROOM FEELS LIKE, and neither was
+      // readable from outside: how many may stand there at once, and how long
+      // everybody waits after one of them fires.
+      alive: maxAlive(), gap: +shotGap().toFixed(2),
       doorZ: L.door.z };
   },
   slowLook: () => ({ look: +slowLook.toFixed(3), scale: +timeScale.toFixed(4),
@@ -14831,7 +16308,8 @@ window.__ts = {
   // THE ROOM'S SHOT CLOCK, in world seconds. `shotGap` is measured in world
   // time, so a harness asking "how far apart do they actually fire" has to
   // read the same clock rather than a wall one.
-  worldClock: () => ({ now: worldT, last: lastEnemyShotAt }),
+  worldClock: () => ({ now: worldT, last: lastEnemyShotAt,
+    shots: enemyShots, gaps: shotGaps.slice() }),
   // The slow-time school, from the outside.
   school: () => ({ door: schoolDoor(), volley: schoolVolley(), calm: schoolCalm,
     shots: schoolShots, volleys: schoolVolleys, gap: shotGap(),
@@ -14842,12 +16320,35 @@ window.__ts = {
   // ask for that one, or it is measuring a function rush does not call.
   speedAt: (d, school = true) => speedAt(d, SPEED, school),
   rushSpeedAt: (secs) => speedAt(1 + secs / 25, SPEED, false),
-  fire: playerFire, setWeapon, spawnEnemy, spawnPickup,
+  // the authored opening, so a test checks the game's own table rather than
+  // a copy of it that can drift
+  duelOpen: () => SIMPLE.duel.open.map((o) => ({ ...o })),
+  // ...and the stand-off, so a test checks the game's number rather than a copy
+  duelMinM: () => SIMPLE.duel.minM,
+  fire: playerFire,
+  // ...and the same trigger pull AIMED somewhere, which is what a thumb on
+  // the glass actually does. `fire` takes a Vector3 and a test has no THREE.
+  fireAt: (x, y, z) => playerFire(new THREE.Vector3(x, y, z)),
+  setWeapon, spawnEnemy, spawnPickup,
   // The simplified modes, from the outside: which one is running, whether a
   // round currently counts as inbound, what the world clock is doing and what
   // a shot still owes it.
   simpleState: () => ({ mode: simple(), inbound: simple() === 'duel' ? roundInbound() : null,
     debt: +stopDebt.toFixed(3), walk: duel.walk, timeScale: +timeScale.toFixed(3),
+    coach: duel.coach, room: duel.room, meet: duel.meetType, dir: duel.meetDir,
+    want: duel.meetWant, mark: duel.meetMark,
+    said: { ...duel.said }, shotHere: duel.shotHere, taught: duel.taught,
+    saidWhy: duel.saidWhy.map((w) => ({ ...w })),
+    // ...and WHICH gun on the floor is being pointed at, if any
+    loot: duel.loot ? { x: +duel.loot.g.position.x.toFixed(2),
+      z: +duel.loot.g.position.z.toFixed(2), type: duel.loot.type } : null,
+    gotGun: duel.gotGun, pairShot: duel.pairShot,
+    owner: duel.meetOwner ? duel.meetOwner.type + ':' + duel.meetOwner.state : null,
+    openCard: duel.openCard,
+    tap: el.dueltap ? el.dueltap.classList.contains('on') : false,
+    gun: gun.visible,
+    met: [...duel.met],
+    plan: game.mode === 'duel' ? duelPlan(duelRoom()) : null,
     stick: +Math.hypot(input.stickX, input.stickY).toFixed(3) }),
   tapAim: (x, y) => { const v = tapAim(x, y); return { x: +v.x.toFixed(2), y: +v.y.toFixed(2), z: +v.z.toFixed(2) }; },
   modes: () => MODES.map((m) => m.id),

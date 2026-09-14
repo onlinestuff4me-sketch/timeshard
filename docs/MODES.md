@@ -11,7 +11,7 @@ and its gate cannot say two different things in two places
 | Mode | Opens at | What you do |
 |---|---|---|
 | **THE TUNNEL** | always | Door to door, deeper each time. The main game. |
-| **CORRIDOR DUEL** | door 5 | They come to you. Drag to sidestep, tap them to shatter. |
+| **NO RETREAT** | door 5 | They come to you. Drag to sidestep, tap them to shatter. |
 | **STAND STILL** | door 10 | Time only moves while you do. Stand still and the world waits. |
 | **CITY STREETS** | door 15 | Endless waves in the white city — the original arena. |
 | **RUSH HOUR** | door 20 | Freeze the crowd, find the one face that matters, walk out. |
@@ -41,10 +41,10 @@ Three rules the code keeps (`modeUnlocked` in the registry, `deepestDoor` and
 * **It is a high-water mark, kept per player, and it only goes up.**
   `ts_deepest_door` is written when a tunnel door is crossed and read by
   nothing else. It is deliberately NOT derived from the saves: a player who
-  earns Corridor Duel at door 5 and then deletes that run must not find it
+  earns NO RETREAT at door 5 and then deletes that run must not find it
   locked again, and a number recomputed from whatever saves happen to exist
   does exactly that.
-* **Tunnel doors only.** Corridor Duel and Stand Still are built on the
+* **Tunnel doors only.** NO RETREAT and Stand Still are built on the
   tunnel's legs and cross doors too; counting those would make "REACH DOOR 5
   IN THE TUNNEL" a lie on the one card that says it, and would let the modes
   bought with the climb pay for each other.
@@ -110,7 +110,7 @@ that was always available says nothing.
 **At the moment it happens.** Crossing the gate puts a card on the screen: the
 label small and red over the mode's name, because the name is the news.
 
-It **waits for the screen** rather than firing blind. Corridor Duel's gate is
+It **waits for the screen** rather than firing blind. NO RETREAT's gate is
 door 5, which is crossed on the same step that hands over slow motion — and
 that door runs the slow-time school, which owns the screen and makes
 `showBanner` a no-op for as long as it lasts. Announcing into that is
@@ -200,14 +200,52 @@ modes lean on, and it was a deliberate decision, not an oversight.** Each pays
 for time in a different currency, and which currency is the better game is the
 thing the prototypes exist to find out:
 
-**CORRIDOR DUEL — time is not yours at all.**
-The world drops to `SIMPLE.duel.slow` on its own whenever an enemy round is
-in the air and on its way to you (closing, arriving inside `lead` seconds,
-passing within `miss` metres — see `roundInbound`), and comes back the moment
-the air is clear. Slow motion is a window the enemy opens, never a resource
-you hold, so there is nothing to hoard and nothing to price. You never
-advance: they come to you, you sidestep, and when the strip is clear the
-corridor itself marches you to the open door.
+**NO RETREAT — you can stop time. You cannot leave.**
+The opening rooms run at full speed and are simply the fight, and **the fight
+is what makes the button mean anything**: by door 5 three guns fire together
+every 2.6 s, at 11.4 m/s, from under ten metres. That was authored on purpose
+(`SIMPLE.duel.open`, and see `docs/NO_RETREAT.md`) after the mode was reported
+twice as not needing the power it was handing out — a power that arrives before
+the problem it answers is a button nobody presses. The time button arrives with
+a coach at `SIMPLE.duel.buttonRoom` — two rooms before the first new enemy
+type, because a debut says DODGE and slow time is what makes dodging
+survivable — on the tunnel's own bank: tap
+to slow, it drains while you are in it, every body you shatter puts some back,
+and it runs dry on its own. So time is priced here exactly as the tunnel
+prices it — **in seconds**, and nothing about that is new.
+
+What is new is what the seconds are worth. In the tunnel, slowing time buys
+you MOVEMENT: you walk out of a lane, put a pillar between you and a raised
+arm, cross the last stretch to a door. Here there is no forward control at
+all — the corridor carries you on only once the strip is clear — so the same
+bought second buys one thing only, a sidestep. The mode is the tunnel's time
+economy with the tunnel's mobility taken away, and the question it asks is
+whether slow motion is still worth spending when the only thing it can buy is
+a step to the left.
+
+It used to slow itself whenever a round was inbound (closing, arriving inside
+`lead` seconds, passing within `miss` metres — see `roundInbound`). That is a
+real rule and an invisible one: nothing states it and the player cannot cause
+it, so from the outside the world slowed down at random. `roundInbound`
+survives as a question the probes can ask; it no longer touches time.
+
+**The name.** It was CORRIDOR DUEL, and both words were wrong: *corridor* is
+the tunnel's own word, so the two modes read as variants of each other, and it
+is not a duel — there are up to six of them. The id stays `duel`, because it
+is written into every save slot and renaming it would orphan every run
+anybody has played, and so every symbol in the source keeps that word too
+(`SIMPLE.duel`, `duelPlan`, `test/duelramp.mjs`). Nothing a PLAYER sees says
+duel.
+
+**It also has its own difficulty ramp, and it is the only mode that does.**
+Three dials — bodies, fire, cast — and a room moves exactly one of them,
+taking them in turns; a new enemy type arrives alone, in a room made quieter
+to receive it, and its first act stops the world to name it. This is being
+trialled here before it is spent anywhere else, and **it is a candidate for
+the tunnel**. Read `docs/NO_RETREAT.md` — it has the schedule, the reasoning,
+and a section on exactly what lifting the ramp into another mode would take.
+The dials themselves are generated into `docs/BALANCE.md` from `SIMPLE.duel`,
+so they cannot drift from what the game reads.
 
 **STAND STILL — time is yours, and it costs movement.**
 The world runs at your thumb's speed: still is `SIMPLE.stop.still`, full drag

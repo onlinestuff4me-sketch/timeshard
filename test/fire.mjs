@@ -87,11 +87,29 @@ const full = await page.evaluate(async (doors) => {
         }
         px = tx; pz = tz;
       }
-      // ...and stand at the door while the group held for it finishes arriving
-      const wait = performance.now();
-      while (performance.now() - wait < 4000 && !(L.door && L.door.open)) {
+      // ...AND STAND AT THE DOOR WHILE THE GROUP HELD FOR IT FINISHES
+      // ARRIVING — for as long as it is still arriving, not for four seconds
+      // of WALL clock.
+      //
+      // The door opens on an empty queue and an empty floor. How long that
+      // takes is the leg's business: it releases against the room clock, in
+      // WORLD seconds, and this box runs the world at about four-fifths of
+      // real time. A flat wall-clock budget is the trap docs/TESTING.md opens
+      // with, and it caught this probe — door 8 owes eighteen bodies and
+      // reported "never opened past leg 1 of 2" on a build with nothing wrong
+      // with it. So: wait while the leg still owes anything, and only give up
+      // when it has gone quiet for a stretch with the door still shut, which
+      // is a stall and worth failing on.
+      let quiet = 0;
+      const owed = () => t.game.spawnQueue.length + t.enemies.filter((e) => e.alive).length;
+      const guard = performance.now();
+      while (!(L.door && L.door.open) && performance.now() - guard < 45000) {
+        const before = owed();
         await new Promise((r) => requestAnimationFrame(r));
         tick();
+        quiet = owed() === before && before > 0 ? quiet + 1 : 0;
+        if (owed() === 0 && quiet > 240) break;   // nothing left and still shut
+        if (quiet > 900) break;                   // ...or nothing moving at all
       }
       if (!(L.door && L.door.open)) break;
       t.crossDoor();
@@ -122,8 +140,15 @@ const rows = await page.evaluate(async (doors) => {
     t.warpDoor(door);
     await new Promise((r) => setTimeout(r, 400));
     let shots = 0, bodies = 0, peakAlive = 0;
+    // WHEN EACH ROUND LEFT, in world seconds. A rate is a division and it hides
+    // its own arithmetic; the gaps between consecutive rounds are the promise
+    // itself — `shotGap` says nobody may fire within `gap` of the last shot,
+    // however many men are standing — so a list of them either shows the clock
+    // holding or shows exactly how often it does not.
     const seenBodies = new WeakSet();
     const t0 = performance.now();
+    const shots0 = t.worldClock().shots;
+    const gaps0 = t.worldClock().gaps.length;
     // ...AND THE WORLD CLOCK, WHICH IS THE ONE THE GAP IS KEPT IN. `shotGap`
     // spaces rounds in world seconds; a loaded machine advances that clock
     // more slowly than the wall, so rounds-per-wall-minute reads high for a
@@ -141,7 +166,11 @@ const rows = await page.evaluate(async (doors) => {
         while (performance.now() - hold < 420) {
           t.player.iframes = 999;
           await new Promise((r) => requestAnimationFrame(r));
-          for (const b of t.bullets) if (!b.fromPlayer && !b.__s) { b.__s = true; shots++; }
+          // COUNT SHOTS, NOT BULLETS. One trigger pull can be several pellets,
+          // and a probe scanning once a frame cannot tell two rounds fired on
+          // consecutive frames from one event. The game counts its own — see
+          // enemyFire — so this reads a number rather than inferring one.
+          shots = t.worldClock().shots - shots0;
           const alive = t.enemies.filter((e) => e.alive);
           peakAlive = Math.max(peakAlive, alive.length);
           for (const e of alive) if (!seenBodies.has(e)) { seenBodies.add(e); bodies++; }
@@ -150,7 +179,8 @@ const rows = await page.evaluate(async (doors) => {
     }
     const ms = performance.now() - t0;
     const wsec = Math.max(0.001, t.worldClock().now - w0);
-    out.push({ door, bodies, peakAlive, shots,
+    const gaps = t.worldClock().gaps.slice(gaps0).map((g) => +g.toFixed(2));
+    out.push({ door, bodies, peakAlive, shots, gaps, gap: +t.leg().gap.toFixed(2),
       perMin: +(shots / (wsec / 60)).toFixed(1),
       wallMin: +(shots / (ms / 60000)).toFixed(1),
       secs: Math.round(ms / 1000), wsec: +wsec.toFixed(1) });
@@ -166,11 +196,50 @@ for (const r of rows) {
     + '        ' + String(r.shots).padStart(3) + '        ' + String(r.perMin).padStart(6)
     + '         (' + r.wallMin + ')   ' + r.wsec + 's of world in ' + r.secs + 's of wall');
 }
+console.log('');
+console.log('gaps between consecutive rounds, world seconds — the clock is the promise:');
+for (const r of rows) {
+  const early = r.gaps.filter((g) => g < r.gap - 0.15);
+  console.log('  door ' + String(r.door).padStart(2) + '  clock ' + r.gap + 's  |  '
+    + (r.gaps.length ? r.gaps.join('  ') : '(one round only)')
+    + (early.length ? '   <-- ' + early.length + ' inside the gap' : ''));
+}
 const rate = rows.map((r) => r.perMin);
 const mean = rate.reduce((a, b) => a + b, 0) / rate.length;
 console.log('mean ' + mean.toFixed(1) + ' rounds/min'
-  + '   (it was 12.1 when the doors were near-empty, and 21.5 with the fuller'
-  + ' table before the clock was fixed)');
+  + '   (the clock allows at most ' + (60 / rows[0].gap).toFixed(1) + ')');
+// THE GAPS ARE THE PROMISE, so they are what fails the build. A rate is a
+// division and it hid two counting errors for a long time: one trigger pull
+// can be several pellets, and a probe scanning once a frame reads two rounds
+// fired on consecutive frames as one event. Both were live here at once, and
+// between them they reported this room at anywhere from 6.7 to 42 rounds a
+// minute across runs of unchanged code, with gaps of `0 0 0 0` that never
+// happened. The game counts its own trigger pulls now.
+const allGaps = rows.flatMap((r) => r.gaps.map((g) => ({ g, gap: r.gap, door: r.door })));
+const early = allGaps.filter((x) => x.g < x.gap - 0.15);
+console.log(early.length + ' of ' + allGaps.length + ' rounds came sooner than the room clock'
+  + '   (the anti-deadlock valve; see the fire gate in updateEnemy)');
+// AN EARLY ROUND IS NOT A BROKEN CLOCK. The gate has a second door in it on
+// purpose: a man who has waited `gap * queued + holdSlack` fires whatever the
+// clock says, so a crowd cannot hold each other into never firing at all. One
+// of those in a handful of rounds is the valve doing its job, and a window
+// this short cannot tell rare from common — so the bar is what the valve must
+// NEVER do, not how often it opens.
+//
+// TWO ROUNDS ON TOP OF EACH OTHER is the thing that would make the shared
+// clock a lie: it is the difference between a room that fires at you steadily
+// and one that fires in chorus, and chorus is unanswerable by sidestepping.
+const chorus = allGaps.filter((x) => x.g < 0.15);
+if (chorus.length) {
+  console.log('FAIL rounds are arriving on top of each other: '
+    + chorus.map((x) => 'door ' + x.door + ' ' + x.g + 's').join(', '));
+}
+// ...and the valve must stay a valve. If most rounds are coming through it,
+// the clock has stopped being the thing that spaces the room.
+if (allGaps.length >= 6 && early.length > allGaps.length * 0.5) {
+  console.log('FAIL most rounds are bypassing the clock: ' + early.length
+    + ' of ' + allGaps.length);
+}
 
 // The bar is the rate a player was ALREADY being shot at, not a number picked
 // here: doubling the bodies must not move it.

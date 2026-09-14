@@ -74,26 +74,24 @@ const r = await page.evaluate(async () => {
   // ...AND WHEN A MAN IS OFF SCREEN BEHIND YOU, HIS MARK WINS. Same red, same
   // edge of the same screen; two of them meaning two different things is
   // worse than either alone, and his is about somebody who can shoot you.
-  // A MAN HAS TO BE DRAWN OUT, AND WALKING IS WHAT DRAWS HIM. The corridor
-  // releases against PROGRESS, and this probe stands still on purpose — so
-  // waiting where it stands waits forever and the check silently measures an
-  // empty room, which is how it first reported a pass it had not earned.
-  // Walk up the leg in quarter-cell steps until somebody is out, then come
-  // back to the spot and carry on.
-  for (let i = 1; i < L.spine.length && !t.enemies.some((e) => e.alive); i++) {
-    const tx = L.spine[i][0] * C, tz = L.spine[i][1] * C;
-    const fx = L.spine[i - 1][0] * C, fz = L.spine[i - 1][1] * C;
-    for (let k = 1; k <= 4 && !t.enemies.some((e) => e.alive); k++) {
-      t.player.pos.x = fx + (tx - fx) * (k / 4);
-      t.player.pos.z = fz + (tz - fz) * (k / 4);
-      const hold = performance.now();
-      while (performance.now() - hold < 120 && !t.enemies.some((e) => e.alive)) {
-        await new Promise((r) => requestAnimationFrame(r));
-        t.player.iframes = 999;
-      }
-    }
-  }
+  // A MAN HAS TO BE THERE, AND THIS PROBE PUTS HIM THERE. It used to walk up
+  // the leg hoping the corridor would release somebody, because releases go
+  // against PROGRESS and a probe that stands still is never owed one. That
+  // staging failed three different ways on three different runs of unchanged
+  // code — once with nobody drawn out at all, once with the man drawn out but
+  // the path having moved under us, once with the queue spent and the floor
+  // empty by the time it mattered — and each time the probe correctly refused
+  // to pass while measuring nothing. A check that cannot reliably SET UP its
+  // case is not flaky, it is asking the game for a favour.
+  //
+  // So: ask for the body directly. What is under test is the way-out mark's
+  // rule about enemy marks, not the corridor's release schedule, and the
+  // release schedule has its own probes.
   t.player.pos.x = mid[0] * C; t.player.pos.z = mid[1] * C;
+  for (let i = 0; i < 6 && !t.enemies.some((e) => e.alive); i++) {
+    t.spawnEnemy('gunner');
+    await new Promise((r) => requestAnimationFrame(r));
+  }
   const behind = () => {
     for (const e of t.enemies) {
       e.pos.x = t.player.pos.x + Math.sin(t.player.yaw) * 11;
@@ -105,8 +103,19 @@ const r = await page.evaluate(async () => {
   // man out moved the path under us: the old heading was only 97 degrees off
   // the new bearing, so the needle was down because the player was not facing
   // away, and the check passed while proving nothing about enemy marks.
-  const back2 = t.way().bearing + Math.PI;
-  out.withMark = await settle(back2, 2500, behind);
+  //
+  // ONE SHOT AT IT IS NOT ENOUGH EITHER. The bearing is a blend of four
+  // lookaheads and the blend moves with the heading, so `bearing + PI` is not
+  // a fixed point: aiming at it once landed 129 degrees off on one run and a
+  // clean 180 on the next, from the same build. Chase it instead — re-read,
+  // re-aim, settle — until the angle stops moving or the back is plainly
+  // turned. That measures the heading the game agrees is backwards rather
+  // than the one arithmetic predicted.
+  for (let i = 0; i < 5; i++) {
+    const was = out.withMark ? out.withMark.deg : null;
+    out.withMark = await settle(t.way().bearing + Math.PI, i ? 500 : 1600, behind);
+    if (out.withMark.deg >= 150 || out.withMark.deg === was) break;
+  }
   return out;
 });
 

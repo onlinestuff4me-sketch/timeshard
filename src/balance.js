@@ -398,6 +398,19 @@ export const OPENING = {
   // prevent it. The ceiling is the gap plus this, so the gap is what decides
   // and this is only the deadlock guard it was always meant to be.
   holdSlack: 0.6,
+  // ...AND THE VALVE STILL LETS ONE MAN THROUGH AT A TIME.
+  //
+  // The allowance above is per-man, so when a crowd has all been waiting past
+  // it they all release TOGETHER — measured at door 5, two rounds at the same
+  // instant, a gap of zero. That is the chorus the shared clock exists to
+  // prevent, arriving through the one door in it: sidestepping answers a
+  // stream of rounds and cannot answer a wall of them.
+  //
+  // So a valve release is still a round, and rounds are events: this is the
+  // shortest gap that reads as two of them rather than one loud one. It does
+  // not delay anybody beyond the next frames — the man who lost the race is
+  // still past his allowance and fires as soon as this clears.
+  valveFloor: 0.2,
 };
 
 export const EARLY = {
@@ -1081,7 +1094,9 @@ export const TIME = {
 };
 
 // ---------------------------------------------------------------------------
-// THE SIMPLIFIED MODES — one movement mechanic, no look, no time button.
+// THE SIMPLIFIED MODES — one movement mechanic, no look axis. (NO RETREAT
+// does have a time button now, from its second room; STAND STILL still has
+// none, because its time IS its movement.)
 //
 // Two prototypes that ask the same question in two different ways: if the
 // player only ever drags to dodge and taps to shoot, is the four-beat rhythm
@@ -1089,15 +1104,14 @@ export const TIME = {
 // They differ in exactly one rule — WHO OWNS TIME — so playing one after the
 // other is a controlled comparison and not two unrelated games:
 //
-//   CORRIDOR DUEL  room 1: the world slows itself when a round is in the air.
-//                  Room 2 on: a button, and a meter you spend and refill.
+//   NO RETREAT     the opening rooms are the fight at full speed; then a
+//                  button, and a meter you spend and refill by shattering.
 //   STAND STILL    the world moves at your thumb's speed, and nothing else's
 //
 // STAND STILL has no time bank, so it cannot price the freeze the way the
 // tunnel does (docs/PILLARS.md §1, §2); what replaces the price is the thing
-// being tested — see docs/MODES.md. CORRIDOR DUEL now does have one, from its
-// second room: the automatic slowdown was unreadable as a rule, so it keeps
-// the first room as a demonstration and hands the control over after it.
+// being tested — see docs/MODES.md. NO RETREAT now does have one: the
+// automatic slowdown was unreadable as a rule and is gone outright.
 // See SIMPLE.duel.buttonRoom.
 // ---------------------------------------------------------------------------
 export const SIMPLE = {
@@ -1108,23 +1122,502 @@ export const SIMPLE = {
     // Time is not the player's here. It drops on its own the moment a round
     // is on its way and comes back when the air is clear, so the rhythm of
     // the fight is set by the enemy firing rather than by a button.
-    slow: 0.13,         // world speed while slow time is on
-    ease: 9,            // crossing between slow and full (per second)
-    lead: 1.1,          // a round counts as inbound this many seconds out
-    miss: 2.6,          // ...and only if it passes within this many metres
-    // ...AND THEN IT IS YOURS. The automatic version above answers "what
-    // triggers this?" with a rule the player cannot see — a round arriving
-    // inside `lead` seconds and passing within `miss` metres — so from the
-    // outside the world just slows down at random. It survives as the FIRST
-    // ROOM, where it is a demonstration: this is what slow time looks like,
-    // and you did not have to do anything to get it.
+    // WORLD SPEED WHILE SLOW TIME IS ON, and 0.13 was far too slow to play.
     //
-    // From room 2 the button does it, on the tunnel's own bank (TIME): tap to
-    // slow, it counts down while you are in it, every body you shatter puts
-    // some back. Nobody is taught to toggle it off to conserve — it runs out
+    // The arithmetic: a room-1 round travels at 5.4 m/s and is fired from 16
+    // to 24 m away. At 0.13 that is an effective 0.70 m/s, so a round takes
+    // TWENTY-THREE SECONDS to cross the strip — against a bank that holds ten.
+    // You could not watch a single round arrive on a full meter, which makes
+    // the button something you regret pressing.
+    //
+    // 0.3 is not a taste: it is the tunnel's own `TIME.moveScale`, the speed
+    // the world runs at there when the player is at FULL DRAG. The tunnel
+    // ranges from 0.05 standing still up to that, because moving costs you
+    // time — and in the duel sidestepping is the only verb there is, so the
+    // player is always at the moving end of that range. Same number, same
+    // reason. A round from 6 m out now takes 3.2 s of slowed time instead of
+    // 8.5, which is a beat you can act inside.
+    // ---- HOW FAST, AND HOW CLOSE -----------------------------------------
+    //
+    // MEASURED, standing in the opening rooms and holding still: rounds at
+    // 5.4 m/s, men at a median of 19 m, and never more than ONE firing at a
+    // time all the way to the button. A round fired from twenty metres at
+    // 5.4 m/s is in the air for THREE AND THREE QUARTER SECONDS. You can look
+    // away and come back.
+    //
+    // The cause is inheritance, not a number anybody chose: bullet speed came
+    // off the TUNNEL's staircase (SPEED), which is written for a forty-six
+    // door climb, and engage distance came off the shared default of 19-25 m,
+    // which is written for a corridor you walk down and take cover in. This
+    // mode is thirty-one rooms long and has neither.
+    //
+    // So it keeps its own. A round crosses the gap in about two seconds in
+    // room 1 and a bit over one by the time the button arrives — still a
+    // sidestep, and no longer a stroll.
+    // ...AND IT WAS STILL A STROLL WHERE IT MATTERED. Playtested again at
+    // these numbers: by the room the time button arrives in, a round was
+    // 10 m/s over fifteen metres — one and a half seconds, which is a
+    // sidestep you can take twice. The power turned up before the problem it
+    // answers, and a player who never needed it never learnt it.
+    //
+    // The climb is nearly twice as steep now, so DOOR 5 is where the mode
+    // gets hard rather than door 12: 11.4 m/s there, 12.5 at the button. The
+    // ceiling is up with it, because a dial that tops out in room 9 has
+    // nothing left to say for the twenty-seven rooms after it.
+    bullet: { openM: 7.0, stepM: 1.1, capM: 15 },
+    // ...AND THEY COME TO YOU, which is the mode's whole first sentence. This
+    // CAPS a type's own engage distance rather than replacing it, so a
+    // shotgunner still opens at its own ten metres and a gunner stops being
+    // able to plink from the far wall. They are placed past the 13 m
+    // first-sight floor, so at these numbers the back rank has to walk in
+    // before it may fire at all — which is the closing-in the mode was
+    // missing.
+    // ...AND IT REACHES ITS CLOSEST BY DOOR 5, not door 10. Nine and a half
+    // metres is a little over sixty per cent of the way across the strip
+    // toward the player, and it is the distance the mode wants for the room
+    // the button lands in: close enough to be claustrophobic, close enough to
+    // aim at without hunting, and short enough that a round crosses it in
+    // three quarters of a second.
+    engage: { openM: 15, nearM: 9.5, byRoom: 5 },
+    // ...BUT NOT FOR HIS FIRST ROUND. Measured, the second and third men in a
+    // room went ten to seventeen world seconds between arriving and firing:
+    // part of that is the room's own clock, which is the pacing dial and
+    // stays, and part of it was a man placed at twenty metres walking a third
+    // of the strip before he was allowed to shoot at all. A room you walk
+    // into should announce itself.
+    //
+    // So the cap applies from a man's SECOND round on. He opens from wherever
+    // he is — which is also what "far is fine for their first shot" asked for
+    // — and then closes, and the closing is now something the player watches
+    // happen rather than something that happens before anything else does.
+    openAnywhere: true,
+    // ...and he does not stand there thinking about it first. The shared
+    // default is up to 1.4 s of cooldown before a man may even raise his gun,
+    // on top of the telegraph and the room clock.
+    openIn: [0.15, 0.35],
+    // THE SAFETY NET UNDER THE OPENING CARD, in seconds. The card is taken
+    // down by the first round anyone fires, not by a clock — this is only so
+    // a room where nobody ever shoots cannot leave it on screen for ever.
+    openCardMax: 9,
+    slow: 0.3,
+    ease: 9,            // crossing between slow and full (per second)
+    // WHAT "A ROUND IS ON ITS WAY" MEANS — inside `lead` seconds and passing
+    // within `miss` metres. This used to DRIVE the mode: the world slowed
+    // itself whenever it was true. It is a real rule and an invisible one —
+    // nothing states it and the player cannot cause it — so from the outside
+    // the world slowed down at random, which is what was reported. It no
+    // longer touches time; `roundInbound` survives as a question the probes
+    // and the debug hook can ask.
+    lead: 1.1,
+    miss: 2.6,
+    // TIME IS THE PLAYER'S, ONCE THE BUTTON ARRIVES. The rooms before it run
+    // at full speed and are simply the fight — an introduction that behaved
+    // differently from every room after it would be teaching something
+    // untrue. The button comes with a coach and runs on the tunnel's own bank
+    // (TIME): tap to slow, it counts down while you are in it, and every body
+    // you shatter puts some back. Nobody is taught to toggle it off to conserve — it runs out
     // on its own, or it keeps going for as long as you keep shattering, which
     // is the whole bargain stated in one sentence.
-    buttonRoom: 2,
+    // THE BUTTON ARRIVES AT THE PEAK OF THE FIRST CYCLE, and one room before
+    // the first new type. Rooms 1-5 are the mode taught by playing it: hold
+    // your end, sidestep, shoot. Room 6 is the busiest room so far — ten
+    // bodies, the tightest gap the cycle reaches — which is the moment the
+    // answer is worth having and the moment a player will actually use it. It
+    // was room 2, which handed over a tool before there was a problem to
+    // point it at.
+    //
+    // It has to land BEFORE the debut freezes (see `meet`), because those
+    // stop the world to show you a new enemy and say dodge it, and the thing
+    // that makes a debut survivable is the button.
+    buttonRoom: 6,
+    // ---- THE THREE DIALS ---------------------------------------------------
+    //
+    // A room is described by three numbers, and ONE OF THEM MOVES PER ROOM.
+    // That is the whole rule, and it is what keeps a difficulty curve
+    // readable: a player who has just died can name the thing that changed.
+    //
+    //   BODIES   how many men, dealt as groups that ASCEND within the room —
+    //            it opens on its smallest fight and closes on its largest.
+    //   FIRE     how many shoot at the same instant, and how long the room
+    //            waits afterwards. Simultaneous rounds are the one shape a
+    //            sidestep cannot answer, so this caps at three.
+    //   CAST     which types are in the mix.
+    //
+    // AND A NEW TYPE IS A RESET. When one arrives, the other two dials step
+    // BACK, so the thing you have never seen before is met in a quieter room
+    // than the one you just cleared. Then the ramp climbs again, past where it
+    // was. The curve is a sawtooth whose peaks rise: 8, 10, 11, 13, 14, 15
+    // bodies at the top of each cycle, with the volley reaching three.
+    //
+    // WHY THE DROP IS ONE STEP AND NOT TWO. Two was asked for, and modelled
+    // out it is a flat line: five ramp rooms give four increments split across
+    // two dials, and taking two back off each leaves you exactly where the
+    // cycle started. Every cycle peaked at 8 bodies and a single shooter, for
+    // ever. One step keeps the cadence and lets the peaks climb.
+    //
+    // ...AND IT GOES ON PAST FIFTEEN, by adding a FOURTH group rather than a
+    // sixth man: `encCap` is five and a strip this wide cannot hold more than
+    // that abreast. The opening now spends the first four rungs of this table
+    // in its first five rooms (see `open`), so without something above the old
+    // top the whole dial was finished by room 12.
+    groups: [
+      [1, 2, 2],      //  5
+      [2, 2, 3],      //  7
+      [2, 3, 3],      //  8
+      [3, 3, 4],      // 10
+      [3, 4, 4],      // 11
+      [4, 4, 5],      // 13
+      [4, 5, 5],      // 14
+      [5, 5, 5],      // 15
+      [4, 5, 5, 5],   // 19
+      [5, 5, 5, 5],   // 20
+    ],
+    encCap: 5,     // no group is ever bigger than this
+    // [how many fire together, seconds the room waits after]. The gap tightens
+    // three times, then the volley grows by one and the gap resets — a wider
+    // shape bought with a breath. Three together is the ceiling: past that a
+    // strip you cannot retreat down stops being a fight and becomes a wall.
+    // TWO MEN FIRE TOGETHER BEFORE THE BUTTON ARRIVES, not five rooms after
+    // it. The table used to spend its first three steps tightening a SINGLE
+    // gun — measured, the room the button lands in had never once put two
+    // rounds in the air together, so the power turned up before the problem
+    // it answers. One tightening step at the top, then the second gun.
+    //
+    // ...AND IT WAS STILL TOO SLOW OFF THE MARK, AND STOPPED TOO LOW.
+    // Playtested: doors 6 to 8 did not need the time button, because two
+    // rounds every four and a bit seconds over fifteen metres is a sidestep
+    // with a wait afterwards. The mode has to be HARD by door 5 for the power
+    // that lands at door 6 to be the answer to anything.
+    //
+    // So the early rungs are re-cut for the opening the mode actually plays
+    // (see `open`): one gun tightening twice, two together at door 4, three
+    // together at door 5. THREE IS STILL THE CEILING — simultaneous rounds
+    // are the one shape a sidestep cannot answer, and that is an argument for
+    // reaching three EARLY, not for going past it — so the rungs the opening
+    // no longer leaves for the deep game are added as gap instead of as a
+    // fourth gun.
+    fire: [
+      [1, 4.3], [1, 3.2], [1, 2.4],
+      [2, 2.8],
+      [3, 2.6], [3, 2.2], [3, 1.9], [3, 1.6], [3, 1.35],
+    ],
+    // A VOLLEY IS NEVER ON ONE FRAME. Three rounds on the same frame are one
+    // loud event the eye cannot take apart — it reads as a single wide muzzle
+    // flash — where the same three a breath apart read as three men.
+    // `volleyStep` is that breath: the minimum between two rounds of the SAME
+    // volley, small enough that a sidestep cannot answer them separately,
+    // large enough to be three things. The whole volley still costs the room
+    // one turn.
+    //
+    // THE WINDOW IS DERIVED FROM IT, not written down beside it. A fixed 0.18s
+    // window fits two rounds a breath apart and not three, so the moment the
+    // volley reached three the third was refused and a room scheduled for
+    // triples quietly fired pairs. Two numbers describing one shape will
+    // disagree eventually; one of them should be arithmetic.
+    volleyStep: 0.07,
+    volleySlack: 0.12,   // ...plus this, so a slow frame cannot clip the last
+    // ---- THE OPENING IS AUTHORED, NOT WALKED -------------------------------
+    //
+    // Everywhere else in this mode, ONE DIAL MOVES PER ROOM and the two take
+    // it in turns. That rule is what makes a thirty-six room ramp legible: a
+    // player who has just died can name the one thing that was different.
+    //
+    // It is the wrong rule for the first five rooms. Taking turns means the
+    // fire dial only moves every OTHER room, and the opening has one job — be
+    // hard enough by door 5 that the power arriving at door 6 is the answer to
+    // something. Walked, two guns fired together for the first time in room 5
+    // and the room the button lands in had never seen three. Playtested, doors
+    // 6 to 8 did not need the button at all.
+    //
+    // So these rooms name their own two dials, as indices into `groups` and
+    // `fire` above, and the walk takes over from wherever this table leaves
+    // them:
+    //
+    //   1  five bodies, one gun every 4.3 s   the two-verb lesson lives here
+    //   2  one gun, tighter
+    //   3  seven bodies, one gun, tighter again
+    //   4  eight bodies, TWO together every 2.8 s
+    //   5  ten bodies, THREE together every 2.6 s, from 9.5 m, at 11.4 m/s
+    //   6  held  <- the time button arrives on this room
+    //   7  held
+    //
+    // Rooms 6 and 7 hold everything. The button is the new thing there, and a
+    // new thing is met in a room that is otherwise exactly the one before it —
+    // the same rule a debut follows, applied to a power instead of a type.
+    open: [
+      { bodies: 0, fire: 0 },
+      { bodies: 0, fire: 1 },
+      { bodies: 1, fire: 2 },
+      { bodies: 2, fire: 3 },
+      { bodies: 3, fire: 4 },
+      { bodies: 3, fire: 4 },
+      { bodies: 3, fire: 4 },
+    ],
+    // ---- THE CAST PROGRAMME ------------------------------------------------
+    //
+    // A NEW TYPE ARRIVES ALONE. `with` is what joins the gunners, and it is
+    // not cumulative: the room that introduces the shotgunner is gunners and
+    // shotgunners, and nothing else. One new thing at a time is the same rule
+    // the dials follow — a player who has just died should be able to name
+    // what changed — and a debut buried in a crowd of three other types is
+    // not a debut, it is noise.
+    //
+    // COMBINING IS ITS OWN RAMP. Two types that have each had their own cycle
+    // then meet, for a couple of rooms, with every other dial held STEADY:
+    // the new thing is the combination, so nothing else may move underneath
+    // it. `hold` marks those rooms and says how many.
+    //
+    // THE RUSHER COMES AFTER SLOW TIME and not before. It does not shoot, it
+    // arrives, and in a strip with no back the only answer is to stop the
+    // world and shatter it on the way in — which is not an answer the player
+    // has until the button is theirs.
+    // The rooms in the comments are a CONSEQUENCE of `rooms`, `hold` and
+    // `rampRooms`, not a second set of numbers to keep in step — they are here
+    // because they are what anybody reading this actually wants to know.
+    // `test/duelramp.mjs` prints the real ones out of the running game.
+    //
+    // IT USED TO BE SIX ROOMS A CYCLE, and the whole cast did not arrive until
+    // room 44: armored — the type whose entire lesson is "body shots bounce,
+    // aim high" — was thirty-seven rooms in, which is a type most players
+    // would never meet. Four-room cycles put the last debut at 31, so the mode
+    // shows everything it has inside a session rather than inside a campaign.
+    //
+    // THREE TYPES IS THE CEILING FOR AN INTERLUDE, and that is not a rule
+    // about counting: with groups of three or four a fourth type would leave
+    // no room for the gunners that carry the shot clock. See duelQueue.
+    cast: [
+      { with: [], rooms: 7 },                                        // 1-7
+      { with: ['shotgunner'] },                                      // 7-10
+      { with: ['rusher'] },                                          // 11-14
+      { with: ['shotgunner', 'rusher'], hold: 3 },                   // 15-17
+      { with: ['shieldbearer'] },                                    // 18-21
+      { with: ['shotgunner', 'rusher', 'shieldbearer'], hold: 2 },   // 22-23
+      { with: ['armored'] },                                         // 24-27
+      { with: ['heavy'] },                                           // 28-31
+      { with: ['rusher', 'shieldbearer', 'armored'], hold: 2 },      // 32-33
+      { with: ['shotgunner', 'armored', 'heavy'], hold: 2 },         // 34-35
+      // ...AND THE DEEP GAME IS EVERYTHING, at the top of both dials. The
+      // last entry is never advanced past, so whatever it carries is the mix
+      // from there on: it has to be the whole roster, not the last trio that
+      // happened to be scheduled.
+      { with: ['shotgunner', 'rusher', 'shieldbearer', 'armored', 'heavy'],
+        hold: 2 },                                                   // 36 on
+    ],
+    // ---- MEETING A NEW TYPE ------------------------------------------------
+    //
+    // A debut stops the world on the type's FIRST ACT — its first shot, or for
+    // the rusher the moment it plants and coils. Once per type per run.
+    //
+    // A DEBUT IS THE ONBOARDING'S DODGE BEAT, WITH A NAME ON TOP.
+    //
+    // The world stops the way the lesson stops it, and three rows fill the
+    // screen: who it is, the same DODGE line the player was taught to answer
+    // with a sidestep, and a thumb going the way that answers it here.
+    //
+    // These were sentences of tactics — "FIVE PELLETS, WIDE · STEP EARLY AND
+    // STEP FAR", and four more like it. Every one was true and none of them
+    // was going to be read: a stopped screen with a paragraph on it is a
+    // loading screen.
+    //
+    // THE KEY IS THE NAME. Being listed here is what gives a type a debut at
+    // all. `say` is the second row and `mark` is what gets the ring — the
+    // same ring the onboarding draws round the round it is telling you to
+    // dodge, because "dodge this" is only an instruction if the player can
+    // find THIS on the screen.
+    //
+    //   rounds   what he just fired — every pellet of it
+    //   body     the man himself: a rusher has no round, it IS the round
+    //   head     the one place a bullet goes in, on a man body shots bounce
+    //            off — so his card says SHOOT rather than DODGE
+    //   shield   the thing in the way, on the one type a sidestep does not
+    //            answer on its own: he turns to follow you, so the lesson is
+    //            stop time FIRST and then get round him, and his card holds
+    //            the button lit while it says so
+    // `want` is what ANSWERS the card and lets the world go again — always
+    // the thing the words just asked for, because a card released by
+    // something else is a card the player never has to read.
+    meet: {
+      shotgunner:   { say: 'DODGE THIS', mark: 'rounds', want: 'dodge' },
+      rusher:       { say: 'DODGE THIS', mark: 'body',   want: 'dodge' },
+      heavy:        { say: 'DODGE THIS', mark: 'rounds', want: 'dodge' },
+      armored:      { say: 'SHOOT THIS', mark: 'head',   want: 'shoot' },
+      shieldbearer: { say: 'STOP TIME · GET ROUND HIM', mark: 'shield',
+                      want: 'dodge', button: true },
+    },
+    // ---- THE ROOM-1 LESSON -------------------------------------------------
+    //
+    // Two beats, in the order the mode needs them. The player arrives with no
+    // weapon on screen: the FIRST round anyone fires stops the world, rings
+    // it, and says the one thing there is to do about it. Stepping aside
+    // starts the world again and the pistol arrives with the second beat —
+    // TAP HERE TO SHOOT, over a man with a ring on him and a thumb pressing
+    // on his chest, because in this mode a shot goes where the thumb went.
+    // Firing puts both away.
+    //
+    // ...AND IT IS SAID TWICE AT MOST. Once here, and once more only if the
+    // player shows they did not take it: a round that got half way to them
+    // while they stood in its lane, or a whole room crossed without a body
+    // shattered. Repeating past that is nagging a player who is playing.
+    teach: {
+      dodge: 'DODGE THIS',
+      shoot: 'TAP HERE TO SHOOT',
+      // HOW FAR ALONG ITS FLIGHT a round has to get, with the player still in
+      // its lane, to count as a dodge they did not make.
+      //
+      // Two numbers, because the two tellings are different questions. The
+      // FIRST is an introduction and wants to arrive while there is plenty of
+      // round left to step out of. The SECOND is a correction, and at the same
+      // half-way bar it fired almost immediately and again and again — a
+      // player who is mid-sidestep at 50% has not failed at anything. So the
+      // repeat waits until the round is nearly on them, and it will not fire
+      // in the same room as the first.
+      lateAt: 0.5,
+      // ...AND THE CORRECTION IS PLACED IN TIME, not along the flight. Its job
+      // is "they have had most of this round and have not moved", and as a
+      // fraction of the distance that could not survive the floor below it: at
+      // room 5's bullet speed the old 0.82 mark fell 0.45 s from the player,
+      // INSIDE `warnS`, so the two bars cancelled and the repeat could never
+      // fire at all. This is the latest it may arrive, in seconds to closest
+      // approach; `warnS` is the earliest. The window between them is real at
+      // every speed the mode reaches.
+      againBy: 1.25,
+      // ...AND NEITHER TELLING ARRIVES WITH NO TIME LEFT IN IT. `lateAt` above
+      // is a fraction of a DISTANCE, and what makes a warning useful is
+      // SECONDS: measured, the repeat fired with 0.40 s to go, on a round three
+      // metres out. Worse, a ratio silently gets meaner as the mode ramps —
+      // the same fraction of the same strip is 1.0 s at room 1's bullet speed
+      // and 0.35 s at the ceiling. This is the floor under both tellings, in
+      // seconds to closest approach, and it is measured against a player who
+      // is MOVING: somebody mid-drag is not standing anywhere, and telling
+      // them to dodge the round they are already dodging is the complaint this
+      // whole beat attracts. See duelRoundMiss and duelWatchRound.
+      warnS: 0.7,
+      // ...AND HOW LONG A ROUND HAS TO HAVE BEEN COMING AT THEM, on line, with
+      // nothing done about it, before the SECOND telling counts them as not
+      // answering it. A drag takes a moment to build speed, so on the frame a
+      // round first counts as threatening, somebody who reacted the instant it
+      // was fired still reads as somebody standing still — measured, a probe
+      // that stepped out of every lane it was put in was told twice. See
+      // `b.laneT` in duelWatchRound.
+      ignoredS: 0.55,
+      // ...and the freeze lets go on its own after this, so a stopped world
+      // is never a stuck one
+      hold: 12,
+      // THE SHOOTING HALF WAITS AS LONG AS IT TAKES. It is answered by a body
+      // shattering rather than by a trigger pull, and nobody is shooting back
+      // while it is up (duelMayFire holds the room), so there is nothing to
+      // rush. This is a safety net against a wedged run, not a lesson that
+      // gives up on somebody who is still working it out.
+      shootHold: 75,
+    },
+    // ---- THE GUN ON THE FLOOR ---------------------------------------------
+    //
+    // A shotgunner leaves his shotgun behind, and a player who has never picked
+    // one up does not know that walking over it is how you take it — there is
+    // no pick-up button, and in this mode the drag is for sidestepping rounds
+    // rather than for going places. So the first time a room is cleared with a
+    // weapon lying in it, the room says so, and it keeps saying so at every
+    // cleared room until they are carrying one.
+    //
+    // It SLOWS rather than stops. A freeze is for something coming AT you; this
+    // is a thing on the floor and the player is about to be carried past it, so
+    // the world going heavy is the right amount of "look at this" — and the
+    // walk continues underneath, which is what makes the drag matter.
+    loot: { slow: 0.35, say: 'DRAG TO PICK UP', hold: 7 },
+    // HOW CLOSE A MAN WITH A GUN MAY GET. There is no look control here: you
+    // face down the strip and shoot where your thumb lands, so a man who has
+    // walked onto you cannot be answered — you cannot turn to him and you
+    // cannot step round him.
+    //
+    // The number comes from the CAMERA, not from taste. Its eighty degrees are
+    // vertical and the screen is portrait (aspect 0.46), so the view is 42
+    // degrees wide — twenty-one either side. Measured over 3049 samples of a
+    // live non-rusher: they strafe up to 2.31 m across, and 2.31 m across at
+    // 6.0 m out is exactly twenty-one degrees. Below that they start going off
+    // the edge of the glass — at the 2.6 m hold line, 39% of them were off it.
+    // 6.5 puts every strafe they actually make in frame with a little room.
+    //
+    // It also buys the dodge back: a round from 6.5 m at the button room's
+    // 12.5 m/s is half a second in the air, where one from 2.7 m was a fifth.
+    //
+    // THE RUSHER IS EXEMPT and has to be — it carries no gun, its whole act is
+    // arriving, and it plants and lunges at 3.4 m. Melee (1.5 m) is therefore
+    // the rusher's alone now, which is what it should always have been.
+    minM: 6.5,
+    // ...AND THE BAND AROUND IT. Inside the stand-off by more than this, a man
+    // walks back OUT of it; within it, he simply stops closing and is free to
+    // strafe. Two behaviours rather than one, because "hold your distance" and
+    // "get back out" look completely different and a single rule doing both
+    // reads as a man shoved by an invisible hand.
+    standBand: 0.35,
+    // ...and how fast he leaves it. Measured, a rusher walking out at its own
+    // 3.4 m/s took 1.65 s to cross back from where its charge left it, and
+    // every second of that is a second spent inside the distance this rule
+    // exists to keep. It springs back instead — which is also the right shape
+    // for something that has just coiled and pounced.
+    backSpeed: 1.9,
+    // HOW NEAR ITS HOLDING DISTANCE A RUSHER HAS TO BE TO CHARGE. It holds the
+    // stand-off like everyone else and breaks it to attack, so the trigger is
+    // "I am at my line" rather than "I am close" — and the window is what
+    // stops it charging again from where the last charge left it. It has to be
+    // back out before it may come in again, which is the whole point of the
+    // retreat.
+    lungeFrom: 0.8,
+    // HOW LONG THE BUTTON'S SECOND LINE WILL WAIT FOR SOMEBODY TO POINT AT.
+    // It is paired with the shooting cue — a ring on a man and a thumb on his
+    // chest — and a man still assembling has no hitbox, so the cue skips him
+    // and a room whose only bodies are mid-arrival has nothing to ring.
+    // Measured, the button's own room came up with two men in it and both of
+    // them still arriving. The line normally goes at 4.5 s; while it has never
+    // once had a body, it waits this long instead.
+    pairWait: 8,
+    meetHold: 10,   // seconds before a debut freeze lets go on its own
+    // ...and how long a debut room holds its FIRST ROUND for the new type
+    // before anyone else may fire, in world seconds. A debut has to win a turn
+    // on a clock the room's gunners are also queuing for, and a shieldbearer —
+    // which may only fire while it is facing you — measured over forty seconds
+    // before its card appeared, by which time the player had met it, been shot
+    // by it and learned it the hard way.
+    //
+    // TWELVE SECONDS IS TWO OR THREE TURNS at the gaps these rooms run, and
+    // that is what this is: patience for a man taking his turn, NOT patience
+    // for a man walking into range. The clock does not start until the debut
+    // is inside its own engage distance — see duelMayFire — because a
+    // shotgunner opens fire at 10 m and is placed past the 13 m first-sight
+    // floor, so it has a third of the strip to cross before a turn is even
+    // worth holding for it.
+    //
+    // Past the lead the room goes on without it, and the hold is off the
+    // moment nothing of that type is left standing.
+    meetLead: 12,
+    // HOW CLOSE THEY MAY COME, in metres in front of where you stand.
+    //
+    // Everywhere else the answer is the door approach, and in this mode that
+    // works out at eight metres — where the premise stops being true. "They
+    // come to you" is the whole of it, and a rusher plants and lunges at 3.4 m,
+    // so held at the approach it never arrives: measured, the nearest one ever
+    // got to a standing player was 7.89 m, and its debut froze on a tell it was
+    // never going to give.
+    //
+    // Removing the hold entirely is worse. Bodies then walk all the way in and
+    // a man inside 1.5 m switches to melee, which means he is not shooting —
+    // measured, a room scheduled to fire three together fired two, because two
+    // of the five were stood on the player swinging. This line is the gap
+    // between those two numbers: outside melee, inside the lunge.
+    holdM: 2.6,
+    // How much lateral room the DODGE coach wants on the side it points to,
+    // in metres. The strip is 12 m wide, so past this the thumb is being
+    // pointed at a wall and the other way is the better dodge.
+    dodgeRoom: 3.6,
+    // RAMP ROOMS AFTER A TYPE ARRIVES, before the next one does — a cycle is
+    // this plus the debut room itself. Five made a six-room cycle and put the
+    // last debut at room 44.
+    rampRooms: 3,
+    // HOW FAR THE FIRE DIAL STEPS BACK when a new type lands, so the room
+    // that introduces it is quieter than the one just cleared. It used to
+    // step the BODIES dial back too; on a four-room cycle that spends two of
+    // the cycle's three moves recovering and the ramp goes flat. See duelPlan.
+    typeDrop: 1,
     // SHORTER THAN THE TUNNEL'S, because you never walk it while it matters.
     // The strip is the arena, not a journey: its length is the range the
     // fight opens at, and everything past the last body is a corridor you

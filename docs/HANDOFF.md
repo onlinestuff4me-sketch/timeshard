@@ -1,4 +1,4 @@
-# Where this leaves off — 2026-08-28
+# Where this leaves off — 2026-09-07
 
 TIME SHATTER, live at **https://timeshatter.app**. Portrait-mobile
 first-person arcade shooter, Superhot-descended. Development is
@@ -32,14 +32,126 @@ push.** `.github/workflows/pages.yml` runs `on: push: branches: [main]`
 only — **a push to any other branch deploys nothing and produces no run to
 check**. Match the head SHA, wait for `completed / success`.
 
-### THIS SESSION'S WORK IS NOT LIVE YET
+### Everything below is LIVE
 
-It is on `claude/timeshatter-dev-continue-s3afr6`, because the session brief
-named that branch and said never to push elsewhere without permission. The
-site serves `main`. Nothing below is in front of players until somebody
-merges it.
+`main` carries all of it, deployed and confirmed by the Actions conclusion.
+The dev branch `claude/timeshatter-dev-continue-s3afr6` is kept in step with
+`main` rather than ahead of it. (An earlier revision of this file said the
+work was unmerged; it was, then, and is not now.)
 
-## What shipped this session
+---
+
+## NO RETREAT — the newest work, and the part most likely to spread
+
+**Read this first if you are picking the project up.** One mode has been
+renamed, given a difficulty ramp of its own, and given a way of introducing
+enemies that does not exist anywhere else in the game. The ramp is
+deliberately being trialled in the smallest mode so its shape can be judged
+before it is spent on the tunnel — **extending it to other modes is an open
+intention, not a settled plan.**
+
+**The name.** CORRIDOR DUEL is now **NO RETREAT**. Both old words were wrong:
+*corridor* is the tunnel's own word, and it was never one-on-one. **The id is
+still `duel`** — an id is a save key, so renaming it would orphan every run
+anybody has played — and therefore every symbol in the source keeps that word:
+`SIMPLE.duel`, `duelPlan`, `hallWave`'s duel branch, `test/duelramp.mjs`,
+`test/duelmeet.mjs`, `test/duelbtn.mjs`. **Reading `duel` in code and saying
+NO RETREAT to a player is correct, not a leftover.** Nothing a player sees says
+duel.
+
+**The ramp: three dials, one moves per room.**
+
+* **BODIES** — the groups a room arrives in, as an ordered list. 1·2·2 up to
+  5·5·5, a group capped at five. The order survives: 3, 3, 4 is a room that
+  ends on its biggest fight.
+* **FIRE** — how many shoot together and how long the room then waits. One gun
+  tightening twice, a second gun, a third, then the gap closing on three.
+  **Three together is the ceiling**: simultaneous rounds are the one shape a
+  sidestep cannot answer, which is the argument for reaching three EARLY rather
+  than for going past it.
+* **CAST** — which types are in the mix. A new type arrives **alone**, gunners
+  filling every other slot, in a room made quieter than the one just cleared
+  (the FIRE dial steps back — stepping both back flattens a four-room cycle);
+  it then owns the rest of a four-room cycle. Types that have each had a cycle
+  meet for a short interlude with every other dial frozen. The five debuts are
+  **shotgunner 8, rusher 12, shieldbearer 19, armored 25, heavy 29**, and the
+  ramp tops out at room 32 — five to a group and three firing together are both
+  chosen ceilings, so past that the mode is at maximum with only the cast
+  changing.
+
+**…and the first seven rooms are AUTHORED, not walked** (`SIMPLE.duel.open`).
+This is the one exception to "one dial per room", and it is worth knowing
+before you touch `duelPlan`. Taking turns moves the fire dial only every
+*other* room, and the opening has one job: be hard enough by **door 5** that
+the time button arriving at door 6 is the answer to something. Walked, two guns
+fired together for the first time in room 5 and the button's own room had never
+seen three — reported twice as *"not enough need to use the time button"*.
+Those rooms name both their dials; the walk picks up from where the table
+leaves them; rooms 6 and 7 hold everything, because a new *power* is met the
+same way a new *type* is.
+
+The schedule is **walked forward from room 1, not solved** (`duelPlan()` in
+`src/main.js`) because the rule *is* a walk. The dials live in `SIMPLE.duel`
+in `src/balance.js` and are **generated into `docs/BALANCE.md`**, so they
+cannot drift from what the game reads. `test/duelramp.mjs` prints the schedule
+out of the running game and then checks the guns do what it says.
+
+**The schedule is not the same thing as the difficulty.** Two rounds of *"still
+too easy"* both looked right on paper first: two guns every four seconds over
+fifteen metres is two dials that read as a ramp and a room that plays as a
+wait. `test/duelheat.mjs` measures the other half — the most rounds in the air
+at once, how fast they cross, how far out they open and how close they end up —
+and it is the probe to run when the mode feels wrong but the tables look fine.
+
+**Meeting a new type.** Its first act stops the world — its first round, or for
+the rusher the frame it plants and coils. Three rows fill the still screen: its
+NAME in the type doors are announced in, a two-word instruction, and the
+onboarding's own coach thumb doing what the words ask. Plus **a ring on the
+thing they mean**, the same one the lesson draws on the round it says to dodge:
+every pellet of a shotgun blast, the rusher's body, the armored unit's exposed
+head (which says SHOOT THIS and is answered by a shot), the shieldbearer's
+plate (whose card lights the time button, because a sidestep alone does not
+answer a man who turns to follow you). What the card asks for is what releases
+it. `test/duelmeet.mjs` checks all five debuts.
+
+**Where to read more, in order:**
+
+1. `docs/NO_RETREAT.md` — the mode in full: the arena, the 24-room schedule as
+   measured, what each dial does, the debut cards, and **a section on exactly
+   what lifting this ramp into another mode would take** (what is portable,
+   the one structural dependency, and why to generalise rather than copy).
+2. `docs/BALANCE.md` → *NO RETREAT — the three dials* — the tables themselves,
+   generated from `src/balance.js`.
+3. `docs/MODES.md` → the NO RETREAT section — why the mode exists and what
+   question it is asking.
+4. The published plan page:
+   https://claude.ai/code/artifact/252766fc-7ae3-41bc-aace-d6d3c2defde1
+
+**Three bugs found under this work, worth knowing because they are the
+repo's recurring shape** — a cheap proxy standing in for the real quantity,
+correct where it was written and quietly wrong outside it:
+
+* NO RETREAT composed its rooms with `composeWave`, which reads the TUNNEL's
+  introduction table. A room this mode's schedule said debuts the shotgunner
+  filled with gunners, because that table introduces shotgunners on a
+  different door. The roster allowed the type and no code ever put one in the
+  queue: **an empty permission.** `duelQueue()` now composes from the plan.
+* Every enemy inherited the tunnel's hold line — the band in front of the
+  exit, so the last fight happens with the door in frame — which in this mode
+  works out at eight metres. A rusher lunges at 3.4 m, so it never arrived:
+  measured, the nearest one ever got to a standing player was **7.89 m**.
+  Removing the hold was worse (men walk inside 1.5 m, switch to melee and stop
+  shooting, and a room scheduled to fire three together fired two).
+  `SIMPLE.duel.holdM` is 2.6 m: outside melee, inside the lunge.
+* The tunnel's own anti-deadlock valve let a **crowd** through at once, because
+  each man's allowance is his own — measured at door 5, two rounds with a gap
+  of **zero**. That is the chorus the shared shot clock exists to prevent,
+  arriving through the one door in it. `OPENING.valveFloor` now spaces valve
+  releases.
+
+---
+
+## What shipped in the session before that
 
 Four of the five NEXT UP items, the fifth confirmed as already correct, and
 a repair to the tool that writes docs/BALANCE.md.

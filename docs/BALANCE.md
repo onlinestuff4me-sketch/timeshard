@@ -130,11 +130,17 @@ it first reaches the speed on" and two doors later.
 Everything below is about `game.mode === 'hall'`. The other four modes do not
 have a staircase, a school or an unlock:
 
-* **Corridor duel** and **Stand still** have no time button at all, so there is
-  nothing to unlock. They share the opening ramp — they are corridor games with
-  the same four beats — but not the school, which is a lesson about a control
-  they do not have. (It used to run in both of them: volleys they cannot answer,
-  and a coach line naming a meter that is not on screen.)
+* **NO RETREAT** has the button, but not on the tunnel's schedule: it arrives
+  at `SIMPLE.duel.buttonRoom` — the peak of its own first cycle, one room
+  before the first new enemy type — because the thing that makes a debut
+  survivable is slow time. It does not run the school, and it no longer shares
+  the opening ramp either: it walks its own three dials. See
+  **NO RETREAT — the three dials** below and `docs/NO_RETREAT.md`.
+* **Stand still** has no time button at all, so there is nothing to unlock. It
+  shares the opening ramp — a corridor game with the same four beats — but not
+  the school, which is a lesson about a control it does not have. (The school
+  used to run in both simplified modes: volleys they could not answer, and a
+  coach line naming a meter that was not on screen.)
 * **Classic** time mode — hold to slow, no button, no bank — is not a separate
   mode but it is a separate rule. Slow motion is gated by the same unlock door,
   but there is no meter and no coach; the school's volleys are simply a fight.
@@ -732,21 +738,165 @@ the door approach, in line of sight of the slab, so the door opens in view.
 
 ## The simplified modes
 
-One movement mechanic, no look axis, no time button — and therefore no bank,
-which is why each of the two owns time by a different rule. See
-`docs/MODES.md` for what each rule is for.
+One movement mechanic and no look axis. **NO RETREAT** (mode id `duel` — an
+id is a save key, so it stays that word for ever) has the tunnel's time button
+and its bank from room 6; **STAND STILL** has no
+button at all, which is why the two own time by different rules. See
+`docs/MODES.md` for what each rule is for, and `docs/NO_RETREAT.md` for
+NO RETREAT in full.
 
 Shared: a straight strip **3 cells wide**, a tap
 within **64 px** of a body takes the body.
 
-| Knob | Corridor duel | Stand still |
+| Knob | NO RETREAT | Stand still |
 |---|---|---|
 | Leg length | 6 cells (24 m) | 9 cells (36 m) |
 | World speed, idle | 1 | 0.02 (thumb still) |
-| World speed, engaged | 0.13 (round inbound) | 1 (full drag) |
-| What moves time | an enemy round in the air | your thumb, and your trigger |
-| Inbound window | 1.1 s out, within 2.6 m | — |
+| World speed, engaged | 0.3 (button held) | 1 (full drag) |
+| What moves time | **the player**, from room 6 | your thumb, and your trigger |
 | Cost of a shot | — | 0.17 s of world time at 1× |
 | Ease onto target | 9 /s | 14 /s (TIME_EASE) |
 | March to the open door | 6.5 m/s | you walk it yourself |
+| How close they may come | 2.6 m | the door approach |
+
+`lead` (1.1 s) and `miss` (2.6 m) are
+still in `SIMPLE.duel` for `roundInbound()`, which probes ask. They no longer
+move time: the mode used to slow itself whenever a round was on its way, which
+is a real rule and an invisible one.
+
+## NO RETREAT — the three dials
+
+**A room moves exactly one of them, and they take it in turns.** This is the
+ramp being trialled in this mode; if it plays well it is the shape to lift into
+others, and `docs/NO_RETREAT.md` says what lifting it would take. The tables
+below are `SIMPLE.duel`; the walk that reads them is `duelPlan()` in
+`src/main.js`, and `test/duelramp.mjs` prints the schedule out of the
+running game and then checks the guns do what it says.
+
+### BODIES — the groups a room arrives in, in order
+
+| step | groups | bodies |
+|---|---|---|
+| 0 | 1 · 2 · 2 | 5 |
+| 1 | 2 · 2 · 3 | 7 |
+| 2 | 2 · 3 · 3 | 8 |
+| 3 | 3 · 3 · 4 | 10 |
+| 4 | 3 · 4 · 4 | 11 |
+| 5 | 4 · 4 · 5 | 13 |
+| 6 | 4 · 5 · 5 | 14 |
+| 7 | 5 · 5 · 5 | 15 |
+| 8 | 4 · 5 · 5 · 5 | 19 |
+| 9 | 5 · 5 · 5 · 5 | 20 |
+
+A group is capped at **5** bodies. The list stays a list,
+in order: 3, 3, 4 is a room that ends on its biggest
+fight, and the same bodies dealt another way is not.
+
+### FIRE — how many shoot together, and how long the room then waits
+
+| step | together | gap |
+|---|---|---|
+| 0 | 1 | 4.3 s |
+| 1 | 1 | 3.2 s |
+| 2 | 1 | 2.4 s |
+| 3 | 2 | 2.8 s |
+| 4 | 3 | 2.6 s |
+| 5 | 3 | 2.2 s |
+| 6 | 3 | 1.9 s |
+| 7 | 3 | 1.6 s |
+| 8 | 3 | 1.35 s |
+
+One gun tightening twice, a second gun at step 3, a third at step 4, and
+everything above that is the gap closing on three. **Three together is the
+ceiling** — simultaneous rounds are the one shape a sidestep cannot answer,
+which is the argument for reaching three EARLY rather than for going past it.
+A volley is
+measured from its **start**, so men firing together cost the room one turn
+rather than several, and the window a man may join one in is derived —
+`volleyStep × volley + volleySlack` = 0.07 × volley +
+0.12 — because a fixed window fitted two rounds and not
+three, and triples quietly fired pairs.
+
+### THE OPENING — the only rooms that are authored rather than walked
+
+Everywhere else one dial moves per room and the two take it in turns. That is
+what makes a thirty-six room ramp legible: a player who has just died can name
+the one thing that was different. It is the wrong rule for the first rooms,
+because taking turns moves **fire** only every other room, and the opening has
+one job — be hard enough by door 5 that the power arriving at door
+6 is the answer to something. Walked, two guns fired
+together for the first time in room 5 and the room the button lands in had
+never seen three.
+
+| room | bodies | groups | fire |
+|---|---|---|---|
+| 1 | 0 | 1 · 2 · 2 | 1 every 4.3 s |
+| 2 | 0 | 1 · 2 · 2 | 1 every 3.2 s |
+| 3 | 1 | 2 · 2 · 3 | 1 every 2.4 s |
+| 4 | 2 | 2 · 3 · 3 | 2 every 2.8 s |
+| 5 | 3 | 3 · 3 · 4 | 3 every 2.6 s |
+| 6 | 3 | 3 · 3 · 4 | 3 every 2.6 s — **the time button arrives** |
+| 7 | 3 | 3 · 3 · 4 | 3 every 2.6 s |
+
+The last rooms hold everything: the button is the new thing there, and a new
+thing is met in a room that is otherwise exactly the one before it — the same
+rule a debut follows, applied to a power instead of a type. The walk picks up
+from wherever this table leaves the two indices.
+
+### CAST — who is in the mix
+
+| entry | with | rooms it owns |
+|---|---|---|
+| 0 | gunners only (the opening) | 7 |
+| 1 | shotgunner | 4 |
+| 2 | rusher | 4 |
+| 3 | shotgunner + rusher | 3 — an interlude, every dial frozen |
+| 4 | shieldbearer | 4 |
+| 5 | shotgunner + rusher + shieldbearer | 2 — an interlude, every dial frozen |
+| 6 | armored | 4 |
+| 7 | heavy | 4 |
+| 8 | rusher + shieldbearer + armored | 2 — an interlude, every dial frozen |
+| 9 | shotgunner + armored + heavy | 2 — an interlude, every dial frozen |
+| 10 | shotgunner + rusher + shieldbearer + armored + heavy | 2 — an interlude, every dial frozen |
+
+A debut arrives **alone** — gunners fill every other slot — in a room made
+quieter than the one just cleared: the **fire** dial steps back by
+**1**, and only that one, because on a
+4-room cycle stepping both back spends two of the
+cycle's 3 moves climbing back to where the last one
+ended and the ramp goes flat. The debut then owns
+3 ramp rooms before the next type. Types that have
+each had a cycle **meet** for a short interlude with every other dial held
+still, because there the pairing is what is new.
+
+The last entry is never advanced past, so whatever it carries is the mix from
+there on — which is why it is the whole roster rather than the last trio that
+happened to be scheduled. **Both dials top out before it**, at
+20
+bodies and 3 firing
+together: five to a group and three at once are chosen ceilings, so the deep
+game is the mode at maximum with only the cast changing.
+
+### The debut cards
+
+The first act of a new type stops the world and fills the screen with its name,
+a two-word instruction, a thumb doing what the words ask, and a ring on the
+thing they mean. Being listed here is what gives a type a debut at all.
+
+| type | says | the ring is on | what answers it |
+|---|---|---|---|
+| shotgunner | DODGE THIS | rounds | a sidestep |
+| rusher | DODGE THIS | body | a sidestep |
+| heavy | DODGE THIS | rounds | a sidestep |
+| armored | SHOOT THIS | head | a shot |
+| shieldbearer | STOP TIME · GET ROUND HIM | shield | a sidestep, with the time button lit |
+
+A debut room holds its **first round** for the new type: a type that has to
+win a turn on a clock four gunners are also queuing for is met long before it
+is introduced. The hold is off the moment nothing of that type is left
+standing, and it expires `meetLead` = 12 world
+seconds after the debut is inside its own engage distance — the clock starts
+when it can actually fire, not when the room opened, because a shotgunner
+opens fire at 10 m and is placed past the 13 m first-sight floor. The freeze
+itself lets go on its own after `meetHold` = 10 s.
 

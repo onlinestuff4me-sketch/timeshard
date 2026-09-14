@@ -36,7 +36,7 @@ console.log('saves  title="' + title + '"');
 for (const r of rows) console.log('  row  ' + r.mode.padEnd(14) + r.name);
 if (rows.length !== 2) bad(`LOAD GAME shows ${rows.length} runs, expected both games`);
 if (!rows.every((r) => r.mode)) bad('a save row does not name its game');
-if (!rows.some((r) => /CORRIDOR DUEL/.test(r.mode))) bad('the duel save is missing or unnamed');
+if (!rows.some((r) => /NO RETREAT/.test(r.mode))) bad('the NO RETREAT save is missing or unnamed');
 if (!rows.some((r) => /THE TUNNEL/.test(r.mode))) bad('the tunnel save is missing or unnamed');
 await page.screenshot({ path: OUT + 'loadgame.png' });
 await page.tap('#savesclose');
@@ -71,7 +71,7 @@ else {
     + ' ' + r.desig.padEnd(5) + r.name.padEnd(15) + r.line.slice(0, 34));
   // 7 doors: duel (5) is open, the rest are not
   const open = games.rows.filter((r) => !r.locked).map((r) => r.name);
-  if (!open.includes('CORRIDOR DUEL')) bad('CORRIDOR DUEL should be open at 7 doors');
+  if (!open.includes('NO RETREAT')) bad('NO RETREAT should be open at 7 doors');
   if (open.length !== 1) bad('expected exactly one open mode at 7 doors, got ' + open.join(','));
   for (const r of games.rows.filter((x) => x.locked)) {
     if (!/REACH DOOR/.test(r.line)) bad(`${r.name} does not say what opens it`);
