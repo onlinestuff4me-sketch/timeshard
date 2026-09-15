@@ -12426,12 +12426,25 @@ function legHeadline(proto) {
   return line || `DOOR ${hall ? hall.doorsPassed + 1 : 1}`;
 }
 
-function showBanner(html, dur = 1600) {
+// HOW LONG THE CARD IS UP, AND HOW LONG IT OWNS THE SCREEN, ARE TWO NUMBERS.
+//
+// They were one, and `dur` was both: how long the words are readable, and how
+// long nothing else may arrive. That is right for almost every card here —
+// but `messageBusyUntil` IS ALSO READ BY THE SPAWNER (see the wave update),
+// which holds men back while a card owns the screen. So shortening a card
+// does not just shorten a card: it releases the next wave earlier.
+//
+// Measured, shortening NO RETREAT's opening card from 9 s to 2 s moved the
+// men in by seven seconds and changed the shape of the opening rooms enough
+// that `duelramp` could no longer find a volley to time in the room it was
+// standing in. `seen` is therefore separate: the card goes off the glass
+// after it, and the channel stays held for `dur` exactly as before.
+function showBanner(html, dur = 1600, seen = dur) {
   // The onboarding owns the screen. "THE DOOR IS OPEN" landing on top of
   // "DRAG TO MOVE" is two instructions at once, and the one the player needs
   // is the smaller of the two.
   if (tutorStep !== null) return;
-  messageQueue.push({ html, dur });
+  messageQueue.push({ html, dur, seen: Math.min(seen, dur) });
   pumpMessages();
 }
 function pumpMessages() {
@@ -12447,7 +12460,8 @@ function pumpMessages() {
   el.banner.classList.add('show');
   messageBusyUntil = now + m.dur + 500;   // the gap between cards
   clearTimeout(showBanner._t);
-  showBanner._t = setTimeout(() => el.banner.classList.remove('show'), m.dur);
+  showBanner._t = setTimeout(() => el.banner.classList.remove('show'),
+    m.seen === undefined ? m.dur : m.seen);
   if (messageQueue.length) {
     clearTimeout(pumpMessages._t);
     pumpMessages._t = setTimeout(pumpMessages, m.dur + 520);
@@ -14405,8 +14419,8 @@ const duel = { walk: false, room: -1, coach: 'wait', coachT: 0,
   // ...and the time button's own introduction, which is its own beat and not
   // a state of the coach variable. See duelNoteShot.
   btnSaid: false,
-  // ...and the run's opening card, which is up for SIMPLE.duel.openCardS, or
-  // until the first round flies if one flies sooner.
+  // ...and the run's opening card, readable for SIMPLE.duel.openCardS and
+  // holding the channel for openCardMax, or until the first round flies.
   openCard: false,
   // ...and the meter's own line, which waits for the bank to have run low and
   // been paid back before it says so. See duelMeterLine.
@@ -14730,20 +14744,25 @@ function duelNoteMeet(e) {
 // you are. It is drawn fresh every run, because a fixed number is a label and
 // a changing one is a count.
 //
-// AND IT IS ON A SHORT TIMER. It used to have none: it held while the first
-// men walked to their places and went when the first round was fired. That
-// reads well in description and badly on a phone — the men arrive and aim
+// AND IT IS ON A SHORT TIMER NOW. It used to have none: it held while the
+// first men walked to their places and went when the first round was fired.
+// That reads well in description and badly on a phone — the men arrive and aim
 // underneath it, and the card lands in the same band of pixels as the door's
 // own EXIT sign, so the opening of the mode is two messages stacked. Two
-// seconds, then it fades as the room fills. `SIMPLE.duel.openCardS` is the
-// number; the first round still takes it down early via duelCloseOpenCard,
-// called from enemyFire, for a room that opens fire sooner than that.
+// seconds of reading, then it fades as the room fills.
+//
+// TWO NUMBERS, NOT ONE. `openCardS` is how long it is readable; `openCardMax`
+// is how long it holds the message channel, and it stays where it was — the
+// banner's busy window is also what the spawner waits on, so collapsing them
+// into one would move every man in the mode seven seconds earlier. See
+// showBanner. The first round still takes the card down early via
+// duelCloseOpenCard, called from enemyFire.
 function duelOpenCard() {
   duel.openCard = true;
   const n = 12000 + Math.floor(Math.random() * 78000);
   showBanner('<div class="sim"><span class="lede">STARTING SIMULATION</span>#'
     + n.toLocaleString('en-US') + '<small>GOOD LUCK</small></div>',
-    SIMPLE.duel.openCardS * 1000);
+    SIMPLE.duel.openCardMax * 1000, SIMPLE.duel.openCardS * 1000);
 }
 function duelCloseOpenCard() {
   if (!duel.openCard) return;

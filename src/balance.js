@@ -1195,21 +1195,26 @@ export const SIMPLE = {
     // default is up to 1.4 s of cooldown before a man may even raise his gun,
     // on top of the telegraph and the room clock.
     openIn: [0.15, 0.35],
-    // HOW LONG THE OPENING CARD IS UP, in seconds.
+    // HOW LONG THE OPENING CARD IS READABLE, in seconds.
     //
-    // It used to have no clock at all: it held until the first round was
-    // fired, on the reasoning that the card should cover the walk-on and
-    // leave when the fight starts. Playtested, that is too long. The men take
-    // their places and raise their guns underneath it, and on a portrait
-    // phone the card sits exactly where the door's own EXIT sign is — two
-    // messages in the same pixels, which is the one thing `PILLARS` §7 says
-    // never to do. Photographed at door 1: STARTING SIMULATION printed
+    // It used to have no clock: it held until the first round was fired, on
+    // the reasoning that the card should cover the walk-on and leave when the
+    // fight starts. Playtested, that is too long. The men take their places
+    // and raise their guns underneath it, and on a portrait phone the card
+    // sits exactly where the door's own EXIT sign is -- two messages in the
+    // same pixels. Photographed at door 1: STARTING SIMULATION printed
     // straight across EXIT.
     //
-    // Two seconds is long enough to read a four-word card and a serial, and
-    // it is gone by the time anybody is aiming. The first round still takes
-    // it down early if one comes sooner — see duelCloseOpenCard.
+    // Two seconds is long enough to read four words and a serial, and it is
+    // gone by the time anybody is aiming.
     openCardS: 2,
+    // ...AND HOW LONG IT OWNS THE CHANNEL, which is a different question and
+    // must not move with it. The banner's busy window is also what the
+    // SPAWNER waits on, so shortening this would release every wave seven
+    // seconds earlier and reshape the opening rooms. It stays where it was:
+    // the safety net for a room where, somehow, nobody ever shoots. The first
+    // round still takes the card down early -- see duelCloseOpenCard.
+    openCardMax: 9,
     slow: 0.3,
     ease: 9,            // crossing between slow and full (per second)
     // WHAT "A ROUND IS ON ITS WAY" MEANS — inside `lead` seconds and passing
