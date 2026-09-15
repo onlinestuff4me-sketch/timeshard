@@ -4885,6 +4885,8 @@ function playerFire(aimAt = null) {
                                         // teaching the dodge with no gun on
                                         // screen: a round fired into a stopped
                                         // world hangs there and reads as a bug
+  if (duelHoldsFire()) return;          // ...and while TAP TO SLOW TIME is up:
+                                        // one thing to do, and it is the button
   if (player.reloadT > 0) return;                       // hands are busy
   if (player.fireCd > 0) {
     pendingFireUntil = performance.now() + 300;
@@ -12979,8 +12981,27 @@ function buildHallLeg(sgx, sgz, proto) {
   }
   // door frame: jambs + lintel around a 2m opening at the leg's far edge
   const dx0 = endGx * C, dz0 = endGz * C + C / 2 - W / 2;
-  wallBox(dx0 - 1.35, dz0, 0.7, W);   // jambs abut the side walls, no overlap
-  wallBox(dx0 + 1.35, dz0, 0.7, W);
+  // HOW WIDE A JAMB IS DEPENDS ON WHAT IS BESIDE IT. The opening is 2 m in a
+  // 4 m cell, so a jamb reaching the cell's own SIDE WALL is 0.7 m and abuts
+  // it exactly with no overlap — which is what these were, and it is right
+  // whenever the end cell has a side wall to abut.
+  //
+  // IT DOES NOT ALWAYS. The simplified modes' rooms are an authored strip
+  // widened a cell either side for their whole length — the door row included
+  // — so the neighbouring cell is floor and no side wall is built there. The
+  // jamb then stopped 0.3 m short of anything at all, leaving a slot beside
+  // the door the full height of the corridor. Measured: 0.30 m wide, 3.1 m
+  // tall, BOTH sides, every room of NO RETREAT and of `stop`. It reads as a
+  // hole in the wall because it is one.
+  //
+  // So each jamb is sized against its own neighbour: to the side wall where
+  // there is one, and to the cell's edge where there is not. A generated leg
+  // never widens its door row, so its frames are unchanged to the millimetre.
+  for (const s of [-1, 1]) {
+    const opening = hall.grid.has((endGx + s) + ',' + endGz);   // floor, not wall
+    const jw = (opening ? C / 2 : C / 2 - W) - 1;               // from the opening's edge
+    wallBox(dx0 + s * (1 + jw / 2), dz0, jw, W);
+  }
   // the lintel is VISUAL only: ground collision is 2D, so a solid lintel
   // would read as an invisible wall filling the open doorway
   walls.push([dx0, 2.8, dz0, 2, 0.6, W]);
@@ -12999,8 +13020,16 @@ function buildHallLeg(sgx, sgz, proto) {
       wallBox(ox + half + jw / 2, oz, jw, W);
     }
     // lintel is VISUAL only — ground collision is 2D, so a solid one would
-    // read as an invisible wall filling the opening
-    walls.push([ox, H - 0.42, oz, LEG.vaultDoorW, 0.55, W]);
+    // read as an invisible wall filling the opening.
+    //
+    // ...AND IT REACHES THE CEILING. Its height used to be a flat 0.55, which
+    // put its top at 2.955 with the ceiling slab's underside at 3.0 — a 45 mm
+    // slot running the full 2.6 m width of both the vault's doorways. The
+    // exit door's lintel a few lines up has always spanned its opening's head
+    // to the ceiling; this one only looked as if it did. Derived from the
+    // head height now, so it cannot drift again.
+    const head = H - 0.695;   // where the opening stops and the lintel starts
+    walls.push([ox, (H + head) / 2, oz, LEG.vaultDoorW, H - head, W]);
   }
   // LOW COVER: see over it, cannot shoot or be shot through it. The height
   // is exact rather than a taste call — the enemy's sight ray and his muzzle
@@ -14376,8 +14405,12 @@ const duel = { walk: false, room: -1, coach: 'wait', coachT: 0,
   // ...and the time button's own introduction, which is its own beat and not
   // a state of the coach variable. See duelNoteShot.
   btnSaid: false,
-  // ...and the run's opening card, which is up until the first round flies.
+  // ...and the run's opening card, which is up for SIMPLE.duel.openCardS, or
+  // until the first round flies if one flies sooner.
   openCard: false,
+  // ...and the meter's own line, which waits for the bank to have run low and
+  // been paid back before it says so. See duelMeterLine.
+  ranLow: false, refillFrom: 0, meterSaid: false, meterT: 0,
   // ...whose second half raises the shooting cue alongside it, so "spend the
   // seconds" and "here is what on" are one beat. See duelPairShot.
   pairShot: false };
@@ -14414,6 +14447,10 @@ function resetSimpleState() {
   duel.reteach = false;
   duel.btnSaid = false;
   duel.openCard = false;
+  duel.ranLow = false;
+  duel.refillFrom = 0;
+  duel.meterSaid = false;
+  duel.meterT = 0;
   duel.pairShot = false;
   duelTapCue(null);
   duel.walk = false;
@@ -14693,16 +14730,20 @@ function duelNoteMeet(e) {
 // you are. It is drawn fresh every run, because a fixed number is a label and
 // a changing one is a count.
 //
-// AND IT IS NOT ON A TIMER. It holds while the first men walk to their
-// places and goes when the first round is fired — see duelCloseOpenCard,
-// called from enemyFire. `openCardMax` is only the safety net for a room
-// where, somehow, nobody ever shoots.
+// AND IT IS ON A SHORT TIMER. It used to have none: it held while the first
+// men walked to their places and went when the first round was fired. That
+// reads well in description and badly on a phone — the men arrive and aim
+// underneath it, and the card lands in the same band of pixels as the door's
+// own EXIT sign, so the opening of the mode is two messages stacked. Two
+// seconds, then it fades as the room fills. `SIMPLE.duel.openCardS` is the
+// number; the first round still takes it down early via duelCloseOpenCard,
+// called from enemyFire, for a room that opens fire sooner than that.
 function duelOpenCard() {
   duel.openCard = true;
   const n = 12000 + Math.floor(Math.random() * 78000);
   showBanner('<div class="sim"><span class="lede">STARTING SIMULATION</span>#'
     + n.toLocaleString('en-US') + '<small>GOOD LUCK</small></div>',
-    SIMPLE.duel.openCardMax * 1000);
+    SIMPLE.duel.openCardS * 1000);
 }
 function duelCloseOpenCard() {
   if (!duel.openCard) return;
@@ -14959,6 +15000,20 @@ function duelNoteShot() {
   el.timebtn.classList.add('hint');
   vibrate([12, 40, 12]);
 }
+// WHILE THE BUTTON'S OWN CARD IS UP, THE ONLY THING TO DO IS PRESS IT.
+//
+// You shoot in this mode by tapping ANYWHERE, and TAP TO SLOW TIME arrives
+// with the world stopped and an arrow on a button in the corner. Every tap
+// that missed the button fired the pistol instead — into a frozen room, at
+// the exact moment the game had said to do one specific thing — so the lesson
+// read as "tap here" while the game answered taps somewhere else. Holding
+// fire for the length of one card is what makes the instruction true.
+//
+// The card cannot outstay this: `duel.coach` leaves 'tap' on the press, and
+// on a twelve-second dead-man's clock if the press never comes (see the tick).
+function duelHoldsFire() {
+  return duelButtonOn() && duel.coach === 'tap';
+}
 // The button was pressed while the world was held for it: that IS the lesson,
 // so it ends here and the meter line takes over.
 function duelCoachTapped() {
@@ -14973,14 +15028,26 @@ function duelCoachTapped() {
   // they have not been told.
   duel.coach = 'refill';
   duel.coachT = 0;
-  duelCoachSay('SHATTER ENEMIES TO REFILL YOUR METER', 'meter');
+  // ...AND THE PROMPT COMES DOWN WITH THE PRESS THAT ANSWERED IT. It used to
+  // be replaced by the refill line rather than cleared, so moving that line
+  // to its own beat left TAP TO SLOW TIME on the glass, still arrowed at the
+  // button, over a player who had just tapped it. An instruction that outlives
+  // being obeyed reads as the game not having noticed.
+  duelCoachSay('');
   el.timebtn.classList.remove('hint');
-  // ...AND WHAT THE SECONDS ARE FOR. The meter line asks the player to shatter
-  // and says nothing about how, at the one moment the world has slowed down
-  // to let them. So the button's coach is PAIRED with the shooting cue: a ring
-  // on a man and a thumb pressing on his chest, in the slowed room, while the
-  // line about refilling is on screen. Stopping time and taking a shot are one
-  // idea and this is the beat that has both halves of it in frame.
+  // WHAT THIS BEAT IS FOR, NOW THAT THE REFILL LINE HAS LEFT IT.
+  //
+  // It used to say SHATTER ENEMIES TO REFILL YOUR METER here, one frame after
+  // the button was first pressed — at which point the player has spent none
+  // of the bank, watched none of it drain, and has no reason to care that it
+  // comes back. A rule stated before it can be observed is a rule nobody
+  // reads. That line now waits for the moment it describes; see duelMeterLine.
+  //
+  // What is left is the half that IS about this instant: the world has just
+  // stopped and nothing has told them what to do with a stopped world. So the
+  // shooting cue rides it — a ring on a man and a thumb pressing on his chest,
+  // in the slowed room. Stopping time and taking a shot are one idea, and this
+  // is the frame that has both halves of it.
   duelPairShot();
 }
 // The shooting cue raised ALONGSIDE another beat rather than as one of its
@@ -14999,7 +15066,57 @@ function duelPairShot() {
   // finds somebody as soon as there is somebody.
   duel.meetOwner = duelNearestBody();
 }
+// SHATTERING REFILLS YOUR METER — SAID WHERE IT CAN BE CHECKED.
+//
+// The economy of this mode is one sentence: the button spends a bank and kills
+// pay it back. That used to be stated the instant the button was first
+// pressed, when the bank is still full and nothing has been spent, so it was a
+// claim about a number the player had not yet watched move.
+//
+// It waits for the whole loop to have happened instead: the bank ran down, and
+// then three men were shattered with it low. At that point the meter has
+// visibly gone down and visibly come back, and the line names something the
+// player has just done rather than something they might later notice.
+//
+// WHY `low` AND NOT EMPTY. "Drained" reads as zero, but a bank that reaches
+// exactly zero is a player who has already lost the fight this is meant to
+// help them win — and if it never quite empties the beat would never fire at
+// all. `SLOWMO.low` is the threshold the button already shows as running out,
+// so the line arrives on the state the screen is itself reporting.
+//
+// NO FREEZE. Every other beat in this mode stops the world; this one is a
+// caption on a fight that keeps going, because it is a remark about something
+// that already worked, not an instruction to carry out.
+const METER_KILLS = 3;     // ...shattered while the bank is low
+const METER_HOLD = 3.2;    // seconds the line stays up
+function duelMeterLine(dtReal) {
+  if (!duelButtonOn()) return;
+  // up: run its clock down and take it off screen when it is spent
+  if (duel.meterT > 0) {
+    duel.meterT -= dtReal;
+    if (duel.meterT <= 0) duelCoachSay('');
+    return;
+  }
+  if (duel.meterSaid) return;
+  // the bank ran low at least once — from here the kills are the ones that pay
+  if (!duel.ranLow) {
+    if (slowBank > SLOWMO.low) return;
+    duel.ranLow = true;
+    duel.refillFrom = game.kills;
+    return;
+  }
+  if (game.kills - duel.refillFrom < METER_KILLS) return;
+  // ONE MESSAGE AT A TIME, and this one yields. Every other beat here stops
+  // the world for what it has to say; a remark cannot talk over a lesson.
+  if (duel.coach === 'tap' || duel.coach === 'meet' || duel.coach === 'loot'
+    || duelTeaching() || duel.pairShot) return;
+  duel.meterSaid = true;
+  duel.meterT = METER_HOLD;
+  duelCoachSay('SHATTERING REFILLS YOUR METER', 'btn');
+  vibrate(10);
+}
 function updateDuelCoach(dtReal) {
+  duelMeterLine(dtReal);
   // ...a room went by with nothing shattered in it: say the shooting half
   // once more, as soon as there is a man on the floor to point at.
   if (duel.reteach && duel.coach === 'done' && game.state === 'play'
@@ -16345,6 +16462,11 @@ window.__ts = {
     gotGun: duel.gotGun, pairShot: duel.pairShot,
     owner: duel.meetOwner ? duel.meetOwner.type + ':' + duel.meetOwner.state : null,
     openCard: duel.openCard,
+    // ...and the meter line's own little machine: whether the bank has been
+    // seen low, whether the line has been said, and whether the trigger is
+    // currently held for the button's card. See duelMeterLine, duelHoldsFire.
+    ranLow: duel.ranLow, meterSaid: duel.meterSaid,
+    meterT: +duel.meterT.toFixed(2), holdsFire: duelHoldsFire(),
     tap: el.dueltap ? el.dueltap.classList.contains('on') : false,
     gun: gun.visible,
     met: [...duel.met],

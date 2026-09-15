@@ -204,14 +204,18 @@ if (held.coach !== 'tap') bad('the first round fired did not start the button le
 if (!held.on || !held.atbtn) bad('the prompt is not on the button');
 if (!/TAP TO SLOW/.test(held.text)) bad('the prompt does not say what to do: ' + held.text);
 if (held.scale > 0.001) bad('the world did not actually stop: scale ' + held.scale);
-if (!answered.on || !answered.atmeter) bad('the meter line did not follow the tap');
-if (!/REFILL/.test(answered.text)) bad('the second line is not about refilling: ' + answered.text);
-// ...AND IT IS PAIRED WITH THE SHOOTING CUE. The meter line asks the player to
-// shatter and says nothing about how, at the one moment the world has slowed
-// down to let them. Stopping time and taking a shot are one idea, so both
-// halves have to be in frame together.
-if (!answered.tap) bad('the button lesson says SHATTER and puts no thumb on anybody');
-if (!answered.pins) bad('the button lesson says SHATTER and rings nobody');
+// THE PROMPT COMES DOWN WITH THE PRESS THAT ANSWERED IT, and nothing takes
+// its place here. This used to expect the refill line one frame after the tap
+// — the bank still full, none of it spent, nothing to observe. That line now
+// waits for the loop it describes to have happened; `duelcoach.mjs` is where
+// it is checked. What this beat owes is the opposite: silence, and a thumb.
+if (answered.on) bad('the button prompt is still up after being obeyed: ' + answered.text);
+if (/REFILL/.test(answered.text)) bad('the refill line is back on the tap frame');
+// ...AND THE SHOOTING CUE RIDES IT. The world has just stopped and nothing has
+// said what to do with a stopped world, so the ring and the thumb are the
+// message: stopping time and taking a shot are one idea.
+if (!answered.tap) bad('the stopped world puts no thumb on anybody');
+if (!answered.pins) bad('the stopped world rings nobody');
 if (answered.scale <= 0.001) bad('answering the prompt did not let the world move again');
 await page.screenshot({ path: OUT + 'duel-coach.png' });
 

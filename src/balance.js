@@ -1195,10 +1195,21 @@ export const SIMPLE = {
     // default is up to 1.4 s of cooldown before a man may even raise his gun,
     // on top of the telegraph and the room clock.
     openIn: [0.15, 0.35],
-    // THE SAFETY NET UNDER THE OPENING CARD, in seconds. The card is taken
-    // down by the first round anyone fires, not by a clock — this is only so
-    // a room where nobody ever shoots cannot leave it on screen for ever.
-    openCardMax: 9,
+    // HOW LONG THE OPENING CARD IS UP, in seconds.
+    //
+    // It used to have no clock at all: it held until the first round was
+    // fired, on the reasoning that the card should cover the walk-on and
+    // leave when the fight starts. Playtested, that is too long. The men take
+    // their places and raise their guns underneath it, and on a portrait
+    // phone the card sits exactly where the door's own EXIT sign is — two
+    // messages in the same pixels, which is the one thing `PILLARS` §7 says
+    // never to do. Photographed at door 1: STARTING SIMULATION printed
+    // straight across EXIT.
+    //
+    // Two seconds is long enough to read a four-word card and a serial, and
+    // it is gone by the time anybody is aiming. The first round still takes
+    // it down early if one comes sooner — see duelCloseOpenCard.
+    openCardS: 2,
     slow: 0.3,
     ease: 9,            // crossing between slow and full (per second)
     // WHAT "A ROUND IS ON ITS WAY" MEANS — inside `lead` seconds and passing
