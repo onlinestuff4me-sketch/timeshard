@@ -177,17 +177,26 @@ from acts 1–3 and the requirement drops with it.
 | **17** | **25 / 25** |
 | 46 (today's speed) | 25 / 25 |
 
-If the ramp settles below 17, the script is what gives: `SCRIPT.md` §5.3 is
-explicit that the fix is to cut beats rather than crowd them, and
+**ANSWERED: door 17, and all twenty-five lines stay.** The alternative was a
+faster unlock with a shorter script, and it was declined — so 17 is not a
+preference the ramp may overrule, it is a floor the ramp has to clear. The
+balance session is the one that lands it, and this is the number it has to
+land on or above.
+
+If the ramp were to settle below 17, the script is what gives: `SCRIPT.md`
+§5.3 is explicit that the fix is to cut beats rather than crowd them, and
 `storyDoors()` already does exactly that and reports what it dropped. At door
 10 it would lose `test2`, `test4`, `test6`, `others2`, `others5`, `anomaly2`
 and `anomaly4` — which includes both of act 1's rewrites, so the first time a
-wall turns over would move from act 1 to act 2.
+wall turns over would move from act 1 to act 2. That is the cost of going
+below the floor, written down so nobody has to rediscover it.
 
-**Placement is not wired to a leg yet, and should not be until that number
-settles** — wiring it now wires it to a door that is about to move. Everything
-else is ready: `storyDoors` takes the anchors as plain numbers, so the day the
-ramp lands this is one call.
+**Placement is not wired to a leg yet, and should not be until the ramp
+actually lands on a number** — the anchor is decided, but the door the build
+reads is still `powerUnlockDoor()` at 10 and `unlockDoor(SPEED)` at 46, and
+wiring to either today wires to a door that is about to move. Everything else
+is ready: `storyDoors` takes the anchors as plain numbers, so the day the ramp
+lands this is one call.
 
 #### The drip is one arc, not four schedules
 
@@ -283,10 +292,10 @@ wipe. Needs F to exist (phase 2), the last three wall lines (phase 2), and
 
 ## 3. What blocks the build
 
-Five decisions. The eleven open questions in `STORY.md` §10 are mostly colour
-and can be answered late; these five change what gets written.
+Six decisions. The eleven open questions in `STORY.md` §10 are mostly colour
+and can be answered late; these six change what gets written.
 
-**All five are answered.** Recorded on the roadmap artifact and repeated here,
+**All six are answered.** Recorded on the roadmap artifact and repeated here,
 because a decision that lives only in a page nobody re-opens is not settled:
 
 | | answer | what it means for the build |
@@ -296,6 +305,7 @@ because a decision that lives only in a page nobody re-opens is not settled:
 | **Q-C** | Keep twenty-five and accept most are late | No cut. The back half is for players who go deep, and that is a known, chosen cost rather than an oversight. |
 | **Q-D** | Same signage, but it **arrives differently** | The engineers do not get a third look. Whatever separates them from the programme is in the arrival — when it appears, how, what it interrupts — which is a phase 3 design problem, not a palette one. |
 | **Q-E** | Build the pad — the turn is the story | Phase 4 stays in. It is still the largest single build here, and it is now committed to rather than deferred. |
+| **Q-F** | The unlock door is **17 or later**, and all twenty-five lines stay | The anchor is a floor the ramp has to clear, not a preference it may overrule. A faster unlock with a shorter script was offered and declined. `storyMinUnlock()` derives the 17 and `test/story.mjs` prints it every run, so cutting a line from acts 1–3 lowers it by itself. |
 
 | | question | what it blocks |
 |---|---|---|
