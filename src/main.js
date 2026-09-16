@@ -20,6 +20,7 @@ import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocol
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
 import { HALL, genHallLeg } from './genleg.js';
+import { walkPlan } from './ramp.js';
 // Every mode the game can start: the main game first, then the rest in the
 // order they were built. The menu row and the MODES section in Settings are
 // both rendered from it.
@@ -3843,90 +3844,12 @@ const doorAlive = (d) => Math.max(1, ...doorEncounters(d));
 // not take all the threes and leave the next a row of singles.
 // WHAT ROOM `d` OF NO RETREAT IS, on all three dials at once.
 //
-// Walked forward from room 1 rather than solved, because the rule IS a walk:
-// one dial moves per room, alternating bodies and fire, and a new type steps
-// the other two back. There is no closed form for that and inventing one
-// would be a second description of the same thing, free to drift from it. It
-// is a dozen iterations of arithmetic on a room number; the caller can afford
-// it. See SIMPLE.duel for the tables and the reasoning.
+// The walk itself is `walkPlan` in src/ramp.js, because the tunnel wants the
+// same rule and two copies of a rule is one copy that will be wrong. What is
+// left here is the only thing that was ever specific to this mode: which
+// tables it is walked over. See SIMPLE.duel for them and for the reasoning.
 function duelPlan(d) {
-  const D = SIMPLE.duel;
-  const room = Math.max(1, d | 0);
-  // How many rooms an entry owns: a combination is a short interlude of
-  // exactly `hold` rooms, anything else is the room it arrives in plus its
-  // ramp — unless it names its own `rooms`, which the OPENING does, because
-  // the rooms before the first debut are not a debut's ramp. They are the
-  // mode being taught by playing it, and they have to outlast the time
-  // button (SIMPLE.duel.buttonRoom) arriving inside them.
-  const span = (e) => (e.rooms || (e.hold ? e.hold : 1 + D.rampRooms));
-  const OP = D.open;
-  let b = OP[0].bodies, f = OP[0].fire, turn = 0;
-  let idx = 0, at = 1, fresh = null, combo = false;
-  for (let r = 2; r <= room; r++) {
-    fresh = null;
-    if (r - at >= span(D.cast[idx]) && idx + 1 < D.cast.length) {
-      idx++; at = r;
-      const e = D.cast[idx];
-      // A DEBUT IS MET IN A QUIETER ROOM than the one just cleared, so the
-      // new thing is the only new thing. A COMBINATION is not a debut — both
-      // types are known — so it takes the dials exactly as it finds them:
-      // what is new there is the pairing, and nothing else may move under it.
-      if (!e.hold) {
-        // THE DEBUT ROOM IS QUIETER ON THE FIRE DIAL, and only that one.
-        //
-        // It used to step BOTH back, which was affordable on a six-room cycle
-        // and is not on a four-room one: three moves a cycle, two of them
-        // spent climbing back to where the last cycle ended, and the peaks
-        // came out 10, 10, 11, 11 — a ramp that is a flat line with debuts
-        // drawn on it. Measured by test/duelramp.mjs, which is exactly what
-        // that check is for.
-        //
-        // FIRE is the one worth spending it on. Bodies decide how crowded the
-        // room looks; the shared clock decides how much is coming AT you, and
-        // a player being shown a new silhouette needs the beats between
-        // rounds more than they need one fewer man at the back.
-        f = Math.max(0, f - D.typeDrop);
-        fresh = e.with[e.with.length - 1] || null;
-      }
-      continue;
-    }
-    // AN INTERLUDE HOLDS EVERY DIAL STEADY — for its own rooms, and not one
-    // more. The programme's LAST entry can never be advanced past, so an
-    // unqualified `continue` here froze the whole game solid from the last
-    // interlude onward: past room 44 the old list stopped ramping for ever.
-    // A run that deep is rare and a difficulty curve that quietly flatlines
-    // is not something a player would report, which is exactly why it has to
-    // be right here rather than watched for.
-    if (D.cast[idx].hold && r - at < span(D.cast[idx])) continue;
-    // ...AND THE OPENING NAMES ITS OWN DIALS RATHER THAN WALKING THEM. Taking
-    // turns moves fire every other room, and the first five rooms have one job
-    // — be hard by door 5, so the button arriving at door 6 is the answer to
-    // something. See SIMPLE.duel.open. The walk picks up from wherever this
-    // leaves the two indices, so nothing downstream has to know about it.
-    if (idx === 0 && r <= OP.length) {
-      b = OP[r - 1].bodies; f = OP[r - 1].fire;
-      continue;
-    }
-    // one dial per room, taking it in turns; a dial that has topped out hands
-    // its turn to the other rather than wasting the room
-    if (turn === 0 && b + 1 < D.groups.length) b++;
-    else if (f + 1 < D.fire.length) f++;
-    else if (b + 1 < D.groups.length) b++;
-    turn ^= 1;
-  }
-  const [volley, gap] = D.fire[f];
-  const entry = D.cast[idx];
-  // ...and it is only a combination while it is still ON, which for the last
-  // entry in the programme is not for ever. See the interlude guard above.
-  combo = !!entry.hold && room - at < span(entry);
-  return {
-    groups: D.groups[b].map((v) => Math.min(D.encCap, v)),
-    volley, gap, fresh, combo,
-    // GUNNERS FILL EVERY OTHER SLOT. `with` is what joins them, never a
-    // running total of everything met so far.
-    cast: ['gunner'].concat(entry.with.filter((t) => t !== 'gunner')),
-    step: { bodies: b, fire: f, cast: idx },
-  };
+  return walkPlan(d, SIMPLE.duel);
 }
 
 // WHO IS IN THE ROOM, in the order they come out of the door.
