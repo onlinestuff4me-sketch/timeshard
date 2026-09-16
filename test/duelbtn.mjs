@@ -186,13 +186,14 @@ await page.evaluate(async () => {
   const t = window.__ts;
   document.getElementById('timebtn').dispatchEvent(new PointerEvent('pointerdown',
     { pointerId: 99, clientX: 340, clientY: 700, bubbles: true }));
-  // ...AND GIVE THE PAIRED CUE A BODY TO LAND ON. A man still assembling has
-  // no hitbox, so the cue skips him — and this room can be two men both still
-  // arriving. The beat waits for one (SIMPLE.duel.pairWait); so does this.
-  for (let i = 0; i < 240; i++) {
+  // ...AND READ IT SOON AFTER. What the press hands over TO is the door-6
+  // handover's business (test/duelup.mjs walks all seven beats); what this
+  // probe is asking is whether the press itself bought time, and slow time is
+  // spent from a bank that drains — wait four seconds and the honest answer to
+  // "is the world slowed" becomes no.
+  for (let i = 0; i < 30; i++) {
     await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999;
-    if (t.simpleState().pairShot && t.simpleState().owner && i > 20) break;
   }
 });
 const answered = await readCoach();
@@ -204,15 +205,22 @@ if (held.coach !== 'tap') bad('the first round fired did not start the button le
 if (!held.on || !held.atbtn) bad('the prompt is not on the button');
 if (!/TAP TO SLOW/.test(held.text)) bad('the prompt does not say what to do: ' + held.text);
 if (held.scale > 0.001) bad('the world did not actually stop: scale ' + held.scale);
-if (!answered.on || !answered.atmeter) bad('the meter line did not follow the tap');
-if (!/REFILL/.test(answered.text)) bad('the second line is not about refilling: ' + answered.text);
-// ...AND IT IS PAIRED WITH THE SHOOTING CUE. The meter line asks the player to
-// shatter and says nothing about how, at the one moment the world has slowed
-// down to let them. Stopping time and taking a shot are one idea, so both
-// halves have to be in frame together.
-if (!answered.tap) bad('the button lesson says SHATTER and puts no thumb on anybody');
-if (!answered.pins) bad('the button lesson says SHATTER and rings nobody');
+// ...AND THE PRESS BUYS TIME. What it hands over TO is the door-6 handover's
+// own business now — the sequence that replaced the old introduction owns
+// every beat after this one, and test/duelup.mjs walks all seven. What this
+// probe still owns is the button: the prompt, the press, and the bank.
 if (answered.scale <= 0.001) bad('answering the prompt did not let the world move again');
+if (answered.scale > 0.9) bad('the press bought no slow time: ' + answered.scale);
+// ONE THING ON THE GLASS AT A TIME. `duelCoachTapped` is shared with the
+// ordinary handover and leaves its meter line up; during the scripted one that
+// line would sit underneath a DODGE card, which is two instructions at once
+// and neither of them the one being asked for.
+if (answered.coach !== 'refill' && /REFILL/.test(answered.text)) {
+  bad('the meter line is still on screen under the ' + answered.coach + ' beat');
+}
+if (answered.coach === 'refill' && !/REFILL/.test(answered.text)) {
+  bad('the meter line did not follow the tap: ' + answered.text);
+}
 await page.screenshot({ path: OUT + 'duel-coach.png' });
 
 // ---- spend it: it drains while in use, and time really does slow ----------

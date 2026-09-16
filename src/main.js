@@ -13435,7 +13435,7 @@ const duel = { walk: false, room: -1, coach: 'wait', coachT: 0,
   loot: null, gotGun: false, debutDrop: -1, holdFire: false, pairSeen: false,
   // ...being wedged on the wall beside a door (duelWatchStuck), and whether
   // the door-6 handover is running (duelStartUpgrade).
-  stuckT: 0, stuckZ: 0, script: false, volleyT: 0,
+  stuckT: 0, stuckZ: 0, script: false, scriptIn: 0, volleyT: 0,
   shotHere: false, taught: false, reteach: false,
   // ...and the time button's own introduction, which is its own beat and not
   // a state of the coach variable. See duelNoteShot.
@@ -13477,6 +13477,7 @@ function resetSimpleState() {
   duel.stuckZ = 0;
   duel.script = false;
   duel.volleyT = 0;
+  duel.scriptIn = 0;
   duel.shotHere = false;
   duel.taught = false;
   duel.reteach = false;
@@ -14106,6 +14107,7 @@ function duelTeachDone() {
 // ---------------------------------------------------------------------------
 function duelStartUpgrade() {
   duel.script = true;
+  duel.scriptIn = duelRoom();
   duel.btnSaid = true;            // the ordinary introduction is not needed now
   duel.coach = 'up_say';
   duel.coachT = 0;
@@ -14126,7 +14128,8 @@ function duelScriptHidesGun() {
 // ...and nobody fires until the script says so, so the volley in step four is
 // ONE volley on cue rather than whatever the room clock happened to be doing.
 function duelScriptHoldsFire() {
-  return duel.script && (duel.coach === 'up_say' || duel.coach === 'up_meet');
+  return duel.script && duelRoom() === duel.scriptIn
+    && (duel.coach === 'up_say' || duel.coach === 'up_meet');
 }
 function duelScriptVolley() {
   // every live man raises at once; the volley window does the rest
@@ -14265,6 +14268,12 @@ function updateDuelCoach(dtReal) {
   // ---- the door-6 handover ------------------------------------------------
   if (duel.script && duel.coach !== 'tap' && duel.coach !== 'refill') {
     if (game.state !== 'play') { duelEndUpgrade(); return; }
+    // ...AND IT NEVER OUTLIVES ITS OWN ROOM. Two of its beats hold the room's
+    // fire, and a hold that survives a door is a room full of men who never
+    // shoot — measured, the shotgunner's debut two rooms later never happened,
+    // because the type's first act is its first ROUND and nobody could fire
+    // one. The room-1 lesson learnt this already; so does this.
+    if (duelRoom() !== duel.scriptIn) { duelEndUpgrade(); return; }
     duel.coachT += dtReal;
     const U = SIMPLE.duel.upgrade;
     if (duel.coach === 'up_say') {
@@ -14425,6 +14434,15 @@ function updateDuelCoach(dtReal) {
     // whole sequence. `duelCoachTapped` is shared with the ordinary handover
     // and lands here either way; this is where the two part.
     if (duel.script) {
+      // ...AND THE LINE THE PRESS PUT UP COMES DOWN WITH IT. `duelCoachTapped`
+      // is shared, so it leaves SHATTER ENEMIES TO REFILL YOUR METER on the
+      // glass — which then sits underneath this beat's DODGE card, two
+      // instructions at once and neither of them the one being asked for. The
+      // meter has its own beat later; this sequence is not it.
+      duelCoachSay('');
+      duel.pairShot = false;
+      duel.pairSeen = false;
+      duelTapCue(null);
       duel.meetKills = game.kills;
       duelScriptDodge();
       return;
