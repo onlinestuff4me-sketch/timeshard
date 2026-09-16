@@ -24,6 +24,9 @@
 | how hot each room actually is | `test/duelheat.mjs` |
 | the gun on the floor, checked | `test/duelloot.mjs` |
 | the rusher's cycle, checked | `test/duelrush.mjs` |
+| the door-6 handover, checked | `test/duelup.mjs` |
+| wedged on the wall, checked | `test/duelwall.mjs` |
+| what you carry, checked | `test/loadout.mjs` |
 | speed and range | `SIMPLE.duel.bullet` / `.engage`, read by `duelBulletSpeed()` / `duelEngageCap()` |
 | the button and its bank | `test/duelbtn.mjs` |
 | the published plan page | https://claude.ai/code/artifact/252766fc-7ae3-41bc-aace-d6d3c2defde1 |
@@ -151,6 +154,15 @@ thing this mode has to say is that a round is coming and you move.
    gets a ring and a thumb presses on his chest — in this mode a shot goes
    where the thumb went, so the cue is on the *body*, not on the stick. Firing
    puts both away.
+
+**And exactly one gun comes up.** Holding the room's *fire* was never the same
+as sequencing its *raises*: the card rings one man and says TAP TO SHOOT while
+two or three others stand there with their arms up, and the player cannot tell
+which of them it meant. While that card is on screen the aiming cap is **one**
+(`duelSoloAim`), and the next man may not begin his raise until this one has
+fired — leaving `aim` *is* firing, so "nobody else is aiming" asks that exactly.
+Scoped to the beat and the room that raised it: past the opening, men taking
+turns two and three at a time is the fire dial doing its job.
 
 **The shooting half is answered by a body coming apart, not by a trigger
 pull.** It used to clear on the first tap, which is the gesture without its
@@ -313,6 +325,78 @@ projects inside the viewport with a margin — rather than sorting by distance.
 Its comment used to claim it took the nearest man *in front*, and the code
 never checked; even the fixed version of that claim would have been wrong,
 because in front is not the same as on screen.
+
+## The door-6 handover
+
+The power used to arrive off the back of whichever round happened to be fired
+first in the room: the world stopped, a prompt appeared on a button that had
+not been there a moment before, and nothing said what had changed. It is the
+one moment this mode gains a verb — the only one — and it is now seven beats,
+fired **on arrival** rather than on a shot, because a trigger that waits for a
+round has already missed its first two beats.
+
+1. the pistol goes away (`duelScriptHidesGun`)
+2. **NEW UPGRADE / SLOW TIME** on a still screen, no thumb under it — it is an
+   announcement, and a gesture would be asking for something
+3. the card stays up while the room fills in behind it
+4. the card fades, they raise together and fire **one volley**
+5. the existing **TAP TO SLOW TIME** prompt, world stopped
+6. the press buys slow time, and the rounds in the air are ringed with DODGE
+7. the pistol comes back, and a body to put it on
+
+**It waits for the room, not for a clock.** A fixed second was up before the
+first group had finished arriving, so the cue went out to whoever happened to
+have formed and "a volley all at once" was one man firing. A man still
+assembling has no hitbox and cannot be cued, so step 3 waits until as many men
+have *formed* as the fire dial wants to fire together (`upgrade.fill` caps it).
+
+**And the volley finishes before the world stops.** A volley is several men
+firing as one event, a breath apart (`volleyStep`) — the prompt was being raised
+by the first round out of it, which froze the other two before they were fired
+and left the beat that rings *the rounds* with one round to ring.
+
+`duel.coach` owns the beats, like every other held beat in this mode, because
+that variable owns the card and the clock and two owners is how you get two
+things talking at once. `duel.script` is what lets the beats *shared* with the
+ordinary handover — the prompt, and the press that answers it — hand back here
+instead of going where they normally would; the "found it themselves" skip in
+`duelCoachTapped` is untouched and still works.
+
+## Wedged on the wall beside a door
+
+There is no forward control here: the corridor carries you out once the room is
+dead. Step aside for a round near the end of a fight and it carries you into
+the wall *next to* the doorway instead — and then there is nothing to press and
+no reason to think the drag is what gets you out, because the drag has been for
+sidestepping rounds all game and never for going anywhere. The walk just stops
+looking like it is doing anything, and the run ends without anybody dying.
+
+So the room says which way: **DRAG TO MOVE** with a thumb pointing at the way
+out, and once they have turned toward it they go through — making somebody feel
+their way through a doorway whose edges they cannot see is asking twice.
+
+**It watches progress, not position** (`duelWatchStuck`). The only thing that
+counts as stuck is the corridor pushing and the player's z refusing to move,
+which is true of a wall and false of somebody merely walking slowly; and it
+ends either when they line up *or* when they simply get going again, because a
+card left up after the problem is a card that is lying.
+
+## What you are carrying only gets better
+
+There is no pick-up button — you walk over a thing to take it — which is fine
+until the thing on the floor is *worse* than what you have. `setWeapon` on a
+pistol clip is a **swap** when you are not already holding the pistol, so
+crossing a room for the shotgun and then walking over the clip the last gunner
+dropped quietly took the shotgun away again.
+
+A pickup that would leave you worse off is **declined**: no swap, no sound, and
+it stays on the floor, so coming back for it once the shotgun is empty is a
+decision the player gets to make. Taking the *same* weapon again is never a
+downgrade — that is ammo. The order weapons are introduced is the order they
+rank, and it is read off the `WEAPONS` registry rather than typed beside it: a
+hand-written order and the registry would disagree the first time a gun is
+added, and the disagreement would show up as a weapon that silently downgrades
+you.
 
 ## The gun on the floor
 

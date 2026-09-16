@@ -172,7 +172,13 @@ const fired = await page.evaluate(async (rooms) => {
       floor, alive: t.enemies.filter((e) => e.alive).length });
   }
   return out;
-}, [4, 10, TRIPLE]);   // singles, pairs, and the first room that fires three
+  // ...DE-DUPLICATED AND ASCENDING. `warpDoor` moves the room NUMBER and not
+  // the fight, so measuring a room twice measures the second one on a floor
+  // that has already been fought — and warping BACKWARDS lands in a room whose
+  // men are spent. The triple used to be room 5; the moment the opening was
+  // re-cut to reach three by door 4 it collided with the entry above, and the
+  // room reported firing nothing.
+}, [...new Set([4, 10, TRIPLE])].sort((a, b) => a - b));
 
 console.log('');
 for (const r of fired) {

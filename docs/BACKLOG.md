@@ -73,6 +73,35 @@ or it will pass its own checks and feel like nothing.
 
 ---
 
+## 0b. Converging the two unlock doors — the floor is door 17
+
+Two doors mean "the power arrives" today and there is a standing intention to
+make them one number:
+
+| | | today |
+|---|---|---|
+| `powerUnlockDoor()` | the door the time button is handed over on | 10 |
+| `unlockDoor(SPEED)` | the door rounds first reach `unlockM` on | 46 |
+
+**Whatever they converge to must be 17 or later.** The story anchors to that
+door and sixteen beats sit ahead of the anchored one, each wanting a door of
+its own. At door 10 the script loses seven lines — including both of act 1's
+rewrites — which moves the first wall that turns over from act 1 to act 2.
+That was put to the author and **declined**, so 17 is a floor rather than a
+preference.
+
+**Do not hard-code the 17.** `storyMinUnlock()` derives it and `test/story.mjs`
+prints it on every run, so it drops by itself if a line is ever cut from acts
+1–3. Read it rather than typing it. (Those files, and `docs/ROADMAP.md` phase 2
+decision Q-F, are on the story branch — this entry exists so the convergence
+cannot be done from this side without meeting the constraint. The same note
+sits above `powerUnlockDoor` in `src/balance.js`.)
+
+Note this is the TUNNEL's unlock. NO RETREAT hands its own button over at
+`SIMPLE.duel.buttonRoom` (6) and is not part of the convergence.
+
+---
+
 ## 0. Playtest the scarcity curves — before anything else
 
 The four levers went in and **have never been played**. Doors 1–3 should feel

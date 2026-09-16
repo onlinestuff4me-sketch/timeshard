@@ -96,14 +96,22 @@ const missed = await page.evaluate(async () => {
   const t = window.__ts;
   const t0 = performance.now();
   let shots = 0;
+  window.__mostAiming = 0;
   while (performance.now() - t0 < 2500) {
     await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999;
+    const up = t.enemies.filter((e) => e.alive
+      && (e.state === 'aim' || e.state === 'burst')).length;
+    if (up > window.__mostAiming) window.__mostAiming = up;
     // straight up at the ceiling: a real trigger pull that hits nobody
     t.fireAt(t.player.pos.x, 40, t.player.pos.z + 2);
     shots++;
   }
-  return { shots, kills: t.game.kills, incoming: t.bullets.filter((b) => !b.fromPlayer).length };
+  return { shots, kills: t.game.kills, incoming: t.bullets.filter((b) => !b.fromPlayer).length,
+    // ...AND HOW MANY GUNS CAME UP AT ONCE while the card was on screen. The
+    // card rings ONE man and says TAP TO SHOOT; a second gun rising beside him
+    // is a second thing to look at and no way to tell which one it meant.
+    mostAiming: window.__mostAiming || 0 };
 });
 const stillUp = await read();
 console.log('shots at nothing: ' + JSON.stringify(missed));
@@ -114,6 +122,14 @@ if (missed.kills !== 0) bad('the probe hit something it was aiming away from');
 // beat that is teaching the player how to shoot is the room asking a question
 // it has not finished teaching the answer to.
 if (missed.incoming) bad('the room fired at a player still being taught to shoot');
+// ...AND EXACTLY ONE GUN WAS UP. Holding the room's FIRE was never the same as
+// sequencing its RAISES: the card would ring one man while two or three others
+// stood there with their arms up, and the player could not tell which of them
+// the instruction was about.
+console.log('guns up at once:  ' + missed.mostAiming);
+if (missed.mostAiming > 1) {
+  bad(missed.mostAiming + ' men raised a gun while the card singled one of them out');
+}
 
 // ---- SHATTERING ONE PUTS IT AWAY -----------------------------------------
 await page.evaluate(async () => {

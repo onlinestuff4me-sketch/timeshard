@@ -819,10 +819,10 @@ never seen three.
 | 1 | 0 | 1 · 2 · 2 | 1 every 4.3 s |
 | 2 | 0 | 1 · 2 · 2 | 1 every 3.2 s |
 | 3 | 1 | 2 · 2 · 3 | 1 every 2.4 s |
-| 4 | 2 | 2 · 3 · 3 | 2 every 2.8 s |
-| 5 | 3 | 3 · 3 · 4 | 3 every 2.6 s |
-| 6 | 3 | 3 · 3 · 4 | 3 every 2.6 s — **the time button arrives** |
-| 7 | 3 | 3 · 3 · 4 | 3 every 2.6 s |
+| 4 | 3 | 3 · 3 · 4 | 3 every 2.6 s |
+| 5 | 3 | 3 · 3 · 4 | 3 every 2.2 s |
+| 6 | 3 | 3 · 3 · 4 | 3 every 2.2 s — **the time button arrives** |
+| 7 | 3 | 3 · 3 · 4 | 3 every 2.2 s |
 
 The last rooms hold everything: the button is the new thing there, and a new
 thing is met in a room that is otherwise exactly the one before it — the same

@@ -1197,8 +1197,33 @@ function setWeapon(type, clips) {
 
 // Picking a weapon off the floor: a fresh one if it is new, another clip if
 // you already carry it (capped), and a pistol clip just tops the pistol up.
+// THE ORDER WEAPONS ARE INTRODUCED IS THE ORDER THEY RANK, and it is read off
+// the registry rather than typed beside it: a hand-written order and WEAPONS
+// would disagree the first time a gun is added, and the disagreement would
+// show up as a weapon that silently downgrades you.
+const WEAPON_ORDER = Object.keys(WEAPONS);
+const weaponRank = (w) => WEAPON_ORDER.indexOf(w);
+
+// Returns whether the drop was actually taken. The caller owns the sound, the
+// haptic and removing it from the floor, so a pickup that declines makes no
+// noise and leaves the thing where it lay.
 function takePickup(type) {
-  recordMet([type === CLIP ? 'pistol' : type]);   // ids match the registry's
+  // WHAT IS ON THE FLOOR IS NOT ALWAYS AN UPGRADE. `setWeapon` on a CLIP is a
+  // SWAP when you are not already holding the pistol, so walking over the clip
+  // the last gunner dropped handed the pistol back and took the shotgun away —
+  // you crossed a room for that shotgun, and a drop you walked past on the way
+  // out disarmed you of it.
+  //
+  // A pickup that would leave you worse off is declined: no swap, no sound, and
+  // it STAYS ON THE FLOOR. Coming back for the clip once the shotgun is empty
+  // is then a decision the player gets to make, which is what a drop that does
+  // not chase you is for. Taking the SAME weapon again is never a downgrade —
+  // that is ammo.
+  const want = type === CLIP ? 'pistol' : type;
+  if (want !== player.weapon && weaponRank(want) < weaponRank(player.weapon)) {
+    return false;
+  }
+  recordMet([want]);                               // ids match the registry's
   // ...and once they are carrying one, the room stops explaining how. A CLIP
   // is not what that beat is about.
   if (type !== CLIP) duel.gotGun = true;
@@ -1207,9 +1232,9 @@ function takePickup(type) {
       player.clips = Math.min(WEAPONS.pistol.maxClips, player.clips + 1);
       updateAmmoHud();
     } else {
-      setWeapon('pistol', 1);   // back to the sidearm with a fresh clip
+      setWeapon('pistol', 1);   // up from the knife, with a fresh clip
     }
-    return;
+    return true;
   }
   const spec = WEAPONS[type];
   if (player.weapon === type) {
@@ -1218,6 +1243,7 @@ function takePickup(type) {
   } else {
     setWeapon(type, 1);
   }
+  return true;
 }
 
 // Out of everything: the knife. Lethal, silent, and it demands you close
@@ -2320,8 +2346,8 @@ function updatePickups(dt, sdt) {
       // no magnet: the drop stays where it fell, so crossing the room for
       // it is a real decision. PICKUP_R is generous enough that walking
       // over it always registers.
-      if (d2 < DROPS.pickupR * DROPS.pickupR) {
-        takePickup(p.type);
+      // ...and a drop that declines makes no noise and stays where it fell.
+      if (d2 < DROPS.pickupR * DROPS.pickupR && takePickup(p.type)) {
         sfx.pickup();
         vibrate(20);
         removePickup(i);
@@ -3986,6 +4012,9 @@ function duelMayFire(e) {
   // never fired at them. Measured: rooms 4, 5 and 6 fired NOTHING. A hold on
   // enemy fire is far too heavy a thing to hang on a flag that can return.
   if (duel.holdFire && duelRoom() === duel.taughtIn) return false;
+  // ...and the handover's own hold, so its fourth step is ONE volley on cue
+  // rather than whatever the room clock happened to be doing.
+  if (duelScriptHoldsFire()) return false;
   const p = duelPlan(duelRoom());
   // THE FIRST ROUND OF A DEBUT ROOM BELONGS TO THE DEBUT.
   //
@@ -4614,7 +4643,13 @@ function updateEnemy(e, sdt) {
         // so fire arrives as a steady stream you can dodge, never a volley
         let aiming = 0;
         for (const o of enemies) if (o.state === 'aim' || o.state === 'burst') aiming++;
-        if (aiming >= 2 + Math.floor(game.wave / 4)) {
+        // ...AND WHILE THE SHOOT LESSON IS UP, EXACTLY ONE. The card rings one
+        // man and says TAP TO SHOOT; two guns coming up at once is two things
+        // to look at and no way to tell which one it meant. The room already
+        // holds its FIRE for that beat (duel.holdFire) — which is why the man
+        // who wins the turn keeps his arm up rather than taking the shot — but
+        // holding the trigger never stopped the others RAISING.
+        if (aiming >= (duelSoloAim() ? 1 : 2 + Math.floor(game.wave / 4))) {
           e.fireCd = 0.25 + Math.random() * 0.45;   // wait for a lane
         } else {
           e.state = 'aim'; e.stateT = 0;
@@ -13398,6 +13433,9 @@ const duel = { walk: false, room: -1, coach: 'wait', coachT: 0,
   // ...and the gun on the floor: which drop is being pointed at, and whether
   // the player has ever picked one up at all. See duelWantsLoot.
   loot: null, gotGun: false, debutDrop: -1, holdFire: false, pairSeen: false,
+  // ...being wedged on the wall beside a door (duelWatchStuck), and whether
+  // the door-6 handover is running (duelStartUpgrade).
+  stuckT: 0, stuckZ: 0, script: false, volleyT: 0,
   shotHere: false, taught: false, reteach: false,
   // ...and the time button's own introduction, which is its own beat and not
   // a state of the coach variable. See duelNoteShot.
@@ -13435,6 +13473,10 @@ function resetSimpleState() {
   duel.debutDrop = -1;
   duel.holdFire = false;
   duel.pairSeen = false;
+  duel.stuckT = 0;
+  duel.stuckZ = 0;
+  duel.script = false;
+  duel.volleyT = 0;
   duel.shotHere = false;
   duel.taught = false;
   duel.reteach = false;
@@ -13612,7 +13654,8 @@ const _pinTargets = [];
 function duelPlaceMeetPins() {
   const pins = el.duelpins;
   if (!pins || !pins.length) return;
-  const on = (duel.coach === 'meet' || duel.coach === 'loot' || duelTeaching() || duel.pairShot)
+  const on = (duel.coach === 'meet' || duel.coach === 'loot' || duelTeaching()
+    || duel.pairShot || duel.coach === 'up_dodge' || duel.coach === 'up_shoot')
     ? duelMeetTargets(_pinTargets) : [];
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
   for (let i = 0; i < pins.length; i++) {
@@ -13774,6 +13817,9 @@ function duelMayTeach() {
 // player would be stood in a corridor unarmed for ever. The room's own clock
 // (see duelMayFire) is what that is measured against.
 function duelHoldsGun() {
+  // ...and the door-6 handover takes it for its announcement and hands it back
+  // for the last beat. See duelScriptHidesGun.
+  if (duelScriptHidesGun()) return true;
   if (game.mode !== 'duel' || duelRoom() !== 1) return false;
   if (duel.said.shoot > 0 || duel.taught) return false;
   const since = worldT - ((hall && hall.duelFreshAt) || 0);
@@ -13956,6 +14002,82 @@ function duelNearestBody() {
   }
   return seen || ahead;
 }
+// ONE GUN UP AT A TIME, while the room is teaching what a gun is for.
+//
+// Scoped to the beat and the room that raised it, so it is the opening lesson
+// and nothing else: past that, men taking turns two and three at a time is the
+// fire dial doing its job. The next man may not begin his raise until this one
+// has FIRED — and leaving `aim` is firing, so "nobody else is aiming" is that
+// question asked exactly.
+// THE CORRIDOR CARRIES YOU FORWARD, AND A WALL CAN STOP IT.
+//
+// There is no forward control in this mode. A player wedged on the wall beside
+// a doorway has nothing to press and no reason to think the drag is what gets
+// them out — the drag has been for sidestepping rounds all game, never for
+// going anywhere. The walk just stops looking like it is doing anything, and
+// the run ends without anybody dying.
+//
+// It watches PROGRESS, not position: the only thing that counts as stuck is
+// the corridor pushing and the player's z refusing to move, which is true of a
+// wall and false of somebody who is merely walking.
+function duelWatchStuck(dt, L) {
+  const S = SIMPLE.duel.stuck;
+  if (game.mode !== 'duel' || !duel.walk || game.state !== 'play'
+      || !L || !L.door || tutorStep !== null) {
+    duel.stuckT = 0;
+    duel.stuckZ = player.pos.z;
+    if (duel.coach === 'stuck') duelUnstick();
+    return;
+  }
+  const gained = player.pos.z - duel.stuckZ;
+  duel.stuckZ = player.pos.z;
+  // the walk is `walkSpeed`; a tenth of the ground it should have covered is a
+  // wall, and is not reachable by a player who is actually moving
+  duel.stuckT = gained < SIMPLE.duel.walkSpeed * dt * 0.1 ? duel.stuckT + dt : 0;
+
+  if (duel.coach === 'stuck') {
+    // ...AND THE MOMENT THEY LINE UP WITH IT THEY GO THROUGH. They have done
+    // the thing that was asked; making them then feel their way through a
+    // doorway whose edges they cannot see is asking twice.
+    if (Math.abs(player.pos.x - L.door.x) <= S.aimM
+        && Math.abs(player.pos.z - L.door.z) < S.reachM) {
+      duelUnstick();
+      player.pos.set(L.door.x, player.pos.y, L.door.z + 0.9);
+      crossHallDoor();
+      return;
+    }
+    // ...OR THEY SIMPLY GET GOING AGAIN, which is the other way this ends and
+    // the one a card left up would be lying about. A player who wriggles off
+    // the corner without ever lining up is not stuck any more, and the
+    // instruction has to go with the problem it was about.
+    if (duel.stuckT === 0) duelUnstick();
+    return;
+  }
+  // nothing else may be talking. The gun on the floor is also a DRAG, and two
+  // cards asking for the same gesture for different reasons is neither.
+  if (duel.stuckT > S.after && (duel.coach === 'done' || duel.coach === 'wait')) {
+    duelTeachStuck(L);
+  }
+}
+function duelTeachStuck(L) {
+  duel.coach = 'stuck';
+  duel.coachT = 0;
+  duel.meetMark = null;
+  duel.meetOwner = null;
+  duel.meetRounds.length = 0;
+  duelMeetCard(1, '', SIMPLE.duel.stuck.say, 'dodge',
+    L.door.x >= player.pos.x ? 1 : -1);
+  if (el.duelmeet) el.duelmeet.classList.add('noname');
+  vibrate(12);
+}
+function duelUnstick() {
+  duel.coach = 'done';
+  duel.stuckT = 0;
+  duelMeetCard(0);
+}
+function duelSoloAim() {
+  return duel.holdFire && game.mode === 'duel' && duelRoom() === duel.taughtIn;
+}
 function duelTeachDone() {
   duel.coach = 'done';
   duel.meetOwner = null;
@@ -13963,6 +14085,102 @@ function duelTeachDone() {
   duel.meetRounds.length = 0;
   duelMeetCard(0);
   duelTapCue(null);
+  if (el.duelmeet) el.duelmeet.classList.remove('noname', 'nostick');
+}
+
+// ---------------------------------------------------------------------------
+// THE DOOR-6 HANDOVER, AS A SCRIPT
+//
+// The power used to arrive off the back of whichever round happened to be
+// fired first in the room: the world stopped, a prompt appeared on a button
+// that had not been there a moment ago, and nothing said what had changed.
+// It is the one moment this mode gains a verb — the only one — and it is worth
+// a beat of its own.
+//
+// The steps are held in `duel.coach` like every other beat, because that
+// variable is what owns the card and the clock, and two owners is how you get
+// two things talking at once. `duel.script` says the run is under way, which
+// is what lets the beats that are SHARED with the ordinary flow — the TAP TO
+// SLOW TIME prompt, the press that answers it — hand back here instead of
+// going where they normally would.
+// ---------------------------------------------------------------------------
+function duelStartUpgrade() {
+  duel.script = true;
+  duel.btnSaid = true;            // the ordinary introduction is not needed now
+  duel.coach = 'up_say';
+  duel.coachT = 0;
+  duel.meetMark = null;
+  duel.meetOwner = null;
+  duel.meetRounds.length = 0;
+  duelMeetCard(1, SIMPLE.duel.upgrade.lede, SIMPLE.duel.upgrade.power, 'shoot', 0);
+  // no thumb on this one: it is an announcement, not an instruction, and a
+  // gesture under it would be asking for something
+  if (el.duelmeet) el.duelmeet.classList.add('nostick');
+  vibrate([14, 60, 14]);
+}
+// The gun is put away for the announcement and comes back for the last beat.
+// Nothing else in the mode takes it: see duelHoldsGun.
+function duelScriptHidesGun() {
+  return duel.script && duel.coach !== 'up_shoot' && duel.coach !== 'done';
+}
+// ...and nobody fires until the script says so, so the volley in step four is
+// ONE volley on cue rather than whatever the room clock happened to be doing.
+function duelScriptHoldsFire() {
+  return duel.script && (duel.coach === 'up_say' || duel.coach === 'up_meet');
+}
+function duelScriptVolley() {
+  // every live man raises at once; the volley window does the rest
+  for (const e of enemies) {
+    if (!e.alive || e.state === 'assemble' || e.type === 'rusher') continue;
+    e.fireCd = 0;
+    e.seenT = Math.max(e.seenT || 0, RAMP.sightGrace + 1);
+  }
+}
+// The rounds now in the air, ringed, in the slowed room the press just bought.
+function duelScriptDodge() {
+  duel.coach = 'up_dodge';
+  duel.coachT = 0;
+  duel.meetFrom = player.pos.x;
+  duel.meetMark = 'rounds';
+  duel.meetRounds.length = 0;
+  for (const b of bullets) if (!b.fromPlayer) duel.meetRounds.push(b);
+  duel.meetOwner = duel.meetRounds.length
+    ? (duel.meetRounds[0].turnOwner || duelNearestBody()) : duelNearestBody();
+  const b0 = duel.meetRounds[0];
+  const cs = Math.cos(player.yaw), sn = Math.sin(player.yaw);
+  const dir = b0
+    ? (((player.pos.x - b0.pos.x) * cs - (player.pos.z - b0.pos.z) * sn) >= 0 ? 1 : -1)
+    : 1;
+  duel.meetDir = dir;
+  duelMeetCard(1, '', SIMPLE.duel.teach.dodge, 'dodge', dir);
+  // the announcement had no thumb under it and `duelMeetCard(0)` does not take
+  // that back — this beat is asking for a gesture and has to show one
+  if (el.duelmeet) {
+    el.duelmeet.classList.add('noname');
+    el.duelmeet.classList.remove('nostick');
+  }
+}
+// ...and the pistol comes back up with something to put it on.
+function duelScriptShoot() {
+  duel.coach = 'up_shoot';
+  duel.coachT = 0;
+  duel.meetShots = playerShots;
+  duel.meetMark = 'body';
+  duel.meetRounds.length = 0;
+  duel.meetOwner = duelNearestBody();
+  duelMeetCard(1, '', SIMPLE.duel.teach.shoot, 'shoot', 0);
+  if (el.duelmeet) el.duelmeet.classList.add('noname', 'nostick');
+}
+function duelEndUpgrade() {
+  duel.script = false;
+  duel.coach = 'done';
+  duel.meetMark = null;
+  duel.meetOwner = null;
+  duel.meetRounds.length = 0;
+  duelMeetCard(0);
+  duelTapCue(null);
+  duelCoachSay('');
+  if (el.timebtn) el.timebtn.classList.remove('hint');
   if (el.duelmeet) el.duelmeet.classList.remove('noname', 'nostick');
 }
 
@@ -13976,6 +14194,17 @@ function duelNoteShot() {
   // room-1 lesson now always speaks first and leaves it 'done', so the time
   // button's own introduction could never fire again for a real player: the
   // power arrived silently, with nothing on screen to say what it was.
+  // ...AND THE SCRIPT OWNS THIS MOMENT WHERE IT RUNS. Its fourth step is a
+  // volley on cue, and the round that leaves is the one this prompt is for —
+  // so during a scripted handover the state to catch is `up_fire`, not the
+  // `wait` a room without one would be in.
+  // ...AND THE SCRIPT OWNS THIS MOMENT WHERE IT RUNS. Its fourth step is a
+  // volley, and a volley is several men firing as ONE event — so the prompt
+  // cannot be raised by the first round out of it. Stopping the world there
+  // stops the other two before they are fired, and the beat that follows rings
+  // "the rounds" and finds one. The up_fire branch of updateDuelCoach waits
+  // for the volley to finish and hands over itself.
+  if (duel.script) return;
   if (duel.btnSaid) return;
   if (duel.coach !== 'wait' && duel.coach !== 'done') return;   // one at a time
   duel.btnSaid = true;
@@ -14032,6 +14261,72 @@ function updateDuelCoach(dtReal) {
       && duelNearestBody()) {
     duel.reteach = false;
     duelTeachShoot();
+  }
+  // ---- the door-6 handover ------------------------------------------------
+  if (duel.script && duel.coach !== 'tap' && duel.coach !== 'refill') {
+    if (game.state !== 'play') { duelEndUpgrade(); return; }
+    duel.coachT += dtReal;
+    const U = SIMPLE.duel.upgrade;
+    if (duel.coach === 'up_say') {
+      if (duel.coachT > U.say) { duel.coach = 'up_meet'; duel.coachT = 0; }
+      return;
+    }
+    if (duel.coach === 'up_meet') {
+      // THE ANNOUNCEMENT STAYS UP WHILE THE ROOM FILLS IN BEHIND IT — and it
+      // waits for the ROOM, not for a clock. A fixed second was up before the
+      // first group had finished arriving, so the cue went out to whoever
+      // happened to have formed and "a volley all at once" was one man firing.
+      // A man still assembling has no hitbox and cannot be cued.
+      const ready = enemies.reduce((n, e) => n + (e.alive && e.state !== 'assemble'
+        && e.type !== 'rusher' ? 1 : 0), 0);
+      const want = duelPlan(duelRoom()).volley;
+      if (duel.coachT > U.arrive && (ready >= want || duel.coachT > U.fill)) {
+        duel.coach = 'up_fire';
+        duel.coachT = 0;
+        duelMeetCard(0);            // it fades as they raise
+        duelScriptVolley();
+      }
+      return;
+    }
+    if (duel.coach === 'up_fire') {
+      // WAITING FOR THE WHOLE VOLLEY, not for the first round of it. A volley
+      // is several men firing as one event, a breath apart (volleyStep); the
+      // prompt used to be raised by the first round out and the world stopped
+      // before the other two were fired, so the beat that rings "the rounds"
+      // had one round to ring.
+      const air = bullets.reduce((n, b) => n + (b.fromPlayer ? 0 : 1), 0);
+      duel.volleyT = air ? duel.volleyT + dtReal : 0;
+      const stillRaising = enemies.some((e) => e.alive
+        && (e.state === 'aim' || e.state === 'burst'));
+      if (air && (duel.volleyT > U.volley || !stillRaising)) {
+        duel.coach = 'tap';
+        duel.coachT = 0;
+        duelCoachSay('TAP TO SLOW TIME', 'btn');
+        el.timebtn.classList.add('hint');
+        vibrate([12, 40, 12]);
+        return;
+      }
+      // ...and this is only the way out if nobody can fire at all, which would
+      // otherwise be a room that never continues.
+      if (duel.coachT > U.shoot) duelEndUpgrade();
+      return;
+    }
+    if (duel.coach === 'up_dodge') {
+      const moved = Math.abs(player.pos.x - duel.meetFrom) >= TUTOR.dodgeStepM;
+      const gone = !duel.meetRounds.some((b) => bullets.indexOf(b) >= 0);
+      if (moved || gone || duel.coachT > U.dodge) duelScriptShoot();
+      return;
+    }
+    if (duel.coach === 'up_shoot') {
+      duelTapCue(duel.meetOwner && duel.meetOwner.alive
+        ? duel.meetOwner : (duel.meetOwner = duelNearestBody()));
+      // answered by a body coming apart, the same as the opening lesson's: the
+      // gesture without its consequence is not the lesson
+      if (game.kills > duel.meetKills || duel.coachT > U.shoot) duelEndUpgrade();
+      return;
+    }
+    duelEndUpgrade();
+    return;
   }
   // ---- the room-1 lesson --------------------------------------------------
   if (duelTeaching()) {
@@ -14125,6 +14420,15 @@ function updateDuelCoach(dtReal) {
     // is strictly better than a screen that never moves again.
     if (duel.coachT > 12) { duel.coach = 'done'; duelCoachSay(''); el.timebtn.classList.remove('hint'); }
   } else if (duel.coach === 'refill') {
+    // ...UNLESS THE SCRIPT IS RUNNING. The press that answered the prompt is
+    // step five of seven, and the two beats after it are the point of the
+    // whole sequence. `duelCoachTapped` is shared with the ordinary handover
+    // and lands here either way; this is where the two part.
+    if (duel.script) {
+      duel.meetKills = game.kills;
+      duelScriptDodge();
+      return;
+    }
     duel.coachT += dtReal;
     // the paired shooting cue rides this beat: it follows a live body, and it
     // goes when the line it came with goes — or the moment they take the shot
@@ -14255,6 +14559,7 @@ function updateSimple(dt) {
   updateDuelCoach(dt);
   const L = hall.legs[hall.cur];
   duel.walk = !!(L && L.door.open && game.state === 'play');
+  duelWatchStuck(dt, L);
   // THE BUTTON ARRIVES ON A ROOM, AND NOTHING ELSE WOULD NOTICE. `updateModeUI`
   // runs when a wave starts, when the pause menu closes, when a setting
   // changes — none of which happen when the corridor carries you through a
@@ -14264,6 +14569,16 @@ function updateSimple(dt) {
   if (duel.room !== hall.doorsPassed) {
     duel.room = hall.doorsPassed;
     updateModeUI();
+    // ...AND THE POWER'S OWN ROOM OPENS WITH ITS HANDOVER. On ARRIVAL, not off
+    // the back of whichever round happened to be fired first: the sequence
+    // needs the room before the shooting starts, and a trigger that waits for
+    // a shot has already missed its first two beats. A run resumed past this
+    // door never sees it and falls back to the ordinary introduction — see
+    // duelNoteShot.
+    if (duelRoom() === SIMPLE.duel.buttonRoom && !duel.btnSaid && !duel.script
+        && game.state === 'play' && duel.coach !== 'meet' && !duelTeaching()) {
+      duelStartUpgrade();
+    }
   }
 }
 
@@ -15301,6 +15616,11 @@ window.__ts = {
     loot: duel.loot ? { x: +duel.loot.g.position.x.toFixed(2),
       z: +duel.loot.g.position.z.toFixed(2), type: duel.loot.type } : null,
     gotGun: duel.gotGun, pairShot: duel.pairShot,
+    stuckT: +duel.stuckT.toFixed(2), script: duel.script,
+    doorX: (hall && hall.legs[hall.cur] && hall.legs[hall.cur].door)
+      ? +hall.legs[hall.cur].door.x.toFixed(2) : null,
+    doorZ: (hall && hall.legs[hall.cur] && hall.legs[hall.cur].door)
+      ? +hall.legs[hall.cur].door.z.toFixed(2) : null,
     owner: duel.meetOwner ? duel.meetOwner.type + ':' + duel.meetOwner.state : null,
     openCard: duel.openCard,
     tap: el.dueltap ? el.dueltap.classList.contains('on') : false,

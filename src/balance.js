@@ -526,6 +526,26 @@ export function doorEncounters(d, O = OPENING) {
 // THE DOOR THE TIME BUTTON ARRIVES ON. See OPENING.unlockGroup: the power
 // answers being outnumbered, so it lands the door after the first door that
 // outnumbers you. Derived, never typed — moving the encounter table moves it.
+//
+// ...AND IF THIS EVER CONVERGES WITH `unlockDoor(SPEED)`, THE ANSWER MUST BE
+// 17 OR LATER.
+//
+// The two are different doors today — this one hands the button over (10),
+// that one is where rounds get genuinely fast (46) — and there is a standing
+// intention to make them one number. The STORY anchors to that door, and
+// sixteen beats sit ahead of the anchored one, each wanting a door of its own.
+// `storyMinUnlock()` in src/story.js derives the 17 and test/story.mjs prints
+// it every run, so it drops by itself if a line is ever cut from acts 1-3 —
+// do not hard-code 17 against it, read it.
+//
+// At door 10 the script loses seven lines, including both of act 1's
+// rewrites, which moves the first wall that turns over from act 1 to act 2.
+// That was put to the author and DECLINED, so this is a floor rather than a
+// preference. See docs/ROADMAP.md phase 2, decision Q-F.
+//
+// (src/story.js, test/story.mjs and docs/ROADMAP.md are on the story branch,
+// not here — this note exists so the convergence cannot be done from this
+// side without meeting the constraint.)
 export function powerUnlockDoor(O = OPENING) {
   const want = Math.max(2, O.unlockGroup | 0);
   for (let d = 1; d <= 200; d++) {
@@ -1107,7 +1127,13 @@ export const SIMPLE = {
     // gets hard rather than door 12: 11.4 m/s there, 12.5 at the button. The
     // ceiling is up with it, because a dial that tops out in room 9 has
     // nothing left to say for the twenty-seven rooms after it.
-    bullet: { openM: 7.0, stepM: 1.1, capM: 15 },
+    // ...AND STEEPER AGAIN. Playtested at 1.1 a room, doors 4 to 6 were a
+    // fight you could still take a beat over — and the whole job of those three
+    // rooms is that the player should WANT the time button before it is handed
+    // to them. At 1.4 a round crosses the stand-off in under half a second by
+    // the room the button lands in, which is a sidestep you have to have
+    // already started.
+    bullet: { openM: 7.0, stepM: 1.4, capM: 16 },
     // ...AND THEY COME TO YOU, which is the mode's whole first sentence. This
     // CAPS a type's own engage distance rather than replacing it, so a
     // shotgunner still opens at its own ten metres and a gunner stops being
@@ -1287,14 +1313,19 @@ export const SIMPLE = {
     // Rooms 6 and 7 hold everything. The button is the new thing there, and a
     // new thing is met in a room that is otherwise exactly the one before it —
     // the same rule a debut follows, applied to a power instead of a type.
+    //
+    // ...AND DOORS 4 TO 6 WERE RE-CUT AGAIN. Two guns every 2.8 s is a room you
+    // can take a beat over, and these three rooms exist to make the player want
+    // the button before door 6 hands it over. Three together from door 4, and
+    // the gap closing to 2.2 s for the door the power lands in.
     open: [
       { bodies: 0, fire: 0 },
       { bodies: 0, fire: 1 },
       { bodies: 1, fire: 2 },
-      { bodies: 2, fire: 3 },
       { bodies: 3, fire: 4 },
-      { bodies: 3, fire: 4 },
-      { bodies: 3, fire: 4 },
+      { bodies: 3, fire: 5 },
+      { bodies: 3, fire: 5 },
+      { bodies: 3, fire: 5 },
     ],
     // ---- THE CAST PROGRAMME ------------------------------------------------
     //
@@ -1487,6 +1518,15 @@ export const SIMPLE = {
     // arriving, and it plants and lunges at 3.4 m. Melee (1.5 m) is therefore
     // the rusher's alone now, which is what it should always have been.
     minM: 6.5,
+    // ---- WEDGED ON THE WALL BESIDE A DOOR ---------------------------------
+    // No forward control means no way to shove yourself off it, and the drag
+    // has been for sidestepping rounds all game rather than for going
+    // anywhere — so the room says which way, and finishes the job once they
+    // have turned toward it.
+    //   after   seconds of the corridor pushing with no ground gained
+    //   aimM    how close to the doorway's centre counts as lined up
+    //   reachM  ...and how near it in z, so nobody is teleported from the back
+    stuck: { after: 1.1, aimM: 1.4, reachM: 4, say: 'DRAG TO MOVE' },
     // ...AND THE BAND AROUND IT. Inside the stand-off by more than this, a man
     // walks back OUT of it; within it, he simply stops closing and is free to
     // strafe. Two behaviours rather than one, because "hold your distance" and
@@ -1514,6 +1554,25 @@ export const SIMPLE = {
     // them still arriving. The line normally goes at 4.5 s; while it has never
     // once had a body, it waits this long instead.
     pairWait: 8,
+    // ---- THE DOOR-6 HANDOVER, AS A SCRIPT ---------------------------------
+    //
+    // The power used to arrive off the back of whichever round happened to be
+    // fired first in the room: a freeze, a prompt, and the player had no idea
+    // what had changed or why. It is the one moment the mode gains a verb, and
+    // it is worth a beat of its own.
+    //
+    //   say     NEW UPGRADE / SLOW TIME on a still screen, gun away
+    //   arrive  ...and it stays up while the room fills
+    //   then the card fades, they raise together and fire ONE volley, and the
+    //   existing TAP TO SLOW TIME prompt catches it with the world stopped.
+    //   dodge   after the press: the rounds ringed, in slowed time
+    //   shoot   the pistol comes back, and a body to put it on
+    //
+    // Every number is seconds. `dodge` and `shoot` are ceilings — both beats
+    // are answered by doing the thing, and these only stop a held world from
+    // becoming a stuck one.
+    upgrade: { say: 1.0, arrive: 1.0, fill: 9, volley: 0.45, dodge: 9, shoot: 12,
+      lede: 'NEW UPGRADE', power: 'SLOW TIME' },
     meetHold: 10,   // seconds before a debut freeze lets go on its own
     // ...and how long a debut room holds its FIRST ROUND for the new type
     // before anyone else may fire, in world seconds. A debut has to win a turn
