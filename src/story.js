@@ -28,6 +28,15 @@
 // jam individual words and substitute its own — so a rewritten line is the
 // same sentence with one or two words turned over, and the skeleton survives.
 // See docs/SCRIPT.md §3.2.
+//
+// ...AND A LINE THAT WAS REDRAFTED CARRIES `was`. The rule is to keep as many
+// of the original words as the turn allows, so three of the ten were pulled
+// back toward their befores; `was` is what each one used to say. It is not a
+// leftover draft marker — `test/story.mjs` prints the before, the after and
+// the `was` on every run, and the three redrafts have been read and approved
+// on the one thing a word count cannot check: whether the meaning still lands.
+// They stand as written. Keeping `was` is what lets a later pass tell a
+// deliberate redraft from a line nobody has looked at.
 export const STORY_ACTS = [
   {
     id: 'test', name: 'The Test',

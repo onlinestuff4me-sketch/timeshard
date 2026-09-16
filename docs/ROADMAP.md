@@ -143,6 +143,13 @@ as many words as possible while the meaning still turns over. Three lines were
 redrafts; all ten now keep a majority of the sentence, and the probe prints
 the before, the after, and what each one used to say.
 
+**READ AND APPROVED.** The three redrafts were put up for exactly the thing a
+word count cannot check — whether the meaning still lands once the sentence has
+been pulled back toward its original — and they do. They stand as written.
+`was` stays in `src/story.js` beside each one: it is the record of what the
+line cost to tighten, and the only way a later pass can tell a deliberate
+redraft from a line nobody has looked at.
+
 | beat | kept | was |
 |---|---|---|
 | `anomaly4` | 6/7 | 3/7 — `THIS CHANNEL IS WRITTEN OVER BY THE PROGRAMME` |
