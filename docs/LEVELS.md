@@ -76,11 +76,15 @@ approach is worth exactly one final group — the wave you clear with the door
 in frame. A stretch's share is released when you **walk into it**, so the
 fight travels with you and nothing piles up in front of the door.
 
-**The opening doors override this.** `EARLY.oneBodyDoors` = 4: doors 1–4 hold
-exactly one body in the whole leg, never more than one alive
-(`EARLY.soloDoors`), only gunners until door 6 (`EARLY.gunnerOnlyDoors`), and
-through door 5 nobody fires while a round is still on its way to you
-(`EARLY.oneRoundDoors`). See `docs/PILLARS.md` §3.
+**The opening doors override this.** Only gunners until door 3
+(`EARLY.gunnerOnlyDoors`), and through that same door nobody fires while a
+round is still on its way to you (`EARLY.oneRoundDoors`). Three doors, not
+five: the loop is four beats long and does not need five doors to teach, and
+the floor used to sit at 6 only because that was once the time button's door —
+which held the whole enemy schedule back two doors after the button moved.
+`oneBodyDoors` and `soloDoors` are gone; the encounter curve
+(`OPENING.encounters`) answers how many, how often and how many at once, and it
+opens door 1 with a pair, a pair and a single. See `docs/PILLARS.md` §3.
 
 ## Conditions and measures
 

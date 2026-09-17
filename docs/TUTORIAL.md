@@ -104,8 +104,10 @@ control is deferred past the whole onboarding — see `docs/TUTORIAL-GOALS.md`
 
 ## The second course — slow time
 
-Entered mid-run, on the door the speed staircase unlocks the power on
-(`unlockDoor()` in `src/balance.js`; door 46 on the shipped numbers). Six steps,
+Entered mid-run, on the door the time button arrives on (`powerUnlockDoor()`
+in `src/balance.js`, read through `SLOWMO.unlockDoor`; door 10 on the shipped
+numbers — **not** `unlockDoor(SPEED)`, which is a different door and shapes
+only the speed curve). Six steps,
 in `DEFERRED` in `src/tutorial.js`:
 
 | step | what the player sees | ends when |

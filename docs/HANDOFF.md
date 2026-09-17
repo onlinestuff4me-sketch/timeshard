@@ -1323,6 +1323,122 @@ easy to satisfy and useless.
 > that asks for a group this big", so a more generous table drags the whole
 > slow-time lesson earlier unless the threshold keeps pace. Door 10 either way.
 
+## The tunnel ramp, condensed — and the second schedule underneath it
+
+Playtest: *"The ramp for Tunnel feels too slow now. I'd like it to be more
+condensed, so that it feels like each door unlocks a new tangible difficulty, a
+new mode and/or a new upgrade/weapon/enemy type... larger groups of enemies
+earlier (with slow bullet speeds for the first few doors but then faster bullet
+speeds as we get closer to time button unlock), and earlier/more condensed
+enemy type intros and protocol intros."*
+
+Measured before changing anything, across doors 1-24 and 400 simulated first
+runs:
+
+| | before | after |
+|---|---|---|
+| doors 1-24 introducing nothing at all | **10** | 1 (door 3) |
+| bullet speed, door 1 → door 10 (the time button) | 5.4 → 5.8 (**+7%**) | 4.8 → 7.2 (**+50%**) |
+| largest group, doors 1-10 | 2,2,3,3,4,4,4,4,5,5 | 2,3,3,4,4,5,5,5,6,6 |
+| bodies, door 6 | 14 | 17 |
+| enemy types a FIRST RUN can meet by door 40 | **5 of 10** | all 10, by door 21 |
+
+**The headline finding is the last row, and it was not a tuning problem.**
+`TYPE_INTRO` in `src/balance.js` is the authored type schedule, and the tunnel's
+wave queue is `composeWave(n)` **filtered by** `enemyRoster(n, lifetimeDoors)`
+from `src/protocols.js` — which gated every type a second time on `unlockAt`,
+counted in LIFETIME doors rather than this run's. So on a first run the sniper
+that table introduces on door 16 could not appear until door 40, the bomber's 19
+became 40, the armored's 23 became 80, the rocketeer's 27 became 140 and the
+laser's 31 became 200. Two schedules for one question, on different clocks, and
+the one nobody was reading won. Enemy `unlockAt` is 0 on every row now, with the
+reason written above them; `unlockAt` keeps rationing the forms and conditions,
+which is the job `docs/PROTOCOLS.md` §5 wrote it for.
+
+**A schedule that has to win a lottery to be heard is not a schedule.** The
+enemy debut *headline* ran through the same random slot as the forms and
+conditions — last in the queue, only if nothing else had claimed the door, only
+if a cooldown allowed it. Measured, the rusher's door announced a VAULT, and
+doors 11 and 14 spent the slot re-announcing the GUNNER, met on door 1. A type
+due on its own door now takes that door and the protocol debut stands down for
+one; the random path stays behind it as the catch-up for anything unseen.
+
+**And the two kinds shared one cooldown, which starved the protocols.** Once
+types landed every two doors, an enemy debut on door 4 silenced the protocols
+on 3, 5 and 6 — three protocol debuts in twenty-four doors, and ALCOVES, a
+door-2 measure, never introduced at all. Separate clocks (`lastProtoDebut` and
+`lastEnemyDebut`) and the protocols take the doors the types leave: measured
+after, every door from 1 to 17 carries a debut except 3 and 10, and door 10 is
+empty on purpose because that is the time button's door.
+
+Three more things worth knowing:
+
+* **The encounter generator stepped by eight every sixth door.** Past the
+  written table it rebuilt the whole row from `big - floor(i/2)`, and `big`
+  only moves every `encBigEvery` doors — so it lifted every entry at once.
+  Doors 11-15 were identical at 26 bodies and door 16 was 36. It now starts
+  from the last written row and adds ONE man a door, to the front-most group
+  that can take him without flattening the taper. The table itself runs to
+  door 21 now rather than 10, because the type schedule does.
+* **`EARLY.gunnerOnlyDoors` was a floor set under a door that had moved.** It
+  was 6 because the time button was once door 6. The button moved to 10 two
+  sessions ago and this stayed, so it silently held the condensed schedule
+  back: a rusher authored for door 4 would have arrived on 7. It is 3 now, and
+  `oneRoundDoors` is 3 with it so the metronome and the gunners-only floor
+  start and stop together.
+* **`unlockDoor(SPEED)` moved 46 → 29 and that is only a curve shape.** It is
+  imported into `src/main.js` and never called; it shapes `speedAt()`'s
+  plateau and nothing else. The time button, the STAND HERE corridor, the
+  meter and the school all key off `powerUnlockDoor()`, which stayed at door
+  10 — `unlockGroup` went 5 → 6 to keep it there, which is bookkeeping and not
+  a decision. Comments in `src/main.js` and `src/tutorial.js` still claimed
+  the lesson stood on the speed door; both are fixed. The convergence floor of
+  17 recorded on `powerUnlockDoor` is untouched and still not engaged.
+
+**And it took a man out of NO RETREAT's room 8.** `test/duelloot.mjs` went red
+inside the full suite and green on its own, which is the shape of a race and
+almost the shape of a flake. Measured instead of assumed — the same probe run
+alternately against both trees on a quiet box — it was **9 misses in 27 runs on
+this branch against 0 in 11 on `9dbaa8f`**, so not a flake.
+
+`composeProtocol` runs on the TUNNEL's door schedule in every mode, and the
+"the leg's debut enemy leads the wave" rule in `buildWave` does not merely
+reorder: when the wave does not contain the debuting type it **pops a man off
+the back of the queue** and puts one at the front. NO RETREAT builds its room
+from `duelPlan` — the cast dial exists exactly so a type arrives when that
+mode's ramp says it does — and the tunnel was reaching in and swapping a man
+out. It was always wrong and rare enough to hide, needing a random enemy debut
+to land on a duel room; condensing the schedule made it systematic, because a
+type is now due on its own door. Room 8 is where NO RETREAT introduces the
+SHOTGUNNER, and it was losing him to the tunnel's SHIELD about one run in
+three. No shotgunner is no shotgun on the floor, and `duelTeachLoot` had
+nothing to point at. The rule is now tunnel-only; 0 misses in 8.
+
+This is the exact mirror of a bug already in this file — *"the roster let the
+type in and no code ever put one in the queue: an empty permission"* — and it
+is the same lesson from the other side: a mode with its own plan must not have
+that plan edited by a schedule it does not run on. `maxAlive()` had the same
+leak (the tunnel's `doorAlive` sat under the duel's own groups as a floor) and
+is fixed with it, which is how NO RETREAT room 8 quietly went from four men at
+once to five when the encounter table was re-cut.
+
+**Consequences worth stating rather than burying.** `SPEED.openM` 5.4 → 4.8
+widens `diffT()`'s span, so telegraphs and slow-mo drain move a little at every
+door in every mode that reads it — including NO RETREAT, whose bullet speeds are
+its own but whose `diffT` is normalised against the tunnel's floor and ceiling.
+Measured at NO RETREAT room 1 the telegraph scale moves 1.088 → 1.067, about 2%.
+The staircase also tops out at door 65 instead of 98, and `encCap` 6 → 7 raises
+`maxAlive()` deep in the tunnel from 8 to 10. Seven rather than eight: that dial
+is the sharpest in the file and the ask was to condense the opening, not to
+raise the ceiling. `COMP.totalCap` went 30 → 70 for the same reason in reverse:
+the door now asks for 46 bodies by door 21, and a queue capped at 30 meant
+everything past about door 13 was topped up with a coin-toss between a gunner
+and a rusher — the mix thinning exactly where the schedule is introducing types.
+And `COMP.rusherFrac` now ramps in over four doors instead of landing whole,
+because the rusher's debut moved to door 4 and four in ten of the door that
+introduces him is not an introduction: measured, door 4 went from 8 gunners and
+6 rushers to 11 and 3.
+
 ## A full save list, and news that reaches both doors
 
 **Six saves made a card taller than the phone.** The title went up behind the

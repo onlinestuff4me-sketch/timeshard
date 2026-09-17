@@ -91,11 +91,14 @@ number, and `hall.legInDoor` is which of them you are standing in. This is what
 lets "how far to the next door" grow independently of "how hard the door is" —
 depth becomes a longer walk as well as a busier one.
 
-**shot gap** (`gapFrom` 3s, held flat until door 10, reaching `gapTo` 0.28s at door 25)
+**shot gap** (`gapFrom` 4.3s, held flat until door 10, reaching `gapTo` 0.28s at door 25)
 
 World seconds between one enemy firing and the next — the room's shot floor.
-Three seconds means every round is its own event rather than a room going off at
-once, which is exactly what the opening doors are teaching. Measured in *world*
+It is the whole *room's* clock, not each man's, so it is how often you are shot
+at however many people are standing there. Four seconds means every round is its
+own event rather than a room going off at once, which is exactly what the
+opening doors are teaching — and it is what pays for the encounter curve below
+putting five men in door 6. Measured in *world*
 seconds, not real ones, so it stretches with everything else in bullet time.
 
 ### Bullet speed is a staircase, not a slope
@@ -107,12 +110,23 @@ learned. It steps now, and each tread is wide enough to stand on.
 
 | doors | m/s | why |
 |---|---|---|
-| 1–5 | 5.4 | crosses a 16 m room in three seconds — a round you watch coming and walk out of |
-| 6–10 | 5.8 | one tread up, held just as long: the smallest change worth noticing |
-| 11 onward | +0.2 every 2 doors | a tread every couple of doors |
-| the door it reaches 13.0 | 13.0 | **slow time unlocks**, and the staircase stops |
-| ...and 10 doors after it | 13.0 | the school (below). One new thing at a time |
-| then | +0.2 every 2 doors, to 21.6 | climbing again, with the power in hand |
+| 1–3 | 4.8 | crosses a 16 m room in three and a third seconds — a round you watch coming and walk out of |
+| 4–5 | 5.6 | one tread up, across the rusher's door, so his door changes one thing |
+| 6 onward | +0.32 a door | a tread every single door, and it is felt |
+| the door it reaches 13.0 | 13.0 | the staircase levels off |
+| ...and 10 doors after it | 13.0 | a plateau |
+| then | +0.32 a door, to 21.6 | climbing again |
+
+**The climb has to be felt before the power, not after it.** <!--speed-ok--> The
+numbers in this paragraph are the OLD treads, quoted on purpose. The old treads
+ran door 1 at 5.4 and door 10 — the door the time button arrives on — at
+5.8 <!--speed-ok-->: seven per cent across the entire ramp the power is the
+answer to. A player was handed
+a button for slowing bullets down having never seen a bullet that was hard to
+walk away from. The floor now drops and the tread triples, so doors 1–3 are
+*slower* than they were (which is what pays for the bigger groups the encounter
+table deals on doors 2–3) and door 10 opens at 7.2 — fifty per cent up on door
+1 rather than seven.
 
 `SPEED` in `src/balance.js`, read by `speedAt(door)`.
 
@@ -154,57 +168,77 @@ have a staircase, a school or an unlock:
 Slow time is not unlocked on a door number somebody picked, and it is not
 unlocked by a speed either any more. It is unlocked by **being outnumbered**:
 `powerUnlockDoor()` walks the encounter curve and returns the door *after* the
-first door that asks for a group of `OPENING.unlockGroup` (four). On the
+first door that asks for a group of `OPENING.unlockGroup` (six). On the
 shipped table that is **door 10**. Everything keys off that one answer — the
 button, the meter, the STAND HERE corridor that teaches it, and the school that
 follows — so moving the encounter table moves the whole lesson with it.
 
-**Why four and not three.** Three put the unlock on door 6, which is *before*
-the rusher (`TYPE_INTRO` says 7) — the answer arriving ahead of the question. A
-player handed a way out of being crowded had not yet been crowded: one enemy
-type, groups of at most three, three seconds between shots. Four lands it on
-door 10, after the rusher has taught them what closing distance feels like and
-the shotgunner (9) what a room that punishes standing still feels like. The
-mechanic reads as a relief rather than as a gadget.
+**Why six.** The number is not a difficulty setting — it is the size of group
+that counts as being outnumbered, and it only has to keep pace with the
+encounter table or the whole lesson slides earlier every time that curve gets
+more generous. Three meant door 6 on an older table, which was *before* the
+rusher — the answer arriving ahead of the question. Five meant door 10 on the
+old table and means door 7 on the condensed one. Six means door 10 again: after
+the rusher (4) has taught them what closing distance feels like, the shotgunner
+(6) what a room that punishes standing still feels like, and the shield (8)
+what an enemy you have to move to solve feels like. The mechanic reads as a
+relief rather than as a gadget.
 
 **Why it moved.** It used to be the door the speed staircase reaches
-`SPEED.unlockM` on: door 46, about an hour of play, and most players would never
-have seen it. That answered *"when do rounds get too fast to walk out of"*,
-which is a real question and the wrong one. What a player cannot answer with a
-sidestep is not one fast round — it is **three rounds at once**, and that
-arrives forty doors earlier. There used to be a hand-typed `TIME.unlockDoor`
-before that, and it drifted out of step with the thing it was answering; this
-is derived for the same reason, from a different thing.
+`SPEED.unlockM` on: about an hour of play, and most players would never have
+seen it. That answered *"when do rounds get too fast to walk out of"*, which is
+a real question and the wrong one. What a player cannot answer with a sidestep
+is not one fast round — it is **three rounds at once**, and that arrives far
+earlier. There used to be a hand-typed `TIME.unlockDoor` before that, and it
+drifted out of step with the thing it was answering; this is derived for the
+same reason, from a different thing.
 
-The speed staircase keeps its own `unlockDoor(SPEED)` — still door 46, still 36
-treads of 0.2 from 5.8 — because that is still the door bullets get genuinely
-fast on, and the staircase levels off there. The two are separate questions now
-and each has its own answer. `/tool` → **RAMP** prints both.
+The speed staircase keeps its own `unlockDoor(SPEED)` — now **door 29**, 24
+treads of 0.32 from 5.6 — because that is still the door bullets get genuinely
+fast on, and the staircase levels off there. It shapes `speedAt()` and nothing
+else: no lesson, no button and no corridor reads it. The two are separate
+questions and each has its own answer, and they have to *stay* separate —
+`powerUnlockDoor` in `src/balance.js` carries the note on why a convergence has
+to land on door 17 or later. `/tool` → **RAMP** prints both.
 
-**The opening, one new thing at a time.** The power is the FIRST new thing after
-the tutorial, and it gets its door to itself (`EARLY.gunnerOnlyDoors` is 6):
+**The opening, one new thing per door.** Playtest: *"the ramp for Tunnel feels
+too slow... I'd like it more condensed, so each door unlocks a new tangible
+difficulty, a new mode and/or a new upgrade/weapon/enemy type."* Measured on the
+old schedule, ten of the first twenty-four doors introduced nothing at all.
+Three doors of gunners (`EARLY.gunnerOnlyDoors` is 3, not 6 — it was set one
+under the time button back when that was door 6 and then silently held the whole
+schedule back when the button moved), and then something new on every door the
+catalogue can fill:
 
 | door | what is new |
 |---|---|
-| 1-5 | nothing. Gunners, the loop: walk, look, shoot, sidestep. |
-| 5 | *(not new — but the first three-man encounter, and the wall)* |
-| **6** | **slow time.** Two three-man encounters, and the answer to them. |
-| 7 | the rusher. He does not fire, he arrives — the first thing the new power is *for*. |
-| 9 | the shotgunner. Deadly near, harmless far: the first enemy about distance rather than timing. |
-| 11 | the shield. The first one you have to move to solve. |
-| 13 | the heavy. Three rounds at once, which is a volley from one man. |
+| 1-3 | gunners, the loop: walk, look, shoot, sidestep. The groups grow 2 → 3 and the forms start arriving on 2. |
+| **4** | the rusher. He does not fire, he arrives — the first enemy who is a distance problem, not a timing one. |
+| **6** | the shotgunner. Deadly near, harmless far — and he leaves a **shotgun** on the floor. |
+| **8** | the shield. The first one you have to move to solve. |
+| **10** | **slow time.** The first door the curve outnumbers you on, and nothing else new arrives on it. |
+| **11** | the heavy. Three rounds at once, on the first door you can stop them. |
+| 13, 15, 17, 19, 21 | sniper, bomber, armored, rocketeer, laser — every two doors, and each drops its weapon. |
 
-...and roughly every four doors after that. `TYPE_INTRO` in `src/balance.js` and
-`minDoor` in `src/protocols.js` carry the same schedule and have to move
-together: the first composes the wave, the second decides what a door may claim
-in its headline. A type's `unlockAt` (lifetime doors, across runs) still meters
-the deeper half of the roster on top of this, so a first run meets gunner,
-rusher and shotgunner and nothing else.
+...with the forms, conditions and measures taking the doors in between, on
+their own debut clock. `TYPE_INTRO` in `src/balance.js` and `minDoor` in
+`src/protocols.js` carry the same schedule and have to move together: the first
+composes the wave, the second decides what a door may claim in its headline.
+
+**And there is no longer a second schedule underneath it.** Enemy rows used to
+carry an `unlockAt` as well — *lifetime* doors, not this run's — and
+`enemyRoster()` is read by the wave builder, so it quietly overruled the table
+above. Measured on a first run: the sniper this table introduces on door 16
+could not appear until door 40, the bomber's 19 became 40, the armored's 23
+became 80, the rocketeer's 27 became 140 and the laser's 31 became 200. **A
+first run met five of the ten types in forty doors.** Every enemy `unlockAt` is
+now 0 and the door schedule is the only answer; `unlockAt` keeps rationing the
+unbuilt forms and conditions, which is the job it was written for.
 
 ### The slow-time school — the ten doors after the unlock
 
-A power you are never made to want is a button you never press. For seventy
-doors the answer to a round is to walk out of it, and that answer keeps
+A power you are never made to want is a button you never press. For the first
+nine doors the answer to a round is to walk out of it, and that answer keeps
 working — handing over the time button changes nothing on its own. So the doors
 right after it are built to ask the question:
 
@@ -223,7 +257,14 @@ right after it are built to ask the question:
 * **the meter is cheap here.** Drain at 0.45x, kills paying 2x
   (`drainMul`, `bonusMul`). The lesson is what the power is *for*, not what it
   costs.
-* **the speed holds flat** at 13.0 for all ten doors. One new thing at a time.
+* **the meter, not the speed, is what holds still here.** `SPEED` has a
+  ten-door plateau of its own, but it sits at `unlockDoor(SPEED)` — door 29 —
+  and the school runs at `powerUnlockDoor()`, door 10. They are two different
+  doors answering two different questions and they have never been the same
+  one, whatever earlier drafts of this paragraph claimed. Bullet speed goes on
+  climbing 0.32 a door right through the school, which is the point: the
+  lesson is *why you want the button*, and a room getting faster while you
+  learn it is the argument.
 
 And it has a **mercy rule**. Running the bank dry in a room that only volleys is
 a hole you cannot climb out of: no meter, no answer, and the next volley arrives
@@ -339,18 +380,20 @@ What it costs, and it is worth saying plainly:
 * <!--door-ok-->**The deep game is much less dense than it was.** Door 40 is eight bodies
   across five legs where the old curve capped at thirty in one. Depth is now
   long before it is crowded.
-* **The door after the school is a drop.** The school holds twenty bodies a
-  door; the ramp resumes at thirteen. That is deliberate — it reads as relief on the far side of the
-  hardest stretch in the game, with a new power in hand — but it is a step
-  down, not up.
+* **The school's body floor no longer binds.** `schoolFloor()` asks for a
+  volley plus one — three or four men — and the condensed encounter curve is
+  already dealing twenty-six bodies on door 10. The floor can only ever raise
+  the ramp's answer, so it now does nothing at all and the drop on the far
+  side of the school is gone with it. What the school still supplies is the
+  *shape*: volleys, standing close, a cheap meter.
 * **The telegraph ramp and the speed staircase no longer finish together, and
   by a long way.** — this was true and is fixed. Telegraph tightness had its
   own 18-door schedule while bullet speed climbed a staircase to door 98, so
   every telegraph was at its shortest one fifth of the way in and the next
   eighty doors had one dial left. `diffT()` now reads where the round's speed
   sits between `SPEED.openM` and `SPEED.capM`, so the two are the same dial and
-  reach full heat together on door 98 — and telegraphs inherit the school's
-  ten-door plateau, so nothing tightens while slow time is being taught.
+  reach full heat together on door 65 — and telegraphs inherit the staircase's
+  plateau wherever that sits.
 
 If either is the wrong trade, `/tool` → **RAMP** shows what any change does to
 every door before you play one.
@@ -491,8 +534,8 @@ him, watch the round leave, step out of it, shatter him — has to be learnable
 once before it is asked for twice. See docs/PILLARS.md section 3.
 
 ```js
-gunnerOnlyDoors  : 6
-oneRoundDoors    : 5
+gunnerOnlyDoors  : 3
+oneRoundDoors    : 3
 firstSightM      : 13
 firstSightDoors  : 10
 firstSightEaseBy : 18
@@ -545,15 +588,15 @@ After that the type fills in at `min(cap, floor(total / share))` per wave.
 | Enemy | Debut | Fill share | Fill cap | Drops | Role |
 |---|---|---|---|---|---|
 | gunner | 1 | — | — | — | the backbone |
-| rusher | 7 | — | — | — | telegraphed lunge, packs of 3–4 |
-| shotgunner | 9 | 4 | 4 | shotgun | close-range cloud |
-| shieldbearer | 11 | 8 | 2 | — | attrition: flank the plate |
-| heavy | 13 | 5 | 3 | burst | 3-round burst |
-| sniper | 16 | 7 | 2 | sniper | long telegraph, heavy round |
-| bomber | 19 | 6 | 2 | launcher | area denial |
-| armored | 23 | 9 | 2 | burst | attrition: headshots only |
-| rocketeer | 27 | 8 | 2 | rocket | homing missile |
-| laser | 31 | — | — | — | unavoidable sweep |
+| rusher | 4 | — | — | — | telegraphed lunge, packs of 3–4 |
+| shotgunner | 6 | 4 | 4 | shotgun | close-range cloud |
+| shieldbearer | 8 | 8 | 2 | — | attrition: flank the plate |
+| heavy | 11 | 5 | 3 | burst | 3-round burst |
+| sniper | 13 | 7 | 2 | sniper | long telegraph, heavy round |
+| bomber | 15 | 6 | 2 | launcher | area denial |
+| armored | 17 | 9 | 2 | burst | attrition: headshots only |
+| rocketeer | 19 | 8 | 2 | rocket | homing missile |
+| laser | 21 | — | — | — | unavoidable sweep |
 
 Drop chances live per-type in `ENEMY_TYPES` in `src/main.js`; the table above
 is what each one leaves behind when it rolls.
@@ -572,23 +615,23 @@ it is a real decision — which is the whole point of collecting on foot.
 ## Difficulty ramp
 
 `diffT` runs 0 → 1 with the speed staircase, reaching full heat on **door
-98**, and drives the telegraph and the slow-mo cost. **Bullet
+65**, and drives the telegraph and the slow-mo cost. **Bullet
 speed is not on it** — it is the staircase in `SPEED`, stepped by door, and
 the column below is `speedAt(door)`. In Rush Hour the wave number is replaced
 by `1 + rushT / 25`, so everything ramps on the run clock instead.
 
 | | Bullet speed (m/s) | Telegraph scale | Slow-mo cost |
 |---|---|---|---|
-| door 1 | 5.4 | 1.15× | 0.55× |
-| door 6 | 5.8 | 1.134× | 0.561× |
-| door 46 | 13 | 0.854× | 0.761× |
-| door 50 | 13 | 0.854× | 0.761× |
-| door 98 | 21.6 | 0.52× | 1× |
+| door 1 | 4.8 | 1.15× | 0.55× |
+| door 4 | 5.6 | 1.12× | 0.571× |
+| door 29 | 13 | 0.843× | 0.77× |
+| door 33 | 13 | 0.843× | 0.77× |
+| door 65 | 21.6 | 0.52× | 1× |
 
 Slow time unlocks on **door 10** — the door after the first
-one that asks for a group of 5 (see the encounter table) —
+one that asks for a group of 6 (see the encounter table) —
 and the 10-door school runs from there. The staircase above is
-a separate schedule: it reaches 13 m/s on door 46,
+a separate schedule: it reaches 13 m/s on door 29,
 holds there, and then climbs again to a ceiling of 21.6 m/s. Rush Hour
 drains the bank at a flat 0.4×. An enemy must be in view for
 **0.45 s** before its telegraph may begin.
@@ -632,7 +675,7 @@ closes distance and enters visibility.
 
 ## Wave composition
 
-- **Total** = `min(6 + 2n, 30)`
+- **Total** = `min(6 + 2n, 70)`
 - **Rushers** (once debuted) = `min(round(total × 0.4), 2 + n)`
 - **Debut type** gets `max(2, round(total × 0.2))`
 - **Gunners** keep at least 25 % of the wave

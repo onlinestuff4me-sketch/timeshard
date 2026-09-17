@@ -807,10 +807,14 @@ export const STEPS = [
 //
 // `deferred: true` used to mean "kept in the spec, never walked into". It now
 // means "belongs to the OTHER lesson". These steps teach the time button and
-// the meter, and they run in the middle of a real run — on the door the speed
-// staircase unlocks the power on (`unlockDoor()` in src/balance.js), which is
-// the door bullet speed first reaches the point where walking out of a round
-// stops being enough.
+// the meter, and they run in the middle of a real run — on the door the TIME
+// BUTTON arrives on (`powerUnlockDoor()` in src/balance.js, read through
+// `SLOWMO.unlockDoor`), which is the door the encounter curve first asks for a
+// group bigger than a sidestep answers.
+//
+// NOT `unlockDoor(SPEED)`. That is a different door — where the speed
+// staircase levels off — and it has never been the one this lesson stands on;
+// it just used to be, and the comment outlived the code by two rewrites.
 //
 // Why not in the onboarding: a first-time player wants to shoot something, not
 // to learn a resource. See docs/TUTORIAL-GOALS.md §5 and §6.

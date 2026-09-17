@@ -22,33 +22,44 @@ export const WEAPONS = {
 
 // ONE DEBUT PER WAVE — the wave (or tunnel door) each type first appears on.
 //
-// SPACED AROUND THE POWER, not stacked against it. Everything used to debut in
-// the first seven doors and `EARLY.gunnerOnlyDoors` held all of it back to
-// door 5, so a player met the rusher, the shotgunner and (on a second run) the
-// shield and the heavy on the same two doors — and now the time button lands
-// at door 6 as well. Four new things at once is not four introductions, it is
-// one blur.
+// ONE NEW THING PER DOOR, AND EVERY DOOR GETS ONE. Playtest: "the ramp for
+// Tunnel feels too slow... I'd like it more condensed, so each door unlocks a
+// new tangible difficulty, a new mode and/or a new upgrade/weapon/enemy type."
+// Measured against the old schedule, doors 3, 4, 6, 10, 12, 15, 18, 21, 22 and
+// 24 introduced nothing at all — ten of the first twenty-four doors were a
+// corridor with the same three men in it.
 //
-// So the opening is one new thing at a time, and the first of them is the
-// power itself:
+// Worse, the schedule was not the schedule. `enemyRoster()` filters the wave
+// by protocols.js, which gated every type a SECOND time on `unlockAt` —
+// LIFETIME doors, not this run's. On a first run that pushed the sniper this
+// table promises on door 16 out to door 40, the bomber from 19 to 40 and the
+// armored from 23 to 80. A first-run player met FIVE types in forty doors.
+// The gate is gone from the enemy rows (see protocols.js) and this table is
+// now the only answer to "when does a type arrive".
 //
-//   1-5   gunners only. The loop: walk, look, shoot, sidestep.
-//   6     SLOW TIME. The door with two three-man encounters in it, and
-//         nothing else new in the whole door.
-//   7     RUSHER — he does not fire, he arrives, and stopping the world is
-//         the answer. The first thing the new power is FOR.
-//   9     SHOTGUNNER — deadly near, harmless far: the first enemy about
-//         distance rather than timing.
-//   11    SHIELD — the first one you have to move to solve.
-//   13    HEAVY — three rounds at once, which is a volley from one man.
+// So the opening is one new thing at a time, every other door, and the power
+// gets a door of its own in the middle of it:
 //
-// ...and then roughly every four doors, so a type still lands regularly
-// without two ever sharing a door. `minDoor` in protocols.js carries the same
-// schedule and both are read: this one composes the wave, that one decides
-// what the door may claim in its headline.
+//   1-3   gunners only. The loop: walk, look, shoot, sidestep. Three doors,
+//         not five — the loop is four beats long and does not need five.
+//   4     RUSHER — he does not fire, he arrives. The first enemy who is a
+//         distance problem rather than a timing one.
+//   6     SHOTGUNNER — deadly near, harmless far, and he leaves a SHOTGUN on
+//         the floor: the door introduces a type and a weapon at once.
+//   8     SHIELD — the first one you have to move to solve.
+//   10    SLOW TIME. The door the encounter curve first outnumbers you on
+//         (see OPENING.unlockGroup), and nothing else new arrives on it.
+//   11    HEAVY — three rounds at once, which is a volley from one man, on
+//         the first door where you can stop them.
+//   13    SNIPER   15  BOMBER   17  ARMORED   19  ROCKETEER   21  LASER
+//
+// ...every two doors, so the whole roster is met by door 21 instead of door
+// 31 — or, on a first run, instead of door 201. `minDoor` in protocols.js
+// carries the same schedule and both are read: this one composes the wave,
+// that one decides what the door may claim in its headline.
 export const TYPE_INTRO = {
-  gunner: 1, rusher: 7, shotgunner: 9, shieldbearer: 11, heavy: 13,
-  sniper: 16, bomber: 19, armored: 23, rocketeer: 27, laser: 31,
+  gunner: 1, rusher: 4, shotgunner: 6, shieldbearer: 8, heavy: 11,
+  sniper: 13, bomber: 15, armored: 17, rocketeer: 19, laser: 21,
 };
 
 // Veteran fill after the debut: [share, cap] -> min(cap, floor(total/share)).
@@ -79,7 +90,25 @@ export const DROPS = {
 // Nobody acclimatises to a number that never sits still — each door was a
 // little faster than the one before it and no speed was ever the speed you
 // had learned. So it steps instead, and each tread is wide enough to stand
-// on: five doors at 5.4, five at 5.8, then a tread every couple of doors.
+// on: three doors at the floor, two at the next tread, then a tread a door.
+//
+// ...AND THE CLIMB HAS TO BE FELT BEFORE THE POWER, NOT AFTER IT.
+//
+// Measured on the old treads: door 1 ran at 5.4 m/s and door 10 — the door
+// the time button arrives on — ran at 5.8. Four tenths of a metre a second,
+// SEVEN PER CENT, across the entire ramp the power is the answer to. A player
+// handed a button for slowing bullets down had never once seen a bullet that
+// was hard to walk away from, because the first ten treads of the staircase
+// were two treads. Playtest, and the direction it settled: "slow bullet speeds
+// for the first few doors but then faster bullet speeds as we get closer to
+// time button unlock."
+//
+// So the floor drops and the tread height triples. Doors 1-3 are SLOWER than
+// they were (4.8 crosses a 16 m room in 3.3 s, which is a walk with time to
+// spare — and they need to be, because the encounter table now puts three men
+// in door 2). From door 6 the speed climbs every single door and door 10
+// opens at 7.2: fifty per cent up on door 1 rather than seven, and the button
+// lands on the first door where sidestepping is visibly starting to lose.
 //
 // The staircase also decides WHEN THE POWER ARRIVES. Slow time is not handed
 // out on a door number picked by hand — it is unlocked by the speed reaching
@@ -87,13 +116,15 @@ export const DROPS = {
 // Then the staircase STOPS for `schoolDoors` while that is taught (see
 // SCHOOL below), and starts climbing again on the far side.
 export const SPEED = {
-  openM: 5.4,          // m/s for the opening doors. Crosses a 16 m room in
-                       // three seconds: a round you watch coming and walk out
-                       // of, before anybody has been given a way to slow it.
-  openDoors: 5,
-  holdM: 5.8,          // ...one tread up, held just as long
-  holdDoors: 5,
-  stepM: 0.2,          // ...then a tread this tall
+  openM: 4.8,          // m/s for the opening doors. Crosses a 16 m room in
+                       // three and a third seconds: a round you watch coming
+                       // and walk out of, before anybody has been given a way
+                       // to slow it — and slow enough to pay for the bigger
+                       // groups the encounter table now deals on doors 2-3.
+  openDoors: 3,        // THREE, not five. The loop is four beats long.
+  holdM: 5.6,          // ...one tread up, on the two doors either side of the
+  holdDoors: 2,        //    rusher's debut, so his door changes one thing
+  stepM: 0.32,         // ...then a tread this tall
   stepDoors: 1,        // ...every this many doors. ONE, not two: at two the
                        // staircase took 81 doors to reach `unlockM`, which is
                        // about an hour of play before slow time — the game's
@@ -107,7 +138,13 @@ export const SPEED = {
   // dragging any tread above moves the whole lesson with it.
   // 13 m/s: the speed the OLD ramp topped out at (16 x 0.79 = 12.64), which is
   // the number the power was implicitly balanced against before any of this.
-  // Lands on door 46 — see docs/BALANCE.md for the solve.
+  // Lands on door 29 — see docs/BALANCE.md for the solve. It was door 46 on
+  // the old treads; the taller tread moved it, and nothing else reads it.
+  // `speedUnlockDoor` is the ONLY consumer and it shapes `speedAt()` and
+  // nothing else: the time button, the STAND HERE corridor and the meter all
+  // key off `powerUnlockDoor()` (door 10), not off this. Keep the two apart —
+  // if they ever become one number it must be 17 or later, see the note on
+  // `powerUnlockDoor` below.
   unlockM: 13,
   schoolDoors: 10,     // ...and the staircase holds there for this many doors
                        // while slow time is taught. See SCHOOL.
@@ -259,10 +296,13 @@ export const OPENING = {
   // the first ten minutes and it is a judgement, not an arithmetic. Reading
   // down the first column is the difficulty curve: 1, 1, 2, 2, 3, 3, 3, 3, 4.
   //
-  //   door 1-2   three single men          learn the loop
-  //   door 3-4   one pair, two singles     the first thing worth dodging twice
-  //   door 5     a three, a pair, a single the wall
-  //   door 6     two threes                ...and the power lands here
+  //   door 1     a pair, a pair, a single  learn the loop
+  //   door 2     a three                   the first thing a sidestep only
+  //                                        half-solves
+  //   door 4     a four                    ...on the rusher's door
+  //   door 6     a five                    ...on the shotgunner's
+  //   door 9     a SIX                     outnumbered
+  //   door 10    ...and the power lands here
   //
   // `doorEncounters` below is the only reader. The bodies in a door is the sum
   // of this; how many may be up at once is the largest group in it; and how
@@ -272,6 +312,16 @@ export const OPENING = {
   // corridor with nothing in it — and shattering people is the thing players
   // said they enjoy. Every entry below is bigger than it was.
   //
+  // ...AND THE GROUPS ARRIVE EARLIER NOW. Playtest asked for "larger groups of
+  // enemies earlier (with slow bullet speeds for the first few doors)", which
+  // is a trade and both halves of it are here: the largest group a door asks
+  // for used to read 2, 2, 3, 3, 4, 4, 4, 4, 5, 5 and now reads 2, 3, 3, 4, 4,
+  // 5, 5, 5, 6, 6 — every door but three steps it — while SPEED.openM drops to
+  // 4.8 so the first three doors are slower than they were. A player meets
+  // their first trio on door 2 instead of door 3 and their first five on door
+  // 6 instead of door 9, and the rounds crossing the room while they do it are
+  // travelling slower than they used to.
+  //
   // This costs no difficulty, and that is not a hope, it is how the firing
   // works: the room shares ONE shot clock (`lastEnemyShotAt` and `shotGap`),
   // so five men in a room fire no more often than one does, they just each
@@ -279,18 +329,42 @@ export const OPENING = {
   // a player is shot at through all of this is unchanged. What changes is how
   // many silhouettes are standing there while it happens.
   encounters: [
-    [2, 2, 1],                  // 1   5 bodies
-    [2, 2, 2, 1],               // 2   7
-    [3, 2, 2, 1],               // 3   8
-    [3, 3, 2, 1],               // 4   9
-    [4, 3, 2, 2, 1],            // 5  12
-    [4, 3, 3, 2, 2],            // 6  14
-    [4, 4, 3, 2, 2, 1],         // 7  16
-    [4, 4, 3, 3, 2, 2],         // 8  18
-    [5, 4, 4, 3, 2, 2],         // 9  20
-    [5, 5, 4, 3, 3, 2],         // 10 22
+    [2, 2, 1],                  // 1   5 bodies   gunners only
+    [3, 2, 2, 1],               // 2   8          the first three
+    [3, 3, 2, 2],               // 3  10
+    [4, 3, 2, 2, 1],            // 4  12          RUSHER
+    [4, 4, 3, 2, 2],            // 5  15
+    [5, 4, 3, 3, 2],            // 6  17          SHOTGUNNER
+    [5, 4, 4, 3, 2, 2],         // 7  20
+    [5, 5, 4, 3, 3, 2],         // 8  22          SHIELD
+    [6, 5, 4, 4, 3, 2],         // 9  24          outnumbered
+    [6, 5, 5, 4, 3, 3],         // 10 26          SLOW TIME
+    // ...AND THE TABLE NOW RUNS TO 21, because the type schedule does. Doors
+    // 11-21 hand out the last five enemy types two doors apart (TYPE_INTRO),
+    // and those are the doors a player is still being introduced to the game
+    // on — so they are written rather than solved, same as the ten above. The
+    // arithmetic below takes over at door 22, past the last debut.
+    [6, 5, 5, 4, 4, 3],         // 11 27          HEAVY
+    [6, 6, 5, 4, 4, 3, 2],      // 12 30
+    [6, 6, 5, 5, 4, 3, 2],      // 13 31          SNIPER
+    [7, 6, 5, 5, 4, 4, 2],      // 14 33
+    [7, 6, 6, 5, 4, 4, 3],      // 15 35          BOMBER
+    [7, 7, 6, 5, 5, 4, 3],      // 16 37
+    [7, 7, 6, 6, 5, 4, 3, 2],   // 17 40          ARMORED
+    [7, 7, 6, 6, 5, 5, 3, 2],   // 18 41
+    [7, 7, 7, 6, 5, 5, 4, 2],   // 19 43          ROCKETEER
+    [7, 7, 7, 6, 6, 5, 4, 3],   // 20 45
+    [7, 7, 7, 7, 6, 5, 4, 3],   // 21 46          LASER
   ],
-  encCap: 6,           // the biggest group the game ever asks for
+  encCap: 7,           // the biggest group the game ever asks for. SEVEN, not
+                       // six: the table above now reaches six on door 9, and a
+                       // cap the table has already hit is not a ceiling, it is
+                       // a flat line from door 9 to the end of the game. Seven
+                       // rather than eight because this dial is the sharpest
+                       // one in the file — `maxAlive()` is `doorAlive` times
+                       // the scarcity tax, so every point here is 1.4 more men
+                       // standing on you in the deep game, and the ask was to
+                       // condense the OPENING, not to raise the ceiling.
   encMax: 10,          // ...and the most encounters one door may hold
   encBigEvery: 6,      // past the table: the biggest group grows every N doors
   encMoreEvery: 3,     // ...and the door gains an encounter every N
@@ -299,14 +373,15 @@ export const OPENING = {
   // the power answers being outnumbered, so it lands the door after being
   // outnumbered first happens.
   //
-  // FIVE, and it is five because the TABLE moved, not because the door did.
-  // The unlock is meant to land after the rusher (TYPE_INTRO 7) and the
-  // shotgunner (9), which is door 10; this number is only the size of group
-  // that counts as being outnumbered, and it has to keep pace with the
-  // encounters above or the whole lesson slides earlier every time the curve
-  // gets more generous. Three used to mean door 6 — before the rusher, the
-  // answer arriving ahead of the question. Five means door 10 again.
-  unlockGroup: 5,
+  // SIX, and it is six because the TABLE moved, not because the door did.
+  // The unlock is meant to land after the rusher, the shotgunner and the
+  // shield (TYPE_INTRO 4, 6, 8), which is door 10; this number is only the
+  // size of group that counts as being outnumbered, and it has to keep pace
+  // with the encounters above or the whole lesson slides earlier every time
+  // the curve gets more generous. Three used to mean door 6 — before the
+  // rusher, the answer arriving ahead of the question. Five meant door 10 on
+  // the old table and means door 7 on this one. Six means door 10 again.
+  unlockGroup: 6,
   corridorDoors: 3,    // no rooms at all before this: one shape to learn first
   legsCap: 5,
   // THE ROOM'S SHOT FLOOR, in world seconds. Three seconds between one enemy
@@ -357,11 +432,21 @@ export const OPENING = {
 };
 
 export const EARLY = {
-  // NO OTHER TYPE MAY DEBUT BEFORE THIS DOOR. Six, not five: door 6 is where
-  // the time button arrives, and the power gets that door to itself. See
-  // TYPE_INTRO for the schedule either side of it.
-  gunnerOnlyDoors: 6,
-  oneRoundDoors: 5,    // and only one enemy round may be in the air at once
+  // NO OTHER TYPE MAY DEBUT BEFORE THIS DOOR. Three, not six.
+  //
+  // This is a HARD FLOOR under TYPE_INTRO and it was set one door under the
+  // time button back when the button was door 6 — so when the button moved to
+  // door 10 this stayed at 6 and silently held the whole condensed schedule
+  // back: the rusher's door is 4 and a floor at 6 made it 7. The floor's job
+  // is the LOOP, not the power: three doors of gunners is see him, watch the
+  // round leave, step out of it, shatter him, twice over, and then somebody
+  // new. The power gets a door to itself through `unlockGroup`, which is
+  // where that rule actually belongs.
+  gunnerOnlyDoors: 3,
+  oneRoundDoors: 3,    // and only one enemy round may be in the air at once —
+                       // the same three doors, so the metronome and the
+                       // gunners-only floor start and stop together instead of
+                       // one outliving the other by two doors
   // ---------------------------------------------------------------------
   // HOW CLOSE A MAN MAY BE THE MOMENT YOU FIRST SEE HIM.
   //
@@ -516,10 +601,27 @@ export function doorEncounters(d, O = OPENING) {
     + Math.floor(over / Math.max(1, O.encBigEvery)));
   const count = Math.min(O.encMax, T[T.length - 1].length
     + Math.floor(over / Math.max(1, O.encMoreEvery)));
-  const out = [];
-  // largest first, tapering two entries at a time to singles, so a door is
-  // always a few big groups, a few pairs and a couple of loose men
-  for (let i = 0; i < count; i++) out.push(Math.max(1, big - Math.floor(i / 2)));
+  // A DOOR GROWS BY ONE MAN, NOT BY EIGHT EVERY SIXTH.
+  //
+  // This used to rebuild the whole row from `big` each time — `big -
+  // floor(i/2)`, largest first, tapering two entries at a time. That reads
+  // well and steps horribly: `big` only moves every `encBigEvery` doors, and
+  // when it does it lifts EVERY entry in the row at once. Measured on the old
+  // table, doors 11-15 were identical at 26 bodies and door 16 was 36 — five
+  // flat doors and then a cliff, which is the opposite of a door that feels
+  // like it stepped. Same shape at 22.
+  //
+  // So the last written row is the starting point and each door past it adds
+  // ONE man, to the front-most group that can take him without flattening the
+  // taper. The row still ends up a few big groups, a few pairs and a couple of
+  // loose men; it just gets there a door at a time.
+  const out = T[T.length - 1].slice();
+  while (out.length < count) out.push(1);
+  for (let add = over; add > 0; add--) {
+    const i = out.findIndex((v, k) => v < big && (k === 0 || out[k - 1] > v));
+    if (i < 0) break;    // every group is at the cap: the door is as full as
+    out[i]++;            // it is ever allowed to get
+  }
   return out;
 }
 
@@ -595,8 +697,27 @@ export const SCHOOL = {
 
 // Wave size and mix.
 export const COMP = {
-  baseTotal: 6, perWave: 2, totalCap: 30,
-  rusherFrac: 0.4,     // share of the wave once rushers debut
+  baseTotal: 6, perWave: 2,
+  // SEVENTY, NOT THIRTY, AND THE ENCOUNTER TABLE IS WHY. `composeWave` builds
+  // a queue this long and the door takes bodies off the front of it; when the
+  // door wants MORE than the queue holds, main.js tops it up with a coin-toss
+  // between a gunner and a rusher. That is a sane degradation and a terrible
+  // ramp: the condensed encounter curve asks for 35 bodies on door 15 and 46
+  // on door 21, so a cap of 30 meant every door past about 13 was increasingly
+  // two types with the mix thinning behind it — the opposite of a door that
+  // introduces something. The cap now tracks what the doors actually ask for.
+  totalCap: 70,
+  // SHARE OF THE WAVE ONCE RUSHERS DEBUT — reached over `rusherRamp` doors
+  // rather than on the first one.
+  //
+  // This is flat 0.4 from the debut door, and the debut door moved from 7 to
+  // 4. A rusher is a melee charge with no round to sidestep, the time button
+  // is six doors away, and four in ten of the door that INTRODUCES him is not
+  // an introduction. Every other type gets `debutFrac` on its debut and its
+  // full share afterwards; the rusher was excluded from that rule because his
+  // own fraction was assumed to be the showing. It is not — it is the horde.
+  rusherFrac: 0.4,
+  rusherRamp: 4,       // doors from the debut to the full share
   debutFrac: 0.2,      // share for the type debuting this wave
   gunnerFloor: 0.25,   // minimum share reserved for plain gunners
 };

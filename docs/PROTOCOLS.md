@@ -191,6 +191,19 @@ eligible = (door >= minDoor) && (lifetimeDoors >= unlockAt)
 locally. `minDoor` keeps a thing from appearing too early *within* a run;
 `unlockAt` keeps UNLOCKS from emptying itself in your first good run.
 
+**As shipped, `unlockAt` is 0 on every implemented row, and that is the point
+of the paragraph below rather than a contradiction of it.** Rationing needs a
+catalogue to ration. Today eight protocol elements are implemented; holding
+four of them behind 15 and 40 lifetime doors left a first run with one form
+repeated and one measure, for fourteen doors. It was worse on the enemies: the
+wave builder reads `enemyRoster()`, so `unlockAt` was a second schedule
+overruling `TYPE_INTRO` on a different clock, and a first run met five of the
+ten types in its first forty doors — the sniper `TYPE_INTRO` introduces on door
+16 could not appear until door 40, the laser's 31 until door 200. Enemy types
+are the difficulty ramp, not catalogue, so they run on the door schedule only
+and always will. The spread below is the target for the rows still to be built,
+and it starts doing real work when there are enough of them.
+
 Suggested `unlockAt` spread (doors cleared, lifetime):
 
 | Cohort | unlockAt | Roughly |

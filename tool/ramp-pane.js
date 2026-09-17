@@ -122,9 +122,12 @@ const DIALS = [
     + 'Lower this to make the middle doors fire as loosely as they used to.'],
   // --- THE SPEED STAIRCASE -------------------------------------------------
   ['openM', 'Speed · opening tread', 3, 12, 0.1,
-    'Enemy bullet speed in m/s for the first doors. At 5.4 a round crosses a '
-    + '16 m room in three seconds: something you watch coming and walk out of, '
-    + 'before anybody has been given a way to slow it down.'],
+    'Enemy bullet speed in m/s for the first doors. At 4.8 a round crosses a '
+    + '16 m room in three and a third seconds: something you watch coming and '
+    + 'walk out of, before anybody has been given a way to slow it down. This '
+    + 'is also half of the contrast the ramp is built on — the other half is '
+    + 'the tread height, and the gap between them is what the player feels on '
+    + 'the way to the time button.'],
   ['openDoors', 'Speed · hold it for', 1, 20, 1,
     'How many doors stay on the opening tread. Wide treads are the whole point '
     + 'of a staircase: nobody acclimatises to a number that never sits still.'],
@@ -134,17 +137,24 @@ const DIALS = [
   ['holdDoors', 'Speed · hold that for', 1, 20, 1,
     'Doors on the second tread before the staircase starts climbing.'],
   ['stepM', 'Speed · tread height', 0.05, 1, 0.05,
-    'How much faster each tread is than the one below it.'],
+    'How much faster each tread is than the one below it. THIS IS THE DIAL '
+    + 'THE OPENING IS FELT ON: at 0.2 the door the time button arrives on ran '
+    + 'seven per cent faster than door 1, which is a ramp nobody notices. At '
+    + '0.32 it is fifty.'],
   ['stepDoors', 'Speed · tread width', 1, 10, 1,
     'Doors per tread once it is climbing. THIS IS THE DIAL THAT MOVES THE '
     + 'UNLOCK: halve it and the power arrives twice as early.'],
-  ['unlockM', 'Speed · power arrives at', 6, 20, 0.2,
-    'The speed at which walking out of a round stops being enough — and so '
-    + 'the moment slow time is worth having. The unlock DOOR is solved from '
-    + 'this rather than typed, so it can never drift out of step with it.'],
+  ['unlockM', 'Speed · staircase levels off at', 6, 20, 0.2,
+    'The speed at which walking out of a round stops being enough. NOT the '
+    + 'door the time button arrives on — that is solved from the encounter '
+    + 'curve (unlockGroup) because being outnumbered, not one fast round, is '
+    + 'what a sidestep cannot answer. This one shapes speedAt() and nothing '
+    + 'else. The DOOR is solved from it rather than typed, so it can never '
+    + 'drift out of step with it.'],
   ['schoolDoors', 'School · doors', 0, 30, 1,
-    'How long the staircase stops while slow time is taught. The speed holds '
-    + 'flat here on purpose: one new thing at a time.'],
+    'Two things at once, and they are at different doors: how long the '
+    + 'staircase pauses at unlockM, and how many doors the slow-time lesson '
+    + 'runs for after the time button arrives.'],
   // --- THE SCHOOL ----------------------------------------------------------
   ['volley', 'School · volley size', 2, 8, 1,
     'How many fire together once the school is in session. A volley is the one '

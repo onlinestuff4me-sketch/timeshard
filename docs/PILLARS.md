@@ -54,9 +54,11 @@ changing what the player can afford.
 
 See him → watch the round leave → step out of it → shatter him. That is the
 game in four beats, and a player who has not internalised them cannot enjoy
-anything built on top. Hence `EARLY`: doors 1–4 hold exactly one body, only
-gunners appear before door 6, and through door 5 nobody fires while a round is
-still on its way to you.
+anything built on top. Hence `EARLY`: only gunners appear before door 3, and
+through that same door nobody fires while a round is still on its way to you.
+Bullet speed sits at its floor for those three doors too (`SPEED.openM`, 4.8
+m/s — a 16 m room in three and a third seconds), and starts climbing on door 4
+with the rusher.
 
 **Do not** raise the opening difficulty to make the game "respect the player".
 The opening is a metronome on purpose.

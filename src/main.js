@@ -3820,7 +3820,7 @@ function setEgunFlash(e, mat) {
 //
 // They are the same dial now. `t` is where the round's speed sits between the
 // opening speed and the ceiling, so a door that is a tread faster is also a
-// tread tighter, and the two arrive at full heat together on door 98.
+// tread tighter, and the two arrive at full heat together on door 65.
 //
 // It inherits the school's plateau for free, which is the part worth having:
 // `speedAt` holds flat for the ten doors that teach slow time, so telegraphs
@@ -7854,7 +7854,12 @@ function composeWave(n) {
   const queue = [];
   // the horde core: rushers scale up fast once they debut — this is a game
   // about managing the melee crush while gunfire crosses the street
-  const rushers = n >= TYPE_INTRO.rusher ? Math.min(Math.round(total * COMP.rusherFrac), 2 + n) : 0;
+  // ...and his share ramps in over COMP.rusherRamp doors rather than landing
+  // whole on the door he is introduced on. See COMP.
+  const rushT = Math.min(1, (n - TYPE_INTRO.rusher) / Math.max(1, COMP.rusherRamp));
+  const rushFrac = COMP.debutFrac + (COMP.rusherFrac - COMP.debutFrac) * rushT;
+  const rushers = n >= TYPE_INTRO.rusher
+    ? Math.min(Math.round(total * rushFrac), 2 + n) : 0;
   for (let i = 0; i < rushers; i++) queue.push('rusher');
   // the debuting type gets a real showing
   if (debut && debut !== 'gunner' && debut !== 'rusher' && debut !== 'laser') {
@@ -7905,16 +7910,18 @@ const SLOWMO = { base: TIME.base, bonus: TIME.bonus, cap: TIME.cap, drain: TIME.
   low: TIME.low, crit: TIME.crit,
   // NOT A NUMBER OF ITS OWN, AND NOT A SPEED EITHER.
   //
-  // It used to be the door the speed staircase reaches SPEED.unlockM on —
-  // door 46, an hour in. That answered "when do rounds get too fast to walk
-  // out of", which is a real question and the wrong one: what a player cannot
-  // answer with a sidestep is not one fast round, it is THREE ROUNDS AT ONCE.
-  // So the power lands the door after the first door that outnumbers them —
-  // see OPENING.encounters and OPENING.unlockGroup. Door 6.
+  // It used to be the door the speed staircase reaches SPEED.unlockM on — an
+  // hour in. That answered "when do rounds get too fast to walk out of",
+  // which is a real question and the wrong one: what a player cannot answer
+  // with a sidestep is not one fast round, it is THREE ROUNDS AT ONCE. So the
+  // power lands the door after the first door that outnumbers them — see
+  // OPENING.encounters and OPENING.unlockGroup. Door 10.
   //
   // The speed staircase keeps its own answer (`speedUnlockDoor`) for where it
   // levels off, because that is still the door bullets get genuinely fast on.
-  // The two are separate questions now and each has its own.
+  // The two are separate questions now and each has its own — and they have to
+  // stay separate: see the note on `powerUnlockDoor` in balance.js for why a
+  // convergence has to land on door 17 or later.
   unlockDoor: powerUnlockDoor() };
 // SLOW MOTION IS A THING YOU UNLOCK. Not during the onboarding, which never
 // mentions it, and not on door 1 — a few doors in, once the rhythm is a habit
@@ -11631,20 +11638,25 @@ function maxAlive() {
   // how many can be ON you at once — the dial that decides whether a fight
   // is a queue or a swarm, so it is the one that moves least
   if (inHall()) {
+    // A GROUP HAS TO BE ABLE TO STAND UP TOGETHER, and in NO RETREAT the room
+    // IS its groups. `duelPlan` writes them (SIMPLE.duel.groups) and a group
+    // arriving together is the whole point of one — a three dealt out one man
+    // at a time is three singles a beat apart, which is the easier fight and
+    // not the one the room was written to be.
+    //
+    // ...AND THE TUNNEL'S CURVE HAS NO BUSINESS IN THIS ANSWER. This used to
+    // read `max(doorAlive(wave) * tax, ...duelPlan.groups)`, so the tunnel's
+    // encounter table sat underneath the duel's own plan as a floor. Nothing
+    // else about the mode comes from there — it casts from its own schedule
+    // and composes its own rooms, group by group, on purpose — and the floor
+    // was invisible right up until the tunnel's table was re-cut for pace and
+    // NO RETREAT's room 8 silently went from four men at once to five. A mode
+    // with its own plan reads its own plan.
+    if (game.mode === 'duel') return Math.max(1, ...duelPlan(duelRoom()).groups);
     // A condition thins the crowd as well as the loot: two bodies met
     // separately are two searches, where a clump is one problem solved once.
-    const n = Math.max(1, schoolFloor(game.wave), Math.round(doorAlive(game.wave)
+    return Math.max(1, schoolFloor(game.wave), Math.round(doorAlive(game.wave)
       * condTax(legCondition(), 'groupSize')));
-    // ...BUT A GROUP MUST BE ABLE TO STAND UP TOGETHER. The duel's rooms are
-    // written as groups (SIMPLE.duel.encounters) and a group arriving together
-    // is the whole point of one — a three dealt out one man at a time is three
-    // singles a beat apart, which is the easier fight and not the one the room
-    // was written to be. So the crowd ceiling never sits under the room's
-    // biggest group.
-    if (game.mode === 'duel') {
-      return Math.max(n, ...duelPlan(duelRoom()).groups);
-    }
-    return n;
   }
   return Math.min(PACING.cityAliveBase + Math.floor(game.wave / 2), PACING.cityAliveCap);
 }
@@ -12595,8 +12607,24 @@ function hallWave(n) {
   const filler = roster.has('rusher') && game.mode !== 'duel' ? ['gunner', 'rusher'] : ['gunner'];
   while (q.length < want) q.push(filler[Math.floor(Math.random() * filler.length)]);
   q.length = Math.min(q.length, want);
-  // the leg's debut enemy leads the wave, so the introduction actually lands
-  const debut = leg && leg.proto && leg.proto.enemyDebut;
+  // THE LEG'S DEBUT ENEMY LEADS THE WAVE, so the introduction actually
+  // lands — IN THE TUNNEL. Never in NO RETREAT.
+  //
+  // `leg.proto` comes from `composeProtocol`, which runs on the TUNNEL's door
+  // schedule in every mode, and the branch below does not merely reorder: when
+  // the wave does not contain the debuting type it POPS A MAN OFF THE BACK and
+  // puts one at the front. NO RETREAT builds its room from `duelPlan` — the
+  // cast dial exists precisely so a type arrives when that mode's ramp says
+  // it does — and the tunnel was reaching in and swapping a man out.
+  //
+  // It was always wrong and it was rare enough to hide: a random enemy debut
+  // had to land on a duel room. Condensing the tunnel's schedule made it
+  // systematic — a type is due on its own door now — and room 8, the room
+  // NO RETREAT introduces the SHOTGUNNER in, started losing him to the
+  // tunnel's SHIELD about one run in three. No shotgunner is no shotgun on
+  // the floor, and the beat that points at it (`duelTeachLoot`) had nothing
+  // to point at. Caught by test/duelloot.mjs.
+  const debut = game.mode !== 'duel' && leg && leg.proto && leg.proto.enemyDebut;
   if (debut) {
     const mapped = sub[debut.id] || debut.id;
     const i = q.indexOf(mapped);

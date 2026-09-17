@@ -86,10 +86,16 @@ lesson, silently broke shooting for months.
 
 ### 6. Teach a power on the door it becomes necessary
 
-The unlock is not a door number somebody picked. Bullet speed climbs a
-staircase (`SPEED` in `src/balance.js`), and slow time arrives on the door that
-staircase reaches `unlockM` on — **the speed at which walking out of a round
-stops being enough**. On the shipped numbers that is door 46.
+The unlock is not a door number somebody picked, and it is not a speed either.
+It is **being outnumbered**: `powerUnlockDoor()` in `src/balance.js` walks the
+encounter curve and returns the door after the first one that asks for a group
+of `OPENING.unlockGroup`. On the shipped numbers that is door 10.
+
+It used to be solved from the speed staircase instead — the door bullets get
+too fast to walk away from — which is a real question and the wrong one. What a
+player cannot answer with a sidestep is not one fast round; it is three at
+once. The staircase keeps its own answer (`unlockDoor(SPEED)`) for where it
+levels off, and nothing but `speedAt()` reads it.
 
 What happens there is a lesson, not a banner. The corridor on the far side of
 that door is authored: one corner, a barrier, `STAND HERE` — the same furniture
