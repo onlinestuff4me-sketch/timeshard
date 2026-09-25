@@ -33,34 +33,36 @@ Both exit non-zero if a row leaves its band.
 
 ## 1. Floors and elevators
 
-**Decided: each floor has its own cast, and floor 1 ends in a boss whose
-death gives you slow time** (§10). Gunners run through every floor and level
-up through their own tiers. Each floor introduces 2–4 new types that give it
-its identity. Types from earlier floors come back as **guests**, a tier up,
-so the struggle of a tier-up lands at the start of a later floor, when you
-are still holding their last-tier gun.
+**Decided: each floor has its own cast, and every floor ends in a boss who
+introduces the next floor's hardest type.** The boss is the big version, met
+once, as the type's debut. The next floor then fills with ordinary ones.
+Floor 1's boss is the Keeper, and his death gives you slow time (§10, §12).
+Gunners run through every floor. Types from earlier floors come back as
+**guests**, a tier up.
 
-| floor | doors | new cast | guests (tier-ups) | gauntlet |
+| floor | doors | new cast | guests (tier-ups) | ends in |
 |---|---|---|---|---|
-| **1** | 1–9 (9) | gunner, rusher, shotgunner, shield | – | **the Keeper** (boss) → slow time |
-| **2** | 10–16 (7) | heavy, sniper, bomber | shotgunner II, rusher II | shield II |
-| **3** | 17–23 (7) | Frankenstein, armored, rocketeer | heavy II, gunner II, bomber II | sniper II |
-| **4** | 24–30 (7) | kamikaze, **drone** (the spotter) | shotgunner III, Frankenstein II, rusher III, armored II | rocketeer II |
-| **5** | 31–39 (9) | laser, **spawner** | gunner III, kamikaze II, drone II, heavy III, Frankenstein III | laser II |
+| **1** | 1–9 (9) | gunner, rusher, shotgunner, shield | – | **the Keeper**, the first blinker → slow time |
+| **2** | 10–16 (7) | heavy, sniper, bomber, *blinkers* | shotgunner II, rusher II | **the first Frankenstein** |
+| **3** | 17–23 (7) | armored, rocketeer, *Frankensteins* | shield II, heavy II, gunner II, bomber II | **the first drone** |
+| **4** | 24–30 (7) | kamikaze, *drones* | shotgunner III, sniper II, blinker II, Frankenstein II, rusher III | **the first spawner** |
+| **5** | 31–39 (9) | laser, *spawners* | gunner III, armored II, rocketeer II, kamikaze II, drone II, heavy III, Frankenstein III | **the finale**: the Keeper, again |
+
+*Italics:* the type the previous floor's boss introduced, now ordinary.
 
 Door by door (`node tools/sim-arsenal.mjs --schedule`; `·` is a door that
 carries a protocol debut instead):
 
 ```
-F1   1:gunner  2:·  3:·  4:rusher  5:·  6:shotgunner  7:·  8:shield  9:·       G1:THE KEEPER
-F2   10:SLOW TIME  11:heavy  12:shotgunner II  13:sniper  14:·  15:bomber  16:rusher II
-                                                                                G2:shield II
-F3   17:warm-up  18:Frankenstein  19:armored  20:heavy II  21:gunner II  22:rocketeer
-     23:bomber II                                                               G3:sniper II
-F4   24:warm-up  25:kamikaze  26:shotgunner III  27:drone  28:Frankenstein II
-     29:rusher III  30:armored II                                               G4:rocketeer II
-F5   31:warm-up  32:laser  33:gunner III  34:spawner  35:kamikaze II  36:drone II
-     37:heavy III  38:Frankenstein III  39:·                                    G5:laser II
+F1   1:gunner  2:·  3:·  4:rusher  5:·  6:shotgunner  7:·  8:shield  9:·    BOSS: the Keeper (blinker)
+F2   10:SLOW TIME  11:heavy  12:shotgunner II  13:sniper  14:·  15:bomber
+     16:rusher II                                                         BOSS: Frankenstein
+F3   17:warm-up  18:armored  19:shield II  20:heavy II  21:gunner II
+     22:rocketeer  23:bomber II                                           BOSS: drone
+F4   24:warm-up  25:kamikaze  26:shotgunner III  27:sniper II  28:blinker II
+     29:Frankenstein II  30:rusher III                                    BOSS: spawner
+F5   31:warm-up  32:laser  33:gunner III  34:armored II  35:rocketeer II
+     36:kamikaze II  37:drone II  38:heavy III  39:Frankenstein III        BOSS: the Keeper, blinker III
 ```
 
 Floor 1 is exactly the shipped opening: gunner 1, rusher 4, shotgunner 6,
@@ -69,11 +71,13 @@ the encounter curve and the slow-time school stay where they are.
 
 **The rules the schedule keeps**, each checked by `--schedule`:
 
-- **One new thing per door**, and per gauntlet. A tier-up counts as new.
-- **Slow time is the floor-1 boss's reward.** The Keeper holds floor 1's
-  gauntlet and slow time unlocks on the next door. `powerUnlockDoor()` still
-  derives that door from the encounter curve. If the curve ever moves it,
-  the check fails, because floor 1 has to move with it.
+- **One new thing per door**, and per boss. A tier-up counts as new.
+- **Every floor ends in a boss. Every boss before the last is a type's
+  debut (Mk I), and the next floor fills with ordinary ones of his kind.**
+- **Slow time is the floor-1 boss's reward.** The Keeper ends floor 1 and
+  slow time unlocks on the next door. `powerUnlockDoor()` still derives
+  that door from the encounter curve. If the curve ever moves it, the check
+  fails, because floor 1 has to move with it.
 - **The warm-up door out of each elevator holds no debut.** It is the easing
   door of the Hades-style rise and drop. Floor 2's warm-up is slow time's
   first room.
@@ -81,16 +85,18 @@ the encounter curve and the slow-time school stay where they are.
 - **No "fire together" tier inside the slow-time school** (10–19): the school
   already fires the room in volleys, so the gunner's pairs would be invisible
   there. His Mk II is on 21.
-- **The answer is on the floor before the question.** The shotgun (6)
-  precedes the Keeper, and the shotgun's Mk II (12) precedes the rusher's
-  (16) and the kamikaze. The launcher (15) precedes shield II, Frankenstein II
-  and the spawner. The rocket (22) precedes the laser (32).
+- **The answer is on the floor before the question.**
+  - The shotgun (6) comes before the Keeper, and the shotgun's Mk II (12)
+    before the rusher's (16).
+  - The launcher (15) comes before the Frankenstein boss (both arms in one
+    aim), shield II, blinker II (a blast wider than their blink) and the
+    spawner.
+  - The rocket (22) comes before the laser (32).
 - **A weapon is the best answer on the day it lands.** The Mk II pistol
   (pierce, shatter) out-guns the sniper's and the armored man's Mk I drops,
   so both come before gunner Mk II.
 - **Drone and spawner are not introduced on the same floor** (decided). The
-  drone comes first as its easy Mk I, a spotter that hovers. A Mk II drone
-  guesting on the spawner's floor is allowed: that pairing is the point.
+  drone's boss ends floor 3 and the spawner's ends floor 4.
 
 **The door budget.** Fourteen types at three tiers is ~42 debuts, and five
 floors of one-new-thing doors hold ~40 slots, before the protocols take
@@ -251,30 +257,32 @@ The rules for each Mk debut:
 | 4 | rusher I | debut | 5.6 | 4 | – | pistol I | 0.15 | 0.00 | pistol I (footwork) | 0.15 | 0.00 |
 | 6 | shotgunner I | debut | 5.9 | 4 | – | pistol I | 0.14 | 0.01 | shotgun I | 0.08 | 0.00 |
 | 8 | shield I | debut | 6.6 | 4 | – | pistol I | 0.19 | 0.01 | pistol I (footwork) | 0.19 | 0.01 |
+| G1 | blinker I | debut | 6.9 | 1 | – | pistol I | 0.55 | 0.00 | shotgun I | 0.20 | 0.00 |
 | 11 | heavy I | debut | 7.5 | 4 | – | pistol I | 0.67 | 0.88 | burst I | 0.46 | 0.57 |
 | 12 | shotgunner II | pattern | 7.8 | 4 | 0.35 | shotgun I | 0.43 | 0.60 | shotgun II | 0.27 | 0.38 |
 | 13 | sniper I | debut | 8.2 | 2 | – | pistol I | 0.43 | 0.57 | rifle I | 0.32 | 0.43 |
 | 15 | bomber I | debut | 8.8 | 4 | – | pistol I | 3.04 | 4.77 | launcher I | 0.92 | 1.42 |
 | 16 | rusher II | numbers | 9.1 | 7 | 0.15 | pistol I | 0.66 | 0.82 | shotgun II | 0.15 | 0.00 |
-| G2 | shield II | coverage | 9.1 | 4 | 0.59 | pistol I | 3.53 | 5.50 | launcher I | 0.59 | 0.89 |
-| 19 | armored I | debut | 10.1 | 4 | – | pistol I | 4.97 | 7.80 | AP I | 2.28 | 3.54 |
+| 18 | armored I | debut | 9.8 | 4 | – | pistol I | 4.09 | 6.40 | AP I | 1.89 | 2.92 |
+| 19 | shield II | coverage | 10.1 | 4 | 0.73 | pistol I | 4.51 | 7.06 | launcher I | 0.73 | 1.12 |
 | 20 | heavy II | burst | 10.4 | 4 | 0.33 | burst I | 0.42 | 0.17 | burst II | 0.30 | 0.20 |
 | 21 | gunner II | pairs | 10.7 | 4 | 0.50 | pistol I | 1.14 | 1.76 | pistol II | 0.67 | 1.03 |
 | 22 | rocketeer I | debut | 11.0 | 4 | – | pistol II | 0.32 | 0.26 | rocket I | 0.17 | 0.08 |
 | 23 | bomber II | area | 11.4 | 4 | 0.37 | launcher I | 0.79 | 0.68 | launcher II | 0.43 | 0.38 |
-| G3 | sniper II | reach | 11.4 | 2 | 0.20 | rifle I | 0.27 | 0.12 | rifle II | 0.19 | 0.16 |
 | 25 | kamikaze I | debut | 12.0 | 5 | – | pistol II | 0.46 | 0.33 | shotgun II | 0.15 | 0.00 |
 | 26 | shotgunner III | pattern | 12.3 | 4 | 0.84 | shotgun II | 1.09 | 0.88 | shotgun III | 0.70 | 0.65 |
-| 29 | rusher III | numbers | 13.0 | 7 | 0.15 | pistol II | 0.66 | 0.82 | shotgun III | 0.15 | 0.00 |
-| 30 | armored II | advance | 13.0 | 4 | 1.15 | AP I | 2.05 | 1.85 | AP II | 1.33 | 1.18 |
-| G4 | rocketeer II | tracking | 13.0 | 4 | 0.17 | rocket I | 0.30 | 0.19 | rocket II | 0.18 | 0.11 |
-| 32 | laser I | debut | 13.0 | 1 | – | pistol II | 0.74 | 0.00 | rocket II | 0.30 | 0.00 |
+| 27 | sniper II | reach | 12.6 | 2 | 0.20 | rifle I | 0.30 | 0.12 | rifle II | 0.21 | 0.16 |
+| 28 | blinker II | numbers | 13.0 | 2 | 0.13 | pistol II | 0.83 | 0.70 | launcher II | 0.16 | 0.09 |
+| 30 | rusher III | numbers | 13.0 | 7 | 0.15 | pistol II | 0.66 | 0.82 | shotgun III | 0.15 | 0.00 |
+| 32 | laser I | debut | 13.0 | 1 | – | pistol II | 0.74 | 0.00 | rocket I | 0.38 | 0.00 |
 | 33 | gunner III | pairs | 13.0 | 4 | 0.67 | pistol II | 1.26 | 1.59 | pistol III | 0.75 | 0.99 |
-| 35 | kamikaze II | numbers | 13.0 | 6 | 0.15 | pistol III | 0.45 | 0.32 | shotgun III | 0.15 | 0.00 |
-| 37 | heavy III | burst | 13.0 | 4 | 1.04 | burst II | 1.78 | 1.89 | burst III | 1.30 | 1.47 |
-| G5 | laser II | charge | 13.3 | 1 | 0.30 | pistol III | 0.90 | 0.00 | rocket II | 0.37 | 0.00 |
+| 34 | armored II | advance | 13.0 | 4 | 1.15 | AP I | 2.05 | 1.85 | AP II | 1.33 | 1.18 |
+| 35 | rocketeer II | tracking | 13.0 | 4 | 0.17 | rocket I | 0.30 | 0.19 | rocket II | 0.18 | 0.11 |
+| 36 | kamikaze II | numbers | 13.0 | 6 | 0.15 | pistol III | 0.45 | 0.32 | shotgun III | 0.15 | 0.00 |
+| 38 | heavy III | burst | 13.0 | 4 | 1.04 | burst II | 1.78 | 1.89 | burst III | 1.30 | 1.47 |
+| G5 | blinker III | numbers | 13.3 | 3 | 0.16 | pistol III | 1.36 | 1.60 | launcher II | 0.21 | 0.15 |
 
-**26 of 26 inside the bands** — every tier the floor-cast schedule (§1) puts in a run; G2–G5 are elevator gauntlets. Read one row: at door 21 the gunner starts
+**28 of 28 inside the bands** — every tier the floor-cast schedule (§1) puts in a run; G1 and G5 are the blinker bosses. Read one row: at door 21 the gunner starts
 firing in pairs. With the pistol you had, a kill costs 1.14 s of dodging and
 1.76× what it refunds, so the bank drains. His Mk II pistol breaks one round
 in two in the air, and the same fight costs 0.67 s and roughly pays for itself.
@@ -683,7 +691,7 @@ part of the dish shot the window doesn't cover.
 
 ---
 
-## 10. The Keeper: slow time is a boss's reward
+## 10. The Keeper and the blinkers: slow time is a boss's reward
 
 **Decided: slow time is not handed out on a door. It is taken from the man
 who has it.** Floor 1 ends in an elevator gauntlet against **the Keeper**, a
@@ -748,6 +756,27 @@ Then he shatters, and you get the power you just watched him use.
 
 ---
 
+### Blinkers: the Keeper's kind (decided)
+
+The Keeper is the first **blinker**, and floors 2 onward have ordinary ones:
+the same blink, the Keeper's second-phase cooldown (1.2 s), no time stop.
+They scale by **how many at once**:
+
+| tier | where | pack | hard with | answered by |
+|---|---|---|---|---|
+| Mk I | the Keeper (G1), then floor 2 | 1 | pistol: the bracket's coin flip (P 0.55) | **shotgun**: the cone's re-aim beats his cooldown (0.20) |
+| Mk II | door 28 | 2 | pistol (0.83) | **launcher**: a blast wider than their blink (0.16) |
+| Mk III | the finale (G5) | 3, blinking further (1.8 m) | pistol (1.36) | launcher (0.21) |
+
+- **One blinker is a punish; a pack is a blast.** While you bait one, the
+  other fires. With the shotgun alone, two blinkers were a step too far, so
+  from Mk II the launcher is the answer: they can't blink out of a blast wider
+  than their blink.
+- **After door 10 the loop closes.** His cooldown runs on the world clock
+  and your swing doesn't, so freezing during his recovery buys the punish
+  with any weapon, paid in bank. You took his time, and his kin are what it
+  is for.
+
 ## 11. Debut cards: every new type gets an introduction
 
 **Decided: every new enemy type is announced.** The machinery exists. NO
@@ -755,26 +784,26 @@ RETREAT stops the world on a type's first appearance and shows a card
 (`duelMeetCard()`, copy in `SIMPLE.duel.meet`, checked by
 `test/duelmeet.mjs`), so the tunnel ports it rather than building a new one.
 
-**The sequence:**
+**The sequence** (decided: no announcement at the door; the card is the
+introduction):
 
-1. **At the door:** the door's headline names what is behind it (the protocol
-   headline already claims a door's debut: `minDoor` in `protocols.js`).
-2. **The first room holds him alone.** It is the existing debut rule: a new
-   type arrives in a quieter room.
-3. **When he finishes assembling, the world stops.** He gets the ring the
+1. **The first room holds him alone.** It is the existing debut rule: a new
+   type arrives in a quieter room. For the four bosses, the boss fight is the
+   debut and the card opens it.
+2. **When he finishes assembling, the world stops.** He gets the ring the
    debut card uses, the rest of the room dims, and the card shows **three
    lines at most**:
    - his **name**;
    - **what he does**, in one line;
    - a **hint**, *only if his weakness isn't obvious*, and phrased as a nudge
      rather than an instruction.
-4. **A touch releases the world.**
+3. **A touch releases the world.**
 
 **Once per save, not per run.** The full stop plays the first time you ever
-meet a type (UNLOCKS already records it). On later runs the door headline and
-a small name tag over him are enough. A returning player should not be
-stopped fourteen times a run. **Tier-ups** get no stop: the door headline
-reads `GUNNER Mk II`, and the name tag adds its one change (`· FIRES IN PAIRS`).
+meet a type (UNLOCKS already records it). On later runs a small name tag over
+him is enough: a returning player should not be stopped fifteen times a run.
+**Tier-ups** get no stop, just the name tag with its one change:
+`GUNNER Mk II · FIRES IN PAIRS`.
 
 ### The cards (draft copy)
 
@@ -797,8 +826,47 @@ read in a second:
 | Frankenstein | Two guns. Only the arms break. | – |
 | drone | While it flies, they aim ahead of you. | Look up. |
 | spawner | The shattered come back. | Break the dish while they're down. |
-| **the Keeper** (boss) | He moves before your round does. | Make him move first. |
+| **blinker** (the Keeper) | He moves before your round does. | Make him move first. |
 
 Hints left blank are the ones whose answer is in the name or the first
 second of watching him. The others point at the weakness without naming the
 move: *the head was not considered* rather than *shoot his head*.
+
+---
+
+## 12. A boss at the end of every floor
+
+**Decided: the Keeper's pattern repeats.** Every floor ends in an elevator boss
+who is the first of the next floor's hardest type: a big, phased version met
+once. The next floor then fills with ordinary ones. The boss fight is the
+type's debut card (§11), and it is what the ordinary ones are measured
+against: after him, they are familiar.
+
+| ends | boss | phases (sketch) | the next floor gets |
+|---|---|---|---|
+| floor 1 | **the Keeper** (blinker) | blink at 1.5 s; blink at 1.2 s with shotgunners to rob; he stops the world and releases a volley (§10) | blinkers · and **slow time** |
+| floor 2 | **the first Frankenstein** | both guns up; one arm gone, one gun firing; both gone, chest open, the rush. His whole kit, the one fight where you see all of it | Frankensteins (Mk I: two guns, one shot) |
+| floor 3 | **the first drone**, the size of a car | it marks you and the room leads you. It hovers high, and you look up for the first time. Its escorts are gunners whose rounds it is steering | drones (Mk I: the hovering spotter) |
+| floor 4 | **the first spawner**, a dome with three dishes | each dish broken shortens the reassembly. The last dish must go inside one window. The guards are the floor's cast | spawners (Mk I: one dish, 2 s) |
+| floor 5 | **the finale: the Keeper, again** | he has slow time too. Three blinkers at Mk III, and his time stop is now yours to answer with your own | – |
+
+- **The boss is a type's full kit; the ordinary ones are a slice of it.** The
+  Frankenstein boss shows arms and the rush; floor 3's ordinary
+  Frankensteins are the gentle Mk I (two guns, one shot), and the kit comes
+  back in pieces as they tier up (Mk II arms on floor 4, Mk III rush on
+  floor 5). You have seen what they become, and the floors catch up to it.
+- **Each boss after the first leaves a time-button upgrade.** §7 proposed
+  one time upgrade per elevator ride, and a boss is the natural moment for
+  it. The limits still hold: few (one per boss), capped at about door 6's
+  bank worth, and felt (e.g. *headshots while frozen overfill the bank*).
+  Slow time from the Keeper, then a sharper slow time from each boss after.
+- **Boss rooms keep the room rules:** the seal, waves assembling at once, and
+  a kill-order question built in (the Keeper's shotgunners; the drone's
+  steered gunners; the spawner's guards).
+- **What the model covers:** the blinker (`--boss`, and the ladder rows G1
+  and G5), and each other boss's type at its ordinary tiers (`--newcomers`,
+  `--spawner`). The bosses' own phases are sketches: each needs its own pass
+  of `--boss`'s kind before it's built.
+- **To decide:** the finale. The Keeper returning with his own slow time
+  closes the loop that floor 1 opened, but it is a mirror fight: both of you
+  freezing. It needs its own design pass.

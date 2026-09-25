@@ -84,6 +84,14 @@ const ENEMY_BASE = {
   // proposed (docs/ARSENAL.md §8): a separate type with its own body — he
   // arms inside R and bursts after `fuse`. `count` is how many a room holds.
   kamikaze:     { speed: 4.2, d: 12, melee: true, R: 3.5, fuse: 0.5, count: 5, gap: 0.35 },
+  // proposed (docs/ARSENAL.md §10): the floor-1 boss's kind. He reads the
+  // trigger and BLINKS `blinkR` to a side you cannot know, then cannot blink
+  // again for `blinkCd`. He fires like a gunner. Scales by how many.
+  // Mk I recovers in 1.2 s: the Keeper's second phase, and the cooldown at
+  // which only a cone re-aims fast enough on foot. After slow time, the
+  // world-clock cooldown can be outwaited frozen: you took his time, and his
+  // kin are what it is for.
+  blinker:      { aim: 0.55, cd: [1.2, 0.8], mul: 1, pellets: 1, d: 10, blinkR: 1.5, blinkCd: 1.2, count: 1 },
   shotgunner:   { aim: 0.65, cd: [1.6, 0.9], mul: 0.85, pellets: 5, spread: 0.09, d: 8 },
   shieldbearer: { aim: 0.7,  cd: [1.6, 1.0], mul: 1,    pellets: 1, d: 12, shielded: true },
   heavy:        { aim: 0.55, cd: [1.8, 1.0], mul: 1,    pellets: 1, burst: 3, d: 14 },
@@ -118,6 +126,11 @@ export const ENEMY_MK = {
   kamikaze: [null,
     { axis: 'numbers',  count: 6, gap: 0.3, R: 4.5, speed: 4.6 },
     { axis: 'numbers',  count: 7, gap: 0.25, speed: 5.0, fuse: 0.4 },
+  ],
+  // blinkers come in more at a time, and recover faster
+  blinker: [null,
+    { axis: 'numbers',  count: 2 },
+    { axis: 'numbers',  count: 3, blinkR: 1.8 },
   ],
   shotgunner: [null,
     { axis: 'pattern',  pellets: 7, spread: 0.13, d: 10 },    // wider, and from further
@@ -206,7 +219,7 @@ const DROPS_FROM = {
 };
 // The laser anchors — he does not strafe — so the rifle's lead advantage is
 // worth nothing against him; the rocket's guidance and blast is what reaches.
-const ANSWERED_BY = { rusher: 'shotgun', kamikaze: 'shotgun', shieldbearer: 'launcher', laser: 'rocket' };
+const ANSWERED_BY = { rusher: 'shotgun', kamikaze: 'shotgun', blinker: 'shotgun', shieldbearer: 'launcher', laser: 'rocket' };
 
 // --- THE SCHEDULE (proposal): five floors, every Mk debut on its door ------
 // FLOOR CASTS (decided). Each floor has its own new types; gunners run
@@ -214,49 +227,55 @@ const ANSWERED_BY = { rusher: 'shotgun', kamikaze: 'shotgun', shieldbearer: 'lau
 // higher Mk. A floor's first door (after floor 1) is the warm-up: no debut.
 // A gauntlet slot is written as the floor's last door + 0.5.
 //
-// SLOW TIME IS A BOSS'S REWARD (decided). Floor 1 ends in a fight with THE
-// KEEPER, a man who moves before your round does (see --boss); when he
-// shatters, his time is yours, and the elevator carries you up with it. So
-// floor 1 is doors 1-9 — exactly the shipped opening: gunner 1, rusher 4,
-// shotgunner 6, shield 8 — and slow time arrives on 10, the warm-up door of
-// floor 2, where powerUnlockDoor() already puts it. --schedule checks the two
-// stay together: if the encounter table moves the unlock, floor 1 has to move
-// with it, and somebody has to decide that.
+// EVERY FLOOR ENDS IN A BOSS (decided), and each boss is the debut of the
+// next floor's hardest type: the boss is the big version, and the next floor
+// fills with ordinary ones. The fourth field marks a boss.
 //
-//   floor 1  gunner, rusher, shotgunner, shield    boss: the Keeper
-//   floor 2  heavy, sniper, bomber                 guests: shotgunner II, rusher II, shield II
-//   floor 3  Frankenstein, armored, rocketeer      guests: heavy II, gunner II, bomber II, sniper II
-//   floor 4  kamikaze, drone                       guests: shotgunner III, Frankenstein II, rusher III, armored II, rocketeer II
-//   floor 5  laser, spawner                        guests: the rest of the Mk IIs, the early cast's Mk IIIs
+//   G1  THE KEEPER — the first BLINKER. His death gives you slow time.
+//   G2  the first FRANKENSTEIN — both arms, then the rush, all at once
+//   G3  the first DRONE — a spotter the size of a car, marking you for a room
+//   G4  the first SPAWNER — dishes to break while its guards are down
+//   G5  the finale: the Keeper again, with slow time of his own (to decide)
+//
+// Slow time is still door 10, where powerUnlockDoor() puts it: floor 1 is the
+// shipped opening (gunner 1, rusher 4, shotgunner 6, shield 8) and the Keeper
+// ends it. --schedule checks the two stay together.
+//
+//   floor 1  gunner, rusher, shotgunner, shield        boss: blinker (the Keeper)
+//   floor 2  heavy, sniper, bomber (+ blinkers)        boss: Frankenstein
+//   floor 3  armored, rocketeer (+ Frankensteins)      boss: drone
+//   floor 4  kamikaze (+ drones)                       boss: spawner
+//   floor 5  laser (+ spawners)                        boss: the finale
 //
 // DRONE AND SPAWNER ARE SEPARATED (decided): both are supports you choose to
 // kill first, so they are not introduced on the same floor. The drone comes
-// first, as its easy Mk I — a spotter that HOVERS — on floor 4.
-export const FLOORS = [9, 7, 7, 7, 9];     // doors per floor; an elevator gauntlet after each
+// first; its ordinary Mk I is a spotter that HOVERS.
+export const FLOORS = [9, 7, 7, 7, 9];     // doors per floor; an elevator boss after each
 export const DEBUTS = [
   // floor 1 — doors 1-9, the shipped opening. Odd doors carry protocols.
   [1, 'gunner', 1], [4, 'rusher', 1], [6, 'shotgunner', 1], [8, 'shieldbearer', 1],
-  [9.5, 'keeper', 1],
-  // floor 2 — doors 10-16. 10 is slow time's first room and the warm-up.
-  // The shotgun's Mk II arrives before the rusher's Mk II it answers — and on
-  // 12, not 9: before slow time the room fires so seldom that a wider
-  // pattern changes nothing (measured). The sniper comes before gunner Mk II:
-  // the Mk II pistol out-guns a Mk I rifle, and a weapon has to be the best
-  // answer on the day it lands.
+  [9.5, 'blinker', 1, 'boss'],
+  // floor 2 — doors 10-16. 10 is slow time's first room and the warm-up. The
+  // shotgun's Mk II arrives before the rusher's Mk II it answers — on 12, not
+  // 9: before slow time the room fires so seldom that a wider pattern changes
+  // nothing (measured). The sniper comes before gunner Mk II: the Mk II
+  // pistol out-guns a Mk I rifle, and a weapon has to be the best answer on
+  // the day it lands.
   [11, 'heavy', 1], [12, 'shotgunner', 2], [13, 'sniper', 1], [15, 'bomber', 1],
-  [16, 'rusher', 2], [16.5, 'shieldbearer', 2],
+  [16, 'rusher', 2], [16.5, 'frankenstein', 1, 'boss'],
   // floor 3 — doors 17-23. The armored man also comes before gunner Mk II
   // (measured: AP Mk I barely beats pistol Mk II). Gunner Mk II is after the
   // slow-time school (10-19): his axis is "fire together", which the school
   // already does to the room (measured: invisible inside it).
-  [18, 'frankenstein', 1], [19, 'armored', 1], [20, 'heavy', 2], [21, 'gunner', 2],
-  [22, 'rocketeer', 1], [23, 'bomber', 2], [23.5, 'sniper', 2],
+  [18, 'armored', 1], [19, 'shieldbearer', 2], [20, 'heavy', 2], [21, 'gunner', 2],
+  [22, 'rocketeer', 1], [23, 'bomber', 2], [23.5, 'drone', 1, 'boss'],
   // floor 4 — doors 24-30
-  [25, 'kamikaze', 1], [26, 'shotgunner', 3], [27, 'drone', 1], [28, 'frankenstein', 2],
-  [29, 'rusher', 3], [30, 'armored', 2], [30.5, 'rocketeer', 2],
+  [25, 'kamikaze', 1], [26, 'shotgunner', 3], [27, 'sniper', 2], [28, 'blinker', 2],
+  [29, 'frankenstein', 2], [30, 'rusher', 3], [30.5, 'spawner', 1, 'boss'],
   // floor 5 — doors 31-39
-  [32, 'laser', 1], [33, 'gunner', 3], [34, 'spawner', 1], [35, 'kamikaze', 2],
-  [36, 'drone', 2], [37, 'heavy', 3], [38, 'frankenstein', 3], [39.5, 'laser', 2],
+  [32, 'laser', 1], [33, 'gunner', 3], [34, 'armored', 2], [35, 'rocketeer', 2],
+  [36, 'kamikaze', 2], [37, 'drone', 2], [38, 'heavy', 3], [39, 'frankenstein', 3],
+  [39.5, 'blinker', 3, 'boss'],
 ];
 // THE DOOR BUDGET. Fourteen types at up to three Mks is ~40 debuts, and five
 // floors of one-new-thing doors hold ~40 slots — before the protocols take
@@ -272,8 +291,15 @@ export const DEBUTS = [
 const LADDERED = (type) => type in ENEMY_BASE;
 
 // What each non-laddered debut needs already on the floor (weapon, Mk).
+// Where a man's answer changes with his Mk. One blinker is a punish, and the
+// cone re-aims fastest; a PACK of them is a blast wider than their blink —
+// while you bait one, the other is firing (measured: the shotgun's relief on
+// two blinkers is a step too far).
+const ANSWERED_AT = { 'blinker:2': 'launcher', 'blinker:3': 'launcher' };
+// After each boss, the next floor fills with ordinary ones of his kind.
+const POPULATES = { blinker: 2, frankenstein: 3, drone: 4, spawner: 5 };
 const NEEDS = {
-  'keeper:1': ['shotgun', 1],          // the cone is what makes the punish window (see --boss)
+  'frankenstein:1': ['launcher', 1],   // his boss fight is the full kit: both arms in one aim
   'shieldbearer:2': ['launcher', 1],   // over the plate (the ladder: the Mk I launcher is enough)
   'frankenstein:2': ['launcher', 1],   // both arms in one aim
   'frankenstein:3': ['launcher', 1],
@@ -411,6 +437,24 @@ function dodged(e, w) {
   return { committed: e.aim / cycle, wait: (cycle - e.aim) / 2 };
 }
 function killCost(e, w, k = 1) {
+  // A BLINKER (see --boss for the full model): bait the blink, then punish
+  // inside his cooldown. The punish is REACT + a swing onto where he went +
+  // the round's flight. On foot it lands if that fits in `blinkCd`. After the
+  // unlock (`canFreeze`) the shortfall can be bought frozen — his cooldown runs
+  // on the world clock, your swing does not — and it is paid in bank. Before
+  // it, the fallback is the bracket: a coin flip per attempt. A blast wider
+  // than his blink, or a guided round, does not care that he moved.
+  if (e.blinkR && !(w.blast >= e.blinkR) && !w.guided) {
+    const half = (e.bodyW ?? BODY_W) / 2;
+    const cone = w.pellets > 1 ? 2 * e.d * w.spread : 0;
+    const swing = FITTS_A + FITTS_B * Math.log2(1 + e.blinkR / (2 * half + cone));
+    const travel = w.beam || !isFinite(w.speed) ? 0 : e.d / (w.speed || 46);
+    const punish = REACT + swing + travel;
+    const bait = acquire(e, w);
+    if (punish <= e.blinkCd) return { t: bait + punish, rounds: 2 * w.burst, p: 1, freeze: 0 };
+    if (e.canFreeze) return { t: bait + e.blinkCd, rounds: 2 * w.burst, p: 1, freeze: punish - e.blinkCd };
+    return { t: 2 * (bait + 2 * swing), rounds: 6 * w.burst, p: 0.5, freeze: 0 };
+  }
   let p = pKill(e, w);
   let wait = 0;
   const dg = dodged(e, w);
@@ -473,6 +517,7 @@ function volleyNeed(e, door) {
 // shooting, so a busy room stretches every kill (t / (1 - load)); that is
 // what makes a group more than the sum of its men.
 function matchup(e, w, door, group) {
+  if (e.blinkR) e = { ...e, canFreeze: door >= powerUnlockDoor() };
   const G = group ?? e.count ?? groupOf(e.type, door);
   const { t, rounds, p } = killCost(e, w, G);
   const drain = TIME.drain * scarcity('timeDrain', door);
@@ -508,6 +553,8 @@ function matchup(e, w, door, group) {
       extraRounds += vol * together * sh;
     }
   }
+  // a blinker punished frozen: the part of the swing his cooldown did not cover
+  if (e.blinkR) bank += (killCost(e, w, G).freeze || 0) * G * drain;
   const refund = TIME.bonus * scarcity('timeGain', door);
   return { P: P / G, R: bank / (G * refund), rounds: rounds + extraRounds / G, t, p, G };
 }
@@ -533,7 +580,7 @@ function ladder() {
     const E = enemy(type, mk);
     const before = arsenalAt(door - 0.5), after = arsenalAt(door);
     const own = !!DROPS_FROM[type];
-    const rt = own ? DROPS_FROM[type] : ANSWERED_BY[type];
+    const rt = own ? DROPS_FROM[type] : (ANSWERED_AT[`${type}:${mk}`] || ANSWERED_BY[type]);
     // STRUGGLE: a debut is met with the pistol — you have never seen his gun.
     // A new Mk is met with his gun one Mk down, the thing you have been
     // winning with. A man who carries nothing is always met with the pistol:
@@ -962,15 +1009,25 @@ function schedule() {
     const axis = mk > 1 && ENEMY_MK[type] ? ENEMY_MK[type][mk - 1].axis : null;
     if (axis === 'pairs' && door >= school[0] && door <= school[1]) bad.push(`${at}: ${type} ${MK(mk)} (pairs) inside the school`);
     // the answer is on the floor before the question
-    const need = NEEDS[`${type}:${mk}`] || (ANSWERED_BY[type] && mk > 1 ? [ANSWERED_BY[type], mk] : null);
+    const need = NEEDS[`${type}:${mk}`] || (ANSWERED_AT[`${type}:${mk}`] ? [ANSWERED_AT[`${type}:${mk}`], 1] : null) ||
+      (ANSWERED_BY[type] && mk > 1 ? [ANSWERED_BY[type], mk] : null);
     if (need) {
       const have = arsenalAt(door - 0.5)[need[0]] || 0;
       if (have < need[1]) bad.push(`${at}: ${type} ${MK(mk)} needs ${need[0]} ${MK(need[1])} already on the floor`);
     }
   }
-  // slow time is the floor-1 boss's reward: the boss holds floor 1's gauntlet
-  // and the unlock is the next door
-  if (!DEBUTS.some(([d, t]) => t === 'keeper' && d === FLOORS[0] + 0.5)) bad.push('the Keeper does not hold floor 1\'s gauntlet');
+  // every floor ends in a boss, and every boss but the last is the debut of
+  // a type the NEXT floor fills with ordinary ones (POPULATES)
+  let end = 0;
+  for (let f = 0; f < FLOORS.length; f++) {
+    end += FLOORS[f];
+    const b = DEBUTS.find(([d, , , boss]) => d === end + 0.5 && boss);
+    if (!b) { bad.push(`floor ${f + 1} does not end in a boss`); continue; }
+    if (f < FLOORS.length - 1 && b[2] !== 1) bad.push(`G${f + 1}: a boss before the last is a type's debut (Mk I), not ${MK(b[2])}`);
+    if (f < FLOORS.length - 1 && POPULATES[b[1]] !== f + 2) bad.push(`G${f + 1}: the ${b[1]} boss is not followed by ordinary ${b[1]}s on floor ${f + 2}`);
+  }
+  // slow time is the floor-1 boss's reward: the unlock is the next door
+  if (!DEBUTS.some(([d, t, , boss]) => boss && t === 'blinker' && d === FLOORS[0] + 0.5)) bad.push('the Keeper (the first blinker) does not end floor 1');
   if (button !== FLOORS[0] + 1) bad.push(`slow time unlocks on ${button} (powerUnlockDoor), not the door after the floor-1 boss (${FLOORS[0] + 1}): move floor 1 with it`);
   // drone and spawner are both supports: they are not INTRODUCED on the same
   // floor (a Mk II drone may guest on the spawner's floor — that pairing is
@@ -994,7 +1051,7 @@ function schedule() {
       row.push(`${d}:${x ? x[1].slice(0, 5) + (x[2] > 1 ? MK(x[2]).slice(3) : '') : d === button ? 'TIME' : (d === first && f > 0 ? 'warm' : '·')}`);
     }
     const g = DEBUTS.find(([dd]) => dd === last + 0.5);
-    row.push(`G${f + 1}:${g ? g[1].slice(0, 5) + MK(g[2]).slice(3) : '·'}`);
+    row.push(`G${f + 1}:${g ? (g[3] ? 'BOSS ' : '') + g[1].slice(0, 5) + MK(g[2]).slice(3) : '·'}`);
     console.log('  ' + row.join(' '));
     first = last + 1;
   }
