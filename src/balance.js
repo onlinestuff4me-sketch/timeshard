@@ -1831,3 +1831,15 @@ export const KEEPER = {
   hangM: 4,                     // m out from his muzzle the rounds hang
   reward: [0.9, 1.6],           // real s: his shards hang, then stream into you
 };
+
+// THE NO-MISSES STREAK (docs/ARSENAL.md §12) feeds SIGHT, the drone boss's
+// power: past a tier's floor, enemies show through walls. A shot (one trigger
+// pull, every pellet of it) is a hit if it shatters anyone; a miss is a shot
+// whose rounds all end without doing so — walls, plate, armor, a blinker's
+// dodged bait. Each tier forgives one miss (you drop to its floor); a second
+// miss in the same tier drops you to the floor of the tier below.
+// `ghost` is how strongly he shows through a wall at each tier.
+export const SIGHT = {
+  tiers: [10, 30, 50],
+  ghost: [0.16, 0.32, 0.55],
+};

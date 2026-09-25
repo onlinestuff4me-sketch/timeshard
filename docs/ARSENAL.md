@@ -941,6 +941,13 @@ and anyone in its radius, **you included** if you're too close.
   thing, turned around.
 
 **Sight** (the drone; a power), **fed by a no-misses streak** (decided).
+**Built** except the drone boss that hands it over: the streak and its
+forgiveness rule (`aimHit()`/`aimMiss()`, numbers in `SIGHT` in
+`src/balance.js`) and the see-through render (a twin of every body part on one
+precompiled material, drawn only where a wall covers him), checked by
+`test/sight.mjs`. It counts from the start of every run; nothing shows until
+`hall.sightTaken` is set, which is the drone boss's job. Not built: the next
+wave's assembly spot at 50, and any HUD count.
 After the drone boss, a run of hits without a miss lets you see through walls:
 
 | hits in a row | what you see |

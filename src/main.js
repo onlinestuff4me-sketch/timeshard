@@ -15,7 +15,7 @@ import * as THREE from '../lib/three.module.min.js';
 import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, TIME, LEG, SHATTER,
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
-  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER } from './balance.js';
+  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -1705,8 +1705,73 @@ function spawnBullet(pos, dir, fromPlayer, opt = 0, pierce = 0) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// THE NO-MISSES STREAK (docs/ARSENAL.md §12, SIGHT in balance.js). A SHOT is
+// one trigger pull: every pellet of a shell shares one, and it is decided when
+// its last round is gone — a hit if any of them shattered somebody (or landed
+// on the Keeper), a miss otherwise. Plate, armor and a blinker's dodged bait
+// all end in a wall or a spark without shattering anyone, so they are misses
+// without a rule of their own. It runs for the whole run, across doors.
+// ---------------------------------------------------------------------------
+const aimStreak = { n: 0, spent: -1, hits: 0, misses: 0 };
+function sightFloor(n) {
+  let f = 0;
+  for (const t of SIGHT.tiers) if (n >= t) f = t;
+  return f;
+}
+function sightTier() {   // 0 = nothing, 1..3 = faint, sharper, sharp
+  let k = 0;
+  for (const t of SIGHT.tiers) if (aimStreak.n >= t) k++;
+  return k;
+}
+function newShot(rounds) { return { left: rounds, hit: false }; }
+function shotRoundDone(shot) {
+  if (--shot.left > 0) return;
+  if (shot.hit) aimHit(); else aimMiss();
+}
+function aimHit() { aimStreak.n++; aimStreak.hits++; }
+// EACH TIER FORGIVES ONE MISS. The first drops you to its floor and spends it;
+// the second drops you to the floor below, whose forgiveness is fresh.
+//   43 -miss-> 30 -2 hits-> 32 -miss-> 10 -2-> 12 -miss-> 10 -4-> 14 -miss-> 0
+function aimMiss() {
+  aimStreak.misses++;
+  const f = sightFloor(aimStreak.n);
+  if (f === 0) { aimStreak.n = 0; aimStreak.spent = -1; return; }
+  if (aimStreak.spent !== f) { aimStreak.n = f; aimStreak.spent = f; return; }
+  aimStreak.n = sightFloor(f - 1);
+  aimStreak.spent = -1;
+}
+function aimReset() { aimStreak.n = 0; aimStreak.spent = -1; aimStreak.hits = 0; aimStreak.misses = 0; }
+// SIGHT IS A POWER: the drone boss gives it (hall.sightTaken). Before that the
+// streak still counts, and nothing shows. `sightForced` is the test hook.
+let sightForced = false;
+function sightOwned() { return sightForced || !!(inHall() && hall && hall.sightTaken); }
+// ...and what it shows: a twin of every body part, sharing its geometry, drawn
+// only where something nearer already covers it (GreaterDepth), so a man in
+// the open looks exactly as he did and a man behind a wall shows through it.
+// ONE material for all of them, made here and compiled in warmUp (PILLARS §8).
+const GHOST_MAT = new THREE.MeshBasicMaterial({ color: 0xff2d1a, transparent: true,
+  opacity: 0, depthWrite: false, depthFunc: THREE.GreaterDepth });
+GHOST_MAT.visible = false;
+function addGhosts(g) {
+  const parts = [];
+  g.traverse((n) => { if (n.isMesh && n.material !== GHOST_MAT && !n.userData.noGhost) parts.push(n); });
+  for (const n of parts) {
+    const gh = new THREE.Mesh(n.geometry, GHOST_MAT);
+    gh.renderOrder = 5;
+    gh.userData.noGhost = true;
+    n.add(gh);
+  }
+}
+function updateSight() {
+  const k = game.state === 'play' || game.state === 'intro' ? (sightOwned() ? sightTier() : 0) : 0;
+  GHOST_MAT.visible = k > 0;
+  if (k > 0) GHOST_MAT.opacity = SIGHT.ghost[k - 1];
+}
+
 function killBullet(i, sparkAt) {
   const b = bullets[i];
+  if (b.shot) shotRoundDone(b.shot);   // the last of a shot's rounds decides it
   if (b.whoosh) sfx.detachWhoosh(b.whoosh);
   scene.remove(b.mesh); scene.remove(b.trail);
   b.trail.geometry.dispose();
@@ -2021,7 +2086,15 @@ function warmUp() {
     // A contact sprite has its own program too; put one in the scene before
     // the compile so it is not the first freeze in fog that pays for it.
     if (contacts.length === 0) { takeContact(0).visible = true; }
+    // ...and sight's see-through material, which no body wears until a
+    // streak reaches its first tier — compiled now, not on that frame
+    const ghostProbe = new THREE.Mesh(bulletShapeGeo, GHOST_MAT);
+    const ghostWas = GHOST_MAT.visible;
+    GHOST_MAT.visible = true;
+    scene.add(ghostProbe);
     renderer.compile(scene, camera);
+    scene.remove(ghostProbe);
+    GHOST_MAT.visible = ghostWas;
     if (!rippleRT) initRippleFX();
     // draw one throwaway frame through the whole post path so the refraction
     // shader and the render target are both real before anything shoots
@@ -3035,6 +3108,7 @@ function buildEnemyMesh(type) {
   );
   blob.rotation.x = -Math.PI / 2;
   blob.position.y = 0.01;
+  blob.userData.noGhost = true;   // a shadow is not a body part: sight skips it
   g.add(blob);
 
   return { g, legL, legR, armL, armR, egun, chest,
@@ -3156,6 +3230,7 @@ function spineIx(x, z) {
 // about door 2 turned into a crash in a file about reload state.
 function spawnEnemy(type = 'gunner', at = null, paced = false) {
   const parts = buildEnemyMesh(type);
+  addGhosts(parts.g);
   const spec = ENEMY_TYPES[type];
   parts.g.scale.set(...spec.scale);
   const bodyR = bodyRadius(type, parts.g);
@@ -5436,6 +5511,7 @@ function playerFire(aimAt = null) {
   const aimPoint = aimAt ? aimAt.clone() : camera.position.clone().addScaledVector(_dir, 30);
   const baseDir = aimPoint.sub(origin).normalize();
   const lanes = [];
+  const shot = newShot(spec.pellets);
   for (let p = 0; p < spec.pellets; p++) {
     const d = baseDir.clone();
     if (spec.spread) {
@@ -5446,6 +5522,8 @@ function playerFire(aimAt = null) {
     }
     if (spec.blast) spawnPlayerShell(origin, d, spec);
     else spawnBullet(origin, d, true, spec.speed, spec.pierce || 0);
+    const into = spec.blast ? shells : bullets;
+    into[into.length - 1].shot = shot;
     lanes.push(d);
   }
   blinkersReact(origin, lanes);   // he moves on the trigger, not the round
@@ -5481,6 +5559,7 @@ function playerFire(aimAt = null) {
         d2.y += (Math.random() - 0.5) * 2 * spec.spread;
         d2.z += (Math.random() - 0.5) * 2 * spec.spread;
         spawnBullet(muzzle.getWorldPosition(new THREE.Vector3()), d2.normalize(), true, spec.speed, 0);
+        bullets[bullets.length - 1].shot = newShot(1);   // each round of a burst is its own
         gunKick = spec.kick * 0.7;
         sfx.shot(player.weapon);
       }, k * spec.burstGap * 1000);
@@ -5546,6 +5625,7 @@ function detonateShell(i) {
   const at = sh.pos.clone();
   scene.remove(sh.mesh);
   shells.splice(i, 1);
+  const n0 = enemies.length;
   spawnSparks(at, 0xff2d1a);
   spawnSparks(at, 0x16181d);
   spawnRipple(new THREE.Vector3(at.x, 0.5, at.z), _v1.set(0, 1, 0), true);
@@ -5558,6 +5638,7 @@ function detonateShell(i) {
       killEnemy(j, _v1.set(e.pos.x - at.x, 0.5, e.pos.z - at.z).normalize());
     }
   }
+  if (sh.shot) { if (enemies.length < n0) sh.shot.hit = true; shotRoundDone(sh.shot); }
   // your own ordnance can absolutely kill you — mind the walls
   if (player.alive && player.iframes <= 0 &&
       Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < sh.blast * 0.55) {
@@ -5722,10 +5803,12 @@ function updateBullets(sdt) {
         if (e.hp > 1) {
           // one hit per shell: the rest of its pellets spark off him
           if (worldT >= (e.hurtUntil || 0)) keeperHurt(e, b.pos);
+          if (b.shot) b.shot.hit = true;   // landing on the Keeper is a hit
           else spawnSparks(b.pos, 0xf4f5f7);
           consumed = true; break;
         }
         const impulse = _v1.copy(b.vel).normalize();
+        if (b.shot) b.shot.hit = true;
         killEnemy(j, impulse);
         if (b.pierce > 0) { b.pierce--; continue; }   // sniper rounds keep going
         consumed = true;
@@ -12365,7 +12448,7 @@ function clearField() {
     scene.remove(enemies[i].g);
     enemies.splice(i, 1);
   }
-  for (let i = bullets.length - 1; i >= 0; i--) killBullet(i, null);
+  for (let i = bullets.length - 1; i >= 0; i--) { bullets[i].shot = null; killBullet(i, null); }
   clearShardPool(debrisPool);
   clearShardPool(assemblePool);
   for (let i = ripples.length - 1; i >= 0; i--) {
@@ -13260,6 +13343,7 @@ function initHall(from = 1) {
   tutorResetWorld();   // whatever the last run left, gone — teaching or not
   clearHall();         // ...including its corridor, which nothing used to remove
   keeperStopUntil = 0; // ...and a Keeper's hold on the world, if a run quit inside one
+  aimReset();          // the no-misses streak is a run's, not a save's
   game.wave = door;
   game.state = 'intro';
   game.stateT = 0;
@@ -15963,6 +16047,7 @@ function frame(now) {
   if (tutorStep !== null) tutorPlaceWorldCue();
   if (game.mode === 'duel') duelPlaceMeetPins();
   placeMeetPin();
+  updateSight();   // the no-misses streak, shown through walls if sight is yours
 
   renderFrame(dt);
   // THE VEIL COMES OFF ON THE FIRST REAL PICTURE, not when the module has
@@ -16284,6 +16369,10 @@ window.__ts = {
       taken: !!hall.keeperTaken, unlocked: timeUnlocked(),
       start: { x: L.spine[0][0] * HALL.cell, z: L.spine[0][1] * HALL.cell } };
   },
+  aim: () => ({ ...aimStreak, tier: sightTier(), owned: sightOwned(),
+    ghost: GHOST_MAT.visible ? +GHOST_MAT.opacity.toFixed(2) : 0 }),
+  aimHit, aimMiss, aimSet: (n) => { aimStreak.n = n; aimStreak.spent = -1; },
+  setSight: (v) => { sightForced = !!v; },
   keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
   meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,
