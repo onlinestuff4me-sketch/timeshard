@@ -7,6 +7,7 @@
 //   node tools/sim-arsenal.mjs --matrix   new enemy traits x new answers
 //   node tools/sim-arsenal.mjs --newcomers  kamikaze, frankenstein, drone
 //   node tools/sim-arsenal.mjs --spawner  the spawner room, three ways
+//   node tools/sim-arsenal.mjs --schedule the floors, and the rules the schedule keeps
 //
 // A PROPOSAL, NOT THE GAME. The Mk tables below are the design in
 // docs/ARSENAL.md and nothing in the game reads them yet. When the ladder is
@@ -118,7 +119,7 @@ export const ENEMY_MK = {
     { axis: 'numbers',  count: 7, gap: 0.25, speed: 5.0, fuse: 0.4 },
   ],
   shotgunner: [null,
-    { axis: 'pattern',  pellets: 7, spread: 0.12, d: 10 },    // wider, and from further
+    { axis: 'pattern',  pellets: 7, spread: 0.13, d: 10 },    // wider, and from further
     { axis: 'pattern',  pellets: 7, spread: 0.12, d: 11, burst: 2 },  // both barrels
   ],
   shieldbearer: [null,
@@ -178,8 +179,8 @@ export const WEAPON_MK = {
     { axis: 'advance',  burst: 5, pierce: 2, cd: 0.4, stagger: true, shatter: 0.3 },
   ],
   burst: [null,
-    { axis: 'burst',    burst: 4, spread: 0.008, shatter: 0.35 },   // a burst can meet a burst
-    { axis: 'burst',    burst: 5, spread: 0.006, pierce: 2, shatter: 0.5 },
+    { axis: 'burst',    burst: 4, spread: 0.008, shatter: 0.4 },    // a burst can meet a burst
+    { axis: 'burst',    burst: 5, spread: 0.006, pierce: 2, shatter: 0.55 },
   ],
   sniper: [null,
     { axis: 'reach',    pierce: 5, mag: 3, cd: 0.6, shatter: 0.7 },
@@ -207,35 +208,68 @@ const DROPS_FROM = {
 const ANSWERED_BY = { rusher: 'shotgun', kamikaze: 'shotgun', shieldbearer: 'launcher', laser: 'rocket' };
 
 // --- THE SCHEDULE (proposal): five floors, every Mk debut on its door ------
-export const FLOORS = [6, 7, 7, 8, 10];     // doors per floor; an elevator gauntlet after each
+// FLOOR CASTS (decided). Each floor has its own new types; gunners run
+// through every floor; types from earlier floors come back as GUESTS at a
+// higher Mk. A floor's first door (after floor 1) is the warm-up: no debut.
+// A gauntlet slot is written as the floor's last door + 0.5, and holds the
+// floor's exam debut, if it has one.
+//
+//   floor 1  gunner, rusher, shotgunner
+//   floor 2  shield, heavy (+ slow time on 10)     guests: shotgunner II
+//   floor 3  sniper, bomber, Frankenstein, armored guests: rusher II, shield II, heavy II
+//   floor 4  rocketeer, kamikaze, drone            guests: gunner II, bomber II, sniper II, shotgunner III, Frankenstein II, rusher III
+//   floor 5  laser, spawner                        guests: the rest of the Mk IIs, the early cast's Mk IIIs
+//
+// DRONE AND SPAWNER ARE SEPARATED (decided): both are supports you choose to
+// kill first, so they do not share a floor. The drone comes first, as its
+// easy Mk I — a spotter that HOVERS — on floor 4; the spawner on floor 5.
+export const FLOORS = [6, 7, 7, 9, 10];     // doors per floor; an elevator gauntlet after each
 export const DEBUTS = [
-  // floor 1 — doors 1-6
+  // floor 1 — doors 1-6. The even doors carry the protocol debuts.
   [1, 'gunner', 1], [3, 'rusher', 1], [5, 'shotgunner', 1],
-  // floor 2 — doors 7-13 (slow time arrives on 10: powerUnlockDoor)
-  // sniper before gunner Mk II: the Mk II pistol (pierce, shatter) out-guns
-  // a Mk I rifle, and a weapon has to be the best answer on the day it lands
-  [8, 'shieldbearer', 1], [11, 'heavy', 1], [12, 'sniper', 1],
-  // floor 3 — doors 14-20. The kamikaze debuts on the floor's first door:
-  // after the rusher has taught the clock, and on the door the floor eases in
-  // shotgunner Mk II before rusher Mk II: the rusher's answer is the shotgun,
-  // so his Mk has to arrive after the Mk of the thing that answers it
-  [14, 'kamikaze', 1],
-  [15, 'bomber', 1], [16, 'shotgunner', 2], [17, 'armored', 1], [18, 'rusher', 2],
-  [19, 'rocketeer', 1], [20, 'shieldbearer', 2],
-  // floor 4 — doors 21-28. The gunner's Mk II is the floor's first door and
-  // not door 13, where it used to be: doors 10-19 are the slow-time school,
-  // which already makes the room fire in volleys, and a Mk whose axis is
-  // "fires together" is invisible inside it (measured: identical P).
-  [21, 'gunner', 2], [22, 'laser', 1], [23, 'heavy', 2], [24, 'kamikaze', 2], [25, 'sniper', 2],
-  [26, 'bomber', 2], [27, 'armored', 2], [28, 'rocketeer', 2],
-  // floor 5 — doors 29-38
-  [29, 'laser', 2], [30, 'gunner', 3], [31, 'shotgunner', 3], [32, 'heavy', 3],
-  [33, 'sniper', 3], [34, 'rusher', 3], [35, 'armored', 3], [36, 'rocketeer', 3],
-  [37, 'bomber', 3], [38, 'kamikaze', 3],
+  // floor 2 — doors 7-13. 7 is the warm-up; 10 is slow time. The shotgun's
+  // Mk II arrives here so it is in hand before the rusher's Mk II it answers
+  // — on 12, not 9: before slow time the room fires so seldom that a wider
+  // pattern changes nothing (measured: not felt on door 9).
+  [8, 'shieldbearer', 1], [11, 'heavy', 1], [12, 'shotgunner', 2],
+  // floor 3 — doors 14-20. The sniper AND the armored man come before
+  // gunner Mk II: the Mk II pistol (pierce, shatter) out-guns both of their
+  // Mk I drops, and a weapon has to be the best answer on the day it lands
+  // (measured: AP Mk I barely beats pistol Mk II on door 22).
+  [15, 'sniper', 1], [16, 'rusher', 2], [17, 'bomber', 1], [18, 'shieldbearer', 2],
+  [19, 'frankenstein', 1], [20, 'armored', 1], [20.5, 'heavy', 2],
+  // floor 4 — doors 21-29. Gunner Mk II is after the slow-time school
+  // (10-19) because his axis is "fire together", which the school already
+  // does to the room (measured: invisible inside it).
+  [22, 'gunner', 2], [23, 'bomber', 2], [24, 'rocketeer', 1], [25, 'sniper', 2],
+  [26, 'kamikaze', 1], [27, 'shotgunner', 3], [28, 'drone', 1], [29, 'frankenstein', 2],
+  [29.5, 'rusher', 3],
+  // floor 5 — doors 30-39
+  [31, 'laser', 1], [32, 'gunner', 3], [33, 'armored', 2], [34, 'spawner', 1],
+  [35, 'rocketeer', 2], [36, 'kamikaze', 2], [37, 'drone', 2], [38, 'heavy', 3],
+  [39, 'frankenstein', 3], [39.5, 'laser', 2],
 ];
-// Doors with no enemy debut carry the protocol debuts (forms, conditions,
-// measures), as today. Shield Mk III and laser Mk III are held for the final
-// elevator gauntlet.
+// THE DOOR BUDGET. Fourteen types at up to three Mks is ~40 debuts, and five
+// floors of one-new-thing doors hold ~40 slots — before the protocols take
+// theirs. So a type's Mk count is how long it has been on the floors: the
+// floor-1 cast and the heavy reach Mk III inside a run, Frankenstein's Mk III
+// is part of his design, and everyone else tops out at Mk II. Their Mk IIIs
+// (the ENEMY_MK rows below) are for past the fifth floor — a Heat-style
+// mode (TUNNEL_META.md §2e) — and the ladder does not schedule them.
+//
+// Types the ladder cannot price in a room of their own — a spotter fires
+// nothing, Frankenstein and the spawner are multi-stage — are priced by
+// --newcomers and --spawner instead, and checked here only by --schedule.
+const LADDERED = (type) => type in ENEMY_BASE;
+
+// What each non-laddered debut needs already on the floor (weapon, Mk).
+const NEEDS = {
+  'shieldbearer:2': ['launcher', 1],   // over the plate (the ladder: the Mk I launcher is enough)
+  'frankenstein:2': ['launcher', 1],   // both arms in one aim
+  'frankenstein:3': ['launcher', 1],
+  'drone:2': ['shotgun', 2],           // a jinking head-sized target: a cone
+  'spawner:1': ['launcher', 1],        // guards cleared inside the window
+};
 
 // --- building the specs ----------------------------------------------------
 function enemy(type, mk) {
@@ -485,8 +519,9 @@ function ladder() {
   const rows = [];
   let fails = 0;
   for (const [door, type, mk] of DEBUTS) {
+    if (!LADDERED(type)) continue;
     const E = enemy(type, mk);
-    const before = arsenalAt(door - 1), after = arsenalAt(door);
+    const before = arsenalAt(door - 0.5), after = arsenalAt(door);
     const own = !!DROPS_FROM[type];
     const rt = own ? DROPS_FROM[type] : ANSWERED_BY[type];
     // STRUGGLE: a debut is met with the pistol — you have never seen his gun.
@@ -525,7 +560,7 @@ function ladder() {
   const pad = (v, n) => String(v).padEnd(n);
   console.log('door | enemy              | axis     | m/s  | x | last Mk | struggle with     |   P  |   R   | relief with        |   P  |   R   | rds | check');
   for (const r of rows) {
-    console.log(`${String(r.door).padStart(4)} | ${pad(r.who, 18)} | ${pad(r.axis, 8)} | ${r.speed.padStart(4)} | ${r.G} | ${r.prev === undefined ? '      - ' : f(r.prev) + '   '} | ${pad(r.sw, 17)} |${f(r.sP)} | ${f(r.sR)} | ${pad(r.rw, 18)} |${f(r.rP)} | ${f(r.rR)} | ${r.rds.toFixed(1).padStart(3)} | ${r.check}`);
+    console.log(`${doorLabel(r.door).padStart(4)} | ${pad(r.who, 18)} | ${pad(r.axis, 8)} | ${r.speed.padStart(4)} | ${r.G} | ${r.prev === undefined ? '      - ' : f(r.prev) + '   '} | ${pad(r.sw, 17)} |${f(r.sP)} | ${f(r.sR)} | ${pad(r.rw, 18)} |${f(r.rP)} | ${f(r.rR)} | ${r.rds.toFixed(1).padStart(3)} | ${r.check}`);
   }
   console.log('\nP = seconds of dodging per kill.  R = bank spent per kill / bank a kill refunds.');
   console.log('x = how many of him at once.  * carries nothing: answered by another man\'s weapon.');
@@ -553,16 +588,16 @@ export const WAVES = {
   // is firing together.
   'plated screen':     { door: 24, w: ['pistol', 2], mix: [['shieldbearer', 2, 2, 8], ['gunner', 2, 2, 14]] },
   // a clock at the back of the room, a plate at the front
-  'the clock':         { door: 23, w: ['pistol', 2], mix: [['laser', 1, 1, 22], ['shieldbearer', 1, 1, 10], ['gunner', 2, 2, 12]] },
+  'the clock':         { door: 33, w: ['pistol', 3], mix: [['laser', 1, 1, 22], ['shieldbearer', 1, 1, 10], ['gunner', 2, 2, 12]] },
   // the rushers are the clock, and they start furthest away
   'close pressure':    { door: 19, w: ['shotgun', 2], mix: [['gunner', 2, 1, 7], ['rusher', 3, 2, 16]] },
   // the answer to the plates is carried by the man behind them
   'take his gun':      { door: 20, w: ['pistol', 1], mix: [['shieldbearer', 2, 2, 8], ['bomber', 1, 1, 13], ['gunner', 2, 1, 10]] },
   // A kamikaze is a clock, and a clock only asks a question when something
   // else is competing for the aim.
-  'kamikaze in the crowd': { door: 25, w: ['pistol', 2], mix: [['gunner', 2, 2, 9], ['kamikaze', 2, 2, 16]] },
+  'kamikaze in the crowd': { door: 36, w: ['pistol', 3], mix: [['gunner', 2, 2, 9], ['kamikaze', 2, 2, 16]] },
   // a spotter fires nothing: while it is up every other man leads you
-  'the spotter':       { door: 25, w: ['pistol', 2], mix: [['gunner', 3, 2, 9], ['drone', 1, 1, 11]] },
+  'the spotter':       { door: 29, w: ['pistol', 2], mix: [['gunner', 3, 2, 9], ['drone', 1, 1, 11]] },
 };
 // proposed types, built from a gunner with their traits: not in ENEMY_BASE
 // because nothing on the ladder uses them yet
@@ -628,6 +663,14 @@ function waves() {
     console.log(`\n${name} — door ${door}, walking in with ${w[0]} ${MK(w[1])}`);
     console.log(`  nearest first: ${nearest.map((e) => e.label).join(' > ')}`);
     console.log(`  best order:    ${best.map((e) => e.label).join(' > ')}`);
+    // a recipe may only use what the schedule has put on the floors by then
+    for (const [type, , mk] of mix) {
+      if (!DEBUTS.some(([d, t, m]) => t === type && m >= mk && d <= door)) {
+        console.log(`  MISS: ${type} ${MK(mk)} has not debuted by door ${door}`); weak++;
+      }
+    }
+    const held = arsenalAt(door)[w[0]] || 0;
+    if (held < w[1]) { console.log(`  MISS: ${w[0]} ${MK(w[1])} is not on the floors by door ${door}`); weak++; }
     const worth = cn / bestCost;
     if (worth < 1.3) weak++;
     console.log(`  the order is worth x${worth.toFixed(2)} in dodging${worth < 1.3 ? '   MISS: under x1.30, not a kill-order question' : ''}`);
@@ -867,7 +910,86 @@ function spawner() {
   }
 }
 
-if (process.argv.includes('--spawner')) spawner();
+// --- the schedule check ----------------------------------------------------------
+// The rules the schedule has to keep, each one a thing a playtest or the model
+// taught. Every debut, laddered or not, is checked.
+function doorLabel(d) {
+  if (d % 1 === 0) return String(d);
+  let end = 0;
+  for (let f = 0; f < FLOORS.length; f++) { end += FLOORS[f]; if (d < end + 1) return `G${f + 1}`; }
+  return String(d);
+}
+function floorOf(d) {
+  let end = 0;
+  for (let f = 0; f < FLOORS.length; f++) { end += FLOORS[f]; if (d <= end + 0.5) return f + 1; }
+  return FLOORS.length + 1;
+}
+function schedule() {
+  const bad = [];
+  const seen = new Map();
+  const button = powerUnlockDoor();
+  const school = [button, button + SPEED.schoolDoors - 1];
+  const total = FLOORS.reduce((a, b) => a + b, 0);
+  for (const [door, type, mk] of DEBUTS) {
+    const at = doorLabel(door);
+    // one new thing per door (and per gauntlet)
+    if (seen.has(door)) bad.push(`${at}: two debuts (${seen.get(door)} and ${type} ${MK(mk)})`);
+    seen.set(door, `${type} ${MK(mk)}`);
+    if (door > total + 0.5) bad.push(`${at}: past the last floor`);
+    // the warm-up door out of each elevator stays empty
+    let first = 1;
+    for (let f = 0; f < FLOORS.length; f++) {
+      if (f > 0 && door === first) bad.push(`${at}: floor ${f + 1}'s warm-up door holds ${type} ${MK(mk)}`);
+      first += FLOORS[f];
+    }
+    // the slow-time door is the button's own
+    if (door === button) bad.push(`${at}: the slow-time door holds ${type} ${MK(mk)}`);
+    // Mks in order, each after the last
+    if (mk > 1 && !DEBUTS.some(([d, t, m]) => t === type && m === mk - 1 && d < door)) {
+      bad.push(`${at}: ${type} ${MK(mk)} before his ${MK(mk - 1)}`);
+    }
+    // a "fire together" axis is invisible inside the school
+    const axis = mk > 1 && ENEMY_MK[type] ? ENEMY_MK[type][mk - 1].axis : null;
+    if (axis === 'pairs' && door >= school[0] && door <= school[1]) bad.push(`${at}: ${type} ${MK(mk)} (pairs) inside the school`);
+    // the answer is on the floor before the question
+    const need = NEEDS[`${type}:${mk}`] || (ANSWERED_BY[type] && mk > 1 ? [ANSWERED_BY[type], mk] : null);
+    if (need) {
+      const have = arsenalAt(door - 0.5)[need[0]] || 0;
+      if (have < need[1]) bad.push(`${at}: ${type} ${MK(mk)} needs ${need[0]} ${MK(need[1])} already on the floor`);
+    }
+  }
+  // drone and spawner are both supports: they are not INTRODUCED on the same
+  // floor (a Mk II drone may guest on the spawner's floor — that pairing is
+  // the point of it)
+  const debutFloor = (t) => floorOf((DEBUTS.find(([, ty, m]) => ty === t && m === 1) || [0])[0]);
+  if (debutFloor('drone') === debutFloor('spawner')) bad.push('drone and spawner debut on the same floor');
+  if (debutFloor('drone') > debutFloor('spawner')) bad.push('the spawner debuts before the drone (the drone is the easier support: it comes first)');
+  // print the floors
+  let first = 1;
+  for (let f = 0; f < FLOORS.length; f++) {
+    const last = first + FLOORS[f] - 1;
+    const here = DEBUTS.filter(([d]) => d >= first && d <= last + 0.5);
+    const fresh = here.filter(([, , m]) => m === 1).map(([, t]) => t);
+    const guests = here.filter(([, , m]) => m > 1).map(([, t, m]) => `${t} ${MK(m)}`);
+    console.log(`floor ${f + 1}  doors ${first}-${last}`);
+    console.log(`  new:    ${fresh.join(', ') || '-'}${button >= first && button <= last ? `  (+ slow time on ${button})` : ''}`);
+    console.log(`  guests: ${guests.join(', ') || '-'}`);
+    const row = [];
+    for (let d = first; d <= last; d++) {
+      const x = DEBUTS.find(([dd]) => dd === d);
+      row.push(`${d}:${x ? x[1].slice(0, 5) + (x[2] > 1 ? MK(x[2]).slice(3) : '') : d === button ? 'TIME' : (d === first && f > 0 ? 'warm' : '·')}`);
+    }
+    const g = DEBUTS.find(([dd]) => dd === last + 0.5);
+    row.push(`G${f + 1}:${g ? g[1].slice(0, 5) + MK(g[2]).slice(3) : '·'}`);
+    console.log('  ' + row.join(' '));
+    first = last + 1;
+  }
+  console.log(bad.length ? '\n' + bad.map((b) => 'MISS ' + b).join('\n') : '\nschedule: every rule kept');
+  return bad.length;
+}
+
+if (process.argv.includes('--schedule')) process.exitCode = schedule() ? 1 : 0;
+else if (process.argv.includes('--spawner')) spawner();
 else if (process.argv.includes('--newcomers')) newcomers();
 else if (process.argv.includes('--matrix')) matrix();
 else if (process.argv.includes('--waves')) process.exitCode = waves() ? 1 : 0;

@@ -31,13 +31,67 @@ Both exit non-zero if a row leaves its band.
 
 ## 1. Floors and elevators
 
-| floor | doors | what debuts | the elevator gauntlet |
-|---|---|---|---|
-| **1** | 1–6 (6) | gunner, rusher, shotgunner | three waves of the floor's cast |
-| **2** | 7–13 (7) | shield, **slow time (10)**, heavy, sniper | the first gauntlet you need the button for |
-| **3** | 14–20 (7) | kamikaze, bomber, shotgunner II, armored, rusher II, rocketeer, shield II | the floor's Mk IIs, mixed |
-| **4** | 21–28 (8) | gunner II, laser, heavy II, sniper II, bomber II, armored II, rocketeer II | a clock in every wave |
-| **5** | 29–38 (10) | laser II, then every Mk III | shield III and laser III, held back for this |
+**Decided: each floor has its own cast.** Gunners run through every floor
+and level up through their own tiers. Each floor introduces 2–4 new types
+that give it its identity. Types from earlier floors come back as **guests**,
+a tier up, so the struggle of a tier-up lands at the start of a later floor,
+when you are still holding their last-tier gun.
+
+| floor | doors | new cast | guests (tier-ups) | gauntlet debut |
+|---|---|---|---|---|
+| **1** | 1–6 (6) | gunner, rusher, shotgunner | – | – |
+| **2** | 7–13 (7) | shield, heavy (+ **slow time** on 10) | shotgunner II | – |
+| **3** | 14–20 (7) | sniper, bomber, Frankenstein, armored | rusher II, shield II | heavy II |
+| **4** | 21–29 (9) | rocketeer, kamikaze, **drone** (the spotter) | gunner II, bomber II, sniper II, shotgunner III, Frankenstein II | rusher III |
+| **5** | 30–39 (10) | laser, **spawner** | gunner III, armored II, rocketeer II, kamikaze II, drone II, heavy III, Frankenstein III | laser II |
+
+Door by door (`node tools/sim-arsenal.mjs --schedule`; `·` is a door that
+carries a protocol debut instead):
+
+```
+F1   1:gunner  2:·  3:rusher  4:·  5:shotgunner  6:·                                   G1:·
+F2   7:warm-up  8:shield  9:·  10:SLOW TIME  11:heavy  12:shotgunner II  13:·           G2:·
+F3   14:warm-up  15:sniper  16:rusher II  17:bomber  18:shield II  19:Frankenstein  20:armored   G3:heavy II
+F4   21:warm-up  22:gunner II  23:bomber II  24:rocketeer  25:sniper II  26:kamikaze
+     27:shotgunner III  28:drone  29:Frankenstein II                                     G4:rusher III
+F5   30:warm-up  31:laser  32:gunner III  33:armored II  34:spawner  35:rocketeer II
+     36:kamikaze II  37:drone II  38:heavy III  39:Frankenstein III                      G5:laser II
+```
+
+**The rules the schedule keeps**, each checked by `--schedule`:
+
+- **One new thing per door**, and per gauntlet. A tier-up counts as new.
+- **The warm-up door out of each elevator holds no debut.** It is the easing
+  door of the Hades-style rise and drop.
+- **Slow time has door 10 to itself.**
+- **Tiers in order**, each after the last.
+- **No "fire together" tier inside the slow-time school** (10–19): the school
+  already fires the room in volleys, so the gunner's pairs would be invisible
+  there. His Mk II is on 22.
+- **The answer is on the floor before the question.** The shotgun's Mk II
+  (12) precedes the rusher's (16) and the kamikaze; the launcher (17) precedes
+  shield II, Frankenstein II and the spawner; the rocket (24) precedes the
+  laser (31).
+- **A weapon is the best answer on the day it lands.** The Mk II pistol
+  (pierce, shatter) out-guns the sniper's and the armored man's Mk I drops,
+  so both come before gunner Mk II. The model caught the armored case: on
+  door 22 his armor-piercing rifle was barely better than the pistol you had.
+- **Drone and spawner are not introduced on the same floor** (decided). Both
+  are supports you choose to kill first. The drone comes first as its easy Mk I,
+  a spotter that hovers, and the spawner a floor later. A Mk II drone guesting
+  on the spawner's floor is allowed: that pairing is the point.
+
+**The door budget.** Fourteen types at three tiers is ~42 debuts, and five
+floors of one-new-thing doors hold ~40 slots, before the protocols take
+theirs. So **a type's tier count is how long it has been on the floors**:
+the floor-1 cast and the heavy reach Mk III inside a run, Frankenstein's
+Mk III is part of his design, and everyone else tops out at Mk II. Their
+Mk IIIs (still defined in `ENEMY_MK`) are for past the fifth floor, a
+Heat-style mode (`TUNNEL_META.md` §2e).
+
+**Two things the model moved:** the shotgunner's Mk II from door 9 to 12
+(before slow time the room fires so seldom that a wider pattern changes
+nothing), and the armored man from floor 4 to floor 3 (see the rule above).
 
 - **One new thing per door** still holds, and "new" now includes a Mk. Doors
   with no enemy debut carry the protocol debuts (forms, conditions, measures),
@@ -85,14 +139,17 @@ long he stayed alive)*. That is the weighted-shortest-job problem from
 scheduling. Its textbook answer is to kill in descending *threat ÷
 time-to-kill*. It stops being the answer the moment a kill hands you a better
 gun, so the model tries every order. A **recipe** is a wave whose best order
-is not nearest-first, and is at least ×1.30 cheaper in dodging:
+is not nearest-first, is at least ×1.30 cheaper in dodging, and uses only
+what the schedule has put on the floors by its door (checked):
 
 | recipe | door | mix (nearest first) | best order | worth |
 |---|---|---|---|---|
-| **the clock** | 23 | shield · 2 gunner II · laser at the back | laser first, shield last | ×2.00 |
+| **the clock** | 33 | shield · 2 gunner II · laser at the back | laser first, shield last | ×2.06 |
 | **take his gun** | 20 | 2 shield II · 2 gunner · bomber behind them | bomber first, then the plates with his launcher | ×1.92 |
 | **plated screen** | 24 | 2 shield II · 2 gunner II behind | the pair first, over the plates | ×1.47 |
 | **close pressure** | 19 | 2 gunner near · 3 rusher II far | the rushers, who start furthest away | ×1.38 |
+| **kamikaze in the crowd** | 36 | 2 gunner II · 2 kamikaze II behind | the kamikazes first | ×1.40 |
+| **the spotter** | 29 | 3 gunner II · a hovering drone | the drone first | ×1.34 |
 
 **What makes a mix a question (all measured):**
 
@@ -145,7 +202,7 @@ threat side. §5 explains why the trait is not optional.
 |---|---|---|---|
 | pistol | as shipped | pierce 2 · **shatter** 50% | pierce 3 · a double-tap that walks · shatter 65% |
 | shotgun | as shipped | 9 pellets, fuller cone · **stagger** | 12 pellets, 4 shells · stagger · shatter 40% |
-| burst rifle | **sweep**: the burst walks across a line of men | 4-round · shatter 35% | 5-round · pierce 2 · shatter 50% |
+| burst rifle | **sweep**: the burst walks across a line of men | 4-round · shatter 40% | 5-round · pierce 2 · shatter 55% |
 | AP rifle | the burst rifle, and **body hits crack plate** | 4-round · stagger | 5-round · pierce 2 · stagger · shatter 30% |
 | sniper rifle | **shatter** 40% | pierce 5 · 3 rounds · shatter 70% | faster · shatter 85% · **a hit breaks a laser's charge** |
 | launcher | as shipped | blast 8 m · stagger · shatter 20% | two lobs · shatter 45% |
@@ -182,36 +239,31 @@ The rules for each Mk debut:
 | 1 | gunner I | debut | 4.8 | 2 | – | pistol I | 0.13 | 0.00 | pistol I | 0.13 | 0.00 |
 | 3 | rusher I | debut | 4.8 | 3 | – | pistol I | 0.15 | 0.00 | pistol I (footwork) | 0.15 | 0.00 |
 | 5 | shotgunner I | debut | 5.6 | 4 | – | pistol I | 0.14 | 0.01 | shotgun I | 0.08 | 0.00 |
-| 8 | shield I | debut | 6.6 | 4 | – | pistol I | 0.19 | 0.01 | pistol I (flank) | 0.19 | 0.01 |
+| 8 | shield I | debut | 6.6 | 4 | – | pistol I | 0.19 | 0.01 | pistol I (footwork) | 0.19 | 0.01 |
 | 11 | heavy I | debut | 7.5 | 4 | – | pistol I | 0.67 | 0.88 | burst I | 0.46 | 0.57 |
-| 12 | sniper I | debut | 7.8 | 2 | – | pistol I | 0.43 | 0.57 | rifle I | 0.32 | 0.43 |
-| 15 | bomber I | debut | 8.8 | 4 | – | pistol I | 3.04 | 4.77 | launcher I | 0.92 | 1.42 |
-| 16 | shotgunner II | pattern | 9.1 | 4 | 1.37 | shotgun I | 1.94 | 3.01 | shotgun II | 1.13 | 1.74 |
-| 17 | armored I | debut | 9.4 | 4 | – | pistol I | 3.30 | 5.13 | AP I | 1.54 | 2.36 |
-| 18 | rusher II | numbers | 9.8 | 7 | 0.15 | pistol I | 0.66 | 0.82 | shotgun II | 0.15 | 0.00 |
-| 19 | rocketeer I | debut | 10.1 | 4 | – | pistol I | 1.66 | 2.58 | rocket I | 0.42 | 0.64 |
-| 20 | shield II | coverage | 10.4 | 4 | 0.13 | pistol I | 0.66 | 0.22 | launcher I | 0.13 | 0.04 |
-| 21 | gunner II | pairs | 10.7 | 4 | 0.50 | pistol I | 1.14 | 1.76 | pistol II | 0.67 | 1.03 |
-| 22 | laser I | debut | 11.0 | 1 | – | pistol II | 0.74 | 0.00 | rocket I | 0.38 | 0.00 |
-| 23 | heavy II | burst | 11.4 | 4 | 0.72 | burst I | 1.09 | 0.79 | burst II | 0.79 | 0.69 |
+| 12 | shotgunner II | pattern | 7.8 | 4 | 0.35 | shotgun I | 0.43 | 0.60 | shotgun II | 0.27 | 0.38 |
+| 15 | sniper I | debut | 8.8 | 2 | – | pistol I | 0.43 | 0.57 | rifle I | 0.32 | 0.43 |
+| 16 | rusher II | numbers | 9.1 | 7 | 0.15 | pistol I | 0.66 | 0.82 | shotgun II | 0.15 | 0.00 |
+| 17 | bomber I | debut | 9.4 | 4 | – | pistol I | 3.30 | 5.19 | launcher I | 0.99 | 1.54 |
+| 18 | shield II | coverage | 9.8 | 4 | 0.70 | pistol I | 4.33 | 6.78 | launcher I | 0.70 | 1.08 |
+| 20 | armored I | debut | 10.4 | 4 | – | pistol I | 0.51 | 0.16 | AP I | 0.27 | 0.08 |
+| G3 | heavy II | burst | 10.4 | 4 | 0.37 | burst I | 0.47 | 0.21 | burst II | 0.34 | 0.24 |
+| 22 | gunner II | pairs | 11.0 | 4 | 0.68 | pistol I | 1.14 | 1.76 | pistol II | 0.67 | 1.03 |
+| 23 | bomber II | area | 11.4 | 4 | 0.37 | launcher I | 0.79 | 0.68 | launcher II | 0.43 | 0.38 |
+| 24 | rocketeer I | debut | 11.7 | 4 | – | pistol II | 0.32 | 0.26 | rocket I | 0.17 | 0.08 |
 | 25 | sniper II | reach | 12.0 | 2 | 0.20 | rifle I | 0.28 | 0.12 | rifle II | 0.20 | 0.16 |
-| 26 | bomber II | area | 12.3 | 4 | 0.37 | launcher I | 0.84 | 0.68 | launcher II | 0.45 | 0.38 |
-| 27 | armored II | advance | 12.6 | 4 | 1.15 | AP I | 2.05 | 1.85 | AP II | 1.33 | 1.18 |
-| 28 | rocketeer II | tracking | 13.0 | 4 | 0.17 | rocket I | 0.30 | 0.19 | rocket II | 0.18 | 0.11 |
-| 29 | laser II | charge | 13.0 | 1 | 0.30 | pistol II | 0.97 | 0.00 | rocket II | 0.37 | 0.00 |
-| 30 | gunner III | pairs | 13.0 | 4 | 0.67 | pistol II | 1.26 | 1.59 | pistol III | 0.75 | 0.99 |
-| 31 | shotgunner III | pattern | 13.0 | 4 | 0.85 | shotgun II | 1.17 | 0.88 | shotgun III | 0.74 | 0.65 |
-| 32 | heavy III | burst | 13.0 | 4 | 1.08 | burst II | 1.85 | 1.93 | burst III | 1.36 | 1.51 |
-| 33 | sniper III | reach | 13.0 | 2 | 0.21 | rifle II | 0.30 | 0.33 | rifle III | 0.22 | 0.28 |
-| 34 | rusher III | numbers | 13.0 | 7 | 0.15 | pistol III | 0.32 | 0.27 | shotgun III | 0.15 | 0.00 |
-| 14 | kamikaze I | debut | 8.5 | 5 | – | pistol I | 0.77 | 0.66 | shotgun I | 0.15 | 0.00 |
-| 24 | kamikaze II | numbers | 11.7 | 6 | 0.15 | pistol II | 1.06 | 0.97 | shotgun II | 0.15 | 0.00 |
-| 38 | kamikaze III | numbers | 13.0 | 7 | 0.15 | pistol III | 0.67 | 0.55 | shotgun III | 0.15 | 0.00 |
-| 35 | armored III | advance | 13.0 | 4 | 1.33 | AP II | 1.80 | 1.81 | AP III | 1.31 | 1.47 |
-| 36 | rocketeer III | tracking | 13.0 | 4 | 0.18 | rocket II | 0.37 | 0.29 | rocket III | 0.22 | 0.20 |
-| 37 | bomber III | area | 13.0 | 4 | 0.48 | launcher II | 0.76 | 0.51 | launcher III | 0.51 | 0.38 |
+| 26 | kamikaze I | debut | 12.3 | 5 | – | pistol II | 0.46 | 0.33 | shotgun II | 0.15 | 0.00 |
+| 27 | shotgunner III | pattern | 12.6 | 4 | 0.87 | shotgun II | 1.13 | 0.88 | shotgun III | 0.72 | 0.65 |
+| G4 | rusher III | numbers | 13.0 | 7 | 0.15 | pistol II | 0.66 | 0.82 | shotgun III | 0.15 | 0.00 |
+| 31 | laser I | debut | 13.0 | 1 | – | pistol II | 0.74 | 0.00 | rocket I | 0.38 | 0.00 |
+| 32 | gunner III | pairs | 13.0 | 4 | 0.67 | pistol II | 1.26 | 1.59 | pistol III | 0.75 | 0.99 |
+| 33 | armored II | advance | 13.0 | 4 | 1.15 | AP I | 2.05 | 1.85 | AP II | 1.33 | 1.18 |
+| 35 | rocketeer II | tracking | 13.0 | 4 | 0.17 | rocket I | 0.30 | 0.19 | rocket II | 0.18 | 0.11 |
+| 36 | kamikaze II | numbers | 13.0 | 6 | 0.15 | pistol III | 0.45 | 0.32 | shotgun III | 0.15 | 0.00 |
+| 38 | heavy III | burst | 13.0 | 4 | 1.04 | burst II | 1.78 | 1.89 | burst III | 1.30 | 1.47 |
+| G5 | laser II | charge | 13.3 | 1 | 0.30 | pistol III | 0.90 | 0.00 | rocket II | 0.37 | 0.00 |
 
-**31 of 31 inside the bands** (the kamikaze's three rows are listed last). Read one row: at door 21 the gunner starts
+**26 of 26 inside the bands** — every tier the floor-cast schedule (§1) puts in a run; G3–G5 are elevator gauntlets. Read one row: at door 22 the gunner starts
 firing in pairs. With the pistol you had, a kill costs 1.14 s of dodging and
 1.76× what it refunds, so the bank drains. His Mk II pistol breaks one round
 in two in the air, and the same fight costs 0.67 s and roughly pays for itself.
@@ -239,7 +291,7 @@ These changed the design. Each is recorded next to the number it moved in
    identical. His axis is *pairs*.
 4. **A Mk that debuts inside the slow-time school (doors 10–19) is
    invisible** if its axis is "fire together": the school already fires the
-   room in volleys. The gunner's Mk II moved from door 13 to door 21.
+   room in volleys. The gunner's Mk II moved from door 13 to after the school (now door 22).
 5. **The shipped armored drop is wrong.** He drops the burst rifle, whose
    spread makes it *worse than the pistol* against a man you can only
    headshot. His drop should answer him: armour-piercing rounds.
@@ -249,7 +301,7 @@ These changed the design. Each is recorded next to the number it moved in
 7. **A weapon must be the best answer on the day it lands.** Pistol Mk II
    (pierce, shatter) out-guns rifle Mk I, so the sniper debuts before the
    gunner's Mk II. And **an answer's Mk must arrive before the Mk of the
-   thing it answers**: shotgunner II (door 16) comes before rusher II (18).
+   thing it answers**: shotgunner II (door 12) comes before rusher II (16).
 8. **The laser is answered by the rocket, not the rifle.** He anchors, so
    the rifle's lead advantage is worth nothing against him.
 
@@ -455,22 +507,21 @@ or his fuse ending inside R.
   a time, and pierce, down a line coming straight at you, takes several. So
   the stagger isn't only a difficulty dial. It chooses which weapon is the
   answer.
-- **In a crowd, he's a kill-order question:** kill him first, ×1.39 cheaper
+- **In a crowd, he's a kill-order question:** kill him first, ×1.40 cheaper
   than nearest-first (`--waves`, *kamikaze in the crowd*).
 
-**The ladder** (§4, re-checked: all 31 tier debuts pass):
+**The ladder** (§4, re-checked on the floor-cast schedule):
 
-| door | tier | pack | struggle (pistol) | with the shotgun |
+| door | tier | pack | struggle (pistol II / pistol III) | with the shotgun |
 |---|---|---|---|---|
-| 14 | kamikaze Mk I | 5, 0.35 s apart, 3.5 m radius | 0.77 · R 0.66 | 0.15 |
-| 24 | kamikaze Mk II | 6, 0.3 s apart, 4.5 m radius, faster | 1.06 · R 0.97 | 0.15 |
-| 38 | kamikaze Mk III | 7, 0.25 s apart, 5 m/s, 0.4 s fuse | 0.67 · R 0.55 (pistol III) | 0.15 |
-| 18 | rusher Mk II | the door's pack (7), 0.4 s apart, 4.4 m/s | 0.66 · R 0.82 | 0.15 |
-| 34 | rusher Mk III | 7, 0.25 s apart, 5.0 m/s | 0.32 · R 0.27 (pistol III) | 0.15 |
+| 26 | kamikaze Mk I | 5, 0.35 s apart, 3.5 m radius | 0.46 · R 0.33 | 0.15 |
+| 36 | kamikaze Mk II | 6, 0.3 s apart, 4.5 m radius, faster | 0.45 · R 0.32 | 0.15 |
+| 16 | rusher Mk II | the door's pack (7), 0.4 s apart, 4.4 m/s | 0.66 · R 0.82 | 0.15 |
+| G4 | rusher Mk III | 7, 0.25 s apart, 5.0 m/s | 0.66 · R 0.82 | 0.15 |
 
-The kamikaze debuts on door 14, the first door of floor 3, after the rusher
-has taught the clock and on the door where the floor eases in. Floor 5 grows
-to ten doors (29–38) to give his Mk III a door of its own.
+The kamikaze debuts on floor 4 (door 26), with his Mk II on floor 5. His
+Mk III (7 men, 0.25 s apart, a 0.4 s fuse) is past the fifth floor: see the
+door budget in §1.
 
 - **Fuse, not proximity.** Arming at R and bursting ~0.5 s later gives three
   outs: kill him before R, kill him during the fuse, or run clear. Clearing
