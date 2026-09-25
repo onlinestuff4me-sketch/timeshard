@@ -15,7 +15,7 @@ import * as THREE from '../lib/three.module.min.js';
 import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, TIME, LEG, SHATTER,
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
-  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO } from './balance.js';
+  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -2680,6 +2680,7 @@ function buildEnemyMesh(type) {
   const C = type === 'armored' ? { body: 0x3a3d45, chest: 0x3a3d45, pelvis: 0x33363d, head: 0xe03222 }
     : type === 'sniper' ? { body: 0xb81205, chest: 0xa21507, pelvis: 0x8c1004, head: 0xc8281a }
     : type === 'rusher' ? { body: 0xe0321f, chest: 0xe83a26, pelvis: 0xc8281a, head: 0xf5533f }
+    : type === 'blinker' ? { body: 0xb01d12, chest: 0xc8281a, pelvis: 0x8c1004, head: 0xe03222 }
     : { body: 0xc8281a, chest: 0xd3291b, pelvis: 0xa21507, head: 0xe03222 };
   const M = { body: EM(C.body), chest: EM(C.chest), pelvis: EM(C.pelvis), head: EM(C.head) };
   const lean = P.lean + (type === 'rusher' ? 0.22 : 0);   // the rusher stalks hunched
@@ -3033,7 +3034,7 @@ function buildEnemyMesh(type) {
   blob.position.y = 0.01;
   g.add(blob);
 
-  return { g, legL, legR, armL, armR, egun,
+  return { g, legL, legR, armL, armR, egun, chest,
     shinL: LG.shin, shinR: RG.shin, kneeRest: EP.knee,
     armLock, armRLock, armLRest, armRRest,
     egunBaseMat: type === 'laser' ? EM(0xff2d1a) : MAT_BLACK };
@@ -3056,6 +3057,8 @@ const ENEMY_TYPES = {
   // anchors at range, charges, then sweeps an arena-wide beam — cover won't
   // help and neither will running: killing him is the only way out
   laser: { speed: 0.9, scale: [1, 1, 1], drop: 0, aimTime: 2.6, cd: [5.0, 1.5], mul: 1, pellets: 1, engage: [30, 6], laser: true },
+  // blinks aside the frame you fire at him, then is spent — see BLINKER
+  blinker: { speed: 2.2, scale: [0.94, 1.02, 0.94], drop: 0, aimTime: 0.6, cd: [1.4, 0.8], mul: 1, pellets: 1, blinker: true },
 };
 
 function pointInObstacle(x, z, pad) {
@@ -4681,6 +4684,7 @@ function updateEnemy(e, sdt) {
   }
   e.stateT += sdt;
   e.fireCd -= sdt;
+  if (e.type === 'blinker') updateBlink(e);
 
   let moveSpeed = 0;
 
@@ -5085,6 +5089,67 @@ function updateEnemy(e, sdt) {
 
 const MAT_WHITEFLASH = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
+// THE BLINKER (docs/ARSENAL.md §10) READS THE TRIGGER, NOT THE ROUND. On the
+// frame you fire, any lane that passes near his chest or head sends him
+// sideways, square to your line, and the round lands where he stood. Then he
+// is spent for BLINKER.cd world-seconds, and his chest burns white for all of
+// it: that is the window, and the whole fight is getting a second round into
+// it. Everything is on the world clock, so at full speed the move is a
+// teleport and the window is gone before you can use it; in slow time you
+// watch him go, and you have the bank to spend on the follow-up.
+function blinkersReact(origin, lanes) {
+  for (const e of enemies) {
+    if (!e.alive || e.type !== 'blinker' || e.state === 'assemble' || e.blink) continue;
+    if (worldT < (e.blinkReady || 0)) continue;
+    if (!lanes.some((d) => laneMiss(origin, d, e.pos, 1.1) < BLINKER.lane + 0.3
+                        || laneMiss(origin, d, e.pos, 1.62) < BLINKER.lane)) continue;
+    // square to the line he was shot along, a random side first. A wall cuts
+    // the blink short rather than cancelling it — a tunnel is 3.4 m wide —
+    // but under BLINKER.minDist he would not clear the lane, and with no room
+    // on either side he takes the hit
+    const tx = e.pos.x - origin.x, tz = e.pos.z - origin.z;
+    const n = Math.hypot(tx, tz) || 1;
+    const sx = -tz / n, sz = tx / n;
+    const first = Math.random() < 0.5 ? 1 : -1;
+    let best = null;
+    for (const side of [first, -first]) {
+      for (let m = BLINKER.dist; m >= BLINKER.minDist - 1e-6; m -= 0.1) {
+        const x = e.pos.x + sx * side * m, z = e.pos.z + sz * side * m;
+        if (pointInObstacle(x, z, BLINKER.pad)) continue;
+        if (!hasLineOfSight(_v4.set(e.pos.x, 1.1, e.pos.z), _v5.set(x, 1.1, z))) continue;
+        if (!best || m > best.m) best = { x, z, m };
+        break;
+      }
+      if (best && best.m >= BLINKER.dist - 1e-6) break;
+    }
+    if (!best) continue;
+    e.blink = { x0: e.pos.x, z0: e.pos.z, x: best.x, z: best.z, t0: worldT };
+    e.blinkReady = worldT + (e.blinkCd || BLINKER.cd);
+    e.blinks = (e.blinks || 0) + 1;
+    e.chest.material = MAT_WHITEFLASH;
+  }
+}
+// closest a ray from `o` along unit `d` comes to the point (p.x, y, p.z);
+// Infinity if the point is behind the muzzle
+function laneMiss(o, d, p, y) {
+  const tx = p.x - o.x, ty = y - o.y, tz = p.z - o.z;
+  const along = tx * d.x + ty * d.y + tz * d.z;
+  if (along <= 0) return Infinity;
+  return Math.hypot(tx - d.x * along, ty - d.y * along, tz - d.z * along);
+}
+function updateBlink(e) {
+  if (e.blink) {
+    const k = Math.min(1, (worldT - e.blink.t0) / BLINKER.blinkT);
+    const s = k * k * (3 - 2 * k);
+    e.pos.x = e.blink.x0 + (e.blink.x - e.blink.x0) * s;
+    e.pos.z = e.blink.z0 + (e.blink.z - e.blink.z0) * s;
+    if (k >= 1) e.blink = null;
+  }
+  if (e.chest.material === MAT_WHITEFLASH && worldT >= (e.blinkReady || 0)) {
+    e.chest.material = EM(0xc8281a);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // The laser's sweeping beam: an arena-length line pivoting slowly around the
 // emitter. It ignores cover, and the sweep spans the whole field — the only
@@ -5169,6 +5234,7 @@ function playerFire(aimAt = null) {
   // because the next line turns this vector into the direction of travel.
   const aimPoint = aimAt ? aimAt.clone() : camera.position.clone().addScaledVector(_dir, 30);
   const baseDir = aimPoint.sub(origin).normalize();
+  const lanes = [];
   for (let p = 0; p < spec.pellets; p++) {
     const d = baseDir.clone();
     if (spec.spread) {
@@ -5179,7 +5245,9 @@ function playerFire(aimAt = null) {
     }
     if (spec.blast) spawnPlayerShell(origin, d, spec);
     else spawnBullet(origin, d, true, spec.speed, spec.pierce || 0);
+    lanes.push(d);
   }
+  blinkersReact(origin, lanes);   // he moves on the trigger, not the round
   gunKick = spec.kick;
   muzzle.material.opacity = 1;
   if (tutorStep !== null) tutorEmit('shot');   // a cue may be waiting on it

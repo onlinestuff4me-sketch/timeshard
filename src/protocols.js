@@ -122,6 +122,11 @@ export const ELEMENTS = [
   { id: 'laser', name: 'LASER', kind: 'enemy', tier: 4, minDoor: 21, unlockAt: 0, weight: 2, impl: true,
     blurb: 'Sweep emitter. Cover is irrelevant. Kill it.',
     meet: 'Charges, then sweeps the room.', hint: 'Cover will not help.' },
+  // Not composed into waves (impl: false): he arrives with the floor-1 boss,
+  // who is one, and the floors after it. The row is here for his card.
+  { id: 'blinker', name: 'BLINKER', kind: 'enemy', tier: 4, minDoor: 99, unlockAt: 0, weight: 0, impl: false,
+    blurb: 'Reads the trigger. Moves before the round does.',
+    meet: 'He moves before your round does.', hint: 'Make him move first.' },
 
   // --- weapons: ids match the WEAPONS keys, so a pickup files itself --------
   // A WEAPON ARRIVES WHEN THE MAN CARRYING IT DOES. These rows are registry

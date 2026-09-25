@@ -1793,3 +1793,18 @@ export const SIMPLE = {
     legCells: 9
   },
 };
+
+// THE BLINKER (docs/ARSENAL.md §10). He reads the TRIGGER, not the round: the
+// frame you fire, any shot lane that passes him makes him blink sideways, and
+// the round arrives where he was. Then he is spent for `cd` world-seconds —
+// that window is the fight. `blinkT` is how long the move takes on the world
+// clock: at full speed it is a teleport, in slow time it is a dash you can
+// watch, and watching it is how you know where to put the second round.
+export const BLINKER = {
+  lane: 0.55,      // m from a lane to his chest or head that he reads as "at me"
+  dist: 1.6,       // m sideways per blink
+  minDist: 0.9,    // m: a wall may cut it short, but not below this
+  pad: 0.45,       // m of clear floor he needs where he lands
+  blinkT: 0.08,    // world-s the move takes
+  cd: 1.5,         // world-s spent after a blink (the Keeper's phase 2: 1.2)
+};
