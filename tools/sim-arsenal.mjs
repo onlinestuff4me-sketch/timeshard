@@ -4,6 +4,7 @@
 //
 //   node tools/sim-arsenal.mjs            the ladder check (every Mk debut)
 //   node tools/sim-arsenal.mjs --waves    the kill-order check (wave recipes)
+//   node tools/sim-arsenal.mjs --matrix   new enemy traits x new answers
 //
 // A PROPOSAL, NOT THE GAME. The Mk tables below are the design in
 // docs/ARSENAL.md and nothing in the game reads them yet. When the ladder is
@@ -255,8 +256,20 @@ function erf(x) {  // Abramowitz-Stegun 7.1.26
 // round is: 46 m/s pistol, 95 m/s rifle. This is what makes the rifle the rifle.
 const STRAFE = 1.3;
 function lead(e, w) {
-  if (e.melee || w.guided || !w.speed) return 0;   // he comes straight at you
-  return 0.4 * STRAFE / w.speed;
+  if (e.melee || w.guided || w.beam || !w.speed) return 0;   // he comes straight at you; a beam arrives now
+  return 0.4 * (e.strafe ?? STRAFE) / w.speed;
+}
+
+// WHAT YOU ARE AIMING AT, and how steady the aim is. A plate or a riot shield
+// leaves `exposed` of his width to shoot; a zoomed rifle divides the thumb's
+// error by the zoom, and can take the eye slot (`slot`, metres) that nothing
+// else can. `bodyW` is a slighter frame.
+function aimTarget(e, w) {
+  const zoom = w.zoom || 1;
+  let width = e.headOnly && !w.ap ? e.head : (e.bodyW ?? BODY_W) * (e.exposed ?? 1);
+  if (w.zoom && e.slot) width = Math.max(width, e.slot);
+  const sigma = Math.hypot(AIM_SIGMA / zoom, w.spread, lead(e, w));
+  return { width, sigma };
 }
 // Chance one trigger pull kills him. Each pellet (or burst round) is an
 // independent draw on a gaussian around the aim point; a blast widens the
@@ -265,19 +278,26 @@ function lead(e, w) {
 // take it, though every round of a burst is aimed.
 function pKill(e, w) {
   const headOnly = e.headOnly && !w.ap;
-  const width = headOnly ? e.head : BODY_W;
+  const { width, sigma } = aimTarget(e, w);
   let half = Math.atan((width / 2 + w.blast * 0.3) / e.d);
   if (w.guided) half *= 3;
-  const p1 = erf(half / (Math.hypot(AIM_SIGMA, w.spread, lead(e, w)) * Math.SQRT2));
+  if (w.beam) half += w.beam;                              // held on him, not tapped at him
+  const p1 = erf(half / (sigma * Math.SQRT2));
   const n = headOnly && !w.blast ? w.burst : w.pellets * w.burst;
   return 1 - Math.pow(1 - p1, n);
 }
 function acquire(e, w) {
-  const width = e.headOnly && !w.ap ? e.head : BODY_W;
+  const { width } = aimTarget(e, w);
   let half = Math.atan((width / 2 + w.blast * 0.3) / e.d);
   if (w.pellets > 1) half += w.spread * 1.2;
   if (w.guided) half *= 3;
-  return FITTS_A + FITTS_B * Math.log2(1 + SWING / (2 * half));
+  // A BEAM IS CROSSED, NOT POINTED. Dragging a line through a man is a
+  // crossing task, and crossing is much faster than pointing: the width that
+  // counts is the beam's, along the drag.
+  if (w.beam) half += w.beam;
+  // a zoom magnifies him — but settling it takes its own moment
+  const zoomIn = w.zoom ? w.zoomT : 0;
+  return FITTS_A + FITTS_B * Math.log2(1 + SWING / (2 * half * (w.zoom || 1))) + zoomIn;
 }
 
 // HOW MANY MEN ONE AIM TAKES. This is the finding the model exists for: at
@@ -299,14 +319,41 @@ function perAim(e, w, k) {
   }
   if (w.blast) extra += Math.min(k - 1, w.blast / 2.5) * 0.5;
   if (w.sweep && w.burst > 1) extra += (Math.min(w.burst, k) - 1) * 0.3;
+  // a ricochet finds the next man for you — no line-up needed, unlike pierce
+  if (w.ricochet) extra += Math.min(k - 1, w.ricochet) * 0.6;
+  // a beam dragged across a group takes whoever it crosses
+  if (w.beam) extra += Math.min(k - 1, 2) * 0.5;
+  // a zoom is tunnel vision: one man at a time, whatever the round does after
+  if (w.zoom) extra = 0;
   return 1 + extra;
 }
 // World seconds from turning to him to his shards hitting the floor, and the
 // rounds it cost. A burst weapon's magazine is counted in bursts.
+// HE SEES IT COMING. A dodger sidesteps any round that takes longer than his
+// reaction (`react`, world seconds) to reach him — and YOUR ROUNDS ARE ON THE
+// WORLD CLOCK TOO (updateBullets(sdt) in main.js), so freezing time does not
+// beat him: both slow together. Three things do. A round faster than his
+// reaction. A blast, beam or guided round, which a sidestep does not escape.
+// Or timing: while he is aiming (`aim` of his `cycle`) he is committed and
+// cannot move, so a player who waits for the telegraph lands every round —
+// at the cost of the wait. The player takes whichever is cheaper.
+function dodged(e, w) {
+  if (!e.react || w.beam || w.blast || w.guided) return null;
+  const travel = e.d / w.speed;
+  if (travel <= e.react) return null;
+  const cycle = e.aim + e.cd[0] + e.cd[1] / 2;
+  return { committed: e.aim / cycle, wait: (cycle - e.aim) / 2 };
+}
 function killCost(e, w, k = 1) {
-  const p = pKill(e, w);
+  let p = pKill(e, w);
+  let wait = 0;
+  const dg = dodged(e, w);
+  if (dg) {
+    const spam = 1 / (p * dg.committed) * w.cd;           // fire until one lands in his window
+    if (spam < dg.wait) p *= dg.committed; else wait = dg.wait;
+  }
   const pulls = 1 / p;
-  let t = acquire(e, w) + (pulls - 1) * w.cd;
+  let t = acquire(e, w) + wait + (pulls - 1) * w.cd;
   if (isFinite(w.mag)) t += Math.max(0, pulls - w.mag) / w.mag * w.reload;
   // the plate: walk round it, unless the weapon goes over it
   if (e.shielded && !w.blast) t += e.flankM / MOVE;
@@ -359,9 +406,9 @@ function volleyNeed(e, door) {
 // clock releases them in volleys. Time you spend dodging is time you are not
 // shooting, so a busy room stretches every kill (t / (1 - load)); that is
 // what makes a group more than the sum of its men.
-function matchup(e, w, door) {
-  const { t, rounds, p } = killCost(e, w, groupOf(e.type, door));
-  const G = groupOf(e.type, door);
+function matchup(e, w, door, group) {
+  const G = group ?? groupOf(e.type, door);
+  const { t, rounds, p } = killCost(e, w, G);
   const drain = TIME.drain * scarcity('timeDrain', door);
   let P = 0, bank = 0, extraRounds = 0;
   if (e.melee) {
@@ -547,5 +594,61 @@ function waves() {
   return weak;
 }
 
-if (process.argv.includes('--waves')) process.exitCode = waves() ? 1 : 0;
+// --- the counter matrix ---------------------------------------------------------
+// New ways for an enemy to get harder, against new ways for you to answer.
+// Every row is a room of four of him at door 25 (a gunner underneath, so the
+// rows differ only in the trait); every column is a weapon. Each cell is P,
+// seconds of dodging per kill, and in brackets how that compares to the plain
+// pistol against the same man. The column that turns a row from worst to best
+// is that trait's answer.
+export const TRAITS = {
+  'plain gunner':  {},
+  'slight frame':  { bodyW: 0.36 },                        // a smaller surface, no armour
+  'riot shield':   { exposed: 0.2, slot: 0.12, strafe: 0.5 },  // braced behind a plate: an edge showing, and an eye slot
+  'always moving': { strafe: 3.2 },                        // strafes the whole time, not just between shots
+  'dodger':        { react: 0.22 },                        // sidesteps any round slower than his reaction
+};
+function answers() {
+  return {
+    'pistol':        weapon('pistol', 1),
+    'ricochet':      { ...weapon('pistol', 1), ricochet: 1 },
+    'shotgun cone':  weapon('shotgun', 2),
+    'grenade blast': weapon('launcher', 1),
+    'beam sweep':    { ...weapon('pistol', 1), type: 'beam', beam: 0.05, cd: 0.25, mag: 6, reload: 1.5, speed: Infinity },
+    'rifle + zoom':  { ...weapon('sniper', 1), zoom: 3, zoomT: 0.3 },
+  };
+}
+function matrix() {
+  const door = 25;
+  const W = answers();
+  const cols = Object.keys(W);
+  const pad = (v, n) => String(v).padEnd(n);
+  // two rooms, because the answers split on it: a group at mid range, where
+  // anything that takes more than one man per aim wins; and one man far off,
+  // where only precision and round speed matter
+  for (const [label, G, d] of [['four of him at 14 m', 4, 14], ['one of him at 24 m', 1, 24]]) {
+    console.log(`\ndoor ${door}, ${label}. P = seconds of dodging per kill (x vs the pistol)`);
+    console.log(pad('', 15) + cols.map((c) => pad(c, 15)).join(''));
+    for (const [name, trait] of Object.entries(TRAITS)) {
+      const e = { ...enemy('gunner', 1), d, ...trait };
+      const base = matchup(e, W.pistol, door, G).P;
+      const cells = cols.map((c) => {
+        const P = matchup(e, W[c], door, G).P;
+        return pad(`${P.toFixed(2)} (x${(P / base).toFixed(2)})`, 15);
+      });
+      console.log(pad(name, 15) + cells.join(''));
+    }
+  }
+  // THE TIME BUTTON. The bank is priced per door by SCARCITY: what a kill
+  // refunds over what a frozen second costs. It is already falling on its own.
+  console.log('\nwhat the bank is worth (kill refund / freeze drain, door 1 = 1.00)');
+  const worth = (d, gain = 1, drain = 1) => (scarcity('timeGain', d) * gain) / (scarcity('timeDrain', d) * drain);
+  for (const d of [1, 6, 8, 12, 20, 30]) {
+    console.log(`  door ${String(d).padStart(2)}: ${worth(d).toFixed(2)}` +
+      `   with a -20% drain, +25% refund upgrade: ${worth(d, 1.25, 0.8).toFixed(2)}`);
+  }
+}
+
+if (process.argv.includes('--matrix')) matrix();
+else if (process.argv.includes('--waves')) process.exitCode = waves() ? 1 : 0;
 else process.exitCode = ladder() ? 1 : 0;

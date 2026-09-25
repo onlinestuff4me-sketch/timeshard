@@ -20,6 +20,7 @@ the slow-time school's volleys, group sizes, the bank and scarcity curves).
 ```
 node tools/sim-arsenal.mjs            # every Mk debut: struggle, then relief
 node tools/sim-arsenal.mjs --waves    # the kill-order recipes
+node tools/sim-arsenal.mjs --matrix   # new enemy traits x new answers (§7)
 ```
 
 Both exit non-zero if a row leaves its band.
@@ -268,3 +269,130 @@ These changed the design. Each is recorded next to the number it moved in
   the schedule move into `src/balance.js`, the model imports them, and
   `ENEMY_TYPES` (today unexported in `main.js`) moves with them. One source
   of tunable numbers (`PILLARS.md` §7).
+
+---
+
+## 7. More ways to get harder, and what answers them
+
+A second round of ideas: enemies that are **smaller**, **hidden behind a
+plate with an eye slot**, **always moving**, or that **dodge your shots**;
+and answers that **ricochet**, **blast a cone**, **sweep a beam**, **zoom**,
+or **improve the time button**. `--matrix` prices every pairing at door 25
+(a gunner underneath, so rows differ only in the trait). Cells are P, and
+×n against the plain pistol on the same man.
+
+**Four of him at 14 m:**
+
+| | pistol | ricochet | shotgun cone | grenade | beam sweep | rifle + zoom |
+|---|---|---|---|---|---|---|
+| plain | 2.89 | ×0.64 | ×0.26 | ×0.30 | ×0.37 | ×0.82 |
+| slight frame | 3.39 | ×0.64 | ×0.25 | ×0.26 | ×0.32 | ×0.78 |
+| riot shield + eye slot | 5.24 | ×0.64 | ×0.33 | ×0.17 | ×0.22 | ×0.74 |
+| always moving | 3.34 | ×0.64 | ×0.22 | ×0.26 | ×0.32 | ×0.82 |
+| dodger | 4.56 | ×0.64 | ×0.30 | ×0.19 | ×0.23 | ×0.52 |
+
+**One of him at 24 m:**
+
+| | pistol | ricochet | shotgun cone | grenade | beam sweep | rifle + zoom |
+|---|---|---|---|---|---|---|
+| plain | 0.44 | ×1.00 | ×0.68 | ×0.54 | ×0.58 | ×0.78 |
+| slight frame | 0.53 | ×1.00 | ×0.71 | ×0.46 | ×0.49 | ×0.80 |
+| riot shield + eye slot | 0.93 | ×1.00 | ×1.27 | ×0.27 | ×0.29 | ×0.76 |
+| always moving | 0.54 | ×1.00 | ×0.57 | ×0.50 | ×0.47 | ×0.89 |
+| dodger | 0.65 | ×1.00 | ×0.79 | ×0.37 | ×0.40 | ×0.79 |
+
+### How much harder each trait makes him (the pistol column)
+
+| trait | a group | alone, far | read |
+|---|---|---|---|
+| riot shield + eye slot | **+81%** | **+111%** | the strongest; a Mk III-sized step |
+| dodger | **+58%** | +48% | strong, and it tests timing (below) |
+| always moving | +16% | +23% | mild; a good Mk II |
+| slight frame | +17% | +20% | mild; a good Mk II, or a trait of a small fast type |
+
+### What the matrix says
+
+1. **The grenade and the beam answer everything.** Neither cares about
+   leading a target, a sidestep, or how thin he is. That makes them the
+   dominant pick unless they are priced. They need short charges, few rounds
+   (`SCARCITY` already squeezes the launcher to 2 + 3), and a single source:
+   the beam should drop only from the laser man. That also fills the gap of
+   the laser dropping nothing. If the riot shield should resist them, its
+   plate has to block splash from the front. Then the eye slot, a flank or a
+   ricochet off the wall behind him become the only ways through, and the
+   zoom has a job no other weapon can do.
+2. **Zoom answers small and still targets, not moving ones.** It divides your
+   thumb's error by the zoom. It does not help you lead a strafing man: that
+   error comes from how slow your round is, and zoom doesn't change it. It
+   costs tunnel vision (one man per aim) and a moment to settle, so it is a
+   specialist: the eye slot, a headshot, a braced man far off.
+3. **Always-moving is answered by instant or wide hits:** the cone (×0.22 in
+   a group) and the beam (×0.47 alone). A zoomed rifle barely helps (×0.82–0.89).
+4. **Ricochet is a group weapon that needs no line-up.** It holds ×0.64 in
+   any group, where pierce needs men standing in a row, and does nothing
+   against one man.
+
+### Dodgers: make it a reaction, not a percentage
+
+A hidden dodge roll is wrong for a one-hit game. A clean, well-aimed shot
+that silently fails reads as a bug. Make the dodge **visible, with a reaction
+time**, and it becomes a test of the timing you described:
+
+- **Freezing time does not beat him.** Your rounds travel on the world clock
+  (`updateBullets(sdt)`), the same clock he reacts on, so both slow together.
+- **What does:** a round faster than his reaction (the rifle, ×0.52 in a
+  group), a hit he can't sidestep (blast, beam, guided), or **timing**. While
+  he is aiming he is committed and cannot move. Shoot during his telegraph and
+  every round lands. The model makes this choice for you whenever waiting
+  beats spraying.
+- The dodge percentage then **emerges** from round speed against his
+  reaction. It is never rolled.
+
+### Hold-to-zoom and a held beam: the controls
+
+The default scheme is the time **button** (`timeMode = 'toggle'`), so a
+still hold on the right half is free there. A tap fires and a drag looks, so
+a hold that doesn't move is distinguishable from both. It is **taken** in the
+optional classic mode, where holding anywhere slows time. One way to make
+both work: in classic mode the rifle scopes in *while* you hold, so the
+freeze and the zoom are the same gesture. A beam that fires for a fixed
+~0.4 s on a tap, and follows your drag while it burns, needs no hold at all.
+
+### Time-button upgrades do not need a weaker start
+
+The worry was that a better button means a worse one at the beginning. The
+scarcity curve already makes that unnecessary: the bank loses value on its
+own as you go deeper.
+
+| door | what the bank is worth | with −20% drain and +25% refund |
+|---|---|---|
+| 1 | 1.00 | 1.56 |
+| 6 | 0.70 | 1.09 |
+| 8 | 0.46 | 0.72 |
+| 12 onward | **0.31** | **0.49**, about door 8's value |
+
+(Worth = kill refund ÷ freeze drain, from `SCARCITY.timeGain` and
+`timeDrain`.) By door 12 a frozen second already costs about three times what
+it did on door 1. An upgrade picked up on floor 3 hands back part of what the
+curve took; the first floors feel exactly as they do today.
+
+The limits, because scarcity *is* the difficulty curve (`PILLARS.md` §2):
+
+- **Few:** one per elevator ride. The ride is the natural moment, and it
+  keeps rewards off individual doors.
+- **Capped:** never back above about door 6's worth (~0.7).
+- **Felt:** e.g. *headshots made while frozen can fill the bank past its
+  cap*. That is the fix `BACKLOG.md` #3 asked for: a headshot reward that
+  still lands when the bank is already full.
+
+### Where the new traits could sit on the ladder
+
+A suggestion, not yet re-checked by `node tools/sim-arsenal.mjs`:
+
+| trait | on | answered by |
+|---|---|---|
+| riot shield + eye slot | shield **Mk II** (in place of "turns faster") | rifle + zoom through the slot; grenade if splash gets past the plate |
+| slight frame, always moving | rusher **Mk II** | shotgun cone |
+| always moving | gunner **Mk III** | cone, beam |
+| dodger | sniper **Mk III**, or a late elite type | faster rifle rounds, timing, blast |
+| beam | dropped by the laser man | (it is the answer) |
