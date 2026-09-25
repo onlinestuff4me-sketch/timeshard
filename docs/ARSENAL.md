@@ -26,9 +26,10 @@ node tools/sim-arsenal.mjs --spawner  # the spawner room, three ways (§9)
 node tools/sim-arsenal.mjs --schedule # the floors door by door, and the rules they keep (§1)
 node tools/sim-arsenal.mjs --boss     # the floor-1 boss, against brackets and shells (§10)
 node tools/sim-arsenal.mjs --keeper-room  # how hot his room is before slow time (§10)
+node tools/sim-arsenal.mjs --spawner-boss # the floor-4 boss against three loadouts (§12)
 ```
 
-Both exit non-zero if a row leaves its band.
+The ladder, `--waves` and `--schedule` exit non-zero if anything leaves its band or breaks a rule; the others print their tables.
 
 ---
 
@@ -892,7 +893,7 @@ the same three parts.
 | floor 1 | **the Keeper**, the first blinker | 2 shotgunners → the shotgun's fast re-aim | **slow time** | power |
 | floor 2 | **the first Frankenstein**: an evolved gunner, a gun in each hand; his arms go one at a time, and then he rushes and bursts | 2 bombers → the launcher takes both arms in one aim | **the seeker** | weapon |
 | floor 3 | **the first drone**, the size of a car, marking you so its gunners lead you | gunners it steers, and a shotgunner → the cone for a target overhead | **sight** | power |
-| floor 4 | **the first spawner**, a dome with three dishes | its guards, which it reassembles, and a bomber → a blast that clears the guards inside the window | **a second life** | power |
+| floor 4 | **the first spawner**, guarded by the toughest of every earlier floor, all of whom it reassembles, and with **one second life of its own** | a bomber among the guards → a blast that clears them inside the hang | **a second life** | power |
 | floor 5 | **the finale: the Keeper, again**, with slow time of his own | blinkers at Mk III | – | – |
 
 **What the Frankenstein boss is:** a gunner that evolved. Two guns fire at
@@ -911,26 +912,49 @@ The schedule now has the kamikaze on door 20 (floor 3), not floor 4, and
 your own. Send it and it hunts the nearest enemy, then bursts, shattering him
 and anyone in its radius, **you included** if you're too close.
 - It lives in the weapon switcher (§13) as `SEEKER ×1`.
-- **It refills from kamikazes.** Shatter one *before he arms* and his core
-  drops: +1 seeker, held to one or two. That turns *kill the kamikaze
+- **It refills once per kamikaze encounter** (decided). Clear a group of
+  kamikazes without letting one arm, and the group leaves **one** core
+  behind: +1 seeker. That's one per group, not one per kamikaze, because the
+  seeker is strong. It holds one at a time. That turns *kill the kamikaze
   first* (§3, ×1.40) into a reward as well as a survival rule.
 - Its radius should match the kamikaze's (3.5 m), so it reads as the same
   thing, turned around.
 
-**Sight** (the drone; a power). While a streak holds, enemies round the next
-corner and in the next room show as glowing outlines, including where the
-next wave will assemble. **The headshot streak is taken** (decided: it
-raises the slow-time refund rate), so sight needs its own streak. Options:
+**Sight** (the drone; a power), **fed by a no-misses streak** (decided).
+After the drone boss, a run of hits without a miss lets you see through walls:
 
-| streak | keeps going while... | fits because | risk |
-|---|---|---|---|
-| **tempo** (recommended) | each kill lands within ~3 s of the last | sight is information for pushing forward, and tempo rewards pushing. It's the Hades/Returnal rush | needs a visible draining ring |
-| on-foot kills | kills made without freezing | a counterweight to slow time | punishes the core mechanic |
-| no misses | every shot hits | rewards aim | a spray weapon (shotgun) cheats it or can't keep it |
+| hits in a row | what you see |
+|---|---|
+| 10 | faint shapes through walls |
+| 30 | sharper shapes |
+| 50 | sharp outlines, including where the next wave will assemble |
 
-Tempo on the **world clock**, like everything else: freezing stretches the
-window, and the bank pays for it. Sight feeds the streak it depends on: you
-see the next room, so you enter it ready to keep the tempo.
+- **A miss is a round that hits a wall or surface without shattering anyone.**
+  A shotgun shell counts as a hit if any of its pellets shatters someone. A
+  pierced round that shatters one man and then hits the wall is a hit.
+- **Three edges to decide:**
+  - **A round on a shield's plate or an armored body** hits a surface and
+    shatters no one. By the rule that's a miss, and it teaches you to shoot
+    round the plate and at the head.
+  - **A blinker's bait shot** is dodged into the wall, so it's a miss by the
+    rule: blinkers become streak-breakers. That's either a feature (punish
+    rather than bait, or bait with a blast) or an exemption: rounds fired at a
+    blinker don't count.
+  - **A miss resets to zero**, as asked. The softer alternative drops you to
+    the start of your current tier (from 43 back to 30), which keeps 50
+    reachable in a long run.
+- **It's a long-horizon streak.** It runs across rooms and doors for the whole
+  run, which is what makes it passive and global, as you described: you
+  maintain it through careful shooting everywhere.
+- **Before the drone boss the streak doesn't show.** Nothing yet reads it.
+
+**The tempo streak** (each kill within ~3 world-seconds of the last) is the
+short-horizon partner. You liked it, and it's unassigned: the headshot streak
+has the slow-time refund, and the no-misses streak has sight. A proposal, to
+confirm: **tempo feeds the switcher**. While it holds, weapon switches and
+reloads are instant, rewarding a player who keeps pushing and changes guns
+mid-rush. Whatever it drives, three streaks on screen is too many to read, so
+only the ones that are live should show, small, near the thing they feed.
 
 **A second life** (the spawner; a power). Once per run, when you're
 shattered, you hang where you fell and **reassemble**, the spawner's own
@@ -942,6 +966,36 @@ late, and visibly, which is why it is the last reward and not the first.
 **The headshot streak → slow-time refund rate** (decided, a base mechanic,
 not a boss reward). It also answers `BACKLOG.md` #3: a headshot reward that
 still lands when the bank is already full.
+
+### The spawner boss (floor 4)
+
+- **Guarded by the toughest of everything the run has met:** shotgunner III,
+  heavy II, an armored man, a blinker, gunner II, and a bomber whose launcher
+  is the way through.
+- **It reassembles all of them.** Every guard it holds hangs, then reforms.
+- **It has one second life of its own.** Break its dish and it hangs too. Its
+  guards stay down while it reforms, a breather to collect guns. Then it
+  reforms and brings the whole room back with it. Break it again, and
+  everything it was holding stays down.
+
+`--spawner-boss` asks the question a spawner room asks, harder: can five tough
+guards go down before the first is back, with time left for the dish? With
+the switcher, each guard is taken with the best gun you carry:
+
+| loadout (3 slots) | hang 2 s | 3 s | 4 s |
+|---|---|---|---|
+| pistol II only | 15.5 s of bank | 12.3 s | 9.1 s |
+| pistol II, shotgun III, AP rifle | 7.7 s | 4.5 s | 1.3 s |
+| pistol II, shotgun III, **launcher II** | 1.0 s | **0 s** | 0 s |
+
+(Bank seconds to finish, both of its lives; the bank caps at 10.)
+
+- **With the pistol alone it's a wall at any hang**, which is right for a boss:
+  it asks what you brought.
+- **Recommend a 3 s hang.** With a launcher the guards go down inside it. With
+  a shotgun and an AP rifle it costs about 2 s of bank per life, a real spend.
+  Take the bomber's launcher first and it's a clean fight: the *take his gun*
+  recipe (§3), as a boss's key.
 
 - **Boss rooms keep the room rules:** the seal, waves assembling at once, and
   a kill-order question built into the adds.
@@ -982,8 +1036,19 @@ of the fight.
 - **Switching takes a beat** (~0.25 s, the same clock as a reload) and works
   while frozen. Stopping time to change guns is exactly the kind of decision
   slow time is for, and the bank pays for it.
+- **A pill counter shows the slots** (decided), subtle, under the name:
+
+  ```
+        ◀  SHOTGUN  ▶
+           ●  ◉  ○
+  ```
+
+  One pill per slot, in rotation order. Filled means carried, ringed means
+  the gun in hand, and hollow means an empty slot. At three filled, the next
+  pickup will push one out, so the pill it will replace, the oldest, should
+  dim when a new gun is on the floor near you.
 - **The seeker is a slot too** (`SEEKER ×1`), and it doesn't count against the
-  cap.
+  cap or take a pill.
 - **What it does to the model:** nothing breaks. The ladder already prices a
   tier against the best gun on the floors; the switcher is what makes
   "the best gun on the floors" the gun in your hand.

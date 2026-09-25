@@ -10,6 +10,7 @@
 //   node tools/sim-arsenal.mjs --schedule the floors, and the rules the schedule keeps
 //   node tools/sim-arsenal.mjs --boss     the floor-1 boss's blink, against brackets and shells
 //   node tools/sim-arsenal.mjs --keeper-room  how hot the Keeper's room is before slow time
+//   node tools/sim-arsenal.mjs --spawner-boss  the floor-4 boss: can the guards go down inside one hang
 //
 // A PROPOSAL, NOT THE GAME. The Mk tables below are the design in
 // docs/ARSENAL.md and nothing in the game reads them yet. When the ladder is
@@ -1190,11 +1191,65 @@ function keeperReport() {
   console.log(`\n(the pair is up ${Math.round(keeperRoom(1.25, 1).duty * 100)}% of the time: two pistol kills, then 3 s + assembly before they return)`);
 }
 
-if (process.argv.includes('--keeper-room')) keeperReport();
-else if (process.argv.includes('--boss')) bossReport();
-else if (process.argv.includes('--schedule')) process.exitCode = schedule() ? 1 : 0;
-else if (process.argv.includes('--spawner')) spawner();
-else if (process.argv.includes('--newcomers')) newcomers();
-else if (process.argv.includes('--matrix')) matrix();
-else if (process.argv.includes('--waves')) process.exitCode = waves() ? 1 : 0;
-else process.exitCode = ladder() ? 1 : 0;
+// --- the spawner boss ------------------------------------------------------------
+// The floor-4 boss (decided): guarded by the toughest of everything the run has
+// met, all of whom it reassembles, and it has ONE second life of its own —
+// break its dishes, it hangs and reforms once, and the room comes back with it.
+//
+// The question is the same as a spawner room's, harder: can the guards be
+// shattered fast enough that the last is down before the first is back, with
+// time left for the dish? With a weapon switcher (§13) the player takes each
+// guard with the best gun they carry, so that is what is priced: every guard
+// with the gun that kills him fastest, from a three-gun loadout.
+function spawnerBoss(delay, loadout, door = FLOORS.slice(0, 4).reduce((a, b) => a + b, 0) + 0.5) {
+  const guards = [
+    enemy('shotgunner', 3), enemy('heavy', 2), enemy('armored', 1),
+    { ...enemy('blinker', 1), canFreeze: true }, enemy('gunner', 2),
+  ];
+  const dish = { ...enemy('gunner', 1), ...DISH };
+  const W = loadout.map(([t, m]) => weapon(t, m));
+  const best = (e, k) => W.reduce((b, w) => { const c = killCost(e, w, k); return !b || c.t < b.t ? c : b; }, null);
+  let clock = 0; const back = []; let freeze = 0;
+  guards.forEach((g, i) => {
+    const c = best(g, guards.length - i);
+    clock += c.t + 0.25;                              // + a switch between guns
+    freeze += c.freeze || 0;
+    back.push(clock + delay + ASSEMBLE);
+  });
+  const tDish = Math.min(...W.map((w) => killCost(dish, w, 1).t));
+  const window = back[0] - clock;
+  const drain = TIME.drain * scarcity('timeDrain', door);
+  return { clear: clock, window, tDish, lastBit: Math.max(0, tDish - window) * drain, freeze: freeze * drain };
+}
+function spawnerBossReport() {
+  const pad = (v, n) => String(v).padEnd(n);
+  const loadouts = {
+    'pistol II only': [['pistol', 2]],
+    'pistol II, shotgun III, AP I': [['pistol', 2], ['shotgun', 3], ['ap', 1]],
+    'pistol II, shotgun III, launcher II': [['pistol', 2], ['shotgun', 3], ['launcher', 2]],
+  };
+  console.log('the spawner boss: five guards (shotgunner III, heavy II, armored, blinker, gunner II), one dish, reassembly on a delay\n');
+  console.log(pad('loadout', 38) + pad('hang', 7) + pad('clear', 8) + pad('window', 9) + pad('dish', 7) + 'bank to finish (x2 for its second life)');
+  for (const delay of [2, 3, 4]) {
+    for (const [name, lo] of Object.entries(loadouts)) {
+      const r = spawnerBoss(delay, lo);
+      const bank = r.lastBit + r.freeze;
+      console.log(pad(name, 38) + pad(`${delay} s`, 7) + pad(`${r.clear.toFixed(1)} s`, 8) + pad(`${r.window.toFixed(1)} s`, 9) +
+        pad(`${r.tDish.toFixed(1)} s`, 7) + `${bank.toFixed(1)} s  (${(2 * bank).toFixed(1)} s)`);
+    }
+  }
+}
+
+// --- which check to run --------------------------------------------------------
+const MODES = {
+  '--waves': () => waves(),
+  '--matrix': () => { matrix(); return 0; },
+  '--newcomers': () => { newcomers(); return 0; },
+  '--spawner': () => { spawner(); return 0; },
+  '--spawner-boss': () => { spawnerBossReport(); return 0; },
+  '--schedule': () => schedule(),
+  '--boss': () => { bossReport(); return 0; },
+  '--keeper-room': () => { keeperReport(); return 0; },
+};
+const mode = process.argv.slice(2).find((a) => a in MODES);
+process.exitCode = (mode ? MODES[mode]() : ladder()) ? 1 : 0;
