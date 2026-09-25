@@ -6,6 +6,7 @@
 //   node tools/sim-arsenal.mjs --waves    the kill-order check (wave recipes)
 //   node tools/sim-arsenal.mjs --matrix   new enemy traits x new answers
 //   node tools/sim-arsenal.mjs --newcomers  kamikaze, frankenstein, drone
+//   node tools/sim-arsenal.mjs --spawner  the spawner room, three ways
 //
 // A PROPOSAL, NOT THE GAME. The Mk tables below are the design in
 // docs/ARSENAL.md and nothing in the game reads them yet. When the ladder is
@@ -100,9 +101,12 @@ export const ENEMY_MK = {
     { axis: 'pairs',    volley: 2, cd: [2.4, 1.2] },          // fire with a partner — less often, together
     { axis: 'pairs',    volley: 2, cd: [1.8, 1.0], mul: 2.0 },  // ...and the rounds are fast
   ],
+  // RUSHER Mk II IS THE KAMIKAZE (decided): he no longer needs to reach you.
+  // Alive inside R he arms, and after `fuse` he bursts; you are outside R or
+  // you are shattered. See rush() and docs/ARSENAL.md §8.
   rusher: [null,
-    { axis: 'closing',  speed: 4.4 },
-    { axis: 'closing',  speed: 4.9 },
+    { axis: 'kamikaze', speed: 4.2, R: 3.5, fuse: 0.5 },
+    { axis: 'kamikaze', speed: 5.0, R: 5, fuse: 0.4 },
   ],
   shotgunner: [null,
     { axis: 'pattern',  pellets: 7, spread: 0.12, d: 10 },    // wider, and from further
@@ -413,7 +417,13 @@ function matchup(e, w, door, group) {
   const { t, rounds, p } = killCost(e, w, G);
   const drain = TIME.drain * scarcity('timeDrain', door);
   let P = 0, bank = 0, extraRounds = 0;
-  if (e.melee) {
+  if (e.melee && e.R) {
+    // a kamikaze room: at most four of them — a pack of seven that each
+    // demand an escape run is not a question, it is a wall
+    const K = Math.min(G, 4);
+    const r = rush(e, w, door, K, e.R, e.fuse);
+    P = r.P * G / K; bank = r.bank * G / K;
+  } else if (e.melee) {
     // they are the clock: all of them arrive together, and whatever is left
     // standing when they do is finished with the world stopped
     // every man still on his feet when they arrive is a hard dodge at arm's
@@ -451,7 +461,7 @@ function matchup(e, w, door, group) {
     }
   }
   const refund = TIME.bonus * scarcity('timeGain', door);
-  return { P: P / G, R: bank / (G * refund), rounds: rounds + extraRounds / G, t, p, G };
+  return { P: P / G, R: bank / (G * refund), rounds: rounds + extraRounds / G, t, p, G: e.melee && e.R ? Math.min(G, 4) : G };
 }
 
 // --- the ladder check ----------------------------------------------------------
@@ -772,7 +782,79 @@ function newcomers() {
   console.log(`\nfor scale, pistol: two gunners firing together ${two.P.toFixed(2)} per kill (x2 men = ${(two.P * 2).toFixed(2)} a pair)`);
 }
 
-if (process.argv.includes('--newcomers')) newcomers();
+// --- the spawner ------------------------------------------------------------------
+// A small armored dome with a spinning dish on top. While the dish turns, any
+// man near it who shatters HANGS for `delay` world seconds where he fell, then
+// reassembles (ASSEMBLE s, unhittable while forming). Only the dish kills it.
+// When it dies, everything it is holding stays down.
+//
+// Three ways to play a spawner room, priced per room:
+//   TANK   ignore the guards, shoot the dish under their fire, then clear them
+//   CLEAR  shatter the guards, then take the dish before the first one is back;
+//          whoever is back before the dish goes must be shattered again
+//   FREEZE do CLEAR with the world stopped: the reassembly runs on the world
+//          clock, so at 0.05x the 2 s becomes 40 s of real time — paid in bank
+//
+// And no kill under a spawner refunds bank or drops anything until the dish
+// is gone. Otherwise a spawner is a farm: every reassembly is another refund.
+const ASSEMBLE = 0.8;
+const DISH = { bodyW: 0.25, strafe: 0, d: 14 };
+function spawnerRoom(w, door, N, delay) {
+  const drain = TIME.drain * scarcity('timeDrain', door);
+  const g = { ...enemy('gunner', 1), d: 10 };
+  const dish = { ...enemy('gunner', 1), ...DISH };
+  const cycle = g.aim + g.cd[0] + g.cd[1] / 2;
+  const { effort } = volleyNeed(g, door);
+  const fire = (k, secs) => Math.min(k / cycle, 1 / gapAt(door)) * secs * effort;
+  const tDish = killCost(dish, w, 1).t;
+
+  // TANK: all N firing while you take the dish, then an ordinary room of N
+  const tank = fire(N, tDish) + matchup(g, w, door, N).P * N;
+
+  // CLEAR: kill times in order; guard i is back at kill_i + delay + ASSEMBLE
+  let clock = 0; const back = [];
+  let clearP = 0;
+  for (let k = N; k >= 1; k--) {
+    const t = killCost(g, w, k).t;
+    clearP += fire(k, t);
+    clock += t;
+    back.push(clock + delay + ASSEMBLE);
+  }
+  const dishAt = clock + tDish;
+  const returned = back.filter((b) => b < dishAt).length;
+  const window = back[0] - clock;          // seconds between the last kill and the first return
+  // the ones back before the dish went fire until it does, then are shattered again for good
+  clearP += fire(returned, Math.max(0, dishAt - back[0])) + (returned ? matchup(g, w, door, returned).P * returned : 0);
+
+  // FREEZE: the same sequence in real seconds, frozen
+  const freezeBank = dishAt * drain;
+  // ...or the skilled version: clear on foot, and stop the world only for
+  // the part of the dish shot the window does not cover
+  // (a negative window means the first guard is back before the last one is
+  // down, so the freeze has to start that much earlier)
+  const lastBit = Math.max(0, tDish - window) * drain;
+  const clearOnFoot = clearP - (returned ? fire(returned, Math.max(0, dishAt - back[0])) + matchup(g, w, door, returned).P * returned : 0);
+  return { tank, clear: clearP, returned, window, tDish, freezeBank, lastBit, clearOnFoot };
+}
+
+function spawner() {
+  const door = 25;
+  const W = answers();
+  const pad = (v, n) => String(v).padEnd(n);
+  for (const [label, N, delay] of [['Mk I: 3 guards, 2 s', 3, 2], ['Mk II: 4 guards, 1.5 s', 4, 1.5]]) {
+    console.log(`\nspawner ${label} (door ${door}). Room cost in seconds of dodging; FREEZE in bank seconds (the bank caps at ${TIME.cap})`);
+    console.log(pad('', 15) + pad('TANK', 8) + pad('CLEAR', 8) + pad('back early', 12) + pad('window', 9) + pad('dish takes', 12) + pad('FREEZE', 9) + 'CLEAR + FREEZE THE DISH');
+    for (const [name, w] of Object.entries(W)) {
+      const r = spawnerRoom(w, door, N, delay);
+      console.log(pad(name, 15) + pad(r.tank.toFixed(2), 8) + pad(r.clear.toFixed(2), 8) + pad(`${r.returned} of ${N}`, 12) +
+        pad(`${r.window.toFixed(1)} s`, 9) + pad(`${r.tDish.toFixed(1)} s`, 12) + pad(`${r.freezeBank.toFixed(1)} s`, 9) +
+        `${r.clearOnFoot.toFixed(2)} dodging + ${r.lastBit.toFixed(1)} s bank`);
+    }
+  }
+}
+
+if (process.argv.includes('--spawner')) spawner();
+else if (process.argv.includes('--newcomers')) newcomers();
 else if (process.argv.includes('--matrix')) matrix();
 else if (process.argv.includes('--waves')) process.exitCode = waves() ? 1 : 0;
 else process.exitCode = ladder() ? 1 : 0;

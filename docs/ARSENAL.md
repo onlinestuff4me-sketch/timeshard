@@ -22,6 +22,7 @@ node tools/sim-arsenal.mjs            # every Mk debut: struggle, then relief
 node tools/sim-arsenal.mjs --waves    # the kill-order recipes
 node tools/sim-arsenal.mjs --matrix   # new enemy traits x new answers (§7)
 node tools/sim-arsenal.mjs --newcomers  # kamikaze, frankenstein, drone (§8)
+node tools/sim-arsenal.mjs --spawner  # the spawner room, three ways (§9)
 ```
 
 Both exit non-zero if a row leaves its band.
@@ -91,7 +92,7 @@ is not nearest-first, and is at least ×1.30 cheaper in dodging:
 | **the clock** | 23 | shield · 2 gunner II · laser at the back | laser first, shield last | ×2.00 |
 | **take his gun** | 20 | 2 shield II · 2 gunner · bomber behind them | bomber first, then the plates with his launcher | ×1.92 |
 | **plated screen** | 24 | 2 shield II · 2 gunner II behind | the pair first, over the plates | ×1.47 |
-| **close pressure** | 19 | 2 gunner near · 3 rusher II far | the rushers, who start furthest away | ×1.38 |
+| **close pressure** | 19 | 2 gunner near · 3 rusher II (kamikaze) far | the kamikazes, who start furthest away | ×1.55 |
 
 **What makes a mix a question (all measured):**
 
@@ -124,7 +125,7 @@ the air; the armored man advances, so his rounds crack plate and rock him back.
 | type | Mk II | Mk III | drops |
 |---|---|---|---|
 | gunner | **pairs**: two fire together, less often | pairs, and rounds ×2.0 speed | pistol |
-| rusher | **closing**: 4.4 m/s | 4.9 m/s | nothing: the shotgun answers him |
+| rusher | **kamikaze** (decided): arms inside 3.5 m, bursts after 0.5 s | 5 m radius, faster, 0.4 s fuse | nothing: the shotgun answers him |
 | shotgunner | **pattern**: 7 pellets, wider, from 10 m | both barrels | shotgun |
 | shield | **coverage**: turns faster, a 5 m walk round | 7 m, and fires faster | nothing: the launcher answers him |
 | heavy | **burst**: 5 rounds | 6 rounds, more often | burst rifle |
@@ -186,7 +187,7 @@ The rules for each Mk debut:
 | 15 | bomber I | debut | 8.8 | 4 | – | pistol I | 3.04 | 4.77 | launcher I | 0.92 | 1.42 |
 | 16 | shotgunner II | pattern | 9.1 | 4 | 1.37 | shotgun I | 1.94 | 3.01 | shotgun II | 1.13 | 1.74 |
 | 17 | armored I | debut | 9.4 | 4 | – | pistol I | 3.30 | 5.13 | AP I | 1.54 | 2.36 |
-| 18 | rusher II | closing | 9.8 | 7 | 0.15 | pistol I | 0.85 | 1.01 | shotgun II | 0.18 | 0.02 |
+| 18 | rusher II | kamikaze | 9.8 | 4 | 0.15 | pistol I | 0.92 | 0.82 | shotgun II | 0.15 | 0.00 |
 | 19 | rocketeer I | debut | 10.1 | 4 | – | pistol I | 1.66 | 2.58 | rocket I | 0.42 | 0.64 |
 | 20 | shield II | coverage | 10.4 | 4 | 0.13 | pistol I | 0.66 | 0.22 | launcher I | 0.13 | 0.04 |
 | 21 | gunner II | pairs | 10.7 | 4 | 0.50 | pistol I | 1.14 | 1.76 | pistol II | 0.67 | 1.03 |
@@ -201,7 +202,7 @@ The rules for each Mk debut:
 | 31 | shotgunner III | pattern | 13.0 | 4 | 0.85 | shotgun II | 1.17 | 0.88 | shotgun III | 0.74 | 0.65 |
 | 32 | heavy III | burst | 13.0 | 4 | 1.08 | burst II | 1.85 | 1.93 | burst III | 1.36 | 1.51 |
 | 33 | sniper III | reach | 13.0 | 2 | 0.21 | rifle II | 0.30 | 0.33 | rifle III | 0.22 | 0.28 |
-| 34 | rusher III | closing | 13.0 | 7 | 0.15 | pistol III | 0.44 | 0.21 | shotgun III | 0.15 | 0.00 |
+| 34 | rusher III | kamikaze | 13.0 | 4 | 0.15 | pistol III | 0.64 | 0.52 | shotgun III | 0.15 | 0.00 |
 | 35 | armored III | advance | 13.0 | 4 | 1.33 | AP II | 1.80 | 1.81 | AP III | 1.31 | 1.47 |
 | 36 | rocketeer III | tracking | 13.0 | 4 | 0.18 | rocket II | 0.37 | 0.29 | rocket III | 0.22 | 0.20 |
 | 37 | bomber III | area | 13.0 | 4 | 0.48 | launcher II | 0.76 | 0.51 | launcher III | 0.51 | 0.38 |
@@ -393,7 +394,7 @@ A suggestion, not yet re-checked by `node tools/sim-arsenal.mjs`:
 | trait | on | answered by |
 |---|---|---|
 | riot shield + eye slot | shield **Mk II** (in place of "turns faster") | rifle + zoom through the slot; grenade if splash gets past the plate |
-| slight frame, always moving | rusher **Mk II** | shotgun cone |
+| slight frame, always moving | drone **Mk II** (§8) | shotgun cone, grenade, beam |
 | always moving | gunner **Mk III** | cone, beam |
 | dodger | sniper **Mk III**, or a late elite type | faster rifle rounds, timing, blast |
 | beam | dropped by the laser man | (it is the answer) |
@@ -436,9 +437,12 @@ bursts; you must be outside R when he does.
   friends is the payoff, and it makes his position part of kill order.
 - **Mk ladder:** radius (3.5 → 5 m), then speed, then a shorter fuse. Area
   weapons crush him (×0.09 by Mk III); the zoomed rifle does nothing (one man per aim).
-- **He overlaps the rusher.** Both are the arrive-before-you-kill-them
-  clock. The cleanest fit is **rusher Mk III = kamikaze** ("he no longer
-  needs to reach you"), not an eleventh type. The shotgun still answers him.
+- **Decided: the rusher's Mk II *is* the kamikaze** ("he no longer needs to
+  reach you"), and his Mk III is the bigger, faster, shorter-fused one. It is
+  not an eleventh type. The ladder (§4) re-checks it: at door 18 four
+  kamikazes cost 0.92 per kill with the pistol and 0.15 with the Mk II
+  shotgun, and at door 34 0.64 → 0.15. A kamikaze room holds at most four:
+  seven men who each demand an escape run is a wall, not a question.
 
 ### Frankenstein
 
@@ -457,15 +461,15 @@ Plated head to foot, a gun in each hand, both firing together.
   it is dangerous in company. This creates a **real choice: leave him
   one-armed** (half his fire) while you clear the room, and take the second
   arm when nothing else can punish the rush.
-- **Two things to decide first:**
-  - **The pillar.** `PILLARS.md` §2 says enemies don't get tougher. Two arms is
-    two hits. The defence: no hit is a health tick. Each one visibly removes
-    a gun and changes what he does. That is a design call for you, not an
-    implementation detail.
-  - **The tech.** Arms that shatter separately are per-part shatter, which
-    was built and reverted (`BACKLOG.md` #3). The write-up says it wants
-    per-part rigid bodies and the glTF characters first. Frankenstein depends
-    on that work.
+- **Decided: a new mechanic, not a tougher enemy** (`PILLARS.md` §2 now
+  says so). Only his arms can be shattered. The first arm takes one gun and
+  leaves the other firing. The second arm shatters the whole body (Mk II),
+  or opens his chest for the final rush (Mk III). There is no health; every
+  hit changes what he does.
+- **The tech it depends on.** Arms that shatter separately are per-part
+  shatter, which was built and reverted (`BACKLOG.md` #3). The write-up says
+  it wants per-part rigid bodies and the glTF characters first. Frankenstein
+  needs that work.
 - **His drop:** twin pistols. Two rounds a tap, one to each hand: the paired
   fire he taught you, turned around.
 
@@ -477,7 +481,7 @@ Head-sized, just above head height.
   (`PILLARS.md` §5), so overhead is in view, and a drone makes you use the
   pitch of your look for the first time. It costs aim: a longer swing up to
   it (modelled as 1.5× the usual turn).
-- **Mk I, the spotter:** fires nothing, and while it's up every other man
+- **Mk I, the spotter (decided):** fires nothing, and while it's up every other man
   leads you. It only works if it is strong and still:
   - **Still:** a spotter that jinks is so slow to hit that the gunners stay
     the better first target (×1.00). It should **hover** to watch; the
@@ -493,3 +497,89 @@ Head-sized, just above head height.
   (`PILLARS.md` §7: one implementation of anything shared).
 - **Legibility:** it needs its own light, so a blackout can't hide it
   (`PILLARS.md` §6). It drops nothing: it is answered by the wide weapons.
+
+---
+
+## 9. The Spawner
+
+A small armored dome with a spinning radio dish on top. While the dish
+turns, any man near it who shatters **hangs where he fell for 2 seconds, then
+reassembles**. Shattering his guards only buys time; the dish is the kill.
+Its role is the drone spotter's: a support that makes the rest of the room
+worse while it's alive, so you have to decide whether to go for it first.
+
+`--spawner` prices a room of three gunner guards (Mk I: 2 s hang) and four
+(Mk II: 1.5 s) at door 25, played three ways. **Tank:** shoot the dish under
+fire. **Clear:** shatter the guards, then take the dish before the first one
+is back. **Clear, then freeze for the dish:** stop time only for whatever
+part of the dish shot the window doesn't cover.
+
+| Mk I, 3 guards, 2 s | tank | clear | back early | window | dish takes | clear + freeze the dish |
+|---|---|---|---|---|---|---|
+| pistol | 4.90 | 1.93 | 1 of 3 | 0.8 s | 1.4 s | 1.46 + **1.0 s bank** |
+| ricochet | 3.56 | 1.38 | 1 of 3 | 1.2 s | 1.4 s | 1.00 + 0.4 s |
+| shotgun cone | 2.11 | 0.67 | 0 of 3 | 1.6 s | 1.1 s | 0.67 + 0 |
+| grenade | 1.81 | 0.55 | 0 of 3 | 1.8 s | 0.7 s | 0.55 + 0 |
+| beam | 2.29 | 0.70 | 0 of 3 | 1.5 s | 0.8 s | 0.70 + 0 |
+| rifle + zoom | 4.27 | 1.93 | 1 of 3 | 0.7 s | 1.3 s | 1.51 + 1.0 s |
+
+| Mk II, 4 guards, 1.5 s | tank | clear | back early | window | dish takes | clear + freeze the dish |
+|---|---|---|---|---|---|---|
+| pistol | 11.72 | 7.85 | 3 of 4 | **−0.7 s** | 1.4 s | 2.43 + **3.4 s bank** |
+| shotgun cone | 4.15 | 1.32 | 1 of 4 | 0.7 s | 1.1 s | 1.02 + 0.5 s |
+| grenade | 3.80 | 0.82 | 0 of 4 | 1.0 s | 0.7 s | 0.82 + 0 |
+| beam | 4.94 | 1.35 | 1 of 4 | 0.7 s | 0.8 s | 1.07 + 0.3 s |
+
+(Room costs are seconds of dodging for the whole room; the bank caps at 10 s.)
+
+### What the numbers say
+
+1. **Going for the dish first is the wrong instinct.** Tanking costs 2.5×
+   clearing with the pistol, and more with everything else. The spawner
+   rewards a *sequence*: guards, then dish, inside the window.
+2. **Mk I with the pistol is a near miss, on purpose.** Clearing three guards
+   leaves 0.8 s; the dish takes 1.4 s. The first guard is back just before
+   the dish goes. The skilled answer is to clear on foot and **press the
+   button for the last half-second of the dish shot**, about 1 s of bank.
+   Freezing the whole room costs 7 of the bank's 10 s. That's the time button
+   used exactly when it matters, which is what the school exists to teach.
+3. **Mk II is a wall for the pistol.** The first guard returns before the
+   last one is down (a negative window). A cone, a grenade or a beam clears
+   the guards in one or two aims and turns it back into a question. So
+   **stage a Mk II spawner with its answer in the room**: a bomber among
+   the guards, whose launcher is the way through. That's *take his gun*
+   (§3) again, and it makes the bomber the first kill.
+4. **The zoom doesn't help with the dish.** At 14 m it isn't too small for
+   the pistol, and settling the zoom costs what the precision saves (1.3 s
+   against 1.4 s). If the dish should reward the rifle, put the spawner far
+   back (20 m or more) and keep it spinning, so the dish is only edge-on,
+   and hittable, part of the time.
+
+### Rules it needs
+
+- **The hang runs on the world clock.** Freezing time stretches the 2
+  seconds, which is what makes the time button the answer. Running it on the
+  real clock would make it the second thing after the grinder that ignores
+  a freeze (`PILLARS.md` §1). It doesn't need that.
+- **No kill under a spawner refunds bank or drops anything until the dish
+  is gone.** Otherwise the room is a farm: every reassembly is another 2 s
+  refund and another roll for a clip. Everything pays out when the dish breaks.
+- **When the dish breaks, everything it is holding stays down.** That's the
+  payoff: shatter the room, kill the dish inside the window, and the whole
+  room falls at once.
+- **The hang must read.** The shards hover where he fell, a ring around them
+  fills over the 2 seconds, then the shards fly back together. It is the
+  shatter played backwards, the assemble effect built from his own debris,
+  and it is the most "Time Shatter" image in this document. Two costs:
+  - **Performance:** a hanging man's debris can't be recycled for 2 s.
+    `SHATTER.pool` (512) and `perKill` (52) set how many men can hang at
+    once, about nine, and a spawner room must stay under that
+    (`PILLARS.md` §8: no allocation at runtime).
+  - **Legibility:** the ring has to read in a blackout (`PILLARS.md` §6).
+- **Mk ladder:** Mk I 2 s, Mk II 1.5 s with a fourth guard, Mk III **two
+  spawners, each keeping the other alive**. Both dishes must go inside one
+  window, which is the grenade's or the beam's job, or a freeze's.
+- **It pairs with the drone.** A room holding a spawner *and* a spotter asks
+  which support dies first. The spotter makes the guards' rounds harder to
+  dodge; the spawner makes their deaths temporary. The answer depends on
+  what you are holding, which is exactly the question to ask.

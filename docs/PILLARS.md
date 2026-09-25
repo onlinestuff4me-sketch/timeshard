@@ -50,6 +50,13 @@ Owned by `SCARCITY` and `CONDITION_TAX` in `src/balance.js`.
 **Do not** balance a new element by making enemies tougher. Balance it by
 changing what the player can afford.
 
+**Parts are a mechanic, not toughness.** An enemy may need more than one shot
+when each shot changes what he does and there is no health behind it. The
+case that settled it is the proposed Frankenstein (`docs/ARSENAL.md` §8): only
+his arms can be shattered, the first arm takes one of his two guns and leaves
+the other firing, and the second shatters him. A hit that only moves a hidden
+number closer to zero is still off the table.
+
 ## 3. Four beats, and they are learnable
 
 See him → watch the round leave → step out of it → shatter him. That is the
