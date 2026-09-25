@@ -23,6 +23,8 @@ node tools/sim-arsenal.mjs --waves    # the kill-order recipes
 node tools/sim-arsenal.mjs --matrix   # new enemy traits x new answers (§7)
 node tools/sim-arsenal.mjs --newcomers  # kamikaze, frankenstein, drone (§8)
 node tools/sim-arsenal.mjs --spawner  # the spawner room, three ways (§9)
+node tools/sim-arsenal.mjs --schedule # the floors door by door, and the rules they keep (§1)
+node tools/sim-arsenal.mjs --boss     # the floor-1 boss, against brackets and shells (§10)
 ```
 
 Both exit non-zero if a row leaves its band.
@@ -31,55 +33,64 @@ Both exit non-zero if a row leaves its band.
 
 ## 1. Floors and elevators
 
-**Decided: each floor has its own cast.** Gunners run through every floor
-and level up through their own tiers. Each floor introduces 2–4 new types
-that give it its identity. Types from earlier floors come back as **guests**,
-a tier up, so the struggle of a tier-up lands at the start of a later floor,
-when you are still holding their last-tier gun.
+**Decided: each floor has its own cast, and floor 1 ends in a boss whose
+death gives you slow time** (§10). Gunners run through every floor and level
+up through their own tiers. Each floor introduces 2–4 new types that give it
+its identity. Types from earlier floors come back as **guests**, a tier up,
+so the struggle of a tier-up lands at the start of a later floor, when you
+are still holding their last-tier gun.
 
-| floor | doors | new cast | guests (tier-ups) | gauntlet debut |
+| floor | doors | new cast | guests (tier-ups) | gauntlet |
 |---|---|---|---|---|
-| **1** | 1–6 (6) | gunner, rusher, shotgunner | – | – |
-| **2** | 7–13 (7) | shield, heavy (+ **slow time** on 10) | shotgunner II | – |
-| **3** | 14–20 (7) | sniper, bomber, Frankenstein, armored | rusher II, shield II | heavy II |
-| **4** | 21–29 (9) | rocketeer, kamikaze, **drone** (the spotter) | gunner II, bomber II, sniper II, shotgunner III, Frankenstein II | rusher III |
-| **5** | 30–39 (10) | laser, **spawner** | gunner III, armored II, rocketeer II, kamikaze II, drone II, heavy III, Frankenstein III | laser II |
+| **1** | 1–9 (9) | gunner, rusher, shotgunner, shield | – | **the Keeper** (boss) → slow time |
+| **2** | 10–16 (7) | heavy, sniper, bomber | shotgunner II, rusher II | shield II |
+| **3** | 17–23 (7) | Frankenstein, armored, rocketeer | heavy II, gunner II, bomber II | sniper II |
+| **4** | 24–30 (7) | kamikaze, **drone** (the spotter) | shotgunner III, Frankenstein II, rusher III, armored II | rocketeer II |
+| **5** | 31–39 (9) | laser, **spawner** | gunner III, kamikaze II, drone II, heavy III, Frankenstein III | laser II |
 
 Door by door (`node tools/sim-arsenal.mjs --schedule`; `·` is a door that
 carries a protocol debut instead):
 
 ```
-F1   1:gunner  2:·  3:rusher  4:·  5:shotgunner  6:·                                   G1:·
-F2   7:warm-up  8:shield  9:·  10:SLOW TIME  11:heavy  12:shotgunner II  13:·           G2:·
-F3   14:warm-up  15:sniper  16:rusher II  17:bomber  18:shield II  19:Frankenstein  20:armored   G3:heavy II
-F4   21:warm-up  22:gunner II  23:bomber II  24:rocketeer  25:sniper II  26:kamikaze
-     27:shotgunner III  28:drone  29:Frankenstein II                                     G4:rusher III
-F5   30:warm-up  31:laser  32:gunner III  33:armored II  34:spawner  35:rocketeer II
-     36:kamikaze II  37:drone II  38:heavy III  39:Frankenstein III                      G5:laser II
+F1   1:gunner  2:·  3:·  4:rusher  5:·  6:shotgunner  7:·  8:shield  9:·       G1:THE KEEPER
+F2   10:SLOW TIME  11:heavy  12:shotgunner II  13:sniper  14:·  15:bomber  16:rusher II
+                                                                                G2:shield II
+F3   17:warm-up  18:Frankenstein  19:armored  20:heavy II  21:gunner II  22:rocketeer
+     23:bomber II                                                               G3:sniper II
+F4   24:warm-up  25:kamikaze  26:shotgunner III  27:drone  28:Frankenstein II
+     29:rusher III  30:armored II                                               G4:rocketeer II
+F5   31:warm-up  32:laser  33:gunner III  34:spawner  35:kamikaze II  36:drone II
+     37:heavy III  38:Frankenstein III  39:·                                    G5:laser II
 ```
+
+Floor 1 is exactly the shipped opening: gunner 1, rusher 4, shotgunner 6,
+shield 8, slow time on 10. The boss slots in between door 9 and door 10, so
+the encounter curve and the slow-time school stay where they are.
 
 **The rules the schedule keeps**, each checked by `--schedule`:
 
 - **One new thing per door**, and per gauntlet. A tier-up counts as new.
+- **Slow time is the floor-1 boss's reward.** The Keeper holds floor 1's
+  gauntlet and slow time unlocks on the next door. `powerUnlockDoor()` still
+  derives that door from the encounter curve. If the curve ever moves it,
+  the check fails, because floor 1 has to move with it.
 - **The warm-up door out of each elevator holds no debut.** It is the easing
-  door of the Hades-style rise and drop.
-- **Slow time has door 10 to itself.**
+  door of the Hades-style rise and drop. Floor 2's warm-up is slow time's
+  first room.
 - **Tiers in order**, each after the last.
 - **No "fire together" tier inside the slow-time school** (10–19): the school
   already fires the room in volleys, so the gunner's pairs would be invisible
-  there. His Mk II is on 22.
-- **The answer is on the floor before the question.** The shotgun's Mk II
-  (12) precedes the rusher's (16) and the kamikaze; the launcher (17) precedes
-  shield II, Frankenstein II and the spawner; the rocket (24) precedes the
-  laser (31).
+  there. His Mk II is on 21.
+- **The answer is on the floor before the question.** The shotgun (6)
+  precedes the Keeper, and the shotgun's Mk II (12) precedes the rusher's
+  (16) and the kamikaze. The launcher (15) precedes shield II, Frankenstein II
+  and the spawner. The rocket (22) precedes the laser (32).
 - **A weapon is the best answer on the day it lands.** The Mk II pistol
   (pierce, shatter) out-guns the sniper's and the armored man's Mk I drops,
-  so both come before gunner Mk II. The model caught the armored case: on
-  door 22 his armor-piercing rifle was barely better than the pistol you had.
-- **Drone and spawner are not introduced on the same floor** (decided). Both
-  are supports you choose to kill first. The drone comes first as its easy Mk I,
-  a spotter that hovers, and the spawner a floor later. A Mk II drone guesting
-  on the spawner's floor is allowed: that pairing is the point.
+  so both come before gunner Mk II.
+- **Drone and spawner are not introduced on the same floor** (decided). The
+  drone comes first as its easy Mk I, a spotter that hovers. A Mk II drone
+  guesting on the spawner's floor is allowed: that pairing is the point.
 
 **The door budget.** Fourteen types at three tiers is ~42 debuts, and five
 floors of one-new-thing doors hold ~40 slots, before the protocols take
@@ -89,9 +100,9 @@ Mk III is part of his design, and everyone else tops out at Mk II. Their
 Mk IIIs (still defined in `ENEMY_MK`) are for past the fifth floor, a
 Heat-style mode (`TUNNEL_META.md` §2e).
 
-**Two things the model moved:** the shotgunner's Mk II from door 9 to 12
-(before slow time the room fires so seldom that a wider pattern changes
-nothing), and the armored man from floor 4 to floor 3 (see the rule above).
+**Two things the model moved:** the shotgunner's Mk II to door 12 (before
+slow time the room fires so seldom that a wider pattern changes nothing), and
+the armored man ahead of gunner Mk II (see the rule above).
 
 - **One new thing per door** still holds, and "new" now includes a Mk. Doors
   with no enemy debut carry the protocol debuts (forms, conditions, measures),
@@ -237,33 +248,33 @@ The rules for each Mk debut:
 | door | enemy | axis | m/s | x | last Mk P | struggle with | P | R | relief with | P | R |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | gunner I | debut | 4.8 | 2 | – | pistol I | 0.13 | 0.00 | pistol I | 0.13 | 0.00 |
-| 3 | rusher I | debut | 4.8 | 3 | – | pistol I | 0.15 | 0.00 | pistol I (footwork) | 0.15 | 0.00 |
-| 5 | shotgunner I | debut | 5.6 | 4 | – | pistol I | 0.14 | 0.01 | shotgun I | 0.08 | 0.00 |
+| 4 | rusher I | debut | 5.6 | 4 | – | pistol I | 0.15 | 0.00 | pistol I (footwork) | 0.15 | 0.00 |
+| 6 | shotgunner I | debut | 5.9 | 4 | – | pistol I | 0.14 | 0.01 | shotgun I | 0.08 | 0.00 |
 | 8 | shield I | debut | 6.6 | 4 | – | pistol I | 0.19 | 0.01 | pistol I (footwork) | 0.19 | 0.01 |
 | 11 | heavy I | debut | 7.5 | 4 | – | pistol I | 0.67 | 0.88 | burst I | 0.46 | 0.57 |
 | 12 | shotgunner II | pattern | 7.8 | 4 | 0.35 | shotgun I | 0.43 | 0.60 | shotgun II | 0.27 | 0.38 |
-| 15 | sniper I | debut | 8.8 | 2 | – | pistol I | 0.43 | 0.57 | rifle I | 0.32 | 0.43 |
+| 13 | sniper I | debut | 8.2 | 2 | – | pistol I | 0.43 | 0.57 | rifle I | 0.32 | 0.43 |
+| 15 | bomber I | debut | 8.8 | 4 | – | pistol I | 3.04 | 4.77 | launcher I | 0.92 | 1.42 |
 | 16 | rusher II | numbers | 9.1 | 7 | 0.15 | pistol I | 0.66 | 0.82 | shotgun II | 0.15 | 0.00 |
-| 17 | bomber I | debut | 9.4 | 4 | – | pistol I | 3.30 | 5.19 | launcher I | 0.99 | 1.54 |
-| 18 | shield II | coverage | 9.8 | 4 | 0.70 | pistol I | 4.33 | 6.78 | launcher I | 0.70 | 1.08 |
-| 20 | armored I | debut | 10.4 | 4 | – | pistol I | 0.51 | 0.16 | AP I | 0.27 | 0.08 |
-| G3 | heavy II | burst | 10.4 | 4 | 0.37 | burst I | 0.47 | 0.21 | burst II | 0.34 | 0.24 |
-| 22 | gunner II | pairs | 11.0 | 4 | 0.68 | pistol I | 1.14 | 1.76 | pistol II | 0.67 | 1.03 |
+| G2 | shield II | coverage | 9.1 | 4 | 0.59 | pistol I | 3.53 | 5.50 | launcher I | 0.59 | 0.89 |
+| 19 | armored I | debut | 10.1 | 4 | – | pistol I | 4.97 | 7.80 | AP I | 2.28 | 3.54 |
+| 20 | heavy II | burst | 10.4 | 4 | 0.33 | burst I | 0.42 | 0.17 | burst II | 0.30 | 0.20 |
+| 21 | gunner II | pairs | 10.7 | 4 | 0.50 | pistol I | 1.14 | 1.76 | pistol II | 0.67 | 1.03 |
+| 22 | rocketeer I | debut | 11.0 | 4 | – | pistol II | 0.32 | 0.26 | rocket I | 0.17 | 0.08 |
 | 23 | bomber II | area | 11.4 | 4 | 0.37 | launcher I | 0.79 | 0.68 | launcher II | 0.43 | 0.38 |
-| 24 | rocketeer I | debut | 11.7 | 4 | – | pistol II | 0.32 | 0.26 | rocket I | 0.17 | 0.08 |
-| 25 | sniper II | reach | 12.0 | 2 | 0.20 | rifle I | 0.28 | 0.12 | rifle II | 0.20 | 0.16 |
-| 26 | kamikaze I | debut | 12.3 | 5 | – | pistol II | 0.46 | 0.33 | shotgun II | 0.15 | 0.00 |
-| 27 | shotgunner III | pattern | 12.6 | 4 | 0.87 | shotgun II | 1.13 | 0.88 | shotgun III | 0.72 | 0.65 |
-| G4 | rusher III | numbers | 13.0 | 7 | 0.15 | pistol II | 0.66 | 0.82 | shotgun III | 0.15 | 0.00 |
-| 31 | laser I | debut | 13.0 | 1 | – | pistol II | 0.74 | 0.00 | rocket I | 0.38 | 0.00 |
-| 32 | gunner III | pairs | 13.0 | 4 | 0.67 | pistol II | 1.26 | 1.59 | pistol III | 0.75 | 0.99 |
-| 33 | armored II | advance | 13.0 | 4 | 1.15 | AP I | 2.05 | 1.85 | AP II | 1.33 | 1.18 |
-| 35 | rocketeer II | tracking | 13.0 | 4 | 0.17 | rocket I | 0.30 | 0.19 | rocket II | 0.18 | 0.11 |
-| 36 | kamikaze II | numbers | 13.0 | 6 | 0.15 | pistol III | 0.45 | 0.32 | shotgun III | 0.15 | 0.00 |
-| 38 | heavy III | burst | 13.0 | 4 | 1.04 | burst II | 1.78 | 1.89 | burst III | 1.30 | 1.47 |
+| G3 | sniper II | reach | 11.4 | 2 | 0.20 | rifle I | 0.27 | 0.12 | rifle II | 0.19 | 0.16 |
+| 25 | kamikaze I | debut | 12.0 | 5 | – | pistol II | 0.46 | 0.33 | shotgun II | 0.15 | 0.00 |
+| 26 | shotgunner III | pattern | 12.3 | 4 | 0.84 | shotgun II | 1.09 | 0.88 | shotgun III | 0.70 | 0.65 |
+| 29 | rusher III | numbers | 13.0 | 7 | 0.15 | pistol II | 0.66 | 0.82 | shotgun III | 0.15 | 0.00 |
+| 30 | armored II | advance | 13.0 | 4 | 1.15 | AP I | 2.05 | 1.85 | AP II | 1.33 | 1.18 |
+| G4 | rocketeer II | tracking | 13.0 | 4 | 0.17 | rocket I | 0.30 | 0.19 | rocket II | 0.18 | 0.11 |
+| 32 | laser I | debut | 13.0 | 1 | – | pistol II | 0.74 | 0.00 | rocket II | 0.30 | 0.00 |
+| 33 | gunner III | pairs | 13.0 | 4 | 0.67 | pistol II | 1.26 | 1.59 | pistol III | 0.75 | 0.99 |
+| 35 | kamikaze II | numbers | 13.0 | 6 | 0.15 | pistol III | 0.45 | 0.32 | shotgun III | 0.15 | 0.00 |
+| 37 | heavy III | burst | 13.0 | 4 | 1.04 | burst II | 1.78 | 1.89 | burst III | 1.30 | 1.47 |
 | G5 | laser II | charge | 13.3 | 1 | 0.30 | pistol III | 0.90 | 0.00 | rocket II | 0.37 | 0.00 |
 
-**26 of 26 inside the bands** — every tier the floor-cast schedule (§1) puts in a run; G3–G5 are elevator gauntlets. Read one row: at door 22 the gunner starts
+**26 of 26 inside the bands** — every tier the floor-cast schedule (§1) puts in a run; G2–G5 are elevator gauntlets. Read one row: at door 21 the gunner starts
 firing in pairs. With the pistol you had, a kill costs 1.14 s of dodging and
 1.76× what it refunds, so the bank drains. His Mk II pistol breaks one round
 in two in the air, and the same fight costs 0.67 s and roughly pays for itself.
@@ -669,3 +680,125 @@ part of the dish shot the window doesn't cover.
   which support dies first. The spotter makes the guards' rounds harder to
   dodge; the spawner makes their deaths temporary. The answer depends on
   what you are holding, which is exactly the question to ask.
+
+---
+
+## 10. The Keeper: slow time is a boss's reward
+
+**Decided: slow time is not handed out on a door. It is taken from the man
+who has it.** Floor 1 ends in an elevator gauntlet against **the Keeper**, a
+man who moves before your round does. When he shatters, his shards don't fall.
+They hang in the air, the world stops, the shards stream into you, and the
+button appears. The elevator carries you up with it. The next door (10) is
+slow time's first room, and the school runs from there as it does today.
+
+### What he does
+
+He reads the trigger, not the round. The moment you fire a round whose lane
+would hit him, he **blinks** 1.5 m to one side (you can't know which) and
+then can't blink again for his **cooldown**. A visible tell carries the
+fight: an afterimage where he stood, and a glow on him while he recharges.
+That glow is the window.
+
+`--boss` prices every way of shooting him, at 10 m (20,000 trials each):
+
+| attempt | cooldown 1.0 s | 1.2 s | 1.3 s | 1.5 s |
+|---|---|---|---|---|
+| one aimed pistol shot | 0% | 0% | 0% | 0% |
+| pistol bracket: centre, then left, then right | 49% | 49% | 49% | 99% |
+| one shotgun shell, centred | 7% | 7% | 7% | 8% |
+| **bait and punish**, pistol | 0% | 0% | 99% | 99% |
+| **bait and punish**, shotgun | 0% | 94% | 94% | 95% |
+| bait and punish, shotgun Mk II | 0% | 96% | 97% | 96% |
+
+**What that says:**
+
+1. **A single shot at where he stands is always dodged**, as you wanted.
+2. **The fight is "bait the blink, punish the recovery."** Fire at him, see
+   which way he went, swing onto him and fire again before his glow fades.
+   That is your idea of firing around him to anticipate the move, turned into a
+   read rather than a guess.
+3. **The shotgun helps for a reason you can feel.** One centred shell rarely
+   covers a 1.5 m blink (7%), so it isn't the spread itself. It's that
+   **a cone is faster to re-aim**: you fire as soon as he's inside it. At
+   a 1.2 s cooldown only the cone is fast enough (94%). The pistol's punish
+   just misses, and its bracket is a coin flip.
+4. **The cooldown is the fight's difficulty dial:** 1.5 s and anyone can punish
+   him; 1.2 s and you want the shotgun; 1.0 s and nothing on foot is fast
+   enough. That last one is foreshadowing: that is what slow time is for.
+
+### The fight, in three phases
+
+| phase | cooldown | what it teaches |
+|---|---|---|
+| **1. Blink** | 1.5 s | a single shot is dodged; bait, then punish. The pistol works. |
+| **2. Faster** | 1.2 s | the pistol's punish window closes. **Shotgunners assemble**; take a shotgun off one: *take his gun* (§3), inside a boss fight. |
+| **3. He stops the world** | 1.2 s | he freezes the room for a moment. His rounds **hang in the air** where you can see them, then all release at once, a volley. You survive by reading the hanging rounds and being somewhere else when time restarts. It is the lesson of the slow-time school, taught one room before you are given the button. |
+
+Then he shatters, and you get the power you just watched him use.
+
+- **He is the dodger trait's capstone** (§7): the reaction-based dodge, with
+  the rounds on the world clock and timing as the answer.
+- **His time stop is his, not a free freeze for the player** (`PILLARS.md` §1).
+  Its rounds hang where you can read them; nothing hits you while the world is
+  stopped.
+- **Name to decide.** *The Keeper* (he keeps time; you take it) fits the
+  building's terse voice. Alternatives: *the Timekeeper*, *the Warden*,
+  *Custody*.
+
+---
+
+## 11. Debut cards: every new type gets an introduction
+
+**Decided: every new enemy type is announced.** The machinery exists. NO
+RETREAT stops the world on a type's first appearance and shows a card
+(`duelMeetCard()`, copy in `SIMPLE.duel.meet`, checked by
+`test/duelmeet.mjs`), so the tunnel ports it rather than building a new one.
+
+**The sequence:**
+
+1. **At the door:** the door's headline names what is behind it (the protocol
+   headline already claims a door's debut: `minDoor` in `protocols.js`).
+2. **The first room holds him alone.** It is the existing debut rule: a new
+   type arrives in a quieter room.
+3. **When he finishes assembling, the world stops.** He gets the ring the
+   debut card uses, the rest of the room dims, and the card shows **three
+   lines at most**:
+   - his **name**;
+   - **what he does**, in one line;
+   - a **hint**, *only if his weakness isn't obvious*, and phrased as a nudge
+     rather than an instruction.
+4. **A touch releases the world.**
+
+**Once per save, not per run.** The full stop plays the first time you ever
+meet a type (UNLOCKS already records it). On later runs the door headline and
+a small name tag over him are enough. A returning player should not be
+stopped fourteen times a run. **Tier-ups** get no stop: the door headline
+reads `GUNNER Mk II`, and the name tag adds its one change (`· FIRES IN PAIRS`).
+
+### The cards (draft copy)
+
+In the building's voice (the `blurb`s in `protocols.js`), short enough to
+read in a second:
+
+| type | what he does | hint (only where it isn't obvious) |
+|---|---|---|
+| gunner | Aims. Fires. The building has many. | – |
+| rusher | Unarmed. He closes the distance. | Watch the arm come back. |
+| shotgunner | A wide pattern, lethal only near. | His gun stays when he goes. |
+| shield | Plated from the front. | The plate only covers the front. |
+| heavy | Three rounds, every time. | – |
+| sniper | Slow to aim. His round is not. | Watch for the glint. |
+| bomber | Lobs at where you'll be. | – |
+| armored | Plated, head to foot. Almost. | The head was not considered. |
+| rocketeer | The rocket follows you. | Break its line. |
+| laser | Charges, then sweeps the room. | Cover won't help. |
+| kamikaze | Arms when close, then bursts. | Stand him next to his friends. |
+| Frankenstein | Two guns. Only the arms break. | – |
+| drone | While it flies, they aim ahead of you. | Look up. |
+| spawner | The shattered come back. | Break the dish while they're down. |
+| **the Keeper** (boss) | He moves before your round does. | Make him move first. |
+
+Hints left blank are the ones whose answer is in the name or the first
+second of watching him. The others point at the weakness without naming the
+move: *the head was not considered* rather than *shoot his head*.
