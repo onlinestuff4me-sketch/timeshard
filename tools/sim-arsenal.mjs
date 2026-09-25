@@ -5,6 +5,7 @@
 //   node tools/sim-arsenal.mjs            the ladder check (every Mk debut)
 //   node tools/sim-arsenal.mjs --waves    the kill-order check (wave recipes)
 //   node tools/sim-arsenal.mjs --matrix   new enemy traits x new answers
+//   node tools/sim-arsenal.mjs --newcomers  kamikaze, frankenstein, drone
 //
 // A PROPOSAL, NOT THE GAME. The Mk tables below are the design in
 // docs/ARSENAL.md and nothing in the game reads them yet. When the ladder is
@@ -297,7 +298,8 @@ function acquire(e, w) {
   if (w.beam) half += w.beam;
   // a zoom magnifies him — but settling it takes its own moment
   const zoomIn = w.zoom ? w.zoomT : 0;
-  return FITTS_A + FITTS_B * Math.log2(1 + SWING / (2 * half * (w.zoom || 1))) + zoomIn;
+  // `swing` is further for a man you have to look UP to — a drone overhead
+  return FITTS_A + FITTS_B * Math.log2(1 + (e.swing ?? SWING) / (2 * half * (w.zoom || 1))) + zoomIn;
 }
 
 // HOW MANY MEN ONE AIM TAKES. This is the finding the model exists for: at
@@ -542,8 +544,28 @@ export const WAVES = {
   'close pressure':    { door: 19, w: ['shotgun', 2], mix: [['gunner', 2, 1, 7], ['rusher', 3, 2, 16]] },
   // the answer to the plates is carried by the man behind them
   'take his gun':      { door: 20, w: ['pistol', 1], mix: [['shieldbearer', 2, 2, 8], ['bomber', 1, 1, 13], ['gunner', 2, 1, 10]] },
+  // PROPOSED TYPES (see --newcomers). A kamikaze is a clock, and a clock
+  // only asks a question when something else is competing for the aim.
+  'kamikaze in the crowd': { door: 25, w: ['pistol', 2], mix: [['gunner', 2, 2, 9], ['kamikaze', 2, 1, 16]] },
+  // a spotter fires nothing: while it is up every other man leads you
+  'the spotter':       { door: 25, w: ['pistol', 2], mix: [['gunner', 3, 2, 9], ['drone', 1, 1, 11]] },
+};
+// proposed types, built from a gunner with their traits: not in ENEMY_BASE
+// because nothing on the ladder uses them yet
+const PROPOSED = {
+  kamikaze: { melee: true, speed: 5.0, d: 16, R: 5 },
+  // a spotter HOVERS to watch — the jinking is the Mk II that shoots.
+  // Measured: a spotter that jinks like the Mk II is so slow to hit that the
+  // gunners stay the right first target (x1.00), and the spotter asks nothing.
+  // And its mark has to be STRONG: at +50% on everyone else's dodge it sorts
+  // first but saves nothing (x1.03); at +100% it is the question (x1.34).
+  drone:    { bodyW: 0.3, strafe: 0.8, swing: 0.9, spotter: 1.0 },
 };
 function threatRate(e, door) {
+  if (e.threat !== undefined) return e.threat;
+  // A KAMIKAZE IS A DEADLINE, not a rate: the escape run he forces, spread
+  // over the time until he arrives
+  if (e.melee && e.R) return (REACT + (e.R + 0.5) / MOVE) * 1.5 / ((e.d - e.R) / e.speed);
   if (e.melee) return (REACT + CLEAR / MOVE) * e.speed / e.d * 3;   // he is coming whether you look or not
   if (e.sweep) return 3 / e.aim;
   const cycle = e.aim + e.cd[0] + e.cd[1] / 2;
@@ -575,7 +597,13 @@ function waves() {
     const W = weapon(...w);
     const men = [];
     for (const [type, n, mk, d] of mix) for (let i = 0; i < n; i++) {
-      men.push({ ...enemy(type, mk), d, label: `${type}${mk > 1 ? ' ' + MK(mk) : ''}` });
+      const e = PROPOSED[type] ? { ...enemy('gunner', 1), ...PROPOSED[type], type } : enemy(type, mk);
+      men.push({ ...e, d, label: `${type}${mk > 1 ? ' ' + MK(mk) : ''}` });
+    }
+    // THE SPOTTER'S THREAT IS EVERYONE ELSE'S: while he is up, their rounds
+    // lead you, so his rate is a share of the rest of the room's.
+    for (const e of men) if (e.spotter) {
+      e.threat = e.spotter * men.filter((o) => o !== e).reduce((a, o) => a + threatRate(o, door), 0);
     }
     const nearest = [...men].sort((a, b) => a.d - b.d);
     let best = null, bestCost = Infinity;
@@ -649,6 +677,102 @@ function matrix() {
   }
 }
 
-if (process.argv.includes('--matrix')) matrix();
+// --- the newcomers ------------------------------------------------------------------
+// Three proposed types, priced against the same answers at door 25:
+//
+// KAMIKAZE — runs at you; alive inside `R` he arms (`fuse`, world seconds) and
+// bursts. Kill him outside R, kill him during the fuse, or run R clear of him.
+// The run is paid frozen: at 5.5 m/s, clearing a 3.5 m radius takes ~0.7 s
+// of real time and a 0.5 s fuse does not wait for it.
+//
+// FRANKENSTEIN — plated head to foot, a gun in each hand, both fire together.
+// Mk I dies to one shot anywhere. Mk II: only the arms can be hit (a 13 cm
+// target, twice); each arm taken is one gun gone. Mk III: when the second arm
+// goes, his chest opens and he runs at you — a kamikaze with a 0.3 m core.
+//
+// DRONE — head-sized (0.3 m), just above head height, jinking the whole time.
+// Mk I SPOTS: fires nothing, but while it is up every other man leads you
+// (see --waves, 'the spotter'). Mk II fires. Mk III dives: a kamikaze with wings.
+const KAMIKAZE = { speed: 4.2, d: 16, R: 3.5, fuse: 0.5 };
+
+// one kamikaze-style rush: G of them from `d`; whoever is still up when he
+// reaches R and finishes his fuse costs you an escape run, frozen
+function rush(e, w, door, G, R, fuse, core) {
+  const drain = TIME.drain * scarcity('timeDrain', door);
+  const target = { ...e, bodyW: core ?? e.bodyW, strafe: 0 };   // he comes straight at you
+  const reach = Math.max(0, (e.d - R) / e.speed) + fuse;
+  let clock = 0, escapes = 0;
+  for (let k = G; k >= 1; k--) {
+    clock += killCost(target, w, k).t;
+    if (clock > reach) escapes++;
+  }
+  const run = REACT + (R + 0.5) / MOVE;
+  return { P: G * 0.15 + escapes * run * 1.5, bank: escapes * run * drain, escapes };
+}
+
+function newcomers() {
+  const door = 25;
+  const W = answers();
+  const cols = Object.keys(W);
+  const pad = (v, n) => String(v).padEnd(n);
+  const drain = TIME.drain * scarcity('timeDrain', door);
+  const refund = TIME.bonus * scarcity('timeGain', door);
+  const gunner = enemy('gunner', 1);
+  const cycle = gunner.aim + gunner.cd[0] + gunner.cd[1] / 2;
+  const { effort } = volleyNeed(gunner, door);
+
+  const rows = {
+    // a kamikaze room is priced per KILL, like every other row
+    'kamikaze Mk I x3':     (w) => per(rush({ ...gunner, ...KAMIKAZE }, w, door, 3, KAMIKAZE.R, KAMIKAZE.fuse), 3),
+    'kamikaze Mk II x3':    (w) => per(rush({ ...gunner, ...KAMIKAZE, speed: 5.0 }, w, door, 3, 5, KAMIKAZE.fuse), 3),
+    'kamikaze Mk III x4':   (w) => per(rush({ ...gunner, ...KAMIKAZE, speed: 5.0, d: 14 }, w, door, 4, 5, 0.35), 4),
+    // Frankenstein Mk I: ONE man firing TWO rounds together, one shot to kill
+    'frankenstein Mk I':    (w) => {
+      const t = killCost(gunner, w, 1).t;
+      return { P: (t / cycle + 1) * effort * 2, bank: (t / cycle + 1) * 2 * volleyNeed(gunner, door).need * drain };
+    },
+    // Mk II: two arms, 13 cm each, and he walks slowly while he fires.
+    // A cone, a blast, a beam or a ricochet can take both arms in one aim.
+    'frankenstein Mk II':   (w) => arms(w, false),
+    'frankenstein Mk III':  (w) => arms(w, true),
+    'drone Mk II x3':       (w) => {
+      const drone = { ...gunner, bodyW: 0.3, strafe: 3.5, swing: 0.9, d: 11, aim: 0.4, cd: [1.2, 0.8] };
+      return matchup(drone, w, door, 3);
+    },
+  };
+  function per(m, n) { return { P: m.P / n, bank: m.bank / n }; }
+  function arms(w, mk3) {
+    const arm = { ...gunner, bodyW: 0.13, strafe: 0.8, d: 12 };
+    const both = w.pellets > 1 || w.blast || w.beam || w.ricochet ? (w.ricochet ? 1.5 : 1.8) : 1;
+    const tArm = killCost(arm, w, 1).t;
+    // two guns up for the first arm, one for the second — or none, if one aim took both
+    const vols = (tArm / cycle + 1) * 2 + (both >= 1.8 ? 0 : (tArm / cycle) * 1 * (2 - both));
+    let P = vols * effort, bank = vols * volleyNeed(gunner, door).need * drain * 0.5;
+    if (mk3) {
+      // by the time his second arm goes he has walked in: ~8 m, and he runs
+      const r = rush({ ...gunner, speed: 4.5, d: 8 }, w, door, 1, 4.5, 0.5, 0.3);
+      P += r.P; bank += r.bank;
+    }
+    return { P, bank };
+  }
+
+  console.log(`door ${door}. P = seconds of dodging per kill (x vs the pistol); R = bank per kill / refund\n`);
+  console.log(pad('', 21) + cols.map((c) => pad(c, 19)).join(''));
+  for (const [name, f] of Object.entries(rows)) {
+    const base = f(W.pistol).P;
+    const cells = cols.map((c) => {
+      const m = f(W[c]);
+      const R = m.R ?? m.bank / refund;
+      return pad(`${m.P.toFixed(2)} x${(m.P / base).toFixed(2)} R ${R.toFixed(1)}`, 19);
+    });
+    console.log(pad(name, 21) + cells.join(''));
+  }
+  // for scale: the same door's plain rooms
+  const two = matchup({ ...gunner, volley: 2 }, W.pistol, door, 2);
+  console.log(`\nfor scale, pistol: two gunners firing together ${two.P.toFixed(2)} per kill (x2 men = ${(two.P * 2).toFixed(2)} a pair)`);
+}
+
+if (process.argv.includes('--newcomers')) newcomers();
+else if (process.argv.includes('--matrix')) matrix();
 else if (process.argv.includes('--waves')) process.exitCode = waves() ? 1 : 0;
 else process.exitCode = ladder() ? 1 : 0;

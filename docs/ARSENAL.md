@@ -21,6 +21,7 @@ the slow-time school's volleys, group sizes, the bank and scarcity curves).
 node tools/sim-arsenal.mjs            # every Mk debut: struggle, then relief
 node tools/sim-arsenal.mjs --waves    # the kill-order recipes
 node tools/sim-arsenal.mjs --matrix   # new enemy traits x new answers (§7)
+node tools/sim-arsenal.mjs --newcomers  # kamikaze, frankenstein, drone (§8)
 ```
 
 Both exit non-zero if a row leaves its band.
@@ -396,3 +397,99 @@ A suggestion, not yet re-checked by `node tools/sim-arsenal.mjs`:
 | always moving | gunner **Mk III** | cone, beam |
 | dodger | sniper **Mk III**, or a late elite type | faster rifle rounds, timing, blast |
 | beam | dropped by the laser man | (it is the answer) |
+
+---
+
+## 8. Three proposed types: kamikaze, Frankenstein, drone
+
+Priced at door 25 by `--newcomers`: P per kill, ×n against the pistol on the same
+room, and R (bank per kill ÷ refund).
+
+| | pistol | ricochet | shotgun cone | grenade | beam | rifle + zoom |
+|---|---|---|---|---|---|---|
+| kamikaze Mk I ×3 (R 3.5 m) | 0.15 | ×1.00 | ×1.00 | ×1.00 | ×1.00 | ×1.00 |
+| kamikaze Mk II ×3 (R 5 m, faster) | 0.80 · R 0.7 | ×0.19 | ×0.19 | ×0.19 | ×0.19 | ×1.00 |
+| kamikaze Mk III ×4 (shorter fuse) | 1.61 · R 1.6 | ×0.40 | ×0.09 | ×0.09 | ×0.09 | ×1.00 |
+| Frankenstein Mk I | 1.43 · R 2.3 | ×1.00 | ×0.88 | ×0.84 | ×0.88 | ×1.00 |
+| Frankenstein Mk II (arms only) | 2.20 · R 1.8 | ×0.90 | ×0.72 | ×0.55 | ×0.59 | ×0.97 |
+| Frankenstein Mk III (+ final rush) | 2.35 · R 1.8 | ×0.91 | ×0.74 | ×0.57 | ×0.61 | ×0.97 |
+| drone Mk II ×3 (jinking, firing) | 1.77 · R 1.2 | ×0.66 | ×0.28 | ×0.24 | ×0.31 | ×0.87 |
+
+For scale: two gunners firing together cost 2.45 per pair.
+
+### Kamikaze
+
+Runs at you. Alive inside radius R, he arms (a visible, audible fuse) and
+bursts; you must be outside R when he does.
+
+- **A kamikaze alone is not a threat. In a crowd he is a question.** Three Mk Is
+  in an empty room die before they arrive with any weapon. Among firing gunners
+  he is a clock competing for your aim: **kill him first**, ×1.48 cheaper than
+  nearest-first (`--waves`, *kamikaze in the crowd*). Stage him in mixed
+  rooms, never alone.
+- **Fuse, not proximity.** Arming at R and bursting after ~0.5 s gives three
+  outs: kill him before R, kill him during the fuse, or run clear. Running
+  clear of 3.5 m takes ~0.7 s, longer than the fuse, so the run is bought
+  with the time button. That is the button at its best: it buys distance, not
+  aim.
+- **His blast should hit his own side.** Shooting him when he's beside his
+  friends is the payoff, and it makes his position part of kill order.
+- **Mk ladder:** radius (3.5 → 5 m), then speed, then a shorter fuse. Area
+  weapons crush him (×0.09 by Mk III); the zoomed rifle does nothing (one man per aim).
+- **He overlaps the rusher.** Both are the arrive-before-you-kill-them
+  clock. The cleanest fit is **rusher Mk III = kamikaze** ("he no longer
+  needs to reach you"), not an eleventh type. The shotgun still answers him.
+
+### Frankenstein
+
+Plated head to foot, a gun in each hand, both firing together.
+
+- **Mk I is gentler than two gunners, not harsher.** Two rounds at once from
+  one body cost 1.43 to kill; the same two rounds from two gunners cost 2.45.
+  One kill stops both guns. That makes him the ideal *introduction* to paired
+  fire: put him on floor 2–3, before gunner Mk II teaches pairs from two men.
+- **Mk II (arms only) is 1.5× Mk I**, and the answers split cleanly: grenade
+  ×0.55, beam ×0.59, cone ×0.72 take both arms in one aim. Pistol, ricochet and
+  zoom take one arm at a time (×0.90–0.97). The zoom barely helps: at 12 m a
+  13 cm arm is not too small for the pistol, just slow to take twice.
+- **Mk III's final rush is a ~1.3 s reflex check.** By the time his second arm
+  goes he has walked to ~8 m. Alone it adds little (+7%). Like the kamikaze,
+  it is dangerous in company. This creates a **real choice: leave him
+  one-armed** (half his fire) while you clear the room, and take the second
+  arm when nothing else can punish the rush.
+- **Two things to decide first:**
+  - **The pillar.** `PILLARS.md` §2 says enemies don't get tougher. Two arms is
+    two hits. The defence: no hit is a health tick. Each one visibly removes
+    a gun and changes what he does. That is a design call for you, not an
+    implementation detail.
+  - **The tech.** Arms that shatter separately are per-part shatter, which
+    was built and reverted (`BACKLOG.md` #3). The write-up says it wants
+    per-part rigid bodies and the glTF characters first. Frankenstein depends
+    on that work.
+- **His drop:** twin pistols. Two rounds a tap, one to each hand: the paired
+  fire he taught you, turned around.
+
+### Drone
+
+Head-sized, just above head height.
+
+- **Height is the axis a portrait screen has.** The camera is 80° vertical
+  (`PILLARS.md` §5), so overhead is in view, and a drone makes you use the
+  pitch of your look for the first time. It costs aim: a longer swing up to
+  it (modelled as 1.5× the usual turn).
+- **Mk I, the spotter:** fires nothing, and while it's up every other man
+  leads you. It only works if it is strong and still:
+  - **Still:** a spotter that jinks is so slow to hit that the gunners stay
+    the better first target (×1.00). It should **hover** to watch; the
+    jinking belongs to the Mk II.
+  - **Strong:** its mark has to make the room's rounds about twice as hard to
+    dodge. At +50% it sorts first but saves nothing (×1.03); at +100% it's the
+    kill-order question (×1.34, *the spotter*).
+- **Mk II jinks and fires.** Small and erratic is the hardest pistol target
+  in the matrix: cone ×0.28, grenade ×0.24, beam ×0.31, ricochet ×0.66, zoom
+  ×0.87. A ricochet off a drone into the man below it is the moment the
+  ricochet exists for.
+- **Mk III dives:** a kamikaze with wings, the same code as the kamikaze
+  (`PILLARS.md` §7: one implementation of anything shared).
+- **Legibility:** it needs its own light, so a blackout can't hide it
+  (`PILLARS.md` §6). It drops nothing: it is answered by the wide weapons.
