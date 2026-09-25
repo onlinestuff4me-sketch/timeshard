@@ -17,7 +17,7 @@ await page.waitForTimeout(1600);
 await page.tap('.go');
 await page.waitForFunction(() => document.getElementById('overlay').classList.contains('hidden'),
   null, { timeout: 20000 });
-await page.waitForTimeout(1500);
+await page.waitForFunction(() => window.__ts.game.state === 'play', null, { timeout: 20000 });
 
 // Drive the streak directly: `kills` kills, each `gap` world-seconds apart,
 // with a man alive the whole time (the clock only runs while one is).
