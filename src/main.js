@@ -4242,6 +4242,21 @@ function duelMayFire(e) {
       if (worldT - ((hall && hall.duelFreshAt) || 0) < SIMPLE.duel.meetLead) return false;
     }
   }
+  // THE HANDOVER'S VOLLEY IS ONE EVENT AND WAITS FOR ITS SLOWEST MAN.
+  //
+  // The window below is sized for a room whose men are already standing and
+  // aiming on the same clock: three breaths and a little slack, a third of a
+  // second in all. The scripted volley cues everybody at once from wherever
+  // they are, so their telegraphs finish at different times — measured, two
+  // men fired 0.10 s apart and the third was still raising when the window
+  // shut, then held for the room's full 2.2 s gap while the beat that rings
+  // "the rounds" gave up and handed over with two.
+  //
+  // So during that one beat the window is the beat: a man may still only join
+  // a breath behind the last round, and only until the volley is full, but he
+  // is not timed out of an event the script has not finished staging.
+  if (duel.script && duel.coach === 'up_fire' && duelVolleyN < p.volley
+    && worldT - lastEnemyShotAt >= SIMPLE.duel.volleyStep) return true;
   // joining the volley in progress: inside its window, and a breath behind
   // whoever fired last, so three men read as three men
   const window = SIMPLE.duel.volleyStep * p.volley + SIMPLE.duel.volleySlack;
@@ -14416,10 +14431,23 @@ function duelScriptHoldsFire() {
   return duel.script && duelRoom() === duel.scriptIn
     && (duel.coach === 'up_say' || duel.coach === 'up_meet');
 }
+// CAN THIS MAN ACTUALLY TAKE A SHOT RIGHT NOW?
+//
+// "Alive and not assembling" is not the same question, and the difference is
+// the whole of the handover's volley bug. A man who has not yet closed to his
+// engage distance stays in `advance` — he never enters `aim`, so he is never
+// in the volley however loudly he is cued. Measured at the door-6 handover:
+// three men in the room, two of them in range, ONE round in the air on a beat
+// whose entire job is to show the player a shape a sidestep cannot answer.
+function duelCanVolley(e) {
+  if (!e || !e.alive || e.state === 'assemble' || e.type === 'rusher') return false;
+  const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
+  return d <= duelEngage(e);
+}
 function duelScriptVolley() {
-  // every live man raises at once; the volley window does the rest
+  // every man who can shoot raises at once; the volley window does the rest
   for (const e of enemies) {
-    if (!e.alive || e.state === 'assemble' || e.type === 'rusher') continue;
+    if (!duelCanVolley(e)) continue;
     e.fireCd = 0;
     e.seenT = Math.max(e.seenT || 0, RAMP.sightGrace + 1);
   }
@@ -14570,9 +14598,12 @@ function updateDuelCoach(dtReal) {
       // waits for the ROOM, not for a clock. A fixed second was up before the
       // first group had finished arriving, so the cue went out to whoever
       // happened to have formed and "a volley all at once" was one man firing.
-      // A man still assembling has no hitbox and cannot be cued.
-      const ready = enemies.reduce((n, e) => n + (e.alive && e.state !== 'assemble'
-        && e.type !== 'rusher' ? 1 : 0), 0);
+      //
+      // "Formed" was the wrong test and it was wrong the same way twice. A man
+      // still assembling has no hitbox and cannot be cued — and a man who has
+      // formed but is still WALKING IN cannot fire either, so counting him
+      // released the cue to a room that was not ready. See duelCanVolley.
+      const ready = enemies.reduce((n, e) => n + (duelCanVolley(e) ? 1 : 0), 0);
       const want = duelPlan(duelRoom()).volley;
       if (duel.coachT > U.arrive && (ready >= want || duel.coachT > U.fill)) {
         duel.coach = 'up_fire';
@@ -14592,7 +14623,13 @@ function updateDuelCoach(dtReal) {
       duel.volleyT = air ? duel.volleyT + dtReal : 0;
       const stillRaising = enemies.some((e) => e.alive
         && (e.state === 'aim' || e.state === 'burst'));
-      if (air && (duel.volleyT > U.volley || !stillRaising)) {
+      // ...AND THE VOLLEY IS FINISHED WHEN IT HAS FIRED, which the room's own
+      // counter already knows. Ending on `!stillRaising` alone hands over in
+      // the gap between one man firing and the next being let through by the
+      // volley window, and ending on a clock hands over mid-volley on a slow
+      // frame. Both leave the dodge beat one round to ring.
+      const shot = duelVolleyN >= duelPlan(duelRoom()).volley;
+      if (air && (shot || duel.volleyT > U.volley || !stillRaising)) {
         duel.coach = 'tap';
         duel.coachT = 0;
         duelCoachSay('TAP TO SLOW TIME', 'btn');
@@ -15916,6 +15953,13 @@ window.__ts = {
   // to be turning. This is the dial, so a harness can check the pair exactly
   // and keep the live reading as corroboration rather than as the only
   // evidence.
+  // THE DUEL'S VOLLEY CLOCK, from outside. A volley is several men firing as
+  // one event and the only way to tell "the volley is small" from "the volley
+  // is being spaced out" is to see the counter.
+  duelVolley: () => ({ n: duelVolleyN, at: +duelVolleyAt.toFixed(2),
+    now: +worldT.toFixed(2), lastShot: +lastEnemyShotAt.toFixed(2),
+    want: game.mode === 'duel' ? duelPlan(duelRoom()).volley : null,
+    gap: game.mode === 'duel' ? duelPlan(duelRoom()).gap : null }),
   slewNow: (t = 'shieldbearer') => {
     const sl = ENEMY_TYPES[t] && ENEMY_TYPES[t].slew;
     return sl ? { rate: timeUnlocked() ? sl[1] : sl[0], power: timeUnlocked(),

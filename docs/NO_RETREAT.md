@@ -346,14 +346,36 @@ round has already missed its first two beats.
 
 **It waits for the room, not for a clock.** A fixed second was up before the
 first group had finished arriving, so the cue went out to whoever happened to
-have formed and "a volley all at once" was one man firing. A man still
-assembling has no hitbox and cannot be cued, so step 3 waits until as many men
-have *formed* as the fire dial wants to fire together (`upgrade.fill` caps it).
+have formed and "a volley all at once" was one man firing.
 
-**And the volley finishes before the world stops.** A volley is several men
-firing as one event, a breath apart (`volleyStep`) — the prompt was being raised
-by the first round out of it, which froze the other two before they were fired
-and left the beat that rings *the rounds* with one round to ring.
+**"Formed" was the wrong test, and it was wrong the same way twice.** A man
+still assembling has no hitbox and cannot be cued — that was the first fix. But
+a man who has formed and is still *walking in* cannot fire either: he stays in
+`advance`, never enters `aim`, and is never in the volley however loudly he is
+cued. Traced frame by frame at the handover: three men in the room, two of them
+in range, **one round in the air** on the beat whose entire job is to show the
+player a shape a sidestep cannot answer. `duelCanVolley` asks the question that
+matters — alive, formed, not a rusher, and *within his engage distance* — and
+step 3 waits on that.
+
+**And the volley waits for its slowest man.** `duelMayFire`'s join window is
+`volleyStep * volley + volleySlack`, a third of a second, and it is sized for a
+room whose men are already standing and aiming on the same clock. The scripted
+volley cues everybody at once *from wherever they are*, so their telegraphs
+finish at different times — measured, two men fired 0.10 s apart and the third
+was still raising when the window shut, then waited out the room's full 2.2 s
+gap while the beat gave up and handed over with two. During that one beat the
+window is the beat: a man still joins only a breath behind the last round and
+only until the volley is full, but he is not timed out of an event the script
+has not finished staging.
+
+**And the volley finishes before the world stops.** The prompt was raised by
+the first round out of it, which froze the other two before they were fired and
+left the beat that rings *the rounds* with one round to ring. It ends when the
+room's own counter says the volley is full (`duelVolleyN >= volley`), with the
+clock and the nobody-still-raising test kept as the ways out of a room that
+cannot finish one. Measured after: all three aim together, fire 0.05–0.10 s
+apart, and the world stops with **three rounds crossing the strip**.
 
 `duel.coach` owns the beats, like every other held beat in this mode, because
 that variable owns the card and the clock and two owners is how you get two

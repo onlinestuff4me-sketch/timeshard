@@ -1323,6 +1323,41 @@ easy to satisfy and useless.
 > that asks for a group this big", so a more generous table drags the whole
 > slow-time lesson earlier unless the threshold keeps pace. Door 10 either way.
 
+## The door-6 volley was one round, and "ready" meant the wrong thing
+
+Reported as still-open after the room work: NO RETREAT's slow-time handover
+fires one round where the beat is written for three. It failed identically on
+`4cb32f5`, so it predated that change, and `duelup` had been catching it.
+
+Traced frame by frame rather than reasoned about, because two separate things
+were wrong and each one alone would have looked like a tuning miss:
+
+* **`up_meet` counted men who had FORMED, not men who could SHOOT.** A man who
+  has not closed to his engage distance stays in `advance` — he never enters
+  `aim`, so he is never in the volley however loudly he is cued. Three men in
+  the room, two in range, one round in the air. This is the second time this
+  beat has been fixed by narrowing what "ready" means: the first was "a man
+  still assembling has no hitbox". Same shape, one step further out.
+  `duelCanVolley` now asks alive, formed, not a rusher, and *in range*.
+* **The volley's join window timed out the slowest man.** `volleyStep * volley
+  + volleySlack` is a third of a second and is sized for a room whose men are
+  already standing on the same clock. The script cues everybody at once from
+  wherever they are, so their telegraphs finish at different times: two fired
+  0.10 s apart, the third was still raising when the window shut, and he was
+  then held for the room's full 2.2 s gap. During that one scripted beat the
+  window is the beat.
+* ...and `up_fire` ended on "nobody is still raising", which is true in the
+  gap between one man firing and the next being let through. It ends on the
+  room's own counter now (`duelVolleyN >= volley`), with the clock and the
+  raising test kept as the ways out of a room that cannot finish a volley.
+
+Measured after: all three aim together, fire 0.05–0.10 s apart, and the world
+stops with three rounds crossing the strip. The dodge beat rings two of them
+instead of one.
+
+`__ts.duelVolley()` exposes the counter, because the only way to tell "the
+volley is small" from "the volley is being spaced out" is to see it.
+
 ## The levels were empty because of where the plan put people, not how many
 
 Playtest, three things: *"somehow the hallways and rooms feel a bit too
