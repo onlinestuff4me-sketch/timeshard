@@ -74,8 +74,8 @@ What is still owed is item 00 of `docs/BACKLOG.md`.
 - **A retry reopens a shut seal** — before, dying past a one-way seal
   respawned you behind it, in a dead end. This affects every sealed leg.
 - **Debut cards are plain words**, not the building's riddles: what makes him
-  different, and a tip only where it is not obvious. **The copy is under the
-  owner's review** and will change again.
+  different, and a tip only where it is not obvious. The owner's first review
+  pass (on an approve-or-edit page) is applied; the copy can still move.
 - **Sight is on from door 1 for playtesting** (`SIGHT.playtest`), because the
   drone boss that should give it is not built.
 - **Streak counting:** one trigger pull is one shot however many pellets; plate,

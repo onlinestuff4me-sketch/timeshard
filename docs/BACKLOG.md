@@ -7,8 +7,9 @@ merged to `main`** (so not live). Built there: the weapon switcher (3 slots),
 the tempo streak, debut cards, the blinker, the Keeper's room on door 9 with
 slow time as his reward, and the no-misses streak with sight. Owed:
 
-1. **The debut card copy is under review** (the owner's). The first draft was
-   riddles; the current copy is plain. It is being approved line by line.
+1. **Debut card copy:** the owner's first review pass is applied (seven cards
+   edited, `docs/ARSENAL.md` §11). No card was explicitly approved, so the
+   copy can still move; the review page is https://claude.ai/artifact/QGjhzcWe2tPfuCLybTCWEu
 2. **SIGHT.playtest is on**: sight is owned from door 1 of every tunnel run
    because the drone boss that should give it does not exist. Turn it off
    (`SIGHT.playtest = false` in `src/balance.js`) when he does.

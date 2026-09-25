@@ -50,7 +50,7 @@ let m = await meetOne('rusher');
 console.log('rusher:        ' + JSON.stringify(m));
 if (!m.on) bad('a rusher this save has never met did not get a card');
 if (m.who !== 'RUSHER') bad('the card names ' + m.who);
-if (!/charges you/i.test(m.what)) bad('the card does not say what he does: ' + m.what);
+if (!/charges at you/i.test(m.what)) bad('the card does not say what he does: ' + m.what);
 if (!/arm pulls back/i.test(m.hint)) bad('the rusher\'s hint is missing: ' + m.hint);
 if (!m.pin) bad('there is no ring on him');
 if (m.worldMoved > 0.002) bad('the world kept moving under the card: ' + m.worldMoved + ' s');

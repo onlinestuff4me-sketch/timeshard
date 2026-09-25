@@ -98,13 +98,13 @@ export const ELEMENTS = [
     blurb: 'Compliant. Armed. The building has many.' },
   { id: 'rusher', name: 'RUSHER', kind: 'enemy', tier: 1, minDoor: 4, unlockAt: 0, weight: 8, impl: true,
     blurb: 'Close-quarters directive. Watch the arm come back.',
-    meet: 'Unarmed. He charges you.', hint: 'Sidestep when his arm pulls back.' },
+    meet: 'Unarmed. But he charges at you.', hint: 'Watch out when his arm pulls back.' },
   { id: 'shotgunner', name: 'SHOTGUNNER', kind: 'enemy', tier: 2, minDoor: 6, unlockAt: 0, weight: 6, impl: true,
     blurb: 'Wide pattern. Effective only near. Get past him.',
-    meet: 'A wide spread. Deadly up close.', hint: 'Keep your distance. His gun drops when he does.' },
+    meet: 'Deadly up close.', hint: 'Keep your distance.' },
   { id: 'shieldbearer', name: 'SHIELD', kind: 'enemy', tier: 2, minDoor: 8, unlockAt: 0, weight: 5, impl: true,
     blurb: 'Plate rated for small arms. The plate only.',
-    meet: 'His shield stops shots from the front.', hint: 'Hit what the shield does not cover, or get behind him.' },
+    meet: 'His shield stops shots from the front.', hint: 'Hit uncovered spots. Or get behind him.' },
   { id: 'heavy', name: 'HEAVY', kind: 'enemy', tier: 2, minDoor: 11, unlockAt: 0, weight: 5, impl: true,
     blurb: 'Three rounds, in quick succession, every time.',
     meet: 'Fires three rounds at a time.' },
@@ -113,7 +113,7 @@ export const ELEMENTS = [
     meet: 'Slow to aim. His round is fast.', hint: 'Move while he aims.' },
   { id: 'bomber', name: 'BOMBER', kind: 'enemy', tier: 3, minDoor: 15, unlockAt: 0, weight: 4, impl: true,
     blurb: 'Area denial. The floor is the weapon.',
-    meet: 'Throws grenades at your feet.', hint: 'Step out of the red ring.' },
+    meet: 'Throws grenades at your feet.', hint: 'Keep out of the red ring.' },
   { id: 'armored', name: 'ARMORED', kind: 'enemy', tier: 3, minDoor: 17, unlockAt: 0, weight: 3, impl: true,
     blurb: 'Body plated. The head was not considered a risk.',
     meet: 'Body shots bounce off.', hint: 'Aim for the head.' },
@@ -127,7 +127,7 @@ export const ELEMENTS = [
   // who is one, and the floors after it. The row is here for his card.
   { id: 'blinker', name: 'BLINKER', kind: 'enemy', tier: 4, minDoor: 99, unlockAt: 0, weight: 0, impl: false,
     blurb: 'Reads the trigger. Moves before the round does.',
-    meet: 'Dodges the moment you fire.', hint: 'Fire once to make him move, then shoot where he lands.' },
+    meet: 'Dodges the moment you fire.', hint: 'Fire to make him move, then at where he’ll be.' },
 
   // --- weapons: ids match the WEAPONS keys, so a pickup files itself --------
   // A WEAPON ARRIVES WHEN THE MAN CARRYING IT DOES. These rows are registry
