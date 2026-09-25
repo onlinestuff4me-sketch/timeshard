@@ -938,12 +938,12 @@ After the drone boss, a run of hits without a miss lets you see through walls:
 - **A blinker's dodged bait shot counts as a miss** (decided). Blinkers are
   streak-breakers: punish his cooldown rather than bait him, or bait with a
   blast he can't blink out of.
-- **A miss drops you one tier, not to zero** (decided). The first miss drops
-  you to the floor of your current tier; a miss while you're already on a
-  floor drops you to the floor below. Hits in between climb as usual:
+- **Every tier forgives one miss** (decided). The first miss in a tier drops you
+  to that tier's floor. A second miss in the same tier drops you to the floor
+  of the tier below, which forgives once in turn:
 
   ```
-  43 ─miss→ 30 ─hit, hit→ 32 ─miss→ 30 ─miss→ 10 ─miss→ 0
+  43 ─miss→ 30 ─2 hits→ 32 ─miss→ 10 ─2 hits→ 12 ─miss→ 10 ─4 hits→ 14 ─miss→ 0
   ```
 
   Sight follows the tier you land on: sharp, sharper, faint, gone.
@@ -952,22 +952,22 @@ After the drone boss, a run of hits without a miss lets you see through walls:
   maintain it through careful shooting everywhere.
 - **Before the drone boss the streak doesn't show.** Nothing yet reads it.
 
-**The tempo streak shortens reloads and weapon swaps** (decided), in tiers like
-the no-misses streak. It counts kills, each within ~3 world-seconds of the last:
+**The tempo streak shortens reloads and weapon swaps** (decided), in tiers of
+five. It counts kills, each within ~3 world-seconds of the last:
 
 | kills in tempo | reload and swap time | pistol reload (1.0 s) | launcher reload (2.0 s) |
 |---|---|---|---|
-| 3 | ×0.75 | 0.75 s | 1.5 s |
-| 6 | ×0.5 | 0.5 s | 1.0 s |
-| 10 | ×0.25 | 0.25 s | 0.5 s |
+| 5 | ×0.75 | 0.75 s | 1.5 s |
+| 10 | ×0.5 | 0.5 s | 1.0 s |
+| 15 | ×0.25 | 0.25 s | 0.5 s |
+| **20** | **none**: the reload sound and a quick flick of the gun, for as long as the streak holds | – | – |
 
+- **Any break drops it to zero** (decided). No tiers on the way down. It's the
+  short, hot streak; no-misses is the long, forgiving one.
 - **The window only runs while someone is alive to shoot.** A cleared room
-  pauses it, so the walk to the next door never breaks the streak. Without
-  that, every corridor would reset it, and tempo would measure walking speed
+  pauses it, so the walk to the next door never breaks it. Without that,
+  every corridor would reset it, and tempo would measure walking speed
   instead of fighting pace.
-- **A lapse drops you one tier, not to zero**, the same rule as a miss: the
-  window restarts at the tier below. Both streaks forgive once per tier and
-  punish a run of mistakes.
 - **It's on the world clock.** Freezing stretches the window, and the bank
   pays for it.
 - **Three streaks on screen is too many to read.** Headshots feed the refund,
@@ -1075,38 +1075,71 @@ of the fight.
 
 ## 14. The finale: the Keeper, reassembled
 
-**A proposal.** The run ends where it began, against the man whose time you
-took, and the fight turns every power you have collected against him.
+**Decided: the Keeper is the ultimate boss.** The run ends where it began,
+against the man whose time you took, now carrying a piece of every floor.
 
 **Why he's back.** Floor 5 is full of spawners, and a spawner reassembles
-the shattered. On the fifth floor one of them has reassembled *him*. He
-carries his blink, and now the slow time you took from him: the building
-gave it back. It's the same trick the spawner boss played on you with your
-second life, and the reason the spawner floor is the one below him.
+the shattered. A spawner in his room keeps reassembling *him*.
 
-**The room:** the top of the tower, three blinkers at Mk III standing with
-him on the respawn loop every boss has. Their answer is the launcher (a
-blast wider than their blink), so a bomber is among them.
+### What makes him ultimate
 
-| phase | what he does | what answers it |
-|---|---|---|
-| **1. The blink, again** | the floor-1 fight at full speed: blinks with a shorter cooldown, fires every 1.25 s, blinkers around him | **slow time**, which you didn't have on floor 1: freeze in his cooldown and the punish is yours with any gun. The first fight replayed with the power he lost |
-| **2. His time against yours** | he stops the world. His rounds hang and yours would too, and when it restarts they all release at once, as on floor 1 | **press your button while he holds his.** Two freezes: his stops the world, yours lets *you* move through it at slow-time speed while nothing else does. The one moment in the game where your freeze beats a freeze. It costs bank, and that's what the run's headshot refunds were saving for |
-| **3. Reassembly** | shatter him and he hangs where he fell, the spawner fiction. A dish somewhere in the room is holding him | **break the dish while he hangs.** The spawner's own lesson (§9), so the last kill of the game is the kill order you learned on floor 4 |
+- **He runs on his own clock.** Your slow time slows his rounds, his
+  kamikazes, his rockets and his guards, but not him: not his blink, and not
+  his cooldown. He is the second thing in the game, after the grinder, that
+  ignores a freeze (`PILLARS.md` §1 names the grinder as its one exception;
+  he becomes the second, deliberately). So the floor-1 lesson comes back
+  with no crutch: anticipate the blink.
+- **He's armored.** Only his head counts.
+- **He carries the floors' attacks:**
+  - **kamikazes he fires at you**, small ones that hunt you and burst;
+  - **rockets** that follow you;
+  - his own rounds on his own clock.
 
-**His shards.** When he goes for good, his shards don't stream into you. You
-have his time already. They hang, the whole room's shards hang with them, and
-then the wall at the end of the room shatters outward, and the window from
+`--boss` prices hitting him: head only (24 cm), blinking 1.8 m, at 10 m,
+every punish made on foot:
+
+| attempt | cooldown 1.4 s | 1.2 s | 1.0 s |
+|---|---|---|---|
+| pistol bracket, centre then both sides | 30% | 29% | 30% |
+| one shotgun Mk III shell, centred | 8% | 8% | 9% |
+| bait and punish, pistol | 0% | 0% | 0% |
+| **bait and punish, shotgun Mk III** | 78% | **77%** | 0% |
+| bait and punish, rifle (95 m/s round) | 77% | 0% | 0% |
+
+- **His cooldown is the escalation:** 1.4 s (the shotgun or the rifle's fast
+  round), then 1.2 s (only the shotgun's re-aim), then 1.0 s (only brackets,
+  about one in three). Your loadout decides which phase you can close.
+- **The fight you learned on floor 1, at its limit:** bait, read, punish, on
+  a 24 cm target, while kamikazes and rockets come at you.
+
+### The loop, and how to break it (decided)
+
+A spawner in the room, guarded, keeps reassembling him and his guards. The only
+way out:
+
+1. **Shatter the guards, then the Keeper.**
+2. **The Keeper hangs** where he fell, on his own clock. It's a long hang, and
+   it is your window.
+3. **During it, his guards reform** (their hang is shorter). **Shatter them
+   again, then break the spawner's dish**, before the Keeper comes back.
+4. **With the spawner gone, the loop is broken.** Whatever it was holding,
+   him included, stays down.
+
+`--spawner-boss` already prices step 3. Re-clearing five tough guards and
+breaking a dish takes about **3.6 s** with a launcher in your loadout, **5.8 s**
+with a shotgun and an armor-piercing rifle, and **8.7 s** with the pistol alone.
+So **his hang should be about 6 s**: a clean window with the right guns, a
+tight one without them, and a wall with the pistol alone. That's the last
+loadout exam of the run. Your slow time helps with the guards (their clock
+stops) but not with his hang (his doesn't).
+
+**His shards.** When the loop breaks, his shards don't stream into you. You
+already have his time. They hang, the whole room's shards hang with them, and
+then the wall at the end shatters outward, and the window from
 `TUNNEL_META.md` §1 is there: the white city, the tower you've been climbing.
 The tunnel was always inside it. That ties the Tunnel to CITY STREETS: the
 place you step out into is the arena mode's city.
 
-**What it asks of the systems:**
-- **The mirror freeze is new.** When he freezes, the world stops for you too.
-  Your button is what lets you move inside his freeze. It needs its own rule:
-  his freeze has a timer, visible, and your bank drains at the normal rate.
-  It's the only place two clocks meet, and it needs the `--boss` treatment
-  before it's built.
 - **After the run, the Mk IIIs.** The door budget (§1) left most types'
   Mk IIIs past the fifth floor. Beating the Keeper is the natural key for a
   harder mode that has them (`TUNNEL_META.md` §2e: modifiers you choose).

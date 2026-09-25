@@ -1083,7 +1083,7 @@ function schedule() {
 // Rounds travel on the world clock like everything else; the lateral
 // position of each round when it reaches his line decides a hit.
 function boss(blinkR, cooldown, opts = {}) {
-  const d = opts.d ?? 10, half = 0.28, trials = 20000;
+  const d = opts.d ?? 10, half = opts.half ?? 0.28, trials = 20000;
   const aim = (at) => at + gauss() * AIM_SIGMA * d;            // thumb error, metres at his range
   function gauss() { let u = 0; while (!u) u = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random()); }
   // shots: [{t: fire time, x: lateral aim point (m), pellets, spread (rad)}]
@@ -1126,7 +1126,7 @@ function boss(blinkR, cooldown, opts = {}) {
     for (let i = 0; i < trials; i++) {
       const side = Math.random() < 0.5 ? -1 : 1;
       const tFire = Math.max(w.cd || 0, REACT + swing(w));
-      const arrive = tFire + d / 46;
+      const arrive = tFire + d / (w.speed || 46);
       if (arrive > cooldown) continue;                       // he is ready again: blinks
       const cx = aim(side * blinkR);
       const n = w.pellets || 1;
@@ -1135,6 +1135,17 @@ function boss(blinkR, cooldown, opts = {}) {
       if (hit) h++;
     }
     return h / trials;
+  }
+  if (opts.finale) {
+    const sg3 = { ...sg, pellets: 12, spread: 0.08, cd: 0.35 };
+    const rifle = { ...WEAPONS.sniper };
+    return {
+      'pistol bracket (real swings)': p([{ t: 0, x: 0 }, { t: swing(pistol), x: -blinkR }, { t: 2 * swing(pistol), x: blinkR }]),
+      'shotgun Mk III shell, centred': p([{ t: 0, x: 0, ...sg3 }]),
+      'bait + punish, pistol': punish(pistol),
+      'bait + punish, shotgun Mk III': punish(sg3),
+      'bait + punish, rifle (95 m/s)': punish(rifle),
+    };
   }
   return {
     'one aimed pistol shot': p([{ t: 0, x: 0 }]),
@@ -1154,6 +1165,14 @@ function bossReport() {
   console.log(pad('', 38) + setups.map(([r, c]) => pad(`blink ${r} m, cd ${c} s`, 22)).join(''));
   const res = setups.map(([r, c]) => boss(r, c));
   for (const n of names) console.log(pad(n, 38) + res.map((r) => pad(`${Math.round(r[n] * 100)}%`, 22)).join(''));
+  // THE FINALE KEEPER: armored, so only his head (24 cm) counts; he blinks
+  // further; and he runs on his own clock, so slow time does not stretch his
+  // cooldown — every punish is on foot, whatever the bank holds
+  const fin = [[1.8, 1.0], [1.8, 1.2], [1.8, 1.4], [1.8, 1.6]];
+  console.log('\nthe finale Keeper at 10 m: head only, blink 1.8 m, immune to your slow time\n');
+  const fres = fin.map(([r, c]) => boss(r, c, { half: 0.12, finale: true }));
+  console.log(pad('', 38) + fin.map(([r, c]) => pad(`blink ${r} m, cd ${c} s`, 22)).join(''));
+  for (const n of Object.keys(fres[0])) console.log(pad(n, 38) + fres.map((r) => pad(`${Math.round(r[n] * 100)}%`, 22)).join(''));
 }
 
 // --- the Keeper's room -----------------------------------------------------------
