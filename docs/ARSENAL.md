@@ -843,8 +843,7 @@ introduction):
    lines at most**:
    - his **name**;
    - **what he does**, in one line;
-   - a **hint**, *only if his weakness isn't obvious*, and phrased as a nudge
-     rather than an instruction.
+   - a **tip**, *only if how to beat him isn't obvious*, said plainly.
 3. **A touch releases the world.**
 
 **Once per save, not per run.** The full stop plays the first time you ever
@@ -861,32 +860,32 @@ door number stays the headline; the tier-up is a smaller second line:
 
 No stop, and no card. The one change a tier makes is all it needs to say.
 
-### The cards (draft copy)
+### The cards (the copy in the game)
 
-In the building's voice (the `blurb`s in `protocols.js`), short enough to
-read in a second:
+**Decided after playtest: plain words, no riddles.** The first draft was in
+the building's voice ("Plated, head to foot. Almost." / "The head was not
+considered."), and a player had to decode it mid-fight. A card says what
+makes him different in one short line, and how to beat him outright:
 
-| type | what he does | hint (only where it isn't obvious) |
+| type | what makes him different | tip (only where it isn't obvious) |
 |---|---|---|
-| gunner | Aims. Fires. The building has many. | – |
-| rusher | Unarmed. He closes the distance. | Watch the arm come back. |
-| shotgunner | A wide pattern, lethal only near. | His gun stays when he goes. |
-| shield | Plated from the front. | The plate only covers the front. |
-| heavy | Three rounds, every time. | – |
-| sniper | Slow to aim. His round is not. | Watch for the glint. |
-| bomber | Lobs at where you'll be. | – |
-| armored | Plated, head to foot. Almost. | The head was not considered. |
-| rocketeer | The rocket follows you. | Break its line. |
-| laser | Charges, then sweeps the room. | Cover won't help. |
-| kamikaze | Arms when close, then bursts. | Stand him next to his friends. |
-| Frankenstein | Two guns. Only the arms break. | – |
-| drone | While it flies, they aim ahead of you. | Look up. |
-| spawner | The shattered come back. | Break the dish while they're down. |
-| **blinker** (the Keeper) | He moves before your round does. | Make him move first. |
+| gunner | no card (the onboarding is his) | – |
+| rusher | Unarmed. He charges you. | Sidestep when his arm pulls back. |
+| shotgunner | A wide spread. Deadly up close. | Keep your distance. His gun drops when he does. |
+| shield | His shield stops shots from the front. | Hit what the shield does not cover, or get behind him. |
+| heavy | Fires three rounds at a time. | – |
+| sniper | Slow to aim. His round is fast. | Move while he aims. |
+| bomber | Throws grenades at your feet. | Step out of the red ring. |
+| armored | Body shots bounce off. | Aim for the head. |
+| rocketeer | His rocket follows you. | Put a wall between you and it. |
+| laser | Charges, then sweeps a beam across the room. | Cover does not stop it. Kill him first. |
+| **blinker** (the Keeper) | Dodges the moment you fire. | Fire once to make him move, then shoot where he lands. |
+| kamikaze *(not built)* | Explodes when he reaches you. | Shoot him near his friends. |
+| Frankenstein *(not built)* | Two guns. Only his arms break. | Shoot off an arm to silence a gun. |
+| drone *(not built)* | While it flies, the others aim ahead of you. | Shoot the drone first. |
+| spawner *(not built)* | Brings shattered enemies back. | Break the dish while they are down. |
 
-Hints left blank are the ones whose answer is in the name or the first
-second of watching him. The others point at the weakness without naming the
-move: *the head was not considered* rather than *shoot his head*.
+The blurbs in `protocols.js` keep the building's voice; the cards do not.
 
 ---
 

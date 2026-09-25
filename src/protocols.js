@@ -90,43 +90,44 @@ export const ELEMENTS = [
   // below and above — it stops a long run exhausting the CATALOGUE of forms
   // and conditions. Enemy types are not catalogue: they are the ramp, the ramp
   // is TYPE_INTRO, and a ramp with two schedules is a ramp with none.
-  // `meet` and `hint` are the DEBUT CARD (docs/ARSENAL.md §11): what he does
-  // in one line, and — only where his weakness is not obvious — a nudge, not
-  // an instruction. The gunner has no card: the onboarding is his.
+  // `meet` and `hint` are the DEBUT CARD (docs/ARSENAL.md §11). Plain words,
+  // no riddles: `meet` is what makes him different, in one short line; `hint`
+  // is how to beat him, said outright, and only where that is not obvious.
+  // The gunner has no card: the onboarding is his.
   { id: 'gunner', name: 'GUNNER', kind: 'enemy', tier: 1, minDoor: 1, unlockAt: 0, weight: 10, impl: true,
     blurb: 'Compliant. Armed. The building has many.' },
   { id: 'rusher', name: 'RUSHER', kind: 'enemy', tier: 1, minDoor: 4, unlockAt: 0, weight: 8, impl: true,
     blurb: 'Close-quarters directive. Watch the arm come back.',
-    meet: 'Unarmed. He closes the distance.', hint: 'Watch the arm come back.' },
+    meet: 'Unarmed. He charges you.', hint: 'Sidestep when his arm pulls back.' },
   { id: 'shotgunner', name: 'SHOTGUNNER', kind: 'enemy', tier: 2, minDoor: 6, unlockAt: 0, weight: 6, impl: true,
     blurb: 'Wide pattern. Effective only near. Get past him.',
-    meet: 'A wide pattern, lethal only near.', hint: 'His gun stays when he goes.' },
+    meet: 'A wide spread. Deadly up close.', hint: 'Keep your distance. His gun drops when he does.' },
   { id: 'shieldbearer', name: 'SHIELD', kind: 'enemy', tier: 2, minDoor: 8, unlockAt: 0, weight: 5, impl: true,
     blurb: 'Plate rated for small arms. The plate only.',
-    meet: 'Plated from the front.', hint: 'Nothing covers his back.' },
+    meet: 'His shield stops shots from the front.', hint: 'Hit what the shield does not cover, or get behind him.' },
   { id: 'heavy', name: 'HEAVY', kind: 'enemy', tier: 2, minDoor: 11, unlockAt: 0, weight: 5, impl: true,
     blurb: 'Three rounds, in quick succession, every time.',
-    meet: 'Three rounds, every time.' },
+    meet: 'Fires three rounds at a time.' },
   { id: 'sniper', name: 'SNIPER', kind: 'enemy', tier: 3, minDoor: 13, unlockAt: 0, weight: 4, impl: true,
     blurb: 'Long authorisation delay. Longer reach.',
-    meet: 'Slow to aim. His round is not.', hint: 'He takes his time. Use it.' },
+    meet: 'Slow to aim. His round is fast.', hint: 'Move while he aims.' },
   { id: 'bomber', name: 'BOMBER', kind: 'enemy', tier: 3, minDoor: 15, unlockAt: 0, weight: 4, impl: true,
     blurb: 'Area denial. The floor is the weapon.',
-    meet: 'Lobs a blast at your feet.' },
+    meet: 'Throws grenades at your feet.', hint: 'Step out of the red ring.' },
   { id: 'armored', name: 'ARMORED', kind: 'enemy', tier: 3, minDoor: 17, unlockAt: 0, weight: 3, impl: true,
     blurb: 'Body plated. The head was not considered a risk.',
-    meet: 'Plated, head to foot. Almost.', hint: 'The head was not considered.' },
+    meet: 'Body shots bounce off.', hint: 'Aim for the head.' },
   { id: 'rocketeer', name: 'ROCKETEER', kind: 'enemy', tier: 4, minDoor: 19, unlockAt: 0, weight: 3, impl: true,
     blurb: 'Guided munition. It will follow. Break the line.',
-    meet: 'The rocket follows you.', hint: 'Break its line.' },
+    meet: 'His rocket follows you.', hint: 'Put a wall between you and it.' },
   { id: 'laser', name: 'LASER', kind: 'enemy', tier: 4, minDoor: 21, unlockAt: 0, weight: 2, impl: true,
     blurb: 'Sweep emitter. Cover is irrelevant. Kill it.',
-    meet: 'Charges, then sweeps the room.', hint: 'Cover will not help.' },
+    meet: 'Charges, then sweeps a beam across the room.', hint: 'Cover does not stop it. Kill him first.' },
   // Not composed into waves (impl: false): he arrives with the floor-1 boss,
   // who is one, and the floors after it. The row is here for his card.
   { id: 'blinker', name: 'BLINKER', kind: 'enemy', tier: 4, minDoor: 99, unlockAt: 0, weight: 0, impl: false,
     blurb: 'Reads the trigger. Moves before the round does.',
-    meet: 'He moves before your round does.', hint: 'Make him move first.' },
+    meet: 'Dodges the moment you fire.', hint: 'Fire once to make him move, then shoot where he lands.' },
 
   // --- weapons: ids match the WEAPONS keys, so a pickup files itself --------
   // A WEAPON ARRIVES WHEN THE MAN CARRYING IT DOES. These rows are registry
