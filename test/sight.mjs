@@ -111,6 +111,11 @@ const ghosts = await page.evaluate(() => {
   return n;
 });
 if (!ghosts) bad('an enemy has no see-through twin to show');
+// the playtest switch owns it from door 1 of a tunnel run
+const owned = await page.evaluate(() => window.__ts.aim().owned);
+console.log('owned at door 1 (playtest): ' + owned);
+if (!owned) bad('the playtest switch is on, but sight is not owned at door 1');
+await page.evaluate(() => window.__ts.setSight(false));   // as it will be before the drone boss
 let g = await look(35);
 if (g) bad('sight shows at 35 before the power is owned: ' + g);
 await page.evaluate(() => window.__ts.setSight(true));
@@ -119,7 +124,7 @@ for (const n of [5, 10, 35, 55]) byTier.push(await look(n));
 console.log('sight by n:    5,10,35,55 -> ' + byTier.join(', '));
 if (byTier[0] !== 0) bad('under 10 nothing should show');
 if (!(byTier[1] > 0 && byTier[1] < byTier[2] && byTier[2] < byTier[3])) bad('sight does not sharpen by tier');
-await page.evaluate(() => window.__ts.setSight(false));
+await page.evaluate(() => window.__ts.setSight(null));
 
 done('sight', errs);
 await browser.close();

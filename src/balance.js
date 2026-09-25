@@ -1842,4 +1842,7 @@ export const KEEPER = {
 export const SIGHT = {
   tiers: [10, 30, 50],
   ghost: [0.16, 0.32, 0.55],
+  // PLAYTEST SWITCH (decided): sight is owned from door 1 of every tunnel run
+  // until the drone boss exists to hand it over. Set false when he does.
+  playtest: true,
 };

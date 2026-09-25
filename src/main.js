@@ -1743,9 +1743,16 @@ function aimMiss() {
 }
 function aimReset() { aimStreak.n = 0; aimStreak.spent = -1; aimStreak.hits = 0; aimStreak.misses = 0; }
 // SIGHT IS A POWER: the drone boss gives it (hall.sightTaken). Before that the
-// streak still counts, and nothing shows. `sightForced` is the test hook.
-let sightForced = false;
-function sightOwned() { return sightForced || !!(inHall() && hall && hall.sightTaken); }
+// streak still counts, and nothing shows — except while SIGHT.playtest is on,
+// which owns it from door 1 of every tunnel run so it can be played before the
+// drone boss is built. `sightForced` is the test hook: true or false
+// overrides everything, null follows the rules.
+let sightForced = null;
+function sightOwned() {
+  if (sightForced !== null) return sightForced;
+  if (game.mode !== 'hall' || !hall) return false;
+  return SIGHT.playtest || !!hall.sightTaken;
+}
 // ...and what it shows: a twin of every body part, sharing its geometry, drawn
 // only where something nearer already covers it (GreaterDepth), so a man in
 // the open looks exactly as he did and a man behind a wall shows through it.
@@ -16372,7 +16379,7 @@ window.__ts = {
   aim: () => ({ ...aimStreak, tier: sightTier(), owned: sightOwned(),
     ghost: GHOST_MAT.visible ? +GHOST_MAT.opacity.toFixed(2) : 0 }),
   aimHit, aimMiss, aimSet: (n) => { aimStreak.n = n; aimStreak.spent = -1; },
-  setSight: (v) => { sightForced = !!v; },
+  setSight: (v) => { sightForced = v === null ? null : !!v; },
   keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
   meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,

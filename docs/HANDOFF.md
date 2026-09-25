@@ -41,6 +41,56 @@ work was unmerged; it was, then, and is not now.)
 
 ---
 
+## The arsenal branch — NOT merged, NOT live (2026-09-25)
+
+Branch **`claude/time-shatter-design-rf8z87`**. Everything in this section is
+on that branch only; `main` (and so timeshatter.app) has none of it. The
+design it builds from is **`docs/ARSENAL.md`** — floors, bosses, the weapon
+ladder, streaks — and the model behind its numbers is `tools/sim-arsenal.mjs`.
+What is still owed is item 00 of `docs/BACKLOG.md`.
+
+**Built, each with its own probe (`test/README.md`):**
+
+| what | where | probe |
+|---|---|---|
+| Weapon switcher: 3 slots, swipe the weapon name, pills under it | `bagPut`/`swapWeapon`, `SWITCHER` | `switcher.mjs` |
+| Tempo streak: 5/10/15/20 kills shorten reload and swap, any break is 0 | `tempoKill`, `TEMPO` | `tempo.mjs` |
+| Debut cards: first meeting stops the world, names him, says what he does | `meetMaybe`, `meet`/`hint` in `protocols.js` | `meetcard.mjs` |
+| Blinker: dodges on the trigger pull, then is spent (chest glows white) | `blinkersReact`, `BLINKER` | `blinker.mjs` |
+| The Keeper: floor 1's boss on door 9's last leg; slow time is his reward | `keeperTick`, `KEEPER` | `keeper.mjs` |
+| No-misses streak and sight (enemies through walls) | `aimMiss`, `SIGHT` | `sight.mjs` |
+
+**Decisions made while building (all recorded in `docs/ARSENAL.md`):**
+
+- **Slow time now arrives on door 9**, taken off the Keeper: his shards hang in
+  a stopped world, stream into you, and the button appears. Door 10 keeps the
+  slow-time school and skips its old unlock banner when the power was taken.
+- **The Keeper:** three hits, one per phase (blink cooldown 1.5 then 1.2 s; he
+  fires on his own clock, 1.5 then 1.25 s); phase 3 stops the world with a
+  five-round volley hanging, and nothing hits you while it holds. His pair of
+  shotgunners is in the room from the start and returns 3 s after the second
+  goes. A shotgun shell takes at most one hit off him. A wall shortens his
+  blink (to 0.9 m) rather than cancelling it.
+- **A retry reopens a shut seal** — before, dying past a one-way seal
+  respawned you behind it, in a dead end. This affects every sealed leg.
+- **Debut cards are plain words**, not the building's riddles: what makes him
+  different, and a tip only where it is not obvious. **The copy is under the
+  owner's review** and will change again.
+- **Sight is on from door 1 for playtesting** (`SIGHT.playtest`), because the
+  drone boss that should give it is not built.
+- **Streak counting:** one trigger pull is one shot however many pellets; plate,
+  armor and a blinker's dodged bait are misses; the streak lasts the run.
+
+**To play it:** a tunnel run reaching door 9 plays the Keeper on that door's
+second leg. Sight shows from the first 10 hits in a row.
+
+**Red on this machine that is not the branch's:** `music` and `fire` fail the
+same way on the commit before this work; `duelup` failed there in an earlier
+run. `blinker`, `keeper` and `tempo` failed under the full suite until they
+were made to wait on game state rather than wall time (`docs/TESTING.md`).
+
+---
+
 ## NO RETREAT — the newest work, and the part most likely to spread
 
 **Read this first if you are picking the project up.** One mode has been

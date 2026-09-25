@@ -887,6 +887,10 @@ makes him different in one short line, and how to beat him outright:
 
 The blurbs in `protocols.js` keep the building's voice; the cards do not.
 
+**Status: the copy above is a second draft, under the owner's review**
+(an approve-or-comment page, one row per card). Whatever is approved there
+replaces this table and the `meet`/`hint` rows in `src/protocols.js`.
+
 ---
 
 ## 12. A boss at the end of every floor
@@ -945,9 +949,16 @@ and anyone in its radius, **you included** if you're too close.
 forgiveness rule (`aimHit()`/`aimMiss()`, numbers in `SIGHT` in
 `src/balance.js`) and the see-through render (a twin of every body part on one
 precompiled material, drawn only where a wall covers him), checked by
-`test/sight.mjs`. It counts from the start of every run; nothing shows until
-`hall.sightTaken` is set, which is the drone boss's job. Not built: the next
-wave's assembly spot at 50, and any HUD count.
+`test/sight.mjs`. It counts from the start of every run. By design nothing
+shows until `hall.sightTaken` is set, which is the drone boss's job — but
+**for playtesting (decided), `SIGHT.playtest` owns it from door 1 of every
+tunnel run** until the drone boss exists; turn it off then. Rules made while
+building it: one trigger pull is one shot however many pellets; a burst
+weapon's rounds are each their own shot; a launcher shell is a hit if its
+blast shatters anyone; landing on the Keeper without killing him is a hit;
+a round that flies off into the distance and expires is a miss; the streak
+is the run's (a new run starts at 0, a retry keeps it). Not built: the next
+wave's assembly spot at 50, and any HUD count (the owner's call).
 After the drone boss, a run of hits without a miss lets you see through walls:
 
 | hits in a row | what you see |

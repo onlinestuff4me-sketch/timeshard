@@ -43,6 +43,13 @@ therefore a race that fails on a loaded machine and passes on an idle one.
 run was still in `intro`, where `closeSeal` is gated off and a fired round hits
 a player who has not started yet:
 
+* `blinker.mjs`, `keeper.mjs`, `tempo.mjs` (2026-09, the arsenal branch) — the
+  same bug three more times, written fresh. The blinker's cooldown is 1.5
+  **world** seconds and the probe waited 2.2 real ones; the Keeper probe waited
+  real milliseconds for a round to land; `tempo` waited 1.5 s into a 1.6 s door
+  intro, where kills do not count. All three now wait on game state: the world
+  clock passing `blinkReady`, no player round left in `bullets`,
+  `game.state === 'play'`. Each passed alone and failed under the full suite.
 * `seal.js` — "the slab rose out of floor" waits on **the slab**, not on a clock.
   It was `setTimeout(900)` — wall clock against an animation that runs on the
   world clock — so under suite load those 900 ms delivered fewer frames, the

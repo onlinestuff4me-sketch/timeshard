@@ -1,5 +1,31 @@
 # What's left
 
+## 00. The arsenal branch — what is built, and what is still owed
+
+Design: `docs/ARSENAL.md`. Branch `claude/time-shatter-design-rf8z87`, **not
+merged to `main`** (so not live). Built there: the weapon switcher (3 slots),
+the tempo streak, debut cards, the blinker, the Keeper's room on door 9 with
+slow time as his reward, and the no-misses streak with sight. Owed:
+
+1. **The debut card copy is under review** (the owner's). The first draft was
+   riddles; the current copy is plain. It is being approved line by line.
+2. **SIGHT.playtest is on**: sight is owned from door 1 of every tunnel run
+   because the drone boss that should give it does not exist. Turn it off
+   (`SIGHT.playtest = false` in `src/balance.js`) when he does.
+3. **Sight at 50 should also show where the next wave will assemble.** Not built.
+4. **No HUD count for the no-misses streak.** The design says the silhouettes
+   are the indicator; whether a number is also wanted is the owner's call.
+5. **The elevator** after the Keeper. Door 10 follows on foot as before.
+6. **The rest of the floors' bosses** (Frankenstein, drone, spawner), the
+   kamikaze, the drone, the spawner, and the finale Keeper (§14).
+7. **Switcher leftovers:** dim the pill a pickup would replace; the seeker slot.
+8. **Card leftovers:** the small name tag on returning runs (the old one-word
+   flash still plays), and the tier-up line under the door number.
+9. **Pre-existing red on this machine:** `music` (bullet time does not duck the
+   music, -0.3 dB) and `fire` (doors 5 and 8 never open past leg 1) fail on
+   the commit before the branch's work too; `duelup` failed on the base in an
+   earlier run. None is caused by the branch; none has been root-caused.
+
 ## Game Center — ACHIEVEMENTS and LEADERBOARDS
 
 Two more buttons on the menu, once Game Center is wired up (`docs/LAUNCH.md`
