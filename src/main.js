@@ -63,6 +63,10 @@ let lifetimeDoors = 0;
 // behind the title is a shop window, not a score.
 let lifetimeShattered = 0;
 let unlocks = new Set();
+// EVERY ENEMY TYPE THIS SAVE HAS BEEN INTRODUCED TO — the debut card plays
+// once per save, not once per run (docs/ARSENAL.md §11). Not `unlocks`:
+// that set records a type the moment a leg claims it, before he has stood up.
+let carded = new Set();
 // Progress now lives in a SAVE SLOT. The key names are the only thing that
 // changed: everything downstream still reads `lifetimeDoors` and `unlocks`.
 // A player who already has progress is migrated into slot 1 on first boot, so
@@ -84,12 +88,14 @@ try {
   lifetimeDoors = parseInt(localStorage.getItem(_sk('doors')) || '0', 10) || 0;
   lifetimeShattered = parseInt(localStorage.getItem(_sk('shat')) || '0', 10) || 0;
   unlocks = new Set(JSON.parse(localStorage.getItem(_sk('unlocks')) || '[]'));
+  carded = new Set(JSON.parse(localStorage.getItem(_sk('carded')) || '[]'));
 } catch { /* private mode */ }
 function saveProgress() {
   try {
     persist(slotKey(slotIx, 'doors'), String(lifetimeDoors));
     persist(slotKey(slotIx, 'shat'), String(lifetimeShattered));
     persist(slotKey(slotIx, 'unlocks'), JSON.stringify([...unlocks]));
+    persist(slotKey(slotIx, 'carded'), JSON.stringify([...carded]));
     persist(slotKey(slotIx, 'at'), String(Date.now()));
   } catch { /* private mode */ }
 }
@@ -99,6 +105,7 @@ function hydrateFromSlot() {
     lifetimeDoors = parseInt(localStorage.getItem(slotKey(slotIx, 'doors')) || '0', 10) || 0;
     lifetimeShattered = parseInt(localStorage.getItem(slotKey(slotIx, 'shat')) || '0', 10) || 0;
     unlocks = new Set(JSON.parse(localStorage.getItem(slotKey(slotIx, 'unlocks')) || '[]'));
+    carded = new Set(JSON.parse(localStorage.getItem(slotKey(slotIx, 'carded')) || '[]'));
     bestWave = Math.max(1, parseInt(localStorage.getItem(slotKey(slotIx, 'best')) || '1', 10) || 1);
   } catch { /* private mode */ }
   unlocksDirty = true;
@@ -1215,6 +1222,67 @@ function setWeapon(type, clips) {
 // show up as a weapon that silently downgrades you.
 const WEAPON_ORDER = Object.keys(WEAPONS);
 const weaponRank = (w) => WEAPON_ORDER.indexOf(w);
+
+// ---------------------------------------------------------------------------
+// THE DEBUT CARD (docs/ARSENAL.md §11). The first time this save ever meets a
+// type, the world stops the moment he finishes assembling: a ring on him, his
+// name, one line on what he does, and — only where it is not obvious — a
+// hint, phrased as a nudge. A touch takes it down. The copy lives with the
+// type in protocols.js (`meet`, `hint`). Once per save: a returning player is
+// not stopped fifteen times a run. Not in the simplified modes, which have
+// their own cards (duelMeetCard), and never during the onboarding.
+// ---------------------------------------------------------------------------
+const meetCard = { on: false, at: 0, e: null };
+const MEET_MIN_MS = 450;   // a touch already on its way does not dismiss it
+function meetMaybe(e) {
+  // 'intro' too: a door's opening seconds are when its first men stand up,
+  // and a debut missed there was carded later, on whoever stood up next
+  if (simple() || tutorStep !== null || (game.state !== 'play' && game.state !== 'intro')) return;
+  if (meetCard.on || carded.has(e.type)) return;
+  const row = ELEMENTS.find((x) => x.id === e.type && x.kind === 'enemy');
+  if (!row || !row.meet) return;
+  carded.add(e.type);
+  saveProgress();
+  // a thumb already on the stick does not walk the player through the card
+  dropAllPointers();
+  meetCard.on = true;
+  meetCard.at = performance.now();
+  meetCard.e = e;
+  const c = el.meetcard;
+  if (c) {
+    c.querySelector('.who').textContent = row.name;
+    c.querySelector('.what').textContent = row.meet;
+    const h = c.querySelector('.hint');
+    h.textContent = row.hint || '';
+    h.style.display = row.hint ? '' : 'none';
+    c.classList.toggle('longname', row.name.length > 10);
+    c.classList.add('on');
+  }
+  vibrate([14, 50, 14]);
+}
+function meetClose() {
+  meetCard.on = false;
+  meetCard.e = null;
+  if (el.meetcard) el.meetcard.classList.remove('on');
+  if (el.meetpin) el.meetpin.classList.remove('on');
+}
+// the ring rides on him every frame the card is up (the camera may be moving
+// as the world stops)
+const _vMeet = new THREE.Vector3(), _vMeetUp = new THREE.Vector3();
+function placeMeetPin() {
+  const pin = el.meetpin, e = meetCard.e;
+  if (!pin) return;
+  if (!meetCard.on || !e || !e.alive) { pin.classList.remove('on'); return; }
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  _vMeet.set(e.pos.x, 1.0, e.pos.z).project(camera);
+  if (_vMeet.z > 1 || Math.abs(_vMeet.x) > 1.2 || Math.abs(_vMeet.y) > 1.2) { pin.classList.remove('on'); return; }
+  _vMeetUp.set(e.pos.x, 2.0, e.pos.z).project(camera);
+  const r = Math.max(26, Math.min(110, Math.abs(_vMeetUp.y - _vMeet.y) * 0.5 * h * 1.2));
+  pin.style.width = pin.style.height = (2 * r) + 'px';
+  pin.style.left = ((_vMeet.x * 0.5 + 0.5) * w - r) + 'px';
+  pin.style.top = ((-_vMeet.y * 0.5 + 0.5) * h - r) + 'px';
+  pin.classList.add('on');
+}
 
 // ---------------------------------------------------------------------------
 // THE WEAPON SWITCHER (docs/ARSENAL.md §13; numbers in SWITCHER, balance.js).
@@ -3520,7 +3588,11 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
   if (type === 'sniper' || type === 'laser') {
     warnFlash([type.toUpperCase() + '.']);
     sfx.alert();   // its own stinger — sfx.wave() is the wave VO now
-  } else if (!seen[type] && type !== 'gunner' && game.state !== 'menu') {
+  } else if (!seen[type] && type !== 'gunner' && game.state !== 'menu'
+             && (simple() || carded.has(type))) {
+    // ...the name flash is for a type this save already knows. A new one gets
+    // the debut card when he stands up (meetMaybe), and a flash now would
+    // name him twice.
     warnFlash([type.toUpperCase() + '.']);   // silent card: the name is enough
   }
   seen[type] = true;
@@ -4657,6 +4729,7 @@ function updateEnemy(e, sdt) {
         e.g.visible = true;
         e.state = 'advance';
         e.stateT = 0;
+        meetMaybe(e);   // a type this save has never met: stop, and name him
       }
       return;   // not hittable, not moving, not shooting yet
     }
@@ -5788,6 +5861,13 @@ function onPointerDown(ev) {
   if (ev.target && ev.target.closest && ev.target.closest('#pausebtn')) {
     openPause();
     return;            // never registered, so its release is inert
+  }
+  // THE DEBUT CARD IS UP: a touch takes it down and does nothing else — it is
+  // never registered, so it cannot fire, steer or look on its way out. A card
+  // that has only just landed ignores the touch that was already coming.
+  if (meetCard.on) {
+    if (performance.now() - meetCard.at > MEET_MIN_MS) meetClose();
+    return;
   }
   // THE WEAPON NAME IS A SWIPE ZONE (docs/ARSENAL.md §13). A touch that STARTS
   // on it belongs to the switcher: it never turns the camera, never steers,
@@ -10722,6 +10802,8 @@ const el = {
   slowmeter: document.getElementById('slowmeter'),
 
   duelmeet: document.getElementById('duelmeet'),
+  meetcard: document.getElementById('meetcard'),
+  meetpin: document.getElementById('meetpin'),
   dueltap: document.getElementById('dueltap'),
   duelpins: [...document.querySelectorAll('#duelpins i')],
   tutorhand: document.getElementById('tutorhand'),
@@ -14971,6 +15053,9 @@ function frame(now) {
   if (timeMode === 'toggle' && playing) {
     if (timeLocked && tutorFreeIsFree()) {
       // The onboarding's first freeze costs nothing: see tutorFreeIsFree.
+    } else if (timeLocked && meetCard.on) {
+      // ...and neither does reading a debut card: the card stopped the world,
+      // not the player's freeze.
     } else if (timeLocked) {
       // the tank drains slower early on — nearly double the frozen seconds
       // on the opening waves, full price once the run heats up. Rush hour is
@@ -15013,7 +15098,12 @@ function frame(now) {
   // eighty doors the tunnel spends teaching you to walk out of a round.
   const slowActive = timeUnlocked()
     && (timeMode === 'toggle' ? timeLocked : input.holding);
-  if (simpleT) {
+  if (meetCard.on) {
+    // THE DEBUT CARD STOPS THE WORLD outright. It is a card, not slow time:
+    // nothing drains, and the frame after it goes the world is where it was.
+    target = 0;
+    timeEase = 40;
+  } else if (simpleT) {
     target = simpleT.target;
     timeEase = simpleT.ease;
   } else if (playing && slowActive) {
@@ -15572,6 +15662,7 @@ function frame(now) {
   el.crosshair.classList.toggle('hot', player.fireCd > 0);
   if (tutorStep !== null) tutorPlaceWorldCue();
   if (game.mode === 'duel') duelPlaceMeetPins();
+  placeMeetPin();
 
   renderFrame(dt);
   // THE VEIL COMES OFF ON THE FIRST REAL PICTURE, not when the module has
@@ -15877,6 +15968,11 @@ window.__ts = {
   setWeapon, spawnEnemy, spawnPickup,
   swapWeapon, bagReset, startReload, playerFire, switcherOn,
   tempo: () => ({ ...tempo, mul: tempoMul() }), tempoKill, tempoTick,
+  meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
+    who: el.meetcard && el.meetcard.querySelector('.who').textContent,
+    what: el.meetcard && el.meetcard.querySelector('.what').textContent,
+    hint: el.meetcard && el.meetcard.querySelector('.hint').textContent,
+    pin: !!(el.meetpin && el.meetpin.classList.contains('on')) }),
   bag: () => { bagSync(); return player.bag.map((b) => ({ ...b })); },
   // The simplified modes, from the outside: which one is running, whether a
   // round currently counts as inbound, what the world clock is doing and what

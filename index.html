@@ -504,6 +504,37 @@
      so the ring says which object without pretending a pellet is the size of
      a man. Screen position and size are written per frame; only the pool
      lives here. */
+  /* THE TUNNEL'S DEBUT CARD (docs/ARSENAL.md §11) — the same card language as
+     NO RETREAT's: the name in the door type outlined in red, the line in the
+     light ink, and the ring on him. Plus the hint, smaller and quieter,
+     because it is a nudge and not an order. */
+  #meetcard { position:fixed; left:0; right:0; top:18%; z-index:11;
+              display:flex; flex-direction:column; align-items:center;
+              gap:min(2.4vh,20px); padding:0 18px; pointer-events:none;
+              opacity:0; transform:translateY(8px);
+              transition:opacity .3s ease, transform .3s ease; }
+  #meetcard.on { opacity:1; transform:none; }
+  #meetcard .who { display:block; width:100%; font-weight:900; color:#16181d;
+              font-size:min(11.5vw,52px); letter-spacing:.04em; line-height:1.04; text-align:center;
+              text-shadow:-2px 0 0 #ff2d1a, 2px 0 0 #ff2d1a, 0 -2px 0 #ff2d1a, 0 2px 0 #ff2d1a,
+                -2px -2px 0 #ff2d1a, 2px -2px 0 #ff2d1a, -2px 2px 0 #ff2d1a, 2px 2px 0 #ff2d1a,
+                0 4px 22px rgba(12,13,16,.55); }
+  #meetcard.longname .who { font-size:min(9.4vw,44px); }
+  #meetcard .what { display:block; width:100%; font-weight:900; color:#eef0f3;
+              font-size:min(6.2vw,28px); letter-spacing:.05em; line-height:1.1; text-align:center;
+              text-wrap:balance; text-transform:uppercase;
+              text-shadow:0 2px 14px rgba(12,13,16,.92), 0 0 2px rgba(12,13,16,.8); }
+  #meetcard .hint { display:block; width:100%; font-style:normal; font-weight:700; color:#eef0f3;
+              font-size:min(4.2vw,18px); letter-spacing:.08em; text-align:center; opacity:.8;
+              text-transform:uppercase; text-shadow:0 2px 12px rgba(12,13,16,.9); }
+  #meetcard .cont { font-size:11px; font-weight:900; letter-spacing:.3em; color:#eef0f3; opacity:.55;
+              margin-top:min(3vh,26px); text-shadow:0 1px 8px rgba(12,13,16,.9);
+              animation:pinpulse 1.6s ease-in-out infinite; }
+  #meetpin { position:fixed; left:0; top:0; display:none; z-index:10; pointer-events:none;
+             border-radius:50%; border:3px solid #ff2d1a;
+             box-shadow:0 0 18px rgba(255,45,26,.55), inset 0 0 12px rgba(255,45,26,.3);
+             animation:pinpulse 1.05s ease-in-out infinite; }
+  #meetpin.on { display:block; }
   #duelpins { position:fixed; inset:0; z-index:10; pointer-events:none; }
   #duelpins i { position:absolute; left:0; top:0; display:none;
              border-radius:50%; border:3px solid #ff2d1a;
@@ -1478,6 +1509,8 @@
      when you shatter" only means anything while you can watch it fall. -->
 <div id="duelcoach"><b></b></div>
 <div id="duelmeet"><b class="who"></b><b class="what"></b><span class="stk"><i></i></span></div>
+<div id="meetcard"><b class="who"></b><b class="what"></b><i class="hint"></i><span class="cont">TAP TO CONTINUE</span></div>
+<div id="meetpin"></div>
 <div id="duelpins"><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <div id="dueltap"></div>
 <div id="timetip">

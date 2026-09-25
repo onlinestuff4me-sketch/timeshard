@@ -807,6 +807,14 @@ They scale by **how many at once**:
 
 ## 11. Debut cards: every new type gets an introduction
 
+**Built** for the ten types in the game today (tunnel, city and rush; NO
+RETREAT keeps its own cards). Code: `meetMaybe()` in `src/main.js`, the copy
+as `meet`/`hint` on each enemy row in `src/protocols.js`, remembered per save
+(`carded`), checked by `test/meetcard.mjs`. The gunner has no card: the
+onboarding introduces him. Not built yet: the small name tag on returning
+runs (the old one-word name flash still plays there), and the tier-up line
+under the door number, which waits for the tiers themselves.
+
 **Decided: every new enemy type is announced.** The machinery exists. NO
 RETREAT stops the world on a type's first appearance and shows a card
 (`duelMeetCard()`, copy in `SIMPLE.duel.meet`, checked by
