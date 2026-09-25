@@ -25,6 +25,7 @@ node tools/sim-arsenal.mjs --newcomers  # kamikaze, frankenstein, drone (§8)
 node tools/sim-arsenal.mjs --spawner  # the spawner room, three ways (§9)
 node tools/sim-arsenal.mjs --schedule # the floors door by door, and the rules they keep (§1)
 node tools/sim-arsenal.mjs --boss     # the floor-1 boss, against brackets and shells (§10)
+node tools/sim-arsenal.mjs --finale   # the finale Keeper: bait, read, land it inside his cooldown (§14)
 node tools/sim-arsenal.mjs --keeper-room  # how hot his room is before slow time (§10)
 node tools/sim-arsenal.mjs --spawner-boss # the floor-4 boss against three loadouts (§12)
 ```
@@ -767,7 +768,7 @@ Then he shatters, and you get the power you just watched him use.
   keeps feeding you the answer and keeps the pressure on. And since the loop
   restarts only when both are down, leaving one alive is a real choice: one
   shotgunner firing, but no fresh shotguns.
-- **He fires on his own clock**, every 1–1.5 s. `--keeper-room` measures what
+- **He fires on his own timer** (not the room's shot clock), every 1–1.5 s. `--keeper-room` measures what
   that costs *before you have slow time*, as **load**: the share of each second
   spent stepping out of lanes. Past ~0.5 there's no time left to aim, and
   the fight stops being a duel.
@@ -880,7 +881,7 @@ the same three parts.
    come back a few seconds after the last of them is shattered, like the
    Keeper's shotgunners. They keep the pressure on, and **one of them carries
    the boss's answer**, so the loop keeps handing it to you.
-2. **The boss**, phased, firing on his own clock (§10 for the numbers the
+2. **The boss**, phased, firing on his own timer (§10 for the numbers the
    Keeper settled).
 3. **The reward, delivered by his shards** (decided):
    - **A power:** his shards hang, then stream into you. Slow time is the
@@ -1089,34 +1090,48 @@ the shattered. A spawner in his room keeps reassembling *him*.
 
 ### What makes him ultimate
 
-- **He runs on his own clock.** Your slow time slows his rounds, his
-  kamikazes, his rockets and his guards, but not him: not his blink, and not
-  his cooldown. He is the second thing in the game, after the grinder, that
-  ignores a freeze (`PILLARS.md` §1 names the grinder as its one exception;
-  he becomes the second, deliberately). So the floor-1 lesson comes back
-  with no crutch: anticipate the blink.
+- **He dodges at the trigger** (decided). The moment you fire, he knows where
+  the round will be, picks a direction and blinks. His blink and his short
+  cooldown run on the world clock like everything else, but so fast that:
+  - **at full speed his blink is a teleport.** There's nothing to read, and he
+    is untouchable;
+  - **in slow time it's a dash you can see start**, so you know which way
+    he's going.
+- **The fight: bait, read, land it.** Fire one round to bait him. Watch which
+  way he goes, swing onto where he's heading, and fire again in quick
+  succession. The second round has to **arrive** before his cooldown ends, or
+  he blinks out of it.
 - **He's armored.** Only his head counts.
-- **He carries the floors' attacks:**
-  - **kamikazes he fires at you**, small ones that hunt you and burst;
-  - **rockets** that follow you;
-  - his own rounds on his own clock.
+- **He carries the floors' attacks:** kamikazes he fires at you (small ones
+  that hunt you and burst), rockets that follow you, and his own rounds.
 
-`--boss` prices hitting him: head only (24 cm), blinking 1.8 m, at 10 m,
-every punish made on foot:
+No exception to `PILLARS.md` §1 is needed: he's on the world clock. What
+makes him hard is that his clock is fast, and what makes him beatable is the
+power you took from him.
 
-| attempt | cooldown 1.4 s | 1.2 s | 1.0 s |
+`--finale` prices the second round: react, swing onto his 24 cm head, fire,
+and the round's flight, all against his cooldown, at 10 m. Your reaction
+and swing are real seconds, so the world time they cost depends on how you
+move while you take the shot:
+
+| his cooldown | standing still (×0.05) | walking (×0.3) | full speed |
 |---|---|---|---|
-| pistol bracket, centre then both sides | 30% | 29% | 30% |
-| one shotgun Mk III shell, centred | 8% | 8% | 9% |
-| bait and punish, pistol | 0% | 0% | 0% |
-| **bait and punish, shotgun Mk III** | 78% | **77%** | 0% |
-| bait and punish, rifle (95 m/s round) | 77% | 0% | 0% |
+| 0.55 world-s | 77–95% | 77–78%, **shotgun Mk III or rifle only** | 0% |
+| 0.40 world-s | 77–95% | 0% | 0% |
 
-- **His cooldown is the escalation:** 1.4 s (the shotgun or the rifle's fast
-  round), then 1.2 s (only the shotgun's re-aim), then 1.0 s (only brackets,
-  about one in three). Your loadout decides which phase you can close.
-- **The fight you learned on floor 1, at its limit:** bait, read, punish, on
-  a 24 cm target, while kamikazes and rockets come at you.
+(The range is the gun: 77% for most, 95% for the Mk III pistol's paired
+round. Standing still, every gun makes the window; what's left is hitting a
+head.)
+
+- **At 0.4 s you have to stand still to land it,** and standing still is when
+  his kamikazes and rockets reach you. The pillar the whole game is built on,
+  *time moves when you do*, becomes the final exam: stand and take the shot,
+  or move and survive.
+- **Escalate 0.55 → 0.4.** At 0.55 s the shotgun's fast re-aim or the rifle's
+  fast round lets you shoot on the move. At 0.4 s nothing does.
+- **Each attempt holds the world ~0.8 real seconds** of reading and swinging:
+  that is its bank cost. The headshot refunds you've been earning all run
+  are what pay for it.
 
 ### The loop, and how to break it (decided)
 
@@ -1124,7 +1139,7 @@ A spawner in the room, guarded, keeps reassembling him and his guards. The only
 way out:
 
 1. **Shatter the guards, then the Keeper.**
-2. **The Keeper hangs** where he fell, on his own clock. It's a long hang, and
+2. **The Keeper hangs** where he fell. It's a long hang, and
    it is your window.
 3. **During it, his guards reform** (their hang is shorter). **Shatter them
    again, then break the spawner's dish**, before the Keeper comes back.
@@ -1134,10 +1149,13 @@ way out:
 `--spawner-boss` already prices step 3. Re-clearing five tough guards and
 breaking a dish takes about **3.6 s** with a launcher in your loadout, **5.8 s**
 with a shotgun and an armor-piercing rifle, and **8.7 s** with the pistol alone.
-So **his hang should be about 6 s**: a clean window with the right guns, a
-tight one without them, and a wall with the pistol alone. That's the last
-loadout exam of the run. Your slow time helps with the guards (their clock
-stops) but not with his hang (his doesn't).
+So **his hang should be about 6 world-seconds**: on foot, a clean window with
+the right guns, a tight one without them, and a wall with the pistol alone.
+Everything is on the world clock, so freezing stretches the hang and the
+guards' reform alike. That turns the window into a **bank** question: the
+re-clear costs ~3.6 real seconds frozen with a launcher and ~8.7 with the
+pistol alone, against a bank that caps at 10. The last loadout exam of the
+run is also its last scarcity exam (`PILLARS.md` §2).
 
 **His shards.** When the loop breaks, his shards don't stream into you. You
 already have his time. They hang, the whole room's shards hang with them, and

@@ -9,6 +9,7 @@
 //   node tools/sim-arsenal.mjs --spawner  the spawner room, three ways
 //   node tools/sim-arsenal.mjs --schedule the floors, and the rules the schedule keeps
 //   node tools/sim-arsenal.mjs --boss     the floor-1 boss's blink, against brackets and shells
+//   node tools/sim-arsenal.mjs --finale   the finale Keeper: bait, read, land it inside his cooldown
 //   node tools/sim-arsenal.mjs --keeper-room  how hot the Keeper's room is before slow time
 //   node tools/sim-arsenal.mjs --spawner-boss  the floor-4 boss: can the guards go down inside one hang
 //
@@ -1175,6 +1176,55 @@ function bossReport() {
   for (const n of Object.keys(fres[0])) console.log(pad(n, 38) + fres.map((r) => pad(`${Math.round(r[n] * 100)}%`, 22)).join(''));
 }
 
+// --- the finale Keeper: bait, read, and land it before his cooldown -------------
+// (decided) He dodges at the TRIGGER: the moment you fire he knows where the
+// round will be, picks a side and blinks `blinkR`. The blink and his short
+// cooldown run on the WORLD clock like everything else — but so fast that at
+// full speed the blink is a teleport you cannot read. In slow time it is a
+// dash you can SEE start. So:
+//
+//   fire a bait round -> he blinks -> you see which way (REACT) -> swing onto
+//   where he is heading (Fitts, onto his 24 cm head) -> fire -> the round
+//   flies -> it must ARRIVE before his cooldown ends, or he blinks out of it.
+//
+// Your reaction and swing are REAL seconds, so the world time they cost is
+// real x timeScale: standing still (0.05) buys almost all of it, walking
+// (0.3) much less, and at full speed (1.0) none — and at full speed you could
+// not read the direction anyway. The round's flight is world time either way.
+function finaleShot(w, cdWorld, scale, blinkR = 1.8, d = 10) {
+  const head = 0.24;
+  const cone = w.pellets > 1 ? 2 * d * w.spread : 0;
+  const swing = FITTS_A + FITTS_B * Math.log2(1 + blinkR / (head + cone));
+  const readable = scale <= 0.3;                       // at full speed the blink is a teleport
+  const worldSpent = (REACT + swing) * scale + d / (w.speed || 46);
+  const inTime = readable && worldSpent <= cdWorld;
+  // then the round still has to find a 24 cm head at 10 m
+  const e = { ...enemy('gunner', 1), d, bodyW: head, strafe: 0 };
+  const p = inTime ? pKill(e, w) : 0;
+  return { p, worldSpent, realFrozen: REACT + swing };
+}
+function finaleReport() {
+  const pad = (v, n) => String(v).padEnd(n);
+  const W = {
+    'pistol': weapon('pistol', 1),
+    'pistol Mk III': weapon('pistol', 3),
+    'shotgun Mk III': weapon('shotgun', 3),
+    'rifle': weapon('sniper', 1),
+  };
+  console.log('the finale Keeper at 10 m: bait, read his blink, land the second round before his cooldown');
+  console.log('chance the second round shatters his head, by how you are moving when you take it\n');
+  for (const cd of [0.3, 0.4, 0.55]) {
+    console.log(`his cooldown ${cd} world-s`);
+    console.log('  ' + pad('', 16) + pad('standing (x0.05)', 20) + pad('walking (x0.3)', 18) + 'full speed (x1)');
+    for (const [name, w] of Object.entries(W)) {
+      const c = [0.05, 0.3, 1].map((sc) => finaleShot(w, cd, sc));
+      console.log('  ' + pad(name, 16) + c.map((r) => pad(`${Math.round(r.p * 100)}%`, 20).slice(0, 20)).join(''));
+    }
+  }
+  const r = finaleShot(W['shotgun Mk III'], 0.4, 0.05);
+  console.log(`\neach attempt holds the world for ~${r.realFrozen.toFixed(1)} real s of reading and swinging: that is its bank cost`);
+}
+
 // --- the Keeper's room -----------------------------------------------------------
 // The Keeper fires on his own clock (`every` s), and two shotgunners stand in
 // with him on a loop: shattered, they come back `respawn` s after the second
@@ -1268,6 +1318,7 @@ const MODES = {
   '--spawner-boss': () => { spawnerBossReport(); return 0; },
   '--schedule': () => schedule(),
   '--boss': () => { bossReport(); return 0; },
+  '--finale': () => { finaleReport(); return 0; },
   '--keeper-room': () => { keeperReport(); return 0; },
 };
 const mode = process.argv.slice(2).find((a) => a in MODES);
