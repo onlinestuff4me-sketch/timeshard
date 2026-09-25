@@ -49,7 +49,9 @@ const shoot = (off, ms) => page.evaluate(async ([off, ms]) => {
   t.fireAt(e.pos.x + Math.cos(yaw) * off, 1.2, e.pos.z - Math.sin(yaw) * off);
   const at = { blinks: e.blinks || 0, white: e.chest.material.type === 'MeshBasicMaterial' };
   const t0 = performance.now();
-  while (performance.now() - t0 < ms) {
+  // at least `ms`, and on until the round has resolved however slow the frames
+  const flying = () => t.bullets.some((b) => b.fromPlayer);
+  while (performance.now() - t0 < ms || (flying() && performance.now() - t0 < ms * 6)) {
     await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999; e.fireCd = 99;
   }
@@ -87,7 +89,8 @@ const back = await page.evaluate(async () => {
   const t = window.__ts;
   const e = window.__blk;
   const t0 = performance.now();
-  while (performance.now() - t0 < 2200) {
+  // on the world clock: a loaded machine runs slow, capped frames
+  while (t.worldClock().now < (e.blinkReady || 0) + 0.1 && performance.now() - t0 < 15000) {
     await new Promise((r) => requestAnimationFrame(r));
     t.player.iframes = 999; e.fireCd = 99;
   }
