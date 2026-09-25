@@ -1211,18 +1211,30 @@ function finaleReport() {
     'shotgun Mk III': weapon('shotgun', 3),
     'rifle': weapon('sniper', 1),
   };
+  // Slow time is off (x1) or on; ON, the world runs x0.05 with you still and
+  // up to x0.3 with you moving. The goal (decided): the double-shot needs slow
+  // time, at any pace inside it, and is impossible without it — so the fight
+  // is about the BANK, not about standing still.
   console.log('the finale Keeper at 10 m: bait, read his blink, land the second round before his cooldown');
-  console.log('chance the second round shatters his head, by how you are moving when you take it\n');
-  for (const cd of [0.3, 0.4, 0.55]) {
+  console.log('chance the second round shatters his head\n');
+  for (const cd of [0.4, 0.55, 0.65]) {
     console.log(`his cooldown ${cd} world-s`);
-    console.log('  ' + pad('', 16) + pad('standing (x0.05)', 20) + pad('walking (x0.3)', 18) + 'full speed (x1)');
+    console.log('  ' + pad('', 16) + pad('slow, still (x0.05)', 22) + pad('slow, moving (x0.3)', 22) + 'no slow time (x1)');
     for (const [name, w] of Object.entries(W)) {
       const c = [0.05, 0.3, 1].map((sc) => finaleShot(w, cd, sc));
-      console.log('  ' + pad(name, 16) + c.map((r) => pad(`${Math.round(r.p * 100)}%`, 20).slice(0, 20)).join(''));
+      console.log('  ' + pad(name, 16) + c.map((r) => pad(`${Math.round(r.p * 100)}%`, 22)).join(''));
     }
   }
-  const r = finaleShot(W['shotgun Mk III'], 0.4, 0.05);
-  console.log(`\neach attempt holds the world for ~${r.realFrozen.toFixed(1)} real s of reading and swinging: that is its bank cost`);
+  // THE BUDGET. Each attempt holds slow time for the bait, the read and the
+  // swing; the fight needs `hits` heads; and between attempts the room still
+  // has to be dodged, which in the Keeper's room is slow time too.
+  const r = finaleShot(W['shotgun Mk III'], 0.65, 0.3);
+  const perTry = r.realFrozen + 0.3;                        // + the bait shot itself
+  const hits = 3, p = r.p || 0.01, tries = hits / p;
+  const drain = TIME.drain * scarcity('timeDrain', 39);
+  console.log(`\nthe budget at 0.65 s with a shotgun Mk III: ~${perTry.toFixed(1)} s of slow time per attempt, `
+    + `${tries.toFixed(1)} attempts for ${hits} head hits = ${(perTry * tries * drain).toFixed(1)} s of bank at door 39's drain (x${drain.toFixed(2)})`);
+  console.log(`the bank holds ${TIME.cap} s; a kill refunds ${(TIME.bonus * scarcity('timeGain', 39)).toFixed(1)} s there`);
 }
 
 // --- the Keeper's room -----------------------------------------------------------

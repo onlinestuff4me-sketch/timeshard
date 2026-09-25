@@ -12,14 +12,25 @@ visible.
 
 ---
 
-## 1. Time moves when you do
+## 1. Slow time is a budget you spend
 
-The whole game. Stand still and the world nearly stops; move and it catches
-up. Everything else is downstream of it: the freeze is not a pause button, it
-is a resource you spend to buy a decision.
+The whole game. The world runs at full speed until you slow it, and slowing it
+costs seconds from a bank that kills refill. While it is slowed, your movement
+still counts: standing still the world nearly stops (×0.05), moving it
+catches up to ×0.3, so a dodge costs the world a few frames. The freeze is not
+a pause button, it is a resource you spend to buy a decision — and what to
+spend it on is the game.
 
-Owned by `TIME` in `src/balance.js` (`slowScale`, `moveScale`) and by
-`timeScale` in the frame loop.
+**This is not "time moves when you do."** That is SUPERHOT's rule — time only
+passes while you move — and this game is not built on it. The phrase stood as
+this pillar's heading for a while and misdescribed the game; corrected on the
+designer's word: "that's how Super Hot works but we're a different game."
+(STAND STILL, one of the simplified prototypes, does run on that rule — see
+below. The tunnel, the arena and rush hour do not.)
+
+Owned by `TIME` in `src/balance.js` (`base`, `bonus`, `cap`, `drain`;
+`slowScale` and `moveScale` for the rate while slowed) and by `timeScale` in
+the frame loop.
 
 **Do not** add a mechanic that stops time for free, or one that runs on the
 world clock while frozen — with one deliberate exception, the GRINDER, whose

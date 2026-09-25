@@ -953,8 +953,10 @@ After the drone boss, a run of hits without a miss lets you see through walls:
   maintain it through careful shooting everywhere.
 - **Before the drone boss the streak doesn't show.** Nothing yet reads it.
 
-**The tempo streak shortens reloads and weapon swaps** (decided), in tiers of
-five. It counts kills, each within ~3 world-seconds of the last:
+**The tempo streak shortens reloads and weapon swaps** (decided, **built**:
+`tempoTick()`/`tempoKill()` in `src/main.js`, numbers in `TEMPO` in
+`src/balance.js`, checked by `test/tempo.mjs`; the count shows beside the gun
+pills from 5), in tiers of five. It counts kills, each within ~3 world-seconds of the last:
 
 | kills in tempo | reload and swap time | pistol reload (1.0 s) | launcher reload (2.0 s) |
 |---|---|---|---|
@@ -1110,28 +1112,34 @@ makes him hard is that his clock is fast, and what makes him beatable is the
 power you took from him.
 
 `--finale` prices the second round: react, swing onto his 24 cm head, fire,
-and the round's flight, all against his cooldown, at 10 m. Your reaction
-and swing are real seconds, so the world time they cost depends on how you
-move while you take the shot:
+and the round's flight, all against his cooldown, at 10 m. Your reaction and
+swing are real seconds, so the world time they cost depends on whether slow
+time is on, and while it is, whether you're moving:
 
-| his cooldown | standing still (×0.05) | walking (×0.3) | full speed |
+| his cooldown | slow time, still (×0.05) | slow time, moving (×0.3) | no slow time |
 |---|---|---|---|
-| 0.55 world-s | 77–95% | 77–78%, **shotgun Mk III or rifle only** | 0% |
 | 0.40 world-s | 77–95% | 0% | 0% |
+| 0.55 world-s | 77–95% | 77–78%, shotgun Mk III or rifle only | 0% |
+| **0.65 world-s** | **77–95%** | **77–95%** | **0%** |
 
 (The range is the gun: 77% for most, 95% for the Mk III pistol's paired
-round. Standing still, every gun makes the window; what's left is hitting a
-head.)
+round. What's left, once the round arrives in time, is hitting a head.)
 
-- **At 0.4 s you have to stand still to land it,** and standing still is when
-  his kamikazes and rockets reach you. The pillar the whole game is built on,
-  *time moves when you do*, becomes the final exam: stand and take the shot,
-  or move and survive.
-- **Escalate 0.55 → 0.4.** At 0.55 s the shotgun's fast re-aim or the rifle's
-  fast round lets you shoot on the move. At 0.4 s nothing does.
-- **Each attempt holds the world ~0.8 real seconds** of reading and swinging:
-  that is its bank cost. The headshot refunds you've been earning all run
-  are what pay for it.
+**Set it at 0.65 s** (decided goal: the double-shot needs slow time, and
+it's a budget to manage, not a pose to hold). The double-shot works with any
+gun, at any pace inside slow time, and never without it.
+
+**The budget is the fight, and it's tight but possible:**
+- **Each attempt costs ~1.1 s of slow time:** the bait shot, the read, and the
+  swing.
+- **Three head hits** (one per phase) at ~78% take about **3.8 attempts: ~6.9 s
+  of bank** at the fifth floor's drain, out of a bank that holds 10.
+- **The rest has to cover dodging** his rounds, his kamikazes, his rockets and
+  the guards', which in his room is slow time too.
+- **So the guards are the refill.** Each guard shattered refunds ~1 s at that
+  depth. The rhythm the fight asks for: kill guards to fund an attempt, spend
+  it on the bait and the head, repeat. The headshot refunds you've banked all
+  run are what let you start it with a full bar.
 
 ### The loop, and how to break it (decided)
 

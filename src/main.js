@@ -15,7 +15,7 @@ import * as THREE from '../lib/three.module.min.js';
 import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, TIME, LEG, SHATTER,
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
-  doorEncounters, powerUnlockDoor, SWITCHER } from './balance.js';
+  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -1227,6 +1227,33 @@ const weaponRank = (w) => WEAPON_ORDER.indexOf(w);
 // not a thing to add to a prototype being judged on its simplicity.
 // ---------------------------------------------------------------------------
 function switcherOn() { return !simple(); }
+
+// THE TEMPO STREAK (TEMPO in balance.js; docs/ARSENAL.md §12). Its clock runs
+// on the world clock — freezing stretches the window, and the bank pays — and
+// only while an enemy is alive, so a cleared room pauses it. Same modes as the
+// switcher: the simplified modes' reloads are tuned for their own rhythm.
+const tempo = { n: 0, clock: 0, last: -1e9 };
+function tempoMul() {
+  if (!switcherOn()) return 1;
+  let m = 1;
+  for (const [at, mul] of TEMPO.tiers) if (tempo.n >= at) m = mul;
+  return m;
+}
+function tempoReset() { tempo.n = 0; tempo.clock = 0; tempo.last = -1e9; }
+function tempoTick(sdt) {
+  if (!enemies.length) return;              // a cleared room pauses the window
+  tempo.clock += sdt;
+  if (tempo.n > 0 && tempo.clock - tempo.last > TEMPO.window) {
+    tempo.n = 0;                             // any break is zero
+    updateAmmoHud();
+  }
+}
+function tempoKill() {
+  if (!switcherOn() || game.state !== 'play') return;
+  tempo.n = tempo.clock - tempo.last <= TEMPO.window ? tempo.n + 1 : 1;
+  tempo.last = tempo.clock;
+  updateAmmoHud();
+}
 function bagFind(type) { return player.bag.find((b) => b.type === type); }
 // the hand's live copy goes back into its slot before anything reads the bag
 function bagSync() {
@@ -1244,7 +1271,7 @@ function bagPut(type, mag, clips) {
     player.bag.splice(i, 1);
   }
 }
-function bagReset() { player.bag = []; setWeapon('pistol'); }
+function bagReset() { player.bag = []; tempoReset(); setWeapon('pistol'); }
 const bagLoaded = (b) => b.mag > 0 || b.clips > 0;
 // EVERY GUN THAT CAN FIRE, in bag order. An empty gun is not in the rotation:
 // a swipe must never land on something that cannot shoot.
@@ -1267,7 +1294,7 @@ function equipFromBag(b) {
   player.mag = b.mag;
   player.clips = b.clips;
   player.reloadT = 0;           // a swap abandons a reload; the clip is not spent
-  player.swapT = SWITCHER.swapT;
+  player.swapT = SWITCHER.swapT * tempoMul();
   pistolVM.visible = b.type === 'pistol';
   shotgunVM.visible = b.type === 'shotgun';
   sniperVM.visible = b.type === 'sniper';
@@ -1397,7 +1424,20 @@ function startReload() {
       return;
     }
   }
-  player.reloadT = spec.reload;
+  // ...AT THE TOP OF A TEMPO STREAK THERE IS NO RELOAD: the sound, a flick of
+  // the gun, and a full magazine, for as long as the streak holds
+  const m = tempoMul();
+  if (m === 0) {
+    if (game.mode !== 'duel') player.clips--;
+    player.mag = spec.mag;
+    gunKick = 1.4;
+    sfx.pickup();
+    vibrate(8);
+    updateAmmoHud();
+    return;
+  }
+  player.reloadT = spec.reload * m;
+  player.reloadFull = player.reloadT;   // the bar fills over the SHORTENED time
   sfx.pickup();
   updateAmmoHud();
 }
@@ -1409,7 +1449,7 @@ function updateReload(dt) {
   }
   const spec = WEAPONS[player.weapon];
   el.reloadbar.style.display = 'block';
-  el.reloadfill.style.width = Math.max(0, Math.min(1, player.reloadT / spec.reload)) * 100 + '%';
+  el.reloadfill.style.width = Math.max(0, Math.min(1, player.reloadT / (player.reloadFull || spec.reload))) * 100 + '%';
   player.reloadT -= dt;
   if (player.reloadT <= 0) {
     player.reloadT = 0;
@@ -3724,6 +3764,7 @@ function killEnemy(i, impulseDir) {
   // goes flat red instantly, and that snap is what makes an interrupted
   // telegraph read as interrupted rather than as a death animation.
   removeEnemyShards(e);   // a mid-assembly kill (menu demo) must not leak shards
+  tempoKill();
   removeBeam(e);          // shattering the laser cuts his sweep instantly
   if (timeMode === 'toggle' && (game.state === 'play' || game.state === 'intro')) {
     // kills buy time — but they buy LESS of it as you go deeper, which is
@@ -11085,7 +11126,9 @@ function switcherHud(spec, name) {
     const cls = !b ? 'pill empty' : b.type === player.weapon ? 'pill on' : bagLoaded(b) ? 'pill' : 'pill dry';
     pills += `<i class="${cls}"></i>`;
   }
-  return `<span class="swapzone">${l}<span class="line">${line}</span>${r}</span><span class="pills">${pills}</span>`;
+  // the tempo count rides beside the pills once it is worth something
+  const t = tempo.n >= TEMPO.tiers[0][0] ? `<span class="tempo${tempoMul() === 0 ? ' max' : ''}">TEMPO ${tempo.n}</span>` : '';
+  return `<span class="swapzone">${l}<span class="line">${line}</span>${r}</span><span class="pills">${pills}${t}</span>`;
 }
 
 let lastWarnAt = -10;
@@ -15375,6 +15418,7 @@ function frame(now) {
       }
     }
     for (const e of enemies) updateEnemy(e, sdt);
+    tempoTick(sdt);
     updateBullets(sdt);
     if (game.mode === 'rush') updateCrowd(sdt);
     if (inHall()) updateHall(dt);
@@ -15832,6 +15876,7 @@ window.__ts = {
   fireAt: (x, y, z) => playerFire(new THREE.Vector3(x, y, z)),
   setWeapon, spawnEnemy, spawnPickup,
   swapWeapon, bagReset, startReload, playerFire, switcherOn,
+  tempo: () => ({ ...tempo, mul: tempoMul() }), tempoKill, tempoTick,
   bag: () => { bagSync(); return player.bag.map((b) => ({ ...b })); },
   // The simplified modes, from the outside: which one is running, whether a
   // round currently counts as inbound, what the world clock is doing and what

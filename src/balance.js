@@ -35,6 +35,18 @@ export const SWITCHER = {
   swipePx: 24,       // a drag on the weapon name this far sideways is a swap
 };
 
+// THE TEMPO STREAK — kills in quick succession shorten reloads and swaps.
+// Design: docs/ARSENAL.md §12. Each kill within `window` world-seconds of the
+// last keeps it going; the window only runs while someone is alive to shoot,
+// so the walk between rooms never breaks it. ANY break drops it to zero: it is
+// the short, hot streak (no-misses is the long, forgiving one). At the last
+// tier a reload is only its sound and a flick of the gun.
+export const TEMPO = {
+  window: 3,
+  // [kills in tempo, multiplier on reload and swap time]
+  tiers: [[5, 0.75], [10, 0.5], [15, 0.25], [20, 0]],
+};
+
 // ONE DEBUT PER WAVE — the wave (or tunnel door) each type first appears on.
 //
 // ONE NEW THING PER DOOR, AND EVERY DOOR GETS ONE. Playtest: "the ramp for
