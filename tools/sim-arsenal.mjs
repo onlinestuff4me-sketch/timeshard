@@ -9,6 +9,7 @@
 //   node tools/sim-arsenal.mjs --spawner  the spawner room, three ways
 //   node tools/sim-arsenal.mjs --schedule the floors, and the rules the schedule keeps
 //   node tools/sim-arsenal.mjs --boss     the floor-1 boss's blink, against brackets and shells
+//   node tools/sim-arsenal.mjs --keeper-room  how hot the Keeper's room is before slow time
 //
 // A PROPOSAL, NOT THE GAME. The Mk tables below are the design in
 // docs/ARSENAL.md and nothing in the game reads them yet. When the ladder is
@@ -243,8 +244,8 @@ const ANSWERED_BY = { rusher: 'shotgun', kamikaze: 'shotgun', blinker: 'shotgun'
 //
 //   floor 1  gunner, rusher, shotgunner, shield        boss: blinker (the Keeper)
 //   floor 2  heavy, sniper, bomber (+ blinkers)        boss: Frankenstein
-//   floor 3  armored, rocketeer (+ Frankensteins)      boss: drone
-//   floor 4  kamikaze (+ drones)                       boss: spawner
+//   floor 3  armored, rocketeer, kamikaze (+ Frankensteins)  boss: drone
+//   floor 4  (+ drones)                                boss: spawner
 //   floor 5  laser (+ spawners)                        boss: the finale
 //
 // DRONE AND SPAWNER ARE SEPARATED (decided): both are supports you choose to
@@ -267,10 +268,13 @@ export const DEBUTS = [
   // (measured: AP Mk I barely beats pistol Mk II). Gunner Mk II is after the
   // slow-time school (10-19): his axis is "fire together", which the school
   // already does to the room (measured: invisible inside it).
-  [18, 'armored', 1], [19, 'shieldbearer', 2], [20, 'heavy', 2], [21, 'gunner', 2],
-  [22, 'rocketeer', 1], [23, 'bomber', 2], [23.5, 'drone', 1, 'boss'],
+  // The kamikaze is here, not floor 4: the Frankenstein boss's last phase IS
+  // the kamikaze rush (an evolved gunner whose arms go, and then he runs), so
+  // the floor after him fills with both.
+  [18, 'armored', 1], [19, 'shieldbearer', 2], [20, 'kamikaze', 1], [21, 'gunner', 2],
+  [22, 'rocketeer', 1], [23, 'heavy', 2], [23.5, 'drone', 1, 'boss'],
   // floor 4 — doors 24-30
-  [25, 'kamikaze', 1], [26, 'shotgunner', 3], [27, 'sniper', 2], [28, 'blinker', 2],
+  [25, 'bomber', 2], [26, 'shotgunner', 3], [27, 'sniper', 2], [28, 'blinker', 2],
   [29, 'frankenstein', 2], [30, 'rusher', 3], [30.5, 'spawner', 1, 'boss'],
   // floor 5 — doors 31-39
   [32, 'laser', 1], [33, 'gunner', 3], [34, 'armored', 2], [35, 'rocketeer', 2],
@@ -298,6 +302,8 @@ const LADDERED = (type) => type in ENEMY_BASE;
 const ANSWERED_AT = { 'blinker:2': 'launcher', 'blinker:3': 'launcher' };
 // After each boss, the next floor fills with ordinary ones of his kind.
 const POPULATES = { blinker: 2, frankenstein: 3, drone: 4, spawner: 5 };
+// ...and the Frankenstein boss introduces TWO: his last phase is the kamikaze's
+// rush, so kamikazes debut on the floor after him as well.
 const NEEDS = {
   'frankenstein:1': ['launcher', 1],   // his boss fight is the full kit: both arms in one aim
   'shieldbearer:2': ['launcher', 1],   // over the plate (the ladder: the Mk I launcher is enough)
@@ -1149,7 +1155,43 @@ function bossReport() {
   for (const n of names) console.log(pad(n, 38) + res.map((r) => pad(`${Math.round(r[n] * 100)}%`, 22)).join(''));
 }
 
-if (process.argv.includes('--boss')) bossReport();
+// --- the Keeper's room -----------------------------------------------------------
+// The Keeper fires on his own clock (`every` s), and two shotgunners stand in
+// with him on a loop: shattered, they come back `respawn` s after the second
+// goes, and each leaves a shotgun — the room keeps feeding you the answer.
+// Before slow time, every round is dodged on foot, so the question is how
+// much of the fight is spent stepping out of lanes: LOAD, the share of each
+// second that dodging takes (rate x the seconds one dodge needs). Past ~0.5
+// there is little time left to aim, and the fight is a wall, not a duel.
+function keeperRoom(every, sgFire, respawn = 3) {
+  const door = FLOORS[0] + 0.5;
+  const keeper = { ...enemy('gunner', 1), d: 10 };
+  const sg = { ...enemy('shotgunner', 1), d: 8 };
+  const kNeed = volleyNeed(keeper, door).need, sNeed = volleyNeed(sg, door).need;
+  // how long the pair is up per loop: two pistol kills, then the respawn gap
+  const up = 2 * killCost(sg, weapon('pistol', 1), 2).t;
+  const duty = up / (up + respawn + ASSEMBLE);
+  const sgCycle = sg.aim + sg.cd[0] + sg.cd[1] / 2;
+  const keeperLoad = kNeed / every;
+  const sgLoad = duty * 2 * sgFire / sgCycle * sNeed;
+  return { keeperLoad, sgLoad, total: keeperLoad + sgLoad, duty };
+}
+function keeperReport() {
+  console.log(`the Keeper's room, door ${FLOORS[0]}.5 (bullets at ${speedAt(FLOORS[0] + 0.5).toFixed(1)} m/s, no slow time yet)`);
+  console.log('LOAD = share of each second spent dodging. Past ~0.5 there is no time left to aim.\n');
+  const pad = (v, n) => String(v).padEnd(n);
+  console.log(pad('Keeper fires every', 20) + pad('shotgunners fire', 30) + pad('Keeper', 9) + pad('pair', 9) + 'total');
+  for (const every of [1.0, 1.25, 1.5]) {
+    for (const [label, f] of [['at their own rate', 1], ['half as often', 0.5], ['only when he is on cooldown', 0.35]]) {
+      const r = keeperRoom(every, f);
+      console.log(pad(`${every} s`, 20) + pad(label, 30) + pad(r.keeperLoad.toFixed(2), 9) + pad(r.sgLoad.toFixed(2), 9) + r.total.toFixed(2));
+    }
+  }
+  console.log(`\n(the pair is up ${Math.round(keeperRoom(1.25, 1).duty * 100)}% of the time: two pistol kills, then 3 s + assembly before they return)`);
+}
+
+if (process.argv.includes('--keeper-room')) keeperReport();
+else if (process.argv.includes('--boss')) bossReport();
 else if (process.argv.includes('--schedule')) process.exitCode = schedule() ? 1 : 0;
 else if (process.argv.includes('--spawner')) spawner();
 else if (process.argv.includes('--newcomers')) newcomers();

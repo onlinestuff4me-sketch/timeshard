@@ -3,8 +3,9 @@
 // `PILLARS ARE YOUR ONLY COVER` is gone: the columns are the most visible
 // thing in a vault, they are on screen before the banner is, and a card naming
 // what the player is already looking at is a card in the way of it. A headline
-// earns its place by naming something you could not see for yourself. Every
-// other one still has to survive, and no leg may announce a blank.
+// earns its place by naming something you could not see for yourself. The
+// service run's TIGHT TURNS went the same way. Every other one still has to
+// survive, and no leg may announce a blank.
 import { boot, done } from './lib.mjs';
 
 const SEED = () => { try {
@@ -47,6 +48,10 @@ for (const form of Object.keys(seen)) {
 }
 console.log(`${Object.keys(seen).length} forms, ${bad} announcing PILLARS or a blank  (want 0)`);
 if (seen.vault && seen.vault.any) console.log('FAIL the vault still makes a claim');
+// ...and TIGHT TURNS is gone for the same reason (playtest: "not helpful"):
+// the turns are on screen a step later, and there is nothing to do about them.
+if (seen.serviceRun && seen.serviceRun.any) console.log('FAIL the service run still makes a claim');
+if (/TIGHT/i.test((seen.serviceRun && seen.serviceRun.line) || '')) console.log('FAIL the service run still says TIGHT TURNS');
 
 await browser.close();
 done('headline', errs);

@@ -11498,7 +11498,11 @@ const LEG_HEADLINES = {
   // because a room is populated for BEING a room now (`featureStretch`) rather
   // than for having been announced as one.
   gauntlet: 'NO COVER · DO NOT STOP',
-  serviceRun: 'TIGHT TURNS',
+  // serviceRun has NO HEADLINE either. `TIGHT TURNS` told the player what the
+  // corridor would show them one step later, and gave them nothing to do
+  // about it — playtest: "not helpful". Same rule as the vault above: a
+  // headline names something you could not see for yourself. A service run
+  // announces its door number.
   gallery: 'THEY CAN SEE THE WHOLE RUN',
   stairwell: 'MIND THE LEVEL ABOVE',
   spiral: 'NO STRAIGHT LINE OUT',

@@ -25,6 +25,7 @@ node tools/sim-arsenal.mjs --newcomers  # kamikaze, frankenstein, drone (§8)
 node tools/sim-arsenal.mjs --spawner  # the spawner room, three ways (§9)
 node tools/sim-arsenal.mjs --schedule # the floors door by door, and the rules they keep (§1)
 node tools/sim-arsenal.mjs --boss     # the floor-1 boss, against brackets and shells (§10)
+node tools/sim-arsenal.mjs --keeper-room  # how hot his room is before slow time (§10)
 ```
 
 Both exit non-zero if a row leaves its band.
@@ -44,11 +45,13 @@ Gunners run through every floor. Types from earlier floors come back as
 |---|---|---|---|---|
 | **1** | 1–9 (9) | gunner, rusher, shotgunner, shield | – | **the Keeper**, the first blinker → slow time |
 | **2** | 10–16 (7) | heavy, sniper, bomber, *blinkers* | shotgunner II, rusher II | **the first Frankenstein** |
-| **3** | 17–23 (7) | armored, rocketeer, *Frankensteins* | shield II, heavy II, gunner II, bomber II | **the first drone** |
-| **4** | 24–30 (7) | kamikaze, *drones* | shotgunner III, sniper II, blinker II, Frankenstein II, rusher III | **the first spawner** |
+| **3** | 17–23 (7) | armored, rocketeer, *Frankensteins*, *kamikazes* | shield II, gunner II, heavy II | **the first drone** |
+| **4** | 24–30 (7) | *drones* | bomber II, shotgunner III, sniper II, blinker II, Frankenstein II, rusher III | **the first spawner** |
 | **5** | 31–39 (9) | laser, *spawners* | gunner III, armored II, rocketeer II, kamikaze II, drone II, heavy III, Frankenstein III | **the finale**: the Keeper, again |
 
-*Italics:* the type the previous floor's boss introduced, now ordinary.
+*Italics:* the types the previous floor's boss introduced, now ordinary.
+The Frankenstein boss introduces two: his last phase is the kamikaze's rush
+(§12).
 
 Door by door (`node tools/sim-arsenal.mjs --schedule`; `·` is a door that
 carries a protocol debut instead):
@@ -57,9 +60,9 @@ carries a protocol debut instead):
 F1   1:gunner  2:·  3:·  4:rusher  5:·  6:shotgunner  7:·  8:shield  9:·    BOSS: the Keeper (blinker)
 F2   10:SLOW TIME  11:heavy  12:shotgunner II  13:sniper  14:·  15:bomber
      16:rusher II                                                         BOSS: Frankenstein
-F3   17:warm-up  18:armored  19:shield II  20:heavy II  21:gunner II
-     22:rocketeer  23:bomber II                                           BOSS: drone
-F4   24:warm-up  25:kamikaze  26:shotgunner III  27:sniper II  28:blinker II
+F3   17:warm-up  18:armored  19:shield II  20:kamikaze  21:gunner II
+     22:rocketeer  23:heavy II                                            BOSS: drone
+F4   24:warm-up  25:bomber II  26:shotgunner III  27:sniper II  28:blinker II
      29:Frankenstein II  30:rusher III                                    BOSS: spawner
 F5   31:warm-up  32:laser  33:gunner III  34:armored II  35:rocketeer II
      36:kamikaze II  37:drone II  38:heavy III  39:Frankenstein III        BOSS: the Keeper, blinker III
@@ -265,11 +268,11 @@ The rules for each Mk debut:
 | 16 | rusher II | numbers | 9.1 | 7 | 0.15 | pistol I | 0.66 | 0.82 | shotgun II | 0.15 | 0.00 |
 | 18 | armored I | debut | 9.8 | 4 | – | pistol I | 4.09 | 6.40 | AP I | 1.89 | 2.92 |
 | 19 | shield II | coverage | 10.1 | 4 | 0.73 | pistol I | 4.51 | 7.06 | launcher I | 0.73 | 1.12 |
-| 20 | heavy II | burst | 10.4 | 4 | 0.33 | burst I | 0.42 | 0.17 | burst II | 0.30 | 0.20 |
+| 20 | kamikaze I | debut | 10.4 | 5 | – | pistol I | 0.77 | 0.66 | shotgun II | 0.15 | 0.00 |
 | 21 | gunner II | pairs | 10.7 | 4 | 0.50 | pistol I | 1.14 | 1.76 | pistol II | 0.67 | 1.03 |
 | 22 | rocketeer I | debut | 11.0 | 4 | – | pistol II | 0.32 | 0.26 | rocket I | 0.17 | 0.08 |
-| 23 | bomber II | area | 11.4 | 4 | 0.37 | launcher I | 0.79 | 0.68 | launcher II | 0.43 | 0.38 |
-| 25 | kamikaze I | debut | 12.0 | 5 | – | pistol II | 0.46 | 0.33 | shotgun II | 0.15 | 0.00 |
+| 23 | heavy II | burst | 11.4 | 4 | 0.72 | burst I | 1.09 | 0.79 | burst II | 0.76 | 0.69 |
+| 25 | bomber II | area | 12.0 | 4 | 0.37 | launcher I | 0.81 | 0.68 | launcher II | 0.43 | 0.38 |
 | 26 | shotgunner III | pattern | 12.3 | 4 | 0.84 | shotgun II | 1.09 | 0.88 | shotgun III | 0.70 | 0.65 |
 | 27 | sniper II | reach | 12.6 | 2 | 0.20 | rifle I | 0.30 | 0.12 | rifle II | 0.21 | 0.16 |
 | 28 | blinker II | numbers | 13.0 | 2 | 0.13 | pistol II | 0.83 | 0.70 | launcher II | 0.16 | 0.09 |
@@ -756,6 +759,29 @@ Then he shatters, and you get the power you just watched him use.
 
 ---
 
+### The Keeper's room (decided)
+
+- **Two shotgunners stand in with him, on a loop.** Shattered, the pair comes
+  back 3 s after the *second* one goes, and each leaves a shotgun. The room
+  keeps feeding you the answer and keeps the pressure on. And since the loop
+  restarts only when both are down, leaving one alive is a real choice: one
+  shotgunner firing, but no fresh shotguns.
+- **He fires on his own clock**, every 1–1.5 s. `--keeper-room` measures what
+  that costs *before you have slow time*, as **load**: the share of each second
+  spent stepping out of lanes. Past ~0.5 there's no time left to aim, and
+  the fight stops being a duel.
+
+| Keeper fires every | the pair fires | Keeper | pair | total load |
+|---|---|---|---|---|
+| 1.0 s | at their own rate | 0.45 | 0.14 | **0.58** |
+| 1.25 s | at their own rate | 0.36 | 0.14 | **0.50** |
+| 1.5 s | at their own rate | 0.30 | 0.14 | **0.44** |
+
+- **His own fire is almost all of it.** The pair adds 0.14 at most, because it
+  is only up about a third of the time. So set his clock to **1.5 s in
+  phase 1 and 1.25 s in phases 2–3**. That's hot, and still a duel. At 1.0 s
+  it's a wall, and there's no slow time yet to get through one.
+
 ### Blinkers: the Keeper's kind (decided)
 
 The Keeper is the first **blinker**, and floors 2 onward have ordinary ones:
@@ -802,8 +828,16 @@ introduction):
 **Once per save, not per run.** The full stop plays the first time you ever
 meet a type (UNLOCKS already records it). On later runs a small name tag over
 him is enough: a returning player should not be stopped fifteen times a run.
-**Tier-ups** get no stop, just the name tag with its one change:
-`GUNNER Mk II · FIRES IN PAIRS`.
+
+**Tier-ups are announced at the door, under the door number** (decided). The
+door number stays the headline; the tier-up is a smaller second line:
+
+```
+            DOOR 21
+    GUNNER MK II · FIRES IN PAIRS
+```
+
+No stop, and no card. The one change a tier makes is all it needs to say.
 
 ### The cards (draft copy)
 
@@ -836,37 +870,120 @@ move: *the head was not considered* rather than *shoot his head*.
 
 ## 12. A boss at the end of every floor
 
-**Decided: the Keeper's pattern repeats.** Every floor ends in an elevator boss
-who is the first of the next floor's hardest type: a big, phased version met
-once. The next floor then fills with ordinary ones. The boss fight is the
-type's debut card (§11), and it is what the ordinary ones are measured
-against: after him, they are familiar.
+**Decided: the Keeper's pattern repeats.** Every floor ends in an elevator
+boss who is the first of the next floor's hardest type: a big, phased version
+met once. The next floor then fills with ordinary ones. Every boss fight has
+the same three parts.
 
-| ends | boss | phases (sketch) | the next floor gets |
+1. **Adds on a respawn loop.** A few earlier enemies stand in with the boss and
+   come back a few seconds after the last of them is shattered, like the
+   Keeper's shotgunners. They keep the pressure on, and **one of them carries
+   the boss's answer**, so the loop keeps handing it to you.
+2. **The boss**, phased, firing on his own clock (§10 for the numbers the
+   Keeper settled).
+3. **The reward, delivered by his shards** (decided):
+   - **A power:** his shards hang, then stream into you. Slow time is the
+     first.
+   - **A weapon:** his shards stream together into the weapon, on the floor.
+     **The exit door stays locked until you pick it up.**
+
+| ends | boss | adds on a loop (and the answer they carry) | reward | kind |
+|---|---|---|---|---|
+| floor 1 | **the Keeper**, the first blinker | 2 shotgunners → the shotgun's fast re-aim | **slow time** | power |
+| floor 2 | **the first Frankenstein**: an evolved gunner, a gun in each hand; his arms go one at a time, and then he rushes and bursts | 2 bombers → the launcher takes both arms in one aim | **the seeker** | weapon |
+| floor 3 | **the first drone**, the size of a car, marking you so its gunners lead you | gunners it steers, and a shotgunner → the cone for a target overhead | **sight** | power |
+| floor 4 | **the first spawner**, a dome with three dishes | its guards, which it reassembles, and a bomber → a blast that clears the guards inside the window | **a second life** | power |
+| floor 5 | **the finale: the Keeper, again**, with slow time of his own | blinkers at Mk III | – | – |
+
+**What the Frankenstein boss is:** a gunner that evolved. Two guns fire at
+once. Only his arms break, and each arm takes a gun with it. When both are
+gone his chest opens and he runs at you and bursts: the kamikaze's rush,
+seen for the first time. So he introduces **two** types to floor 3:
+Frankensteins (the gentle Mk I, two guns and one shot) and **kamikazes**.
+The schedule now has the kamikaze on door 20 (floor 3), not floor 4, and
+`--schedule` still keeps every rule.
+
+### The rewards
+
+**Slow time** (the Keeper). As today, from door 10.
+
+**The seeker** (Frankenstein; a weapon, so it's collected). One kamikaze of
+your own. Send it and it hunts the nearest enemy, then bursts, shattering him
+and anyone in its radius, **you included** if you're too close.
+- It lives in the weapon switcher (§13) as `SEEKER ×1`.
+- **It refills from kamikazes.** Shatter one *before he arms* and his core
+  drops: +1 seeker, held to one or two. That turns *kill the kamikaze
+  first* (§3, ×1.40) into a reward as well as a survival rule.
+- Its radius should match the kamikaze's (3.5 m), so it reads as the same
+  thing, turned around.
+
+**Sight** (the drone; a power). While a streak holds, enemies round the next
+corner and in the next room show as glowing outlines, including where the
+next wave will assemble. **The headshot streak is taken** (decided: it
+raises the slow-time refund rate), so sight needs its own streak. Options:
+
+| streak | keeps going while... | fits because | risk |
 |---|---|---|---|
-| floor 1 | **the Keeper** (blinker) | blink at 1.5 s; blink at 1.2 s with shotgunners to rob; he stops the world and releases a volley (§10) | blinkers · and **slow time** |
-| floor 2 | **the first Frankenstein** | both guns up; one arm gone, one gun firing; both gone, chest open, the rush. His whole kit, the one fight where you see all of it | Frankensteins (Mk I: two guns, one shot) |
-| floor 3 | **the first drone**, the size of a car | it marks you and the room leads you. It hovers high, and you look up for the first time. Its escorts are gunners whose rounds it is steering | drones (Mk I: the hovering spotter) |
-| floor 4 | **the first spawner**, a dome with three dishes | each dish broken shortens the reassembly. The last dish must go inside one window. The guards are the floor's cast | spawners (Mk I: one dish, 2 s) |
-| floor 5 | **the finale: the Keeper, again** | he has slow time too. Three blinkers at Mk III, and his time stop is now yours to answer with your own | – |
+| **tempo** (recommended) | each kill lands within ~3 s of the last | sight is information for pushing forward, and tempo rewards pushing. It's the Hades/Returnal rush | needs a visible draining ring |
+| on-foot kills | kills made without freezing | a counterweight to slow time | punishes the core mechanic |
+| no misses | every shot hits | rewards aim | a spray weapon (shotgun) cheats it or can't keep it |
 
-- **The boss is a type's full kit; the ordinary ones are a slice of it.** The
-  Frankenstein boss shows arms and the rush; floor 3's ordinary
-  Frankensteins are the gentle Mk I (two guns, one shot), and the kit comes
-  back in pieces as they tier up (Mk II arms on floor 4, Mk III rush on
-  floor 5). You have seen what they become, and the floors catch up to it.
-- **Each boss after the first leaves a time-button upgrade.** §7 proposed
-  one time upgrade per elevator ride, and a boss is the natural moment for
-  it. The limits still hold: few (one per boss), capped at about door 6's
-  bank worth, and felt (e.g. *headshots while frozen overfill the bank*).
-  Slow time from the Keeper, then a sharper slow time from each boss after.
+Tempo on the **world clock**, like everything else: freezing stretches the
+window, and the bank pays for it. Sight feeds the streak it depends on: you
+see the next room, so you enter it ready to keep the tempo.
+
+**A second life** (the spawner; a power). Once per run, when you're
+shattered, you hang where you fell and **reassemble**, the spawner's own
+trick turned around. It's used once and gone for the run, and the HUD shows
+it while you hold it. While you reassemble the world is stopped, and you
+come back with a moment's grace. This bends "one hit and you shatter" once,
+late, and visibly, which is why it is the last reward and not the first.
+
+**The headshot streak → slow-time refund rate** (decided, a base mechanic,
+not a boss reward). It also answers `BACKLOG.md` #3: a headshot reward that
+still lands when the bank is already full.
+
 - **Boss rooms keep the room rules:** the seal, waves assembling at once, and
-  a kill-order question built in (the Keeper's shotgunners; the drone's
-  steered gunners; the spawner's guards).
-- **What the model covers:** the blinker (`--boss`, and the ladder rows G1
-  and G5), and each other boss's type at its ordinary tiers (`--newcomers`,
-  `--spawner`). The bosses' own phases are sketches: each needs its own pass
-  of `--boss`'s kind before it's built.
+  a kill-order question built into the adds.
+- **What the model covers:** the Keeper and his room (`--boss`,
+  `--keeper-room`, ladder rows G1 and G5), and each boss's type at its
+  ordinary tiers (`--newcomers`, `--spawner`). The other bosses' phases are
+  sketches that each need their own pass of the Keeper's kind.
 - **To decide:** the finale. The Keeper returning with his own slow time
-  closes the loop that floor 1 opened, but it is a mirror fight: both of you
-  freezing. It needs its own design pass.
+  closes the loop that floor 1 opened, but it's a mirror fight, both of you
+  freezing, and it needs its own design pass.
+
+---
+
+## 13. The weapon switcher
+
+**Decided: you keep the guns you find and swipe between them.** Today a pickup
+is the one gun you hold, plus clips. With a switcher, *take his gun* stops
+meaning *give up yours*, and choosing the right gun for the room becomes part
+of the fight.
+
+- **The control:** the weapon name at the bottom of the screen gets a small
+  triangle on each side, `◀ SHOTGUN ▶`. **Swipe left or right on it** to
+  change weapons.
+- **Order: most recently picked up first.** The gun you just took is one
+  swipe away, and the pistol, picked up first, sits at the far end.
+- **The label is its own touch zone.** The screen already splits into
+  left-drag (move), right-drag (look) and tap (fire). A swipe that *starts*
+  on the label belongs to the switcher. It must never turn the camera or
+  fire, because the camera never moves unless the player moved it
+  (`PILLARS.md` §4).
+- **How many to carry: a cap of three**, the pistol plus the two most recent.
+  A new type past the cap pushes out the one picked up longest ago, which
+  the recency order already shows you. **Why cap it:** each gun keeps its
+  own clips, so carrying everything multiplies your ammo, and scarcity *is* the
+  difficulty curve (`PILLARS.md` §2). A cap keeps the choice a choice.
+- **An empty gun leaves the rotation.** A swipe should never land on a gun
+  that can't fire.
+- **Switching takes a beat** (~0.25 s, the same clock as a reload) and works
+  while frozen. Stopping time to change guns is exactly the kind of decision
+  slow time is for, and the bank pays for it.
+- **The seeker is a slot too** (`SEEKER ×1`), and it doesn't count against the
+  cap.
+- **What it does to the model:** nothing breaks. The ladder already prices a
+  tier against the best gun on the floors; the switcher is what makes
+  "the best gun on the floors" the gun in your hand.
