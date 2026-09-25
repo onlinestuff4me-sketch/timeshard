@@ -20,6 +20,21 @@ export const WEAPONS = {
   rocket: { cd: 1.2, pellets: 1, spread: 0, kick: 3, speed: 34, mag: 2, maxClips: 3, reload: 2.35, blast: 8 },
 };
 
+// THE WEAPON SWITCHER — you keep the guns you find and swipe between them.
+// Design and reasoning: docs/ARSENAL.md §13. Tunnel, city and rush only: the
+// simplified modes (NO RETREAT, STAND STILL) keep one gun, because their
+// whole control is one drag and one tap.
+//
+// THREE SLOTS: the pistol, which never leaves, and the two most recent finds.
+// A fourth pushes out the oldest of those two. Every gun keeps its own clips,
+// so carrying everything would multiply your ammo — and scarcity is the
+// difficulty curve (PILLARS §2). The cap keeps the choice a choice.
+export const SWITCHER = {
+  slots: 3,
+  swapT: 0.25,       // real seconds with no trigger, the same clock as a reload
+  swipePx: 24,       // a drag on the weapon name this far sideways is a swap
+};
+
 // ONE DEBUT PER WAVE — the wave (or tunnel door) each type first appears on.
 //
 // ONE NEW THING PER DOOR, AND EVERY DOOR GETS ONE. Playtest: "the ramp for

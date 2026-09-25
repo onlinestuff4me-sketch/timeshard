@@ -251,6 +251,18 @@
   body.armed #ammo { animation:ammoin .5s ease .42s both; }
   @keyframes ammoin { from { opacity:0 } to { opacity:1 } }
   #ammo.shotgun { color:#ff2d1a; }
+  /* THE WEAPON SWITCHER (docs/ARSENAL.md §13). The HUD takes no touches; the
+     gun name opts back in, and only the name — the strip either side of it is
+     still the move and look halves of the screen. Padded so a thumb finds it. */
+  #ammo .swapzone { display:inline-flex; align-items:center; gap:.7em; padding:10px 16px 4px;
+                    pointer-events:auto; touch-action:none; }
+  #ammo .sw { font-size:.9em; opacity:.55; padding:0 .2em; }
+  #ammo .pills { display:flex; justify-content:center; gap:7px; margin-top:3px; }
+  #ammo .pill { width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.7;
+                filter:drop-shadow(0 0 3px rgba(238,240,243,.9)); }
+  #ammo .pill.on { opacity:1; box-shadow:0 0 0 1.5px rgba(238,240,243,.95), 0 0 0 2.6px currentColor; }
+  #ammo .pill.empty { background:none; box-shadow:inset 0 0 0 1.2px currentColor; opacity:.45; }
+  #ammo .pill.dry { opacity:.25; }
   /* A CARTRIDGE, not a bar-chart block: a case with a nose on it. Drawn in
      `currentColor` so it flips light with the rest of the HUD in bullet time,
      and sized in `em` so it rides the readout's own font size. */

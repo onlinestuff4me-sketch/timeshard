@@ -15,7 +15,7 @@ import * as THREE from '../lib/three.module.min.js';
 import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, TIME, LEG, SHATTER,
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
-  doorEncounters, powerUnlockDoor } from './balance.js';
+  doorEncounters, powerUnlockDoor, SWITCHER } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -919,6 +919,12 @@ const player = {
   clips: 3,
   mag: 5,
   reloadT: 0,
+  swapT: 0,                   // real seconds left on a weapon swap
+  // THE BAG: every gun you carry, most recently picked up first, each with
+  // its own magazine and clips. The one in hand is in here too; player.mag
+  // and player.clips are its live copy, written back on every swap. Only
+  // used where switcherOn(); elsewhere the hand is the whole loadout.
+  bag: [],
   alive: true,
 };
 
@@ -1181,10 +1187,16 @@ let jabT = 0;
 
 function setWeapon(type, clips) {
   const spec = WEAPONS[type];
+  // the gun leaving the hand keeps its rounds in the bag — saved BEFORE the
+  // hand is overwritten, or the swap would write the new gun's full magazine
+  // over the old one's slot
+  if (switcherOn()) bagSync();
   player.weapon = type;
   player.clips = clips !== undefined ? clips : (type === 'knife' ? 0 : 1);
   player.mag = spec.mag === Infinity ? Infinity : spec.mag;
   player.reloadT = 0;
+  player.swapT = 0;
+  if (switcherOn() && type !== 'knife') bagPut(type, player.mag, player.clips);
   pistolVM.visible = type === 'pistol';
   shotgunVM.visible = type === 'shotgun';
   sniperVM.visible = type === 'sniper';
@@ -1204,10 +1216,86 @@ function setWeapon(type, clips) {
 const WEAPON_ORDER = Object.keys(WEAPONS);
 const weaponRank = (w) => WEAPON_ORDER.indexOf(w);
 
+// ---------------------------------------------------------------------------
+// THE WEAPON SWITCHER (docs/ARSENAL.md §13; numbers in SWITCHER, balance.js).
+//
+// You keep what you find and swipe the weapon name to change guns. The bag is
+// ordered by recency — the gun you just took is one swipe away, the pistol at
+// the far end — and holds SWITCHER.slots: the pistol, which never leaves, and
+// the most recent finds. The simplified modes keep one gun: their whole
+// control is one drag and one tap, and a third gesture on the same thumb is
+// not a thing to add to a prototype being judged on its simplicity.
+// ---------------------------------------------------------------------------
+function switcherOn() { return !simple(); }
+function bagFind(type) { return player.bag.find((b) => b.type === type); }
+// the hand's live copy goes back into its slot before anything reads the bag
+function bagSync() {
+  const b = bagFind(player.weapon);
+  if (b) { b.mag = player.mag; b.clips = player.clips; }
+}
+function bagPut(type, mag, clips) {
+  bagSync();
+  player.bag = player.bag.filter((b) => b.type !== type);
+  player.bag.unshift({ type, mag, clips });
+  // over the cap, the oldest find goes — never the pistol
+  while (player.bag.length > SWITCHER.slots) {
+    let i = player.bag.length - 1;
+    while (i > 0 && player.bag[i].type === 'pistol') i--;
+    player.bag.splice(i, 1);
+  }
+}
+function bagReset() { player.bag = []; setWeapon('pistol'); }
+const bagLoaded = (b) => b.mag > 0 || b.clips > 0;
+// EVERY GUN THAT CAN FIRE, in bag order. An empty gun is not in the rotation:
+// a swipe must never land on something that cannot shoot.
+function bagRotation() {
+  bagSync();
+  return player.bag.filter((b) => b.type === player.weapon || bagLoaded(b));
+}
+// +1 is a swipe LEFT (towards older finds), -1 a swipe right. It wraps.
+function swapWeapon(dir) {
+  if (!switcherOn() || !player.alive) return false;
+  const rot = bagRotation();
+  if (rot.length < 2) return false;
+  const i = Math.max(0, rot.findIndex((b) => b.type === player.weapon));
+  equipFromBag(rot[(i + dir + rot.length) % rot.length]);
+  return true;
+}
+function equipFromBag(b) {
+  bagSync();
+  player.weapon = b.type;
+  player.mag = b.mag;
+  player.clips = b.clips;
+  player.reloadT = 0;           // a swap abandons a reload; the clip is not spent
+  player.swapT = SWITCHER.swapT;
+  pistolVM.visible = b.type === 'pistol';
+  shotgunVM.visible = b.type === 'shotgun';
+  sniperVM.visible = b.type === 'sniper';
+  burstVM.visible = b.type === 'burst';
+  launcherVM.visible = b.type === 'launcher';
+  rocketVM.visible = b.type === 'rocket';
+  knifeVM.visible = false;
+  gunKick = 0.6;                // the new gun comes up
+  sfx.pickup();
+  vibrate(8);
+  updateAmmoHud();
+}
+// OUT OF ROUNDS IN THIS GUN: it leaves the rotation (the pistol stays in the
+// bag, waiting for a clip), and the hand goes to the next gun that can fire.
+// Only when nothing can does it come to the knife.
+function bagRunDry() {
+  bagSync();
+  if (player.weapon !== 'pistol') player.bag = player.bag.filter((b) => b.type !== player.weapon);
+  const next = player.bag.find(bagLoaded);
+  if (next) { equipFromBag(next); return; }
+  dropToKnife();
+}
+
 // Returns whether the drop was actually taken. The caller owns the sound, the
 // haptic and removing it from the floor, so a pickup that declines makes no
 // noise and leaves the thing where it lay.
 function takePickup(type) {
+  if (switcherOn()) return bagTake(type);
   // WHAT IS ON THE FLOOR IS NOT ALWAYS AN UPGRADE. `setWeapon` on a CLIP is a
   // SWAP when you are not already holding the pistol, so walking over the clip
   // the last gunner dropped handed the pistol back and took the shotgun away —
@@ -1246,6 +1334,35 @@ function takePickup(type) {
   return true;
 }
 
+// WITH A BAG, NOTHING ON THE FLOOR IS A DOWNGRADE, so nothing is declined:
+// a clip is pistol ammo wherever the pistol is, a gun you carry is a clip for
+// it, and a new gun goes in the bag and into your hand.
+function bagTake(type) {
+  const want = type === CLIP ? 'pistol' : type;
+  recordMet([want]);
+  bagSync();
+  const have = bagFind(want);
+  if (player.weapon === 'knife') {
+    // up from the knife: whatever this is goes straight into the hand
+    if (have) { have.clips = Math.min(WEAPONS[want].maxClips, have.clips + 1); equipFromBag(have); }
+    else setWeapon(want, 1);
+    return true;
+  }
+  if (have) {
+    have.clips = Math.min(WEAPONS[want].maxClips, have.clips + 1);
+    if (want === player.weapon) player.clips = have.clips;
+    updateAmmoHud();
+    return true;
+  }
+  if (type === CLIP) {   // the pistol is always in the bag; this only guards a fresh one
+    bagPut('pistol', 0, 1);
+    updateAmmoHud();
+    return true;
+  }
+  setWeapon(want, 1);    // a new gun: into the bag, and into your hand
+  return true;
+}
+
 // Out of everything: the knife. Lethal, silent, and it demands you close
 // the distance — which is the point.
 function dropToKnife() {
@@ -1276,7 +1393,7 @@ function startReload() {
     // RESERVE. See updateReload, which does not spend one, and updateAmmoHud,
     // which does not count them.
     if (game.mode !== 'duel') {
-      if (player.mag <= 0) dropToKnife();
+      if (player.mag <= 0) { if (switcherOn()) bagRunDry(); else dropToKnife(); }
       return;
     }
   }
@@ -1285,6 +1402,7 @@ function startReload() {
   updateAmmoHud();
 }
 function updateReload(dt) {
+  if (player.swapT > 0) player.swapT = Math.max(0, player.swapT - dt);
   if (player.reloadT <= 0) {
     if (el.reloadbar.style.display !== 'none') el.reloadbar.style.display = 'none';
     return;
@@ -4912,6 +5030,7 @@ function playerFire(aimAt = null) {
                                         // screen: a round fired into a stopped
                                         // world hangs there and reads as a bug
   if (player.reloadT > 0) return;                       // hands are busy
+  if (player.swapT > 0) return;                         // ...changing guns
   if (player.fireCd > 0) {
     pendingFireUntil = performance.now() + 300;
     pendingFireAim = aimAt;   // a banked tap keeps the target it was aimed at
@@ -5629,6 +5748,24 @@ function onPointerDown(ev) {
     openPause();
     return;            // never registered, so its release is inert
   }
+  // THE WEAPON NAME IS A SWIPE ZONE (docs/ARSENAL.md §13). A touch that STARTS
+  // on it belongs to the switcher: it never turns the camera, never steers,
+  // and never fires — the camera moves only when the player moves it
+  // (PILLARS §4), and a thumb reaching for the gun name is not aiming. Only
+  // the name itself takes touches; the strip either side of it is still the
+  // move and look halves of the screen.
+  if (switcherOn() && game.state === 'play' && ev.target && ev.target.closest
+      && ev.target.closest('#ammo .swapzone')) {
+    const arrow = ev.target.closest('#ammo .sw');
+    input.pointers.set(ev.pointerId, {
+      sx: ev.clientX, sy: ev.clientY, x: ev.clientX, y: ev.clientY,
+      ox: ev.clientX, oy: ev.clientY, role: 'swap',
+      swapDir: arrow ? Number(arrow.dataset.dir) : 0,
+      downT: performance.now(), t: performance.now(),
+    });
+    input.holding = true;
+    return;
+  }
   if (timeMode === 'toggle' && ev.target && ev.target.closest && ev.target.closest('#timebtn')) {
     // press = slow immediately; a quick release keeps it locked (tap-toggle),
     // a long press means "only while held" and releases on lift
@@ -5856,6 +5993,18 @@ function releasePointer(ev, isTapEligible) {
   const p = input.pointers.get(ev.pointerId);
   if (!p) return;
   ev.preventDefault();
+  // A SWAP: a sideways swipe on the name, or a tap on one of its triangles.
+  // Swipe left for the next gun along (older finds), right to come back.
+  if (p.role === 'swap') {
+    const dx = p.x - p.sx, dy = p.y - p.sy;
+    if (isTapEligible) {
+      if (Math.abs(dx) >= SWITCHER.swipePx && Math.abs(dx) > Math.abs(dy)) swapWeapon(dx < 0 ? 1 : -1);
+      else if (p.swapDir && Math.hypot(dx, dy) <= TAP_PX) swapWeapon(p.swapDir);
+    }
+    input.pointers.delete(ev.pointerId);
+    input.holding = input.pointers.size > 0;
+    return;
+  }
   // NOT gated on p.role any more: the role is now assigned after 2 px, so a
   // real tap almost always has one. Net displacement is the honest test.
   if (isTapEligible && performance.now() - p.downT < TAP_MS &&
@@ -10853,7 +11002,7 @@ function showMenu() {
   input.holding = false;
   stickHide();          // a fresh screen: the last thumb's spot is not this run's
   sprintTo = null;
-  setWeapon('pistol');
+  bagReset();
   game.state = 'menu';
   game.wave = 1;
   game.kills = 0;
@@ -10887,6 +11036,7 @@ function showMenu() {
 function updateAmmoHud() {
   const spec = WEAPONS[player.weapon];
   const name = player.weapon.toUpperCase();
+  if (switcherOn()) { el.ammo.innerHTML = switcherHud(spec, name); return; }
   if (player.weapon === 'knife') {
     el.ammo.textContent = 'KNIFE · NO AMMO';
   } else if (player.reloadT > 0) {
@@ -10908,6 +11058,34 @@ function updateAmmoHud() {
     el.ammo.innerHTML = `${name} · <b class="mag">${pips}</b>${spare}`;
   }
   el.ammo.classList.remove('shotgun');   // the HUD stays ink; red is the bank
+}
+
+// THE READOUT WITH A BAG BEHIND IT: the same words and cartridges, inside a
+// swipe zone with a triangle either side when there is a gun to swap to, and
+// under it one pill per slot — filled for a gun you carry, ringed for the one
+// in your hand, hollow for an empty slot, faint for a gun that is out of
+// rounds. Subtle on purpose: it is read at a glance, between fights.
+function switcherHud(spec, name) {
+  let line;
+  if (player.weapon === 'knife') line = 'KNIFE · NO AMMO';
+  else if (player.reloadT > 0) line = `${name} · RELOADING`;
+  else {
+    const live = Math.max(0, Math.min(player.mag, spec.mag));
+    const pips = '<i class="pip"></i>'.repeat(live)
+      + '<i class="pip out"></i>'.repeat(Math.max(spec.mag - live, 0));
+    const spare = tutorStep === null && player.clips > 0 ? ' · +' + player.clips : '';
+    line = `${name} · <b class="mag">${pips}</b>${spare}`;
+  }
+  const can = bagRotation().length > 1;
+  const l = can ? '<b class="sw" data-dir="-1">◀</b>' : '';
+  const r = can ? '<b class="sw" data-dir="1">▶</b>' : '';
+  let pills = '';
+  for (let i = 0; i < SWITCHER.slots; i++) {
+    const b = player.bag[i];
+    const cls = !b ? 'pill empty' : b.type === player.weapon ? 'pill on' : bagLoaded(b) ? 'pill' : 'pill dry';
+    pills += `<i class="${cls}"></i>`;
+  }
+  return `<span class="swapzone">${l}<span class="line">${line}</span>${r}</span><span class="pills">${pills}</span>`;
 }
 
 let lastWarnAt = -10;
@@ -11842,7 +12020,7 @@ function advanceFromOverlay() {
     game.seenTypes = {};   // fresh run: every type announces itself again
     runStartAt = Date.now();
     runPlayT = 0;
-    setWeapon('pistol');
+    bagReset();
     sfx.flush();   // a fresh run starts silent, whatever the last one was doing
     if (game.mode === 'rush') initRush();
     else if (inHall()) initHall(pendingResumeDoor);
@@ -11861,7 +12039,7 @@ function advanceFromOverlay() {
     input.holding = false;
     stickHide();        // a fresh screen: the last thumb's spot is not this run's
     sprintTo = null;
-    setWeapon('pistol');
+    bagReset();
     if (game.mode === 'rush') initRush();
     else if (inHall()) retryHall();
     else startWave(game.wave);
@@ -15653,6 +15831,8 @@ window.__ts = {
   // the glass actually does. `fire` takes a Vector3 and a test has no THREE.
   fireAt: (x, y, z) => playerFire(new THREE.Vector3(x, y, z)),
   setWeapon, spawnEnemy, spawnPickup,
+  swapWeapon, bagReset, startReload, playerFire, switcherOn,
+  bag: () => { bagSync(); return player.bag.map((b) => ({ ...b })); },
   // The simplified modes, from the outside: which one is running, whether a
   // round currently counts as inbound, what the world clock is doing and what
   // a shot still owes it.

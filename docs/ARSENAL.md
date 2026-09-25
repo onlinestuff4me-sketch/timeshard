@@ -1029,6 +1029,12 @@ the switcher, each guard is taken with the best gun you carry:
 
 ## 13. The weapon switcher
 
+**Built** (tunnel, city and rush; the simplified modes keep one gun). Code:
+`switcherOn()` through `bagTake()` in `src/main.js`, numbers in `SWITCHER` in
+`src/balance.js`, checked by `test/switcher.mjs`. Not built yet: dimming the
+pill a new pickup would push out, and the seeker's slot (it waits for the
+seeker).
+
 **Decided: you keep the guns you find and swipe between them.** Today a pickup
 is the one gun you hold, plus clips. With a switcher, *take his gun* stops
 meaning *give up yours*, and choosing the right gun for the room becomes part
