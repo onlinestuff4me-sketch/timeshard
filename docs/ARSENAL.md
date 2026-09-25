@@ -932,29 +932,49 @@ After the drone boss, a run of hits without a miss lets you see through walls:
 - **A miss is a round that hits a wall or surface without shattering anyone.**
   A shotgun shell counts as a hit if any of its pellets shatters someone. A
   pierced round that shatters one man and then hits the wall is a hit.
-- **Three edges to decide:**
-  - **A round on a shield's plate or an armored body** hits a surface and
-    shatters no one. By the rule that's a miss, and it teaches you to shoot
-    round the plate and at the head.
-  - **A blinker's bait shot** is dodged into the wall, so it's a miss by the
-    rule: blinkers become streak-breakers. That's either a feature (punish
-    rather than bait, or bait with a blast) or an exemption: rounds fired at a
-    blinker don't count.
-  - **A miss resets to zero**, as asked. The softer alternative drops you to
-    the start of your current tier (from 43 back to 30), which keeps 50
-    reachable in a long run.
+- **Plate and armor count as misses** (decided). A round on a shield's plate
+  or an armored body hits a surface and shatters no one. That teaches you to
+  shoot round the plate and at the head.
+- **A blinker's dodged bait shot counts as a miss** (decided). Blinkers are
+  streak-breakers: punish his cooldown rather than bait him, or bait with a
+  blast he can't blink out of.
+- **A miss drops you one tier, not to zero** (decided). The first miss drops
+  you to the floor of your current tier; a miss while you're already on a
+  floor drops you to the floor below. Hits in between climb as usual:
+
+  ```
+  43 ─miss→ 30 ─hit, hit→ 32 ─miss→ 30 ─miss→ 10 ─miss→ 0
+  ```
+
+  Sight follows the tier you land on: sharp, sharper, faint, gone.
 - **It's a long-horizon streak.** It runs across rooms and doors for the whole
   run, which is what makes it passive and global, as you described: you
   maintain it through careful shooting everywhere.
 - **Before the drone boss the streak doesn't show.** Nothing yet reads it.
 
-**The tempo streak** (each kill within ~3 world-seconds of the last) is the
-short-horizon partner. You liked it, and it's unassigned: the headshot streak
-has the slow-time refund, and the no-misses streak has sight. A proposal, to
-confirm: **tempo feeds the switcher**. While it holds, weapon switches and
-reloads are instant, rewarding a player who keeps pushing and changes guns
-mid-rush. Whatever it drives, three streaks on screen is too many to read, so
-only the ones that are live should show, small, near the thing they feed.
+**The tempo streak shortens reloads and weapon swaps** (decided), in tiers like
+the no-misses streak. It counts kills, each within ~3 world-seconds of the last:
+
+| kills in tempo | reload and swap time | pistol reload (1.0 s) | launcher reload (2.0 s) |
+|---|---|---|---|
+| 3 | ×0.75 | 0.75 s | 1.5 s |
+| 6 | ×0.5 | 0.5 s | 1.0 s |
+| 10 | ×0.25 | 0.25 s | 0.5 s |
+
+- **The window only runs while someone is alive to shoot.** A cleared room
+  pauses it, so the walk to the next door never breaks the streak. Without
+  that, every corridor would reset it, and tempo would measure walking speed
+  instead of fighting pace.
+- **A lapse drops you one tier, not to zero**, the same rule as a miss: the
+  window restarts at the tier below. Both streaks forgive once per tier and
+  punish a run of mistakes.
+- **It's on the world clock.** Freezing stretches the window, and the bank
+  pays for it.
+- **Three streaks on screen is too many to read.** Headshots feed the refund,
+  no-misses feeds sight, and tempo feeds reloads. Each should show only while
+  it's live, small, next to the thing it feeds: the tempo tier by the weapon
+  name and its pills, the no-misses tier by the sight shimmer, and the
+  headshot count by the slow-time meter.
 
 **A second life** (the spawner; a power). Once per run, when you're
 shattered, you hang where you fell and **reassemble**, the spawner's own
@@ -1003,9 +1023,7 @@ the switcher, each guard is taken with the best gun you carry:
   `--keeper-room`, ladder rows G1 and G5), and each boss's type at its
   ordinary tiers (`--newcomers`, `--spawner`). The other bosses' phases are
   sketches that each need their own pass of the Keeper's kind.
-- **To decide:** the finale. The Keeper returning with his own slow time
-  closes the loop that floor 1 opened, but it's a mirror fight, both of you
-  freezing, and it needs its own design pass.
+- **The finale** is §14.
 
 ---
 
@@ -1052,3 +1070,43 @@ of the fight.
 - **What it does to the model:** nothing breaks. The ladder already prices a
   tier against the best gun on the floors; the switcher is what makes
   "the best gun on the floors" the gun in your hand.
+
+---
+
+## 14. The finale: the Keeper, reassembled
+
+**A proposal.** The run ends where it began, against the man whose time you
+took, and the fight turns every power you have collected against him.
+
+**Why he's back.** Floor 5 is full of spawners, and a spawner reassembles
+the shattered. On the fifth floor one of them has reassembled *him*. He
+carries his blink, and now the slow time you took from him: the building
+gave it back. It's the same trick the spawner boss played on you with your
+second life, and the reason the spawner floor is the one below him.
+
+**The room:** the top of the tower, three blinkers at Mk III standing with
+him on the respawn loop every boss has. Their answer is the launcher (a
+blast wider than their blink), so a bomber is among them.
+
+| phase | what he does | what answers it |
+|---|---|---|
+| **1. The blink, again** | the floor-1 fight at full speed: blinks with a shorter cooldown, fires every 1.25 s, blinkers around him | **slow time**, which you didn't have on floor 1: freeze in his cooldown and the punish is yours with any gun. The first fight replayed with the power he lost |
+| **2. His time against yours** | he stops the world. His rounds hang and yours would too, and when it restarts they all release at once, as on floor 1 | **press your button while he holds his.** Two freezes: his stops the world, yours lets *you* move through it at slow-time speed while nothing else does. The one moment in the game where your freeze beats a freeze. It costs bank, and that's what the run's headshot refunds were saving for |
+| **3. Reassembly** | shatter him and he hangs where he fell, the spawner fiction. A dish somewhere in the room is holding him | **break the dish while he hangs.** The spawner's own lesson (§9), so the last kill of the game is the kill order you learned on floor 4 |
+
+**His shards.** When he goes for good, his shards don't stream into you. You
+have his time already. They hang, the whole room's shards hang with them, and
+then the wall at the end of the room shatters outward, and the window from
+`TUNNEL_META.md` §1 is there: the white city, the tower you've been climbing.
+The tunnel was always inside it. That ties the Tunnel to CITY STREETS: the
+place you step out into is the arena mode's city.
+
+**What it asks of the systems:**
+- **The mirror freeze is new.** When he freezes, the world stops for you too.
+  Your button is what lets you move inside his freeze. It needs its own rule:
+  his freeze has a timer, visible, and your bank drains at the normal rate.
+  It's the only place two clocks meet, and it needs the `--boss` treatment
+  before it's built.
+- **After the run, the Mk IIIs.** The door budget (§1) left most types'
+  Mk IIIs past the fifth floor. Beating the Keeper is the natural key for a
+  harder mode that has them (`TUNNEL_META.md` §2e: modifiers you choose).
