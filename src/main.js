@@ -15,7 +15,7 @@ import * as THREE from '../lib/three.module.min.js';
 import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, TIME, LEG, SHATTER,
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
-  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER } from './balance.js';
+  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -2239,8 +2239,10 @@ function shardColor() {
 
 function spawnShatter(center, impulseDir, count) {
   const n = count || SHATTER.perKill;
+  const out = [];   // the pieces, for whoever has a use for them (the Keeper)
   for (let i = 0; i < n; i++) {
     const it = claimShard(debrisPool, shardColor());
+    out.push([it, it.gen]);
     // TWO CLASSES. A third are the original big chunks — pieces large enough
     // to follow with your eye as they tumble — and the rest is grit around
     // them. All-grit read as sand; all-chunks read as meat. Both together is
@@ -2271,6 +2273,7 @@ function spawnShatter(center, impulseDir, count) {
     // short window, so you see it come apart rather than pop
     it.hold = SHATTER.breakWindow * Math.pow(Math.random(), 1.6);
   }
+  return out;
 }
 
 function spawnSparks(at, color, count) {
@@ -3853,7 +3856,7 @@ function killEnemy(i, impulseDir) {
         * condTax(legCondition(), 'timeGain') * (inSchool() ? SCHOOL.bonusMul : 1));
   }
   if (game.state !== 'menu') vibrate(15);   // every kill lands in the thumb
-  spawnShatter(e.pos, impulseDir);
+  e.shatterPieces = spawnShatter(e.pos, impulseDir);
   const drop = ENEMY_TYPES[e.type].drop;
   const kind = TYPE_DROP[e.type];
   const r = Math.random();
@@ -3894,6 +3897,7 @@ function killEnemy(i, impulseDir) {
   if (debut) { duel.debutDrop = duelRoom(); spawnPickup(e.pos, kind); }
   else if (tutorStep !== null && armed) spawnPickup(e.pos, CLIP);
   else if (typeof drop === 'string') spawnPickup(e.pos, drop);      // named loot
+  else if (e.drops) spawnPickup(e.pos, e.drops);                    // a boss's pair
   else if (kind && r < drop * scarcity('weaponDrop', door) * condTax(cond, 'weaponDrop')) {
     spawnPickup(e.pos, kind);
   } else if (armed && r < DROPS.clipRate * scarcity('ammoDrop', door) * condTax(cond, 'ammoDrop')) {
@@ -4885,7 +4889,7 @@ function updateEnemy(e, sdt) {
         // holds its FIRE for that beat (duel.holdFire) — which is why the man
         // who wins the turn keeps his arm up rather than taking the shot — but
         // holding the trigger never stopped the others RAISING.
-        if (aiming >= (duelSoloAim() ? 1 : 2 + Math.floor(game.wave / 4))) {
+        if (!e.boss && aiming >= (duelSoloAim() ? 1 : 2 + Math.floor(game.wave / 4))) {
           e.fireCd = 0.25 + Math.random() * 0.45;   // wait for a lane
         } else {
           e.state = 'aim'; e.stateT = 0;
@@ -4954,7 +4958,7 @@ function updateEnemy(e, sdt) {
         const holding = game.mode === 'duel'
           ? !duelMayFire(e)
           : (worldT - lastEnemyShotAt < gap && !valve);
-        if (!e.scriptShot && holding) {
+        if (!e.scriptShot && holding && !e.boss) {
           e.holdFireT = held + sdt;
         } else {
           e.holdFireT = 0;
@@ -4969,6 +4973,8 @@ function updateEnemy(e, sdt) {
             e.state = 'recover'; e.stateT = 0;
             e.fireCd = (spec.cd[0] + Math.random() * spec.cd[1]) * aimSpeedFactor();
           }
+          // the Keeper fires on his own clock, shot to shot (KEEPER.fire)
+          if (e.boss) e.fireCd = Math.max(0.5, keeperFireGap(e) - aimT);
         }
       }
       break;
@@ -5147,6 +5153,201 @@ function updateBlink(e) {
   }
   if (e.chest.material === MAT_WHITEFLASH && worldT >= (e.blinkReady || 0)) {
     e.chest.material = EM(0xc8281a);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// THE KEEPER'S ROOM (docs/ARSENAL.md §10). Floor 1 ends in it: the last leg of
+// KEEPER.door is a short corridor into a sealed chamber, and the seal shutting
+// behind you is what stands him and his pair up. He is a blinker who takes
+// three hits, one per phase; the pair of shotgunners comes back KEEPER.addsBack
+// after the second of them goes, for as long as he stands. The exit opens
+// when he shatters, and the door after it is slow time's first.
+// ---------------------------------------------------------------------------
+// Cells from the leg's start: five wide and seven deep, two columns to commit
+// to, two low blocks on the way in, and the seal one cell short of the room.
+const KEEPER_PLAN = (() => {
+  const extra = [];
+  for (let dx = -2; dx <= 2; dx++) for (let dz = 5; dz <= 11; dz++) if (dx) extra.push([dx, dz]);
+  return { moves: [['f', 14]], extra, approach: 3, sealAt: 4,
+    pillars: [[-1.4, 8], [1.4, 8]], covers: [[-0.9, 6.3], [0.9, 6.3]] };
+})();
+// where he and the pair stand, in cells from the leg's start
+const KEEPER_SPOT = [0, 10.5];
+const KEEPER_ADDS = [[-1.6, 9.6], [1.6, 9.6]];
+function keeperLeg(door, legIx) {
+  return game.mode === 'hall' && tutorStep === null && !tutorShaping
+    && door === KEEPER.door && legIx === doorLegs(door) - 1;
+}
+function keeperProto(proto) {
+  proto.plan = KEEPER_PLAN;
+  proto.condition = null;
+  proto.measures = [];
+  proto.enemyDebut = null;
+  proto.boss = 'keeper';
+  return proto;
+}
+// The wave for his leg is nobody: the room stands itself up when the seal
+// shuts (keeperTick), and until he is down the door stays shut (L.boss).
+function keeperArm(L) {
+  L.boss = { phase: 0, keeper: null, adds: [], addsAt: null, stopAt: 0, done: false };
+  L.quota = L.stretches.map(() => 0);
+  L.fill = L.quota.slice();
+  L.released = 0; L.markK = undefined; L.budget = 0; L.doorMark = undefined;
+  L.featureSent = true;
+  return [];
+}
+const keeperAt = (L, [dx, dz]) => ({ x: (L.spine[0][0] + dx) * HALL.cell, z: (L.spine[0][1] + dz) * HALL.cell });
+function keeperSpawnAdds(L) {
+  const B = L.boss;
+  B.adds = [];
+  for (const spot of KEEPER_ADDS) {
+    spawnEnemy('shotgunner', keeperAt(L, spot));
+    const a = enemies[enemies.length - 1];
+    a.drops = TYPE_DROP.shotgunner;   // each one leaves the answer behind
+    B.adds.push(a);
+  }
+}
+function keeperStart(L) {
+  const B = L.boss;
+  spawnEnemy('blinker', keeperAt(L, KEEPER_SPOT));
+  const k = enemies[enemies.length - 1];
+  k.boss = 'keeper';
+  k.hp = KEEPER.hp;
+  k.g.scale.multiplyScalar(KEEPER.scale);
+  k.speed = KEEPER.speed;
+  k.engageDist = 60;
+  k.blinkCd = KEEPER.blinkCd[0];
+  k.bossPhase = 1;
+  B.keeper = k;
+  B.phase = 1;
+  keeperSpawnAdds(L);
+}
+function keeperFireGap(e) {
+  return KEEPER.fire[Math.max(0, (e.bossPhase || 1) - 1)];
+}
+// A HIT THAT DOES NOT KILL HIM moves him on a phase and gives him his blink
+// back at once: the next round at him is dodged again, so every phase is
+// its own bait and punish.
+function keeperHurt(e, at) {
+  e.hp--;
+  e.hurtUntil = worldT + 0.3;
+  const L = hall && hall.legs[hall.cur];
+  const B = L && L.boss;
+  const phase = KEEPER.hp - e.hp + 1;
+  e.bossPhase = phase;
+  if (B) B.phase = phase;
+  e.blinkCd = KEEPER.blinkCd[phase - 1];
+  e.blinkReady = worldT;
+  e.chest.material = EM(0xc8281a);
+  spawnSparks(at, 0xf4f5f7);
+  sfx.clank();
+  vibrate([20, 30, 20]);
+  if (phase === 3 && B) B.stopAt = worldT + 0.6;   // the first stop comes quickly
+  showBanner(phase === 3 ? 'HE STOPS THE WORLD' : 'FASTER', 1400);
+}
+// HIS TIME STOP IS HIS, NOT A FREEZE FOR YOU (PILLARS §1). The world halts for
+// KEEPER.stopReal real seconds; his volley is put in the air a few metres out
+// along a fan aimed at you, where it hangs and can be read. You can still move
+// — the stop holds the world, not the player — and when it ends, it all goes.
+let keeperStopUntil = 0;
+function keeperStop(e) {
+  keeperStopUntil = performance.now() + KEEPER.stopReal * 1000;
+  timeScale = 0;   // SNAPPED, not eased: he stopped it, it did not slow down
+  const to = _v1.set(player.pos.x - e.pos.x, 0, player.pos.z - e.pos.z).normalize();
+  const base = Math.atan2(to.x, to.z);
+  const n = KEEPER.volley;
+  for (let i = 0; i < n; i++) {
+    const a = base + (i - (n - 1) / 2) * KEEPER.volleySpread;
+    const d = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+    const o = new THREE.Vector3(e.pos.x, 1.35, e.pos.z).addScaledVector(d, KEEPER.hangM);
+    const aim = new THREE.Vector3(
+      o.x + d.x * 10, EYE_HEIGHT - 0.25, o.z + d.z * 10).sub(o).normalize();
+    spawnBullet(o, aim, false, 1);
+  }
+  lastEnemyShotAt = worldT;
+  sfx.enemyShot();
+  muzzleFlash(e.pos.x, 1.35, e.pos.z, 1);
+}
+// THE REWARD. His shards do not fall: the world stops with them hanging where
+// he stood, and then they stream into you — and the button arrives with the
+// last of them. Real time throughout, because the world is stopped for all of
+// it. KEEPER.reward: [hang, stream] in real seconds.
+function keeperRewardStart(B, k) {
+  const pieces = (k.shatterPieces || []).filter(([it, gen]) => it.on && it.gen === gen);
+  for (const [it] of pieces) {
+    it.hold = 0;
+    it.life = 99;   // he is not debris: nothing ages until he is home
+    it.fx = it.px; it.fy = it.py; it.fz = it.pz;
+    it.delay = Math.random() * KEEPER.reward[1] * 0.45;
+  }
+  B.reward = { t: 0, t0: performance.now(), pieces, given: false };
+  keeperStopUntil = Infinity;   // held until the power is given, not a stopwatch
+  timeScale = 0;
+  setTimeLocked(false);
+  sfx.airlock();
+  vibrate([30, 60, 30]);
+}
+function keeperRewardTick(B, dt) {
+  const R = B.reward;
+  if (R.given) return;
+  R.t = (performance.now() - R.t0) / 1000;   // wall clock, like the stop itself
+  const [hang, stream] = KEEPER.reward;
+  const tx = player.pos.x, ty = EYE_HEIGHT - 0.35, tz = player.pos.z;
+  for (const [it, gen] of R.pieces) {
+    if (!it.on || it.gen !== gen) continue;
+    const u = (R.t - hang - it.delay) / (stream * 0.55);
+    if (u <= 0) continue;
+    if (u >= 1) { it.on = false; debrisPool.mesh.setMatrixAt(it.idx, HIDDEN); continue; }
+    const e = u * u * u;   // slow off the mark, fast into you
+    it.px = it.fx + (tx - it.fx) * e;
+    it.py = it.fy + (ty - it.fy) * e;
+    it.pz = it.fz + (tz - it.fz) * e;
+    it.rx += dt * 9; it.ry += dt * 7;
+    writeShard(debrisPool, it);
+  }
+  debrisPool.mesh.instanceMatrix.needsUpdate = true;
+  if (R.t >= hang + stream) {
+    R.given = true;
+    for (const [it, gen] of R.pieces) {
+      if (it.on && it.gen === gen) { it.on = false; debrisPool.mesh.setMatrixAt(it.idx, HIDDEN); }
+    }
+    hall.keeperTaken = true;
+    keeperStopUntil = 0;
+    slowBank = SLOWMO.base;
+    updateSlowMeter();
+    tutorRevealButton();
+    showBanner('SLOW MOTION', 2400);
+    vibrate([15, 30, 15, 30, 40]);
+  }
+}
+function keeperTick(L, dt) {
+  const B = L.boss;
+  if (B && B.reward) keeperRewardTick(B, dt);
+  if (!B || B.done) return;
+  if (!B.keeper) {
+    if (L.seal && L.seal.shut && game.state === 'play') keeperStart(L);
+    return;
+  }
+  const k = B.keeper;
+  if (!enemies.includes(k)) {
+    // HE IS DOWN, AND THE ROOM IS HIS: the pair goes with him.
+    B.done = true;
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      if (B.adds.includes(enemies[i])) { enemies[i].drops = null; killEnemy(i, _v1.set(0, 0, 1)); }
+    }
+    keeperRewardStart(B, k);
+    return;
+  }
+  // the pair: back KEEPER.addsBack after the SECOND of them goes
+  if (!B.adds.some((a) => enemies.includes(a))) {
+    if (B.addsAt === null) B.addsAt = worldT + KEEPER.addsBack;
+    else if (worldT >= B.addsAt) { B.addsAt = null; keeperSpawnAdds(L); }
+  }
+  if (B.phase >= 3 && k.state !== 'assemble' && worldT >= B.stopAt
+      && performance.now() >= keeperStopUntil) {
+    keeperStop(k);
+    B.stopAt = worldT + KEEPER.stopEvery;
   }
 }
 
@@ -5518,6 +5719,12 @@ function updateBullets(sdt) {
           consumed = true;
           break;
         }
+        if (e.hp > 1) {
+          // one hit per shell: the rest of its pellets spark off him
+          if (worldT >= (e.hurtUntil || 0)) keeperHurt(e, b.pos);
+          else spawnSparks(b.pos, 0xf4f5f7);
+          consumed = true; break;
+        }
         const impulse = _v1.copy(b.vel).normalize();
         killEnemy(j, impulse);
         if (b.pierce > 0) { b.pierce--; continue; }   // sniper rounds keep going
@@ -5528,7 +5735,7 @@ function updateBullets(sdt) {
         killBullet(i, null);
         continue;
       }
-    } else if (player.alive && player.iframes <= 0) {
+    } else if (player.alive && player.iframes <= 0 && performance.now() >= keeperStopUntil) {
       _v2.set(player.pos.x, 0.2, player.pos.z);
       _v3.set(player.pos.x, EYE_HEIGHT + 0.1, player.pos.z);
       if (segSegDistSq(b.prev, b.pos, _v2, _v3) < PLAYER_RADIUS * PLAYER_RADIUS) {
@@ -8271,7 +8478,8 @@ function timeUnlocked() {
   // The simplified modes have no time button at all (see updateModeUI), and
   // rush is not a ramp — the unlock is the tunnel's, and only the tunnel's.
   if (game.mode !== 'hall') return true;
-  return !hall || hall.doorsPassed + 1 >= SLOWMO.unlockDoor;
+  // ...or taken off the Keeper, a door early (docs/ARSENAL.md §10)
+  return !hall || hall.doorsPassed + 1 >= SLOWMO.unlockDoor || !!hall.keeperTaken;
 }
 let slowBank = SLOWMO.base;
 
@@ -12505,7 +12713,8 @@ function buildHallLeg(sgx, sgz, proto) {
   // step whose row — and the row before it — hold exactly one cell of the
   // leg, so no branch lane can walk around the thing that just shut.
   let seal = null;
-  if (measures.has('oneWaySeal') && stretches.length > 1) {
+  const sealRow = proto && proto.plan && proto.plan.sealAt;
+  if ((measures.has('oneWaySeal') || sealRow) && stretches.length > 1) {
     const spine = stretches.slice(0, -1).reduce((a, s) => a.concat(s.cells), []);
     const rows = new Map();
     for (const [, cgz] of cells) rows.set(cgz, (rows.get(cgz) || 0) + 1);
@@ -12527,7 +12736,9 @@ function buildHallLeg(sgx, sgz, proto) {
     // no seal. A bulkhead that shuts eight metres in commits you to nothing
     // and is worse than not having one.
     let best = -1;
-    for (const i of cand) if (spine[i][1] >= midZ) { best = i; break; }
+    // ...unless the plan says where: the Keeper's room shuts at its threshold
+    if (sealRow) best = spine.findIndex(([, gz]) => gz === sgz + sealRow);
+    else for (const i of cand) if (spine[i][1] >= midZ) { best = i; break; }
     if (best > 0) {
       const [gx, gz] = spine[best];
       const sx = gx * C, sz = gz * C - C / 2;
@@ -12824,6 +13035,8 @@ function hallAllowance() {
 }
 
 function hallWave(n) {
+  const bossL = inHall() && hall && hall.legs[hall.cur];
+  if (bossL && bossL.proto && bossL.proto.boss === 'keeper') return keeperArm(bossL);
   let hallWant = null;
   // A LEG HOLDS ITS SHARE OF THE DOOR, and nothing else. The old rule sized a
   // leg from its own geometry — every stretch worth a few bodies — which is
@@ -13046,6 +13259,7 @@ function initHall(from = 1) {
   tutorLegsBuilt = 0;
   tutorResetWorld();   // whatever the last run left, gone — teaching or not
   clearHall();         // ...including its corridor, which nothing used to remove
+  keeperStopUntil = 0; // ...and a Keeper's hold on the world, if a run quit inside one
   game.wave = door;
   game.state = 'intro';
   game.stateT = 0;
@@ -13059,7 +13273,9 @@ function initHall(from = 1) {
   hall = { legs: [], grid: new Set(), cur: 0, doorsPassed: door - 1,
     checkpoint: { x: 0, z: 0 },
     legInDoor: 0, legsThisDoor: doorLegs(door), mem: newRunMemory(unlocks) };
-  hall.legs.push(buildHallLeg(0, 0, forced(composeProtocol(door, lifetimeDoors, hall.mem))));
+  const proto0 = forced(composeProtocol(door, lifetimeDoors, hall.mem));
+  if (keeperLeg(door, 0)) keeperProto(proto0);
+  hall.legs.push(buildHallLeg(0, 0, proto0));
   recordMetProto(hall.legs[0].proto);   // leg 1 counts too; only 2+ used to
   applyLegVisibility(true);             // leg 1 starts in its own weather
   recordMet(['pistol']);                // it is already in your hand
@@ -13102,6 +13318,14 @@ function retryHall() {
   // back to the last checkpoint: the current leg resets, door shut
   resetSimpleState();
   const L = hall.legs[hall.cur];
+  // ...AND THE SEAL OPEN AGAIN. The checkpoint is the leg's start, which is
+  // on the near side of it: left shut, a retry stood you in a dead end.
+  if (L.seal && L.seal.shut) {
+    L.seal.shut = false;
+    L.obs = L.obs.filter((o) => o !== L.seal.ob);
+    L.seal.slab.position.y = -1.55;
+  }
+  keeperStopUntil = 0;
   if (L.door.open) {
     L.door.open = false;
     L.door.slab.material = DOOR_RED_MAT;
@@ -13427,6 +13651,8 @@ function openHallDoor() {
     // starts the lesson.
     armSlowLesson(hall.legInDoor + 1 >= hall.legsThisDoor ? nextDoor : 0);
     const proto = forced(composeProtocol(nextDoor, lifetimeDoors, hall.mem));
+    const nextLeg = hall.legInDoor + 1 >= hall.legsThisDoor ? 0 : hall.legInDoor + 1;
+    if (keeperLeg(nextDoor, nextLeg)) keeperProto(proto);   // floor 1's boss
     hall.legs.push(buildHallLeg(L.endGx, L.endGz + 1, proto));
   }
   rebuildHallObstacles();
@@ -13537,7 +13763,7 @@ function crossHallDoor() {
     // screen.) The lesson underneath was always guarded — `slowLessonWanted`
     // asks for `game.mode === 'hall'` — and only its announcement was not.
     if (doorDone && game.mode === 'hall'
-        && hall.doorsPassed + 1 === SLOWMO.unlockDoor) {
+        && hall.doorsPassed + 1 === SLOWMO.unlockDoor && !hall.keeperTaken) {
       showBanner('SLOW MOTION UNLOCKED', 2200);
       // THE LESSON IS NOT THE ONLY WAY THE BUTTON ARRIVES, and forgetting that
       // broke the unlock for everybody who had already been taught. The lesson
@@ -15029,7 +15255,9 @@ function updateHall(dt) {
   // own, so its door waits for the script.
   const legFight = tutorStep === null
     || !!(tutorLegsOf()[tutorLegIx] && (tutorLegsOf()[tutorLegIx].enemies || []).length);
-  if (game.state === 'play' && !L.door.open && legFight &&
+  if (L.boss) keeperTick(L, dt);
+  if (game.state === 'play' && !L.door.open && legFight
+      && !(L.boss && !(L.boss.reward && L.boss.reward.given)) &&
       game.spawnQueue.length === 0 && enemies.length === 0 &&
       performance.now() >= killFlashUntil) {
     openHallDoor();
@@ -15091,7 +15319,7 @@ function closeSeal(L) {
   }
   sfx.airlock();
   vibrate([20, 40, 20]);
-  showBanner('NO WAY BACK', 1700);
+  showBanner(L.boss ? 'THE KEEPER' : 'NO WAY BACK', 1700);
 }
 
 // ---------------------------------------------------------------------------
@@ -15166,7 +15394,11 @@ function frame(now) {
   // eighty doors the tunnel spends teaching you to walk out of a round.
   const slowActive = timeUnlocked()
     && (timeMode === 'toggle' ? timeLocked : input.holding);
-  if (meetCard.on) {
+  if (playing && performance.now() < keeperStopUntil) {
+    // THE KEEPER'S TIME STOP holds the world, not you: see keeperStop.
+    target = 0;
+    timeEase = 40;
+  } else if (meetCard.on) {
     // THE DEBUT CARD STOPS THE WORLD outright. It is a card, not slow time:
     // nothing drains, and the frame after it goes the world is where it was.
     target = 0;
@@ -16036,6 +16268,23 @@ window.__ts = {
   setWeapon, spawnEnemy, spawnPickup,
   swapWeapon, bagReset, startReload, playerFire, switcherOn,
   tempo: () => ({ ...tempo, mul: tempoMul() }), tempoKill, tempoTick,
+  keeper: () => {
+    const L = hall && hall.legs[hall.cur];
+    const B = L && L.boss;
+    if (!B) return null;
+    const k = B.keeper;
+    return { phase: B.phase, done: B.done, started: !!k,
+      alive: !!k && enemies.includes(k), hp: k ? k.hp : null,
+      adds: B.adds.filter((a) => enemies.includes(a)).length, addsAt: B.addsAt,
+      stopping: performance.now() < keeperStopUntil, sealed: !!(L.seal && L.seal.shut),
+      seal: L.seal ? { x: L.seal.x, z: L.seal.z } : null, door: L.door.open,
+      reward: B.reward ? { given: B.reward.given,
+        live: B.reward.pieces.filter(([it, g]) => it.on && it.gen === g).length,
+        n: B.reward.pieces.length } : null,
+      taken: !!hall.keeperTaken, unlocked: timeUnlocked(),
+      start: { x: L.spine[0][0] * HALL.cell, z: L.spine[0][1] * HALL.cell } };
+  },
+  keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
   meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,
     what: el.meetcard && el.meetcard.querySelector('.what').textContent,

@@ -1808,3 +1808,26 @@ export const BLINKER = {
   blinkT: 0.08,    // world-s the move takes
   cd: 1.5,         // world-s spent after a blink (the Keeper's phase 2: 1.2)
 };
+
+// THE KEEPER (docs/ARSENAL.md §10): floor 1's boss, the first blinker. The
+// last leg of `door` is his room — sealed behind you, the pair of
+// shotgunners standing in with him and coming back `addsBack` world-seconds
+// after the second of them goes. Three hits, three phases; each index below
+// is a phase. Phase 3 adds his time stop: the world halts for `stopReal`
+// real seconds, his volley hangs in the air where you can read it, and it
+// all lets go at once.
+export const KEEPER = {
+  door: 9,
+  hp: 3,
+  scale: 1.15,
+  speed: 0.7,
+  fire: [1.5, 1.25, 1.25],      // world-s between his rounds, on his own clock
+  blinkCd: [1.5, 1.2, 1.2],     // world-s spent after a blink
+  addsBack: 3,                  // world-s after the second shotgunner goes
+  stopEvery: 5,                 // world-s between time stops in phase 3
+  stopReal: 1.4,                // real s the world is held for
+  volley: 5,                    // rounds in the hanging volley
+  volleySpread: 0.2,            // rad between neighbouring rounds
+  hangM: 4,                     // m out from his muzzle the rounds hang
+  reward: [0.9, 1.6],           // real s: his shards hang, then stream into you
+};

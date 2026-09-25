@@ -698,6 +698,18 @@ part of the dish shot the window doesn't cover.
 
 ## 10. The Keeper and the blinkers: slow time is a boss's reward
 
+**Built** (tunnel only): the blinker (`blinkersReact()`, `BLINKER` in
+`src/balance.js`, `test/blinker.mjs`) and the Keeper's room on door 9's last
+leg (`keeperTick()`, `KEEPER`, `test/keeper.mjs`): the seal, the pair on its
+3 s loop, his own fire clock, three hits and three phases, the phase-3 time
+stop, and the reward (his shards hang, stream into you, and the button
+arrives on door 9; door 10 is still slow time's first room and the school
+runs from there). **Not built:** the elevator. Calls made while building it:
+a wall cuts his blink short (down to 0.9 m) rather than cancelling it; the
+shotgunners stand in from the start rather than arriving in phase 2 (the room
+section below overrides the phase table); a shotgun shell takes at most one
+hit off him; and a retry reopens the seal behind you.
+
 **Decided: slow time is not handed out on a door. It is taken from the man
 who has it.** Floor 1 ends in an elevator gauntlet against **the Keeper**, a
 man who moves before your round does. When he shatters, his shards don't fall.
