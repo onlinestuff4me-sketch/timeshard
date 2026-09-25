@@ -183,6 +183,21 @@ for (const h of heat) {
     + String(h.closest).padStart(9) + String(h.widest).padStart(8) + 'd'
     + String(h.off).padStart(6) + '%');
 }
+// A PROBE THAT MEASURED NOTHING SAYS SO. This crashed with a TypeError on
+// `heat[0]` when the walk came back empty, which is the least useful thing a
+// check can do: a stack trace in the middle of a suite log reads like the game
+// is broken, and the actual finding — "no room was reached" — is nowhere in
+// it. It plays rooms forward and that takes minutes, so an empty result is a
+// timeout under load rather than a bug in the game, and it has to be legible
+// as one.
+if (!heat.length) {
+  console.log('FAIL no room was measured at all — the walk reached none of '
+    + ROOMS.join(', ') + '. Under suite load this is usually the room budget '
+    + 'running out, not the game; run it on its own to tell the difference.');
+  done('duelheat', errs + 1);
+  await browser.close();
+  process.exit(0);
+}
 console.log(`(the view is ${heat[0].hHalf} degrees either side of the way you face)`);
 
 // ...and look rooms up by the one they MEASURED, not the one asked for.

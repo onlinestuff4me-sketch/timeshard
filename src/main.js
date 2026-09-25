@@ -907,6 +907,11 @@ function updateShimmer(nowSec) {
 // ---------------------------------------------------------------------------
 // Player
 // ---------------------------------------------------------------------------
+// WHAT YOU START A RUN WITH. A function, not a shared object: the reserve is
+// mutated in play, and handing every run the same object would have door 1 of
+// run two opening with whatever run one ran out of.
+const openingLoadout = () => ({ pistol: 3 });
+
 const player = {
   pos: new THREE.Vector3(0, 0, 14),
   vel: new THREE.Vector3(),   // smoothed body velocity (the dodge feel)
@@ -916,11 +921,44 @@ const player = {
   iframes: 0,
   fireCd: 0,
   weapon: 'pistol',
-  clips: 3,
+  // WHAT IS IN THE BAG, CLIP BY CLIP AND WEAPON BY WEAPON.
+  //
+  // This used to be one number — `clips` — which belonged to whatever gun was
+  // in your hands, so a shotgun picked up over a pistol with two clips left
+  // threw those two clips away. Every drop for a weapon you were not holding
+  // was therefore a downgrade, `takePickup` had to decline them, and the game
+  // had a rule that said "you cannot pick that up" in a game about picking
+  // things up.
+  //
+  // Playtest: "the ammo for other weapons stays with you for when you run out
+  // of the ammo of the more powerful weapon." So the reserve is per weapon,
+  // you keep the best gun you have found (see `takePickup`), and running one
+  // dry reaches for the next thing in the bag rather than the blade.
+  reserve: openingLoadout(),
   mag: 5,
   reloadT: 0,
   alive: true,
 };
+
+// `player.clips` is the name every other line in this file uses for "spare
+// magazines I can rack right now", and it still is — it is now a window onto
+// the CURRENT weapon's shelf of the bag. Defined as an accessor rather than
+// hunted down call site by call site, because the call sites are the reload,
+// the dry-fire, the HUD and the lesson, and one of them missed is a weapon
+// that silently reloads out of another gun's ammunition.
+Object.defineProperty(player, 'clips', {
+  get() { return this.reserve[this.weapon] || 0; },
+  set(v) { this.reserve[this.weapon] = Math.max(0, v | 0); },
+});
+
+// A RUN STARTS WITH AN EMPTY BAG AND A PISTOL. `setWeapon('pistol')` used to
+// be the whole of this, and with one `clips` number it was enough. It is not
+// any more: every shelf survives the call, so a run resumed after one that
+// ended holding a rocket would open carrying rockets.
+function resetLoadout() {
+  player.reserve = openingLoadout();
+  setWeapon('pistol');
+}
 
 // Endless streets: the city is periodic per 40m block, so when the player
 // crosses a block boundary we quietly shift the whole fight back one block.
@@ -1182,7 +1220,13 @@ let jabT = 0;
 function setWeapon(type, clips) {
   const spec = WEAPONS[type];
   player.weapon = type;
-  player.clips = clips !== undefined ? clips : (type === 'knife' ? 0 : 1);
+  // AN EQUIP DOES NOT EMPTY THE BAG. `clips` used to be assigned here
+  // unconditionally, which was harmless when there was one number and is a
+  // robbery now: switching to a gun you already hold four clips for would set
+  // it to one. Passing `clips` still SETS that weapon's shelf — a run
+  // starting, or the lesson topping you up — and passing nothing leaves
+  // whatever you were carrying for it alone.
+  if (clips !== undefined) player.clips = clips;
   player.mag = spec.mag === Infinity ? Infinity : spec.mag;
   player.reloadT = 0;
   pistolVM.visible = type === 'pistol';
@@ -1204,51 +1248,79 @@ function setWeapon(type, clips) {
 const WEAPON_ORDER = Object.keys(WEAPONS);
 const weaponRank = (w) => WEAPON_ORDER.indexOf(w);
 
+// One clip onto that weapon's own shelf of the bag, capped at what it holds.
+function addClip(w) {
+  const spec = WEAPONS[w];
+  if (!spec || spec.mag === Infinity) return;
+  player.reserve[w] = Math.min(spec.maxClips, (player.reserve[w] || 0) + 1);
+}
+
 // Returns whether the drop was actually taken. The caller owns the sound, the
-// haptic and removing it from the floor, so a pickup that declines makes no
-// noise and leaves the thing where it lay.
+// haptic and removing it from the floor.
+//
+// EVERYTHING ON THE FLOOR IS WORTH TAKING NOW, and that is a reversal. It used
+// to decline anything that ranked below what you held and leave it lying
+// there, because `clips` was one number and taking a lesser gun really did
+// throw your shotgun away. With a shelf per weapon there is nothing to throw
+// away: the clip goes in the bag, the better gun stays in your hands, and the
+// only rule left is the one the player can feel — you keep the best thing you
+// have found, and you keep the ammunition for everything else.
 function takePickup(type) {
-  // WHAT IS ON THE FLOOR IS NOT ALWAYS AN UPGRADE. `setWeapon` on a CLIP is a
-  // SWAP when you are not already holding the pistol, so walking over the clip
-  // the last gunner dropped handed the pistol back and took the shotgun away —
-  // you crossed a room for that shotgun, and a drop you walked past on the way
-  // out disarmed you of it.
-  //
-  // A pickup that would leave you worse off is declined: no swap, no sound, and
-  // it STAYS ON THE FLOOR. Coming back for the clip once the shotgun is empty
-  // is then a decision the player gets to make, which is what a drop that does
-  // not chase you is for. Taking the SAME weapon again is never a downgrade —
-  // that is ammo.
   const want = type === CLIP ? 'pistol' : type;
-  if (want !== player.weapon && weaponRank(want) < weaponRank(player.weapon)) {
-    return false;
-  }
   recordMet([want]);                               // ids match the registry's
   // ...and once they are carrying one, the room stops explaining how. A CLIP
   // is not what that beat is about.
   if (type !== CLIP) duel.gotGun = true;
-  if (type === CLIP) {
-    if (player.weapon === 'pistol') {
-      player.clips = Math.min(WEAPONS.pistol.maxClips, player.clips + 1);
-      updateAmmoHud();
-    } else {
-      setWeapon('pistol', 1);   // up from the knife, with a fresh clip
-    }
-    return true;
+  const held = player.weapon;
+  addClip(want);
+  // THE BEST GUN YOU HAVE PICKED UP STAYS IN YOUR HANDS. The knife ranks below
+  // everything, so coming up off the blade always equips; a shotgun over a
+  // pistol equips; a pistol clip found while holding the shotgun does not.
+  if (weaponRank(want) > weaponRank(held)) {
+    setWeapon(want);
+    // a gun taken off the floor comes up loaded — the reserve is what you
+    // rack from LATER, and spending a clip to arrive is a tax on picking
+    // things up, which is the behaviour this whole change is trying to stop
+    player.reserve[want] = Math.max(0, (player.reserve[want] || 1) - 1);
   }
-  const spec = WEAPONS[type];
-  if (player.weapon === type) {
-    player.clips = Math.min(spec.maxClips, player.clips + 1);
-    updateAmmoHud();
-  } else {
-    setWeapon(type, 1);
-  }
+  updateAmmoHud();
   return true;
+}
+
+// THE BEST THING IN THE BAG THAT IS NOT WHAT YOU ARE HOLDING, or null.
+// `WEAPON_ORDER` ascends, so the last match is the strongest.
+function bestSpare() {
+  let best = null;
+  for (const w of WEAPON_ORDER) {
+    if (w === 'knife' || w === player.weapon) continue;
+    if ((player.reserve[w] || 0) > 0) best = w;
+  }
+  return best;
+}
+
+// OUT OF THIS GUN — WHICH IS NOT THE SAME AS OUT OF EVERYTHING.
+//
+// The name is what it used to do, and it keeps the name because `playerFire`
+// calls it and that function is landed and probed on another branch. What it
+// DOES now is look in the bag first: running the shotgun dry with two pistol
+// clips in your pocket used to hand you the blade and leave them there.
+//
+// Swapping costs a rack, same as any other empty magazine — the seconds where
+// all you can do is dodge are the risk, and finding a second gun should not
+// buy you out of them.
+function dropToKnife() {
+  const next = bestSpare();
+  if (!next) { giveKnife(); return; }
+  setWeapon(next);
+  player.mag = 0;                    // it comes up empty and has to be racked
+  startReload();
+  showBanner(next.toUpperCase(), 1200);
+  vibrate(20);
 }
 
 // Out of everything: the knife. Lethal, silent, and it demands you close
 // the distance — which is the point.
-function dropToKnife() {
+function giveKnife() {
   recordMet(['knife']);
   setWeapon('knife', 0);
   showBanner('KNIFE ONLY', 1700);
@@ -2825,7 +2897,14 @@ const ENEMY_TYPES = {
   armored: { speed: 1.4, scale: [1.1, 1.06, 1.1], drop: 0.3, aimTime: 0.6, cd: [1.2, 0.8], mul: 1, pellets: 1, armored: true },
   sniper: { speed: 1.2, scale: [0.92, 1.05, 0.92], drop: 'sniper', aimTime: 1.35, cd: [2.4, 1.0], mul: 2.3, pellets: 1, engage: [26, 4] },
   bomber: { speed: 1.7, scale: [1.05, 1, 1.05], drop: 0, aimTime: 0.8, cd: [2.4, 1.2], mul: 1, pellets: 1, engage: [11, 5] },
-  shieldbearer: { speed: 1.5, scale: [1.08, 1, 1.08], drop: 0, aimTime: 0.7, cd: [1.6, 1.0], mul: 1, pellets: 1, shielded: true },
+  // HOW FAST HE SLEWS, BEFORE AND AFTER THE TIME BUTTON, in rad/s of WORLD
+  // clock. It was one hard-coded 0.7 in `updateEnemy`, which is the number the
+  // deep game wants and far too quick for the door he is introduced on: with
+  // no way to slow the world down, a man who covers 40 degrees a second faces
+  // you again before a walk can get round him. The pair is the lesson —
+  // he is beatable on foot when you meet him, and beatable with the power
+  // afterwards, which is the power being worth something.
+  shieldbearer: { speed: 1.5, scale: [1.08, 1, 1.08], drop: 0, aimTime: 0.7, cd: [1.6, 1.0], mul: 1, pellets: 1, shielded: true, slew: [0.42, 0.8] },
   rocketeer: { speed: 1.4, scale: [1.05, 1.02, 1.05], drop: 0, aimTime: 1.0, cd: [3.4, 1.4], mul: 1, pellets: 1, engage: [16, 6] },
   // anchors at range, charges, then sweeps an arena-wide beam — cover won't
   // help and neither will running: killing him is the only way out
@@ -2922,6 +3001,25 @@ function spineIx(x, z) {
 // a man to measure something has already decided where he goes. Applying the
 // rule to every caller made `spawnEnemy` refuse in both, which is how a change
 // about door 2 turned into a crash in a file about reload state.
+// HOW MUCH FLOOR THERE IS EITHER SIDE OF A SPOT, in metres, taking the
+// SMALLER side — the way round is only as wide as its narrower half.
+//
+// Off the leg's own `cells`, not off `pointInObstacle`: "not inside an
+// obstacle" is true of everywhere outside the level, so a width measured that
+// way reports the whole world and every spot passes.
+function sideRoom(L, x, z) {
+  if (!L || !L.cells) return Infinity;
+  const C = HALL.cell, gz = Math.round(z / C);
+  let left = 0, right = 0;
+  for (const [cgx, cgz] of L.cells) {
+    if (cgz !== gz) continue;
+    const cx = cgx * C;
+    if (cx <= x) left = Math.max(left, x - (cx - C / 2));
+    if (cx >= x) right = Math.max(right, (cx + C / 2) - x);
+  }
+  return Math.min(left, right);
+}
+
 function spawnEnemy(type = 'gunner', at = null, paced = false) {
   const parts = buildEnemyMesh(type);
   const spec = ENEMY_TYPES[type];
@@ -3018,7 +3116,7 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       : ownIx >= 0
         ? !!(ownIx === finLast && L.approach && L.approach.length)
         : !!(L.approach && L.approach.length && L.doorSeen
-          && playerStretch(L) + LEG.lookahead >= finLast);
+          && playerStretch(L) + LEG.doorReach >= finLast);
     // Everyone else comes out of the stretch the player is walking THROUGH,
     // or the next one — never the whole remaining corridor. Bodies therefore
     // travel with you down the leg instead of accumulating in whatever is
@@ -3049,8 +3147,22 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
         stagedZ = st.z0;
       } else pool = null;
     }
+    // IS THIS MAN THE ROOM'S? Decided here, because the staged branch above is
+    // what sets `stagedZ` and everything below — the pool slack, the spawn
+    // floor, the first-sight floor and whether a failure is a refusal or a
+    // drift — turns on the answer.
+    const roomBody = fsIx >= 0 && (ownIx === fsIx || stagedZ !== undefined);
+    // ...AND WHETHER THE ROOM IS STILL IN FRONT OF THEM, which is what decides
+    // how hard to insist on it. See the refusal below.
+    const roomAhead = roomBody && playerStretch(L) <= fsIx;
+    // A SHIELDED MAN IS NEVER THE ONE GUARDING THE DOOR. The approach is a
+    // straight stare down at the slab and it is the narrowest ground on the
+    // leg — the one place where "walk round him" has no floor to happen on.
+    // He takes the body stretches instead and somebody else takes the door.
+    // See LEG.shieldDoorM.
+    const corked = !!spec.shielded && inHall();
     if (pool && pool.length) { /* the room's own pool, chosen above */ }
-    else if (finale) pool = L.approach;
+    else if (finale && !corked) pool = L.approach;
     else if (ownIx >= 0 && L.stretches && ownIx < finLast) {
       // the stretch that is paying for him
       const st = L.stretches[ownIx];
@@ -3062,7 +3174,11 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       // thirteen clear from wherever the player first sees the spot. The tight
       // pool is the preference, not a cage: the placement loop below falls
       // through to this once it has spent most of its tries.
-      const hi = Math.min(ownIx + 1, finLast - 1);
+      // ...BUT NOT WHILE THE ROOM IS STILL AHEAD. The slack below is what lets
+      // a corridor body drift into the next stretch when its own has no spot,
+      // and for a man the room is paying for that drift IS the bug: he reads
+      // as a plan delivered and plays as an empty room.
+      const hi = roomAhead ? -1 : Math.min(ownIx + 1, finLast - 1);
       if (hi > ownIx) {
         const s2 = L.stretches[hi];
         poolWide = L.cells.filter(([, cgz]) =>
@@ -3107,7 +3223,25 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     // school pins each new body to whoever is already up: the group is the
     // thing the player is being taught to point the power at.
     const anchor = inSchool() ? schoolAnchor() : null;
-    const sightFloor = paced ? firstSightFloor() : 0;
+    // THE FIRST-SIGHT FLOOR IS A CORRIDOR RULE, AND A ROOM IS NOT A CORRIDOR.
+    //
+    // It asks for thirteen metres of clear ground between the player and a man
+    // the moment he becomes visible, so there is room to answer his round. A
+    // spot that cannot give that is REFUSED and nobody stands there — which is
+    // right in a winding corridor, where the alternative is a body four metres
+    // round a corner, and wrong in the one place on the leg that is open
+    // floor. Rooms are short and wide: a 16 m vault cannot offer thirteen
+    // clear metres from most of itself, so most of its candidates were
+    // refused and its share was quietly paid back as silence. Measured at door
+    // 4: the room was funded for three men and got none, and four stood in the
+    // corridor instead.
+    //
+    // A room gets the vault floor instead of the corridor one. Being seen the
+    // moment you walk in IS what a room is, and the ground to answer him on is
+    // the room itself.
+    const sightFloor = !paced ? 0
+      : roomBody ? Math.min(firstSightFloor(), LEG.vaultSpawnMin)
+        : firstSightFloor();
     // Where the player is along the route, and how far along it a body has to
     // be to count as in front of them. Resolved once: the scan below runs
     // forty times and the spine can be a hundred cells long.
@@ -3130,7 +3264,7 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       if (pz < player.pos.z + PACING.aheadMin) continue;
       const ci = myIx >= 0 ? spineIx(px, pz) : -1;
       if (ci >= 0 && ci < myIx + aheadCells) continue;
-      if (finale) {
+      if (finale && !corked) {
         // no 12m floor here: if you are already deep in the approach the
         // stage still has to happen, and it has to happen where you can see
         // the door — never in a branch lane off to the side of it
@@ -3145,9 +3279,25 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
           _v3.set(doorView[0] * C, 1.4, doorView[1] * C))) continue;
         x = px; z = pz; placed = true; break;
       }
-      // a vault room is only 16 m deep: the normal 9 m floor would push
-      // every refill clean out of it and back into the corridor
-      const minD = (L.proto && L.proto.form && L.proto.form.id === 'vault')
+      // ...AND THE SHIELD'S TWO: clear of the door, and with floor either
+      // side of him. Both are about the same thing — he is only an enemy if
+      // there is a way round him. See LEG.shieldDoorM.
+      if (corked) {
+        if (L.door && Math.abs(L.door.z - pz) < LEG.shieldDoorM) continue;
+        if (sideRoom(L, px, pz) < LEG.shieldSideM) continue;
+      }
+      // A ROOM IS ONLY 16 m DEEP: the normal 9 m floor would push every refill
+      // clean out of it and back into the corridor.
+      //
+      // This read `form.id === 'vault'` and nothing else, which is the form
+      // that NAMES a room rather than the property of having one. An atrium
+      // has a room; so does an ordinary corridor that widens into a chamber —
+      // `featureStretch` is the geometry, and it is what every other line
+      // about rooms reads. Measured with the room's share raised: doors 7 and
+      // 8 funded eight men for a room apiece, placed none of them there and
+      // refused 30 and 31 candidates doing it, because a non-vault room was
+      // still being asked for nine metres inside sixteen.
+      const minD = (roomBody || (L.proto && L.proto.form && L.proto.form.id === 'vault'))
         ? LEG.vaultSpawnMin : LEG.spawnMin;
       if (d < minD || d > LEG.spawnMax) continue;
       // ...AND ENOUGH ROOM WHEN HE IS FIRST SEEN, which is a different number
@@ -3186,6 +3336,23 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       sightRefusals++;
       return false;
     }
+    // A ROOM BODY THAT COULD NOT STAND IN THE ROOM GOES BACK ON THE QUEUE —
+    // WHILE THE ROOM IS STILL AHEAD OF THE PLAYER, AND NOT AFTER.
+    //
+    // The room's share is the one part of the plan whose whole point is WHERE,
+    // so refusing and trying again a moment later is right: the player is
+    // walking toward it and the spots open up. Once they are PAST it, it is
+    // the opposite of right. The funding scan only looks forward, so a room
+    // behind the player is never offered again and its `fill` never enters the
+    // release window — and the door waits on an empty queue. Refusing there
+    // meant the man could never be placed and the leg could never end:
+    // measured, doors 5 through 9 all stalled at leg 1 of 2 and the walk
+    // delivered 36% of the plan.
+    //
+    // So: insist while insisting can still work, and let him drift once it
+    // cannot. `roomStrays` counts the drift, which is the honest record of
+    // what this trade costs.
+    if (!placed && roomAhead) { sightRefusals++; return false; }
     if (!placed) {
       // Last resort: the furthest-ahead cell of THIS spawn's own pool. It
       // used to fall back to the door approach, which is how a whole wave
@@ -3218,6 +3385,24 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
       }
     }
     L.released = (L.released || 0) + 1;   // the stretch budget is spent here
+    // A MAN THE ROOM PAID FOR WHO IS NOT STANDING IN THE ROOM.
+    //
+    // The room's share is the one part of the plan whose whole point is WHERE,
+    // and the placement loop is allowed to fall through to wider pools when
+    // the tight one has no spot — so a room could be funded for eight, spend
+    // all eight, and have them standing in the corridor either side of it,
+    // which measures as a plan delivered and reads as an empty room. Counted
+    // rather than assumed; test/rooms.mjs prints it.
+    if (roomBody) {
+      // ...MEASURED AGAINST THE POOL'S OWN DEFINITION OF THE ROOM, which is
+      // the band plus half a cell either side — that is the filter the room's
+      // cells were chosen with. Testing the bare band counts the man standing
+      // in the room's near doorway as a stray, and placement adds up to 0.8 m
+      // of jitter on top, so the first version of this counter reported
+      // twenty-six strays against five men in a room that was visibly full.
+      const st = L.stretches && L.stretches[fsIx], half = HALL.cell * 0.5;
+      if (!st || z < st.z0 - half || z > st.z1 + half) roomStrays++;
+    }
     if (ownIx >= 0 && L.fill) L.fill[ownIx] = Math.max(0, L.fill[ownIx] - 1);
     // ...and WHICH stretch, so the release gate can finish the group it has
     // just started rather than dealing the rest of it out a beat at a time.
@@ -4443,7 +4628,11 @@ function updateEnemy(e, sdt) {
     // fixed rate (in world time, so bullet time helps you circle him).
     let dYaw = wantYaw - e.g.rotation.y;
     dYaw = ((dYaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
-    const maxTurn = 0.7 * sdt;   // slow slew: circling him is a real option
+    // SLOW SLEW: CIRCLING HIM IS A REAL OPTION — and how slow depends on
+    // whether the player has been given the thing that makes circling easy.
+    // See ENEMY_TYPES.shieldbearer.slew.
+    const sl = ENEMY_TYPES[e.type].slew || [0.7, 0.7];
+    const maxTurn = (timeUnlocked() ? sl[1] : sl[0]) * sdt;
     e.g.rotation.y += Math.max(-maxTurn, Math.min(maxTurn, dYaw));
   } else {
     e.g.rotation.y = wantYaw;
@@ -10853,7 +11042,7 @@ function showMenu() {
   input.holding = false;
   stickHide();          // a fresh screen: the last thumb's spot is not this run's
   sprintTo = null;
-  setWeapon('pistol');
+  resetLoadout();
   game.state = 'menu';
   game.wave = 1;
   game.kills = 0;
@@ -11045,6 +11234,8 @@ function legOpenerDue() {
 // How many times the first-sight floor has turned a placement down. See the
 // refusal itself, in spawnEnemy, for why it is worth a counter.
 let sightRefusals = 0;
+// ...and how many of those were the room's own, placed outside it anyway.
+let roomStrays = 0;
 let stallOwed = false;
 function stallRelease() {
   if (!stallOwed) return false;
@@ -11632,6 +11823,19 @@ function startWave(n, quiet = false) {   // quiet: the clear card already announ
   updateModeUI();
 }
 
+// IS THE PLAYER IN THE LEG'S OPEN SPACE, or one stretch short of walking into
+// it? One stretch short as well as inside, because the crowd cap is read when
+// a body is RELEASED and the release window runs a stretch ahead of the
+// player — asking only about the room itself would cap the room's own arrivals
+// at the corridor's number and then lift the cap once they were already there.
+function inFeatureRoom() {
+  if (game.mode !== 'hall' || !hall) return false;
+  const L = hall.legs[hall.cur];
+  if (!L || !L.stretches || !(L.featureStretch >= 0)) return false;
+  if (L.featureStretch >= L.stretches.length - 1) return false;   // never the approach
+  return playerStretch(L) + LEG.lookahead >= L.featureStretch;
+}
+
 // how many are ON the street — the aim-token cap keeps most of them
 // stalking rather than shooting, so density can run higher than pressure
 function maxAlive() {
@@ -11655,8 +11859,16 @@ function maxAlive() {
     if (game.mode === 'duel') return Math.max(1, ...duelPlan(duelRoom()).groups);
     // A condition thins the crowd as well as the loot: two bodies met
     // separately are two searches, where a clump is one problem solved once.
-    return Math.max(1, schoolFloor(game.wave), Math.round(doorAlive(game.wave)
-      * condTax(legCondition(), 'groupSize')));
+    const n = Math.max(1, schoolFloor(game.wave), Math.round(doorAlive(game.wave)
+      * OPENING.aliveMul * condTax(legCondition(), 'groupSize')));
+    // ...AND A ROOM MAY HOLD A CROWD A CORRIDOR CANNOT.
+    //
+    // This is the dial that decides whether a fight is a queue or a swarm, and
+    // one number for the whole leg meant the 16 m pillared hall was capped at
+    // whatever the 4 m corridor could take. The playtest asked for more men in
+    // rooms and explicitly not in hallways; this is the half of that which is
+    // about a MOMENT rather than a total. See OPENING.roomAlive.
+    return inFeatureRoom() ? Math.round(n * OPENING.roomAlive) : n;
   }
   return Math.min(PACING.cityAliveBase + Math.floor(game.wave / 2), PACING.cityAliveCap);
 }
@@ -11838,7 +12050,7 @@ function advanceFromOverlay() {
     game.seenTypes = {};   // fresh run: every type announces itself again
     runStartAt = Date.now();
     runPlayT = 0;
-    setWeapon('pistol');
+    resetLoadout();
     sfx.flush();   // a fresh run starts silent, whatever the last one was doing
     if (game.mode === 'rush') initRush();
     else if (inHall()) initHall(pendingResumeDoor);
@@ -11857,7 +12069,7 @@ function advanceFromOverlay() {
     input.holding = false;
     stickHide();        // a fresh screen: the last thumb's spot is not this run's
     sprintTo = null;
-    setWeapon('pistol');
+    resetLoadout();
     if (game.mode === 'rush') initRush();
     else if (inHall()) retryHall();
     else startWave(game.wave);
@@ -12496,8 +12708,19 @@ function hallWave(n) {
       // THE BIGGEST GROUP GUARDS THE DOOR. It is the one you fight with the
       // door in frame, and it is the leg's climax.
       if (groups.length && k > 1) leg.quota[k - 1] = groups.pop();
-      // ...THE NEXT BIGGEST STANDS IN THE ROOM, if the leg has one.
-      if (fs >= 0 && groups.length) leg.quota[fs] = groups.pop();
+      // ...AND THE ROOM TAKES A CROWD, not the leftovers.
+      //
+      // It used to be `= groups.pop()` — the second biggest group, whatever
+      // the door's climax did not want. Measured over doors 2-14, that put 19%
+      // of the bodies in the open space and 51% at the door. The room's share
+      // is now that group multiplied (OPENING.roomMul, roomAdd, roomCap), and
+      // the extra is ADDED to the leg rather than taken off the corridor — see
+      // `want` below, which is recounted off the quota for exactly this.
+      if (fs >= 0 && groups.length) {
+        const g = groups.pop();
+        leg.quota[fs] = Math.min(OPENING.roomCap,
+          Math.round(g * OPENING.roomMul) + OPENING.roomAdd);
+      }
       // ...AND IF THERE WAS NOTHING LEFT, THE DOOR GROUP LENDS IT A MAN. A leg
       // can be dealt a single encounter — one corridor of a two-leg door often
       // is — and the door takes it, which puts nobody in the room. Measured, 3
@@ -12515,11 +12738,38 @@ function hallWave(n) {
       const lo = Math.min(1, Math.max(0, bodyN - 1));
       const slots = [];
       for (let i = lo; i < bodyN; i++) if (i !== fs) slots.push(i);
+      // ...AND A LEG THAT HAS ONE GROUP LEFT OVER PUTS IT AT THE FRONT.
+      //
+      // It used to go to `slots[slots.length - 1]` — the stretch nearest the
+      // door — and a leg with two encounters therefore released NOTHING until
+      // the player had walked most of it. Measured standing at the start of
+      // door 1 for fourteen world seconds: quota [0,0,5,0,1,2], allowance 0,
+      // nobody at all, because the release window is the stretch you are in
+      // plus one and every body was funded by stretch 2 or later. That is the
+      // "hallways feel empty" of the playtest, exactly, and it got worse when
+      // the room started taking a group of its own out of the same pile.
+      //
+      // The last group is already spoken for — it guards the door — so the
+      // leftovers are the leg's OPENING, and an opening belongs at the start.
       for (let j = 0; j < groups.length; j++) {
         if (!slots.length) { leg.quota[Math.max(0, bodyN - 1)] += groups[j]; continue; }
-        const at = groups.length === 1 ? slots[slots.length - 1]
+        const at = groups.length === 1 ? slots[0]
           : slots[Math.round(j * (slots.length - 1) / (groups.length - 1))];
         leg.quota[at] += groups[j];
+      }
+      // ...AND SOMETHING IS ALWAYS WITHIN THE RELEASE WINDOW ON ARRIVAL.
+      //
+      // The window is `playerStretch + LEG.lookahead`, so a leg whose first
+      // funded stretch is further out than that opens on silence however the
+      // groups were spread — a room at stretch 3 of 6 is two stretches of
+      // corridor with nothing in them. If the front of the leg is empty, the
+      // room lends it one man: a leg is allowed a quiet stretch as a breath,
+      // but not as its first impression.
+      const reach = Math.max(1, Math.min(LEG.lookahead, bodyN - 1));
+      let front = 0;
+      for (let i = 0; i <= reach; i++) front += leg.quota[i] || 0;
+      if (!front && fs > reach && leg.quota[fs] > 1) {
+        leg.quota[fs]--; leg.quota[reach] = 1;
       }
       leg.released = 0; leg.markK = undefined; leg.budget = 0;
       leg.doorMark = undefined;
@@ -12528,8 +12778,15 @@ function hallWave(n) {
       // the next one stands. See spawnEnemy's ownIx.
       leg.fill = leg.quota.slice();
       leg.featureSent = false;   // one staged body per composition of the wave
-    }
-    hallWant = want;
+      // WHAT THE LEG ACTUALLY ASKS FOR IS WHAT THE QUOTA ADDS UP TO.
+      //
+      // `want` above is what the TABLE dealt, and the two were the same number
+      // until the room started taking a multiple of its group. They are not
+      // any more, and the queue is trimmed to `want` — so leaving this alone
+      // would have built the bigger room plan and then cut the men who were
+      // meant to stand in it off the end of the queue.
+      hallWant = leg.quota.reduce((a, b) => a + b, 0);
+    } else hallWant = want;
   }
   // THE DUEL'S GROUPS, IN THE ORDER THEY WERE WRITTEN. Everywhere else the
   // encounter list only sets the leg's TOTAL and the groups are re-derived per
@@ -15546,6 +15803,7 @@ window.__ts = {
     hasLineOfSight(_v4.set(ax, ay, az), _v5.set(bx, by, bz)),
   sightFloor: () => firstSightFloor(),
   sightRefusals: () => sightRefusals,
+  roomStrays: () => roomStrays,
   way: () => {
     const t = wayTarget();
     return { on: el.wayarrow ? el.wayarrow.classList.contains('on') : false,
@@ -15649,6 +15907,23 @@ window.__ts = {
   // the glass actually does. `fire` takes a Vector3 and a test has no THREE.
   fireAt: (x, y, z) => playerFire(new THREE.Vector3(x, y, z)),
   setWeapon, spawnEnemy, spawnPickup,
+  // THE BAG, from the outside. `player.clips` is only the shelf for whatever
+  // is in your hands, so a harness reading it cannot tell "out of ammo" from
+  // "out of THIS ammo" — which is the whole of what changed.
+  // THE SHIELD'S SLEW AS THE GAME HAS RESOLVED IT, rad/s of world clock. It is
+  // a pair — slow until the time button arrives, quicker after — and reading
+  // it off a live man is a measurement of a man, which needs one to exist and
+  // to be turning. This is the dial, so a harness can check the pair exactly
+  // and keep the live reading as corroboration rather than as the only
+  // evidence.
+  slewNow: (t = 'shieldbearer') => {
+    const sl = ENEMY_TYPES[t] && ENEMY_TYPES[t].slew;
+    return sl ? { rate: timeUnlocked() ? sl[1] : sl[0], power: timeUnlocked(),
+      pair: sl.slice() } : null;
+  },
+  bag: () => ({ weapon: player.weapon, mag: player.mag,
+    reserve: { ...player.reserve }, spare: bestSpare(),
+    reloading: +player.reloadT.toFixed(2) }),
   // The simplified modes, from the outside: which one is running, whether a
   // round currently counts as inbound, what the world clock is doing and what
   // a shot still owes it.

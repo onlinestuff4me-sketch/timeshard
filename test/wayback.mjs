@@ -60,8 +60,26 @@ const r = await page.evaluate(async () => {
     return { on: w.on, back: w.back, edge: w.edge, deg,
       men: t.enemies.filter((e) => e.alive).length, queued: t.game.spawnQueue.length };
   };
-  // an empty floor in a corridor that still owes bodies
-  const clear = () => { for (let k = t.enemies.length - 1; k >= 0; k--) t.killAt(k); };
+  // AN EMPTY FLOOR IN A CORRIDOR THAT STILL OWES BODIES — and the second half
+  // of that is staged, not hoped for.
+  //
+  // The needle's rule is different on a leg that is CLEAR: nothing left to
+  // fight means the only thing worth pointing at is the door, so it stays up
+  // whichever way you face. This probe is about the other rule — the latch
+  // that brings it back when you turn away — so the leg has to still owe
+  // something for the whole sequence. It used to, by luck: killing everything
+  // each step drew the next release and the queue outlasted the six settles.
+  // Widening `LEG.lookahead` to 2 drains the queue faster and it reached zero
+  // by the fourth step, so the needle correctly stayed up and the probe
+  // correctly failed — at measuring the wrong thing. Same lesson as the man
+  // below: ask for the state directly.
+  const OWE = 12;
+  const owe = () => { while (t.game.spawnQueue.length < OWE) t.game.spawnQueue.push('gunner'); };
+  const clear = () => {
+    for (let k = t.enemies.length - 1; k >= 0; k--) t.killAt(k);
+    owe();
+  };
+  owe();
   const toward = t.way().bearing;
   const back = toward + Math.PI;
   const out = {};
