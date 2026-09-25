@@ -35,9 +35,9 @@ Both exit non-zero if a row leaves its band.
 |---|---|---|---|
 | **1** | 1–6 (6) | gunner, rusher, shotgunner | three waves of the floor's cast |
 | **2** | 7–13 (7) | shield, **slow time (10)**, heavy, sniper | the first gauntlet you need the button for |
-| **3** | 14–20 (7) | bomber, shotgunner II, armored, rusher II, rocketeer, shield II | the floor's Mk IIs, mixed |
+| **3** | 14–20 (7) | kamikaze, bomber, shotgunner II, armored, rusher II, rocketeer, shield II | the floor's Mk IIs, mixed |
 | **4** | 21–28 (8) | gunner II, laser, heavy II, sniper II, bomber II, armored II, rocketeer II | a clock in every wave |
-| **5** | 29–37 (9) | laser II, then every Mk III | shield III and laser III, held back for this |
+| **5** | 29–38 (10) | laser II, then every Mk III | shield III and laser III, held back for this |
 
 - **One new thing per door** still holds, and "new" now includes a Mk. Doors
   with no enemy debut carry the protocol debuts (forms, conditions, measures),
@@ -92,11 +92,11 @@ is not nearest-first, and is at least ×1.30 cheaper in dodging:
 | **the clock** | 23 | shield · 2 gunner II · laser at the back | laser first, shield last | ×2.00 |
 | **take his gun** | 20 | 2 shield II · 2 gunner · bomber behind them | bomber first, then the plates with his launcher | ×1.92 |
 | **plated screen** | 24 | 2 shield II · 2 gunner II behind | the pair first, over the plates | ×1.47 |
-| **close pressure** | 19 | 2 gunner near · 3 rusher II (kamikaze) far | the kamikazes, who start furthest away | ×1.55 |
+| **close pressure** | 19 | 2 gunner near · 3 rusher II far | the rushers, who start furthest away | ×1.38 |
 
 **What makes a mix a question (all measured):**
 
-- **A clock.** Laser and rushers. They get worse while you do something
+- **A clock.** Laser, rushers and kamikazes. They get worse while you do something
   else, so they jump the queue however far away they are.
 - **An expensive screen.** Plates. Walking round a shield is a second the
   men behind it spend firing.
@@ -125,7 +125,8 @@ the air; the armored man advances, so his rounds crack plate and rock him back.
 | type | Mk II | Mk III | drops |
 |---|---|---|---|
 | gunner | **pairs**: two fire together, less often | pairs, and rounds ×2.0 speed | pistol |
-| rusher | **kamikaze** (decided): arms inside 3.5 m, bursts after 0.5 s | 5 m radius, faster, 0.4 s fuse | nothing: the shotgun answers him |
+| rusher | **numbers**: timers 0.4 s apart, 4.4 m/s | 0.25 s apart, 5.0 m/s | nothing: the shotgun answers him |
+| kamikaze (new, §8) | **numbers**: 6 men, 0.3 s apart, 4.5 m radius | 7 men, 0.25 s apart, faster, shorter fuse | nothing: the shotgun answers him |
 | shotgunner | **pattern**: 7 pellets, wider, from 10 m | both barrels | shotgun |
 | shield | **coverage**: turns faster, a 5 m walk round | 7 m, and fires faster | nothing: the launcher answers him |
 | heavy | **burst**: 5 rounds | 6 rounds, more often | burst rifle |
@@ -187,7 +188,7 @@ The rules for each Mk debut:
 | 15 | bomber I | debut | 8.8 | 4 | – | pistol I | 3.04 | 4.77 | launcher I | 0.92 | 1.42 |
 | 16 | shotgunner II | pattern | 9.1 | 4 | 1.37 | shotgun I | 1.94 | 3.01 | shotgun II | 1.13 | 1.74 |
 | 17 | armored I | debut | 9.4 | 4 | – | pistol I | 3.30 | 5.13 | AP I | 1.54 | 2.36 |
-| 18 | rusher II | kamikaze | 9.8 | 4 | 0.15 | pistol I | 0.92 | 0.82 | shotgun II | 0.15 | 0.00 |
+| 18 | rusher II | numbers | 9.8 | 7 | 0.15 | pistol I | 0.66 | 0.82 | shotgun II | 0.15 | 0.00 |
 | 19 | rocketeer I | debut | 10.1 | 4 | – | pistol I | 1.66 | 2.58 | rocket I | 0.42 | 0.64 |
 | 20 | shield II | coverage | 10.4 | 4 | 0.13 | pistol I | 0.66 | 0.22 | launcher I | 0.13 | 0.04 |
 | 21 | gunner II | pairs | 10.7 | 4 | 0.50 | pistol I | 1.14 | 1.76 | pistol II | 0.67 | 1.03 |
@@ -202,12 +203,15 @@ The rules for each Mk debut:
 | 31 | shotgunner III | pattern | 13.0 | 4 | 0.85 | shotgun II | 1.17 | 0.88 | shotgun III | 0.74 | 0.65 |
 | 32 | heavy III | burst | 13.0 | 4 | 1.08 | burst II | 1.85 | 1.93 | burst III | 1.36 | 1.51 |
 | 33 | sniper III | reach | 13.0 | 2 | 0.21 | rifle II | 0.30 | 0.33 | rifle III | 0.22 | 0.28 |
-| 34 | rusher III | kamikaze | 13.0 | 4 | 0.15 | pistol III | 0.64 | 0.52 | shotgun III | 0.15 | 0.00 |
+| 34 | rusher III | numbers | 13.0 | 7 | 0.15 | pistol III | 0.32 | 0.27 | shotgun III | 0.15 | 0.00 |
+| 14 | kamikaze I | debut | 8.5 | 5 | – | pistol I | 0.77 | 0.66 | shotgun I | 0.15 | 0.00 |
+| 24 | kamikaze II | numbers | 11.7 | 6 | 0.15 | pistol II | 1.06 | 0.97 | shotgun II | 0.15 | 0.00 |
+| 38 | kamikaze III | numbers | 13.0 | 7 | 0.15 | pistol III | 0.67 | 0.55 | shotgun III | 0.15 | 0.00 |
 | 35 | armored III | advance | 13.0 | 4 | 1.33 | AP II | 1.80 | 1.81 | AP III | 1.31 | 1.47 |
 | 36 | rocketeer III | tracking | 13.0 | 4 | 0.18 | rocket II | 0.37 | 0.29 | rocket III | 0.22 | 0.20 |
 | 37 | bomber III | area | 13.0 | 4 | 0.48 | launcher II | 0.76 | 0.51 | launcher III | 0.51 | 0.38 |
 
-**28 of 28 inside the bands.** Read one row: at door 21 the gunner starts
+**31 of 31 inside the bands** (the kamikaze's three rows are listed last). Read one row: at door 21 the gunner starts
 firing in pairs. With the pistol you had, a kill costs 1.14 s of dodging and
 1.76× what it refunds, so the bank drains. His Mk II pistol breaks one round
 in two in the air, and the same fight costs 0.67 s and roughly pays for itself.
@@ -408,9 +412,9 @@ room, and R (bank per kill ÷ refund).
 
 | | pistol | ricochet | shotgun cone | grenade | beam | rifle + zoom |
 |---|---|---|---|---|---|---|
-| kamikaze Mk I ×3 (R 3.5 m) | 0.15 | ×1.00 | ×1.00 | ×1.00 | ×1.00 | ×1.00 |
-| kamikaze Mk II ×3 (R 5 m, faster) | 0.80 · R 0.7 | ×0.19 | ×0.19 | ×0.19 | ×0.19 | ×1.00 |
-| kamikaze Mk III ×4 (shorter fuse) | 1.61 · R 1.6 | ×0.40 | ×0.09 | ×0.09 | ×0.09 | ×1.00 |
+| kamikaze Mk I ×5 (0.35 s apart, R 3.5 m) | 0.77 · R 0.7 | ×0.20 | ×0.20 | ×0.20 | ×0.20 | ×1.40 |
+| kamikaze Mk II ×6 (0.3 s apart, R 4.5 m) | 1.36 · R 1.3 | ×0.33 | ×0.11 | ×0.11 | ×0.11 | ×1.00 |
+| kamikaze Mk III ×7 (0.25 s apart, faster, shorter fuse) | 1.45 · R 1.4 | ×0.64 | ×0.28 | ×0.10 | ×0.10 | ×1.18 |
 | Frankenstein Mk I | 1.43 · R 2.3 | ×1.00 | ×0.88 | ×0.84 | ×0.88 | ×1.00 |
 | Frankenstein Mk II (arms only) | 2.20 · R 1.8 | ×0.90 | ×0.72 | ×0.55 | ×0.59 | ×0.97 |
 | Frankenstein Mk III (+ final rush) | 2.35 · R 1.8 | ×0.91 | ×0.74 | ×0.57 | ×0.61 | ×0.97 |
@@ -420,29 +424,60 @@ For scale: two gunners firing together cost 2.45 per pair.
 
 ### Kamikaze
 
-Runs at you. Alive inside radius R, he arms (a visible, audible fuse) and
-bursts; you must be outside R when he does.
+**Decided: his own type, not the rusher's Mk II.** Both come at you and both
+get harder by **numbers**: how many, and how tightly their timers are
+staggered. But they ask different things and have to look different.
 
-- **A kamikaze alone is not a threat. In a crowd he is a question.** Three Mk Is
-  in an empty room die before they arrive with any weapon. Among firing gunners
-  he is a clock competing for your aim: **kill him first**, ×1.48 cheaper than
-  nearest-first (`--waves`, *kamikaze in the crowd*). Stage him in mixed
-  rooms, never alone.
-- **Fuse, not proximity.** Arming at R and bursting after ~0.5 s gives three
-  outs: kill him before R, kill him during the fuse, or run clear. Running
-  clear of 3.5 m takes ~0.7 s, longer than the fuse, so the run is bought
-  with the time button. That is the button at its best: it buys distance, not
-  aim.
+| | rusher | kamikaze |
+|---|---|---|
+| what he wants | to reach you | to be near you when his fuse ends |
+| what a miss costs | a hard dodge at arm's length | an escape run of his radius, bought with the time button |
+| can you finish him late? | yes: he's in front of you, shoot him | yes, *during the fuse*, and he's safe only if he dies before it ends |
+| body | lean, low, fast; bare hands, a sprinter's lean | heavy and top-heavy; a waddling run; a vest or core that glows red and pulses faster as the fuse runs |
+| readable in the dark | his speed | his core is his light (`PILLARS.md` §6) |
+
+The silhouette has to say which one it is from across a room, before either
+moves: *outrun him* versus *out-shoot him or out-distance his blast*.
+
+**How numbers make them harder (measured).** Each man sets off on his own
+timer, `gap` seconds after the last, and each has a deadline: reaching you,
+or his fuse ending inside R.
+
+- **Staggering alone makes a pack easier, not harder,** because a wave that
+  assembles all at once can be shot while it waits. Three kamikazes from
+  16 m never reach you, whatever you hold. A pack only bites when **how many
+  × how long a kill takes** exceeds the window before they arrive. So the
+  numbers have to be real: five kamikazes from 12 m, 0.35 s apart, at his
+  debut.
+- **The stagger decides clump or line.** Men who set off `gap` apart run
+  `gap × speed` metres apart. A tight stagger is a clump: one shotgun shell
+  or grenade takes several. A wide one is a line: area weapons take a man at
+  a time, and pierce, down a line coming straight at you, takes several. So
+  the stagger isn't only a difficulty dial. It chooses which weapon is the
+  answer.
+- **In a crowd, he's a kill-order question:** kill him first, ×1.39 cheaper
+  than nearest-first (`--waves`, *kamikaze in the crowd*).
+
+**The ladder** (§4, re-checked: all 31 tier debuts pass):
+
+| door | tier | pack | struggle (pistol) | with the shotgun |
+|---|---|---|---|---|
+| 14 | kamikaze Mk I | 5, 0.35 s apart, 3.5 m radius | 0.77 · R 0.66 | 0.15 |
+| 24 | kamikaze Mk II | 6, 0.3 s apart, 4.5 m radius, faster | 1.06 · R 0.97 | 0.15 |
+| 38 | kamikaze Mk III | 7, 0.25 s apart, 5 m/s, 0.4 s fuse | 0.67 · R 0.55 (pistol III) | 0.15 |
+| 18 | rusher Mk II | the door's pack (7), 0.4 s apart, 4.4 m/s | 0.66 · R 0.82 | 0.15 |
+| 34 | rusher Mk III | 7, 0.25 s apart, 5.0 m/s | 0.32 · R 0.27 (pistol III) | 0.15 |
+
+The kamikaze debuts on door 14, the first door of floor 3, after the rusher
+has taught the clock and on the door where the floor eases in. Floor 5 grows
+to ten doors (29–38) to give his Mk III a door of its own.
+
+- **Fuse, not proximity.** Arming at R and bursting ~0.5 s later gives three
+  outs: kill him before R, kill him during the fuse, or run clear. Clearing
+  3.5 m takes ~0.7 s, longer than the fuse, so the run is bought with the
+  time button: the button buying distance, not aim.
 - **His blast should hit his own side.** Shooting him when he's beside his
   friends is the payoff, and it makes his position part of kill order.
-- **Mk ladder:** radius (3.5 → 5 m), then speed, then a shorter fuse. Area
-  weapons crush him (×0.09 by Mk III); the zoomed rifle does nothing (one man per aim).
-- **Decided: the rusher's Mk II *is* the kamikaze** ("he no longer needs to
-  reach you"), and his Mk III is the bigger, faster, shorter-fused one. It is
-  not an eleventh type. The ladder (§4) re-checks it: at door 18 four
-  kamikazes cost 0.92 per kill with the pistol and 0.15 with the Mk II
-  shotgun, and at door 34 0.64 → 0.15. A kamikaze room holds at most four:
-  seven men who each demand an escape run is a wall, not a question.
 
 ### Frankenstein
 

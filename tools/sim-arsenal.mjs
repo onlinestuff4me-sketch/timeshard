@@ -75,7 +75,13 @@ const CLEAR = 0.8;         // m you move to leave a single round's lane
 // type has one, ~14 m (a 16 m room) where it does not.
 const ENEMY_BASE = {
   gunner:       { aim: 0.55, cd: [0.9, 0.8], mul: 1,    pellets: 1, d: 14 },
-  rusher:       { speed: 3.4, d: 14, melee: true },
+  // RUSHER and KAMIKAZE both come at you, and both get harder by NUMBERS:
+  // how many, and how tightly their timers are staggered (`gap`, seconds
+  // between one setting off and the next). See rush().
+  rusher:       { speed: 3.4, d: 14, melee: true, gap: 0.9 },
+  // proposed (docs/ARSENAL.md §8): a separate type with its own body — he
+  // arms inside R and bursts after `fuse`. `count` is how many a room holds.
+  kamikaze:     { speed: 4.2, d: 12, melee: true, R: 3.5, fuse: 0.5, count: 5, gap: 0.35 },
   shotgunner:   { aim: 0.65, cd: [1.6, 0.9], mul: 0.85, pellets: 5, spread: 0.09, d: 8 },
   shieldbearer: { aim: 0.7,  cd: [1.6, 1.0], mul: 1,    pellets: 1, d: 12, shielded: true },
   heavy:        { aim: 0.55, cd: [1.8, 1.0], mul: 1,    pellets: 1, burst: 3, d: 14 },
@@ -101,12 +107,15 @@ export const ENEMY_MK = {
     { axis: 'pairs',    volley: 2, cd: [2.4, 1.2] },          // fire with a partner — less often, together
     { axis: 'pairs',    volley: 2, cd: [1.8, 1.0], mul: 2.0 },  // ...and the rounds are fast
   ],
-  // RUSHER Mk II IS THE KAMIKAZE (decided): he no longer needs to reach you.
-  // Alive inside R he arms, and after `fuse` he bursts; you are outside R or
-  // you are shattered. See rush() and docs/ARSENAL.md §8.
+  // the rusher's timers tighten and he gets quicker; the pack is the door's
   rusher: [null,
-    { axis: 'kamikaze', speed: 4.2, R: 3.5, fuse: 0.5 },
-    { axis: 'kamikaze', speed: 5.0, R: 5, fuse: 0.4 },
+    { axis: 'numbers',  speed: 4.4, gap: 0.4 },
+    { axis: 'numbers',  speed: 5.0, gap: 0.25 },
+  ],
+  // the kamikaze's pack grows and its timers tighten
+  kamikaze: [null,
+    { axis: 'numbers',  count: 6, gap: 0.3, R: 4.5, speed: 4.6 },
+    { axis: 'numbers',  count: 7, gap: 0.25, speed: 5.0, fuse: 0.4 },
   ],
   shotgunner: [null,
     { axis: 'pattern',  pellets: 7, spread: 0.12, d: 10 },    // wider, and from further
@@ -195,10 +204,10 @@ const DROPS_FROM = {
 };
 // The laser anchors — he does not strafe — so the rifle's lead advantage is
 // worth nothing against him; the rocket's guidance and blast is what reaches.
-const ANSWERED_BY = { rusher: 'shotgun', shieldbearer: 'launcher', laser: 'rocket' };
+const ANSWERED_BY = { rusher: 'shotgun', kamikaze: 'shotgun', shieldbearer: 'launcher', laser: 'rocket' };
 
 // --- THE SCHEDULE (proposal): five floors, every Mk debut on its door ------
-export const FLOORS = [6, 7, 7, 8, 9];     // doors per floor; an elevator gauntlet after each
+export const FLOORS = [6, 7, 7, 8, 10];     // doors per floor; an elevator gauntlet after each
 export const DEBUTS = [
   // floor 1 — doors 1-6
   [1, 'gunner', 1], [3, 'rusher', 1], [5, 'shotgunner', 1],
@@ -206,21 +215,23 @@ export const DEBUTS = [
   // sniper before gunner Mk II: the Mk II pistol (pierce, shatter) out-guns
   // a Mk I rifle, and a weapon has to be the best answer on the day it lands
   [8, 'shieldbearer', 1], [11, 'heavy', 1], [12, 'sniper', 1],
-  // floor 3 — doors 14-20
+  // floor 3 — doors 14-20. The kamikaze debuts on the floor's first door:
+  // after the rusher has taught the clock, and on the door the floor eases in
   // shotgunner Mk II before rusher Mk II: the rusher's answer is the shotgun,
   // so his Mk has to arrive after the Mk of the thing that answers it
+  [14, 'kamikaze', 1],
   [15, 'bomber', 1], [16, 'shotgunner', 2], [17, 'armored', 1], [18, 'rusher', 2],
   [19, 'rocketeer', 1], [20, 'shieldbearer', 2],
   // floor 4 — doors 21-28. The gunner's Mk II is the floor's first door and
   // not door 13, where it used to be: doors 10-19 are the slow-time school,
   // which already makes the room fire in volleys, and a Mk whose axis is
   // "fires together" is invisible inside it (measured: identical P).
-  [21, 'gunner', 2], [22, 'laser', 1], [23, 'heavy', 2], [25, 'sniper', 2],
+  [21, 'gunner', 2], [22, 'laser', 1], [23, 'heavy', 2], [24, 'kamikaze', 2], [25, 'sniper', 2],
   [26, 'bomber', 2], [27, 'armored', 2], [28, 'rocketeer', 2],
-  // floor 5 — doors 29-37
+  // floor 5 — doors 29-38
   [29, 'laser', 2], [30, 'gunner', 3], [31, 'shotgunner', 3], [32, 'heavy', 3],
   [33, 'sniper', 3], [34, 'rusher', 3], [35, 'armored', 3], [36, 'rocketeer', 3],
-  [37, 'bomber', 3],
+  [37, 'bomber', 3], [38, 'kamikaze', 3],
 ];
 // Doors with no enemy debut carry the protocol debuts (forms, conditions,
 // measures), as today. Shield Mk III and laser Mk III are held for the final
@@ -316,19 +327,24 @@ function acquire(e, w) {
 // many of him are still standing.
 function perAim(e, w, k) {
   if (k <= 1) return 1;
+  // A RUSH IS A LINE OR A CLUMP, and its stagger decides which: men who set
+  // off `gap` apart run gap x speed metres apart. A cone, blast or beam takes
+  // a clump (within ~2 m) and a man at a time from a line. Pierce does the
+  // opposite — a line coming straight at you is exactly what it is for.
+  const clump = e.melee && e.gap ? Math.min(1, 2 / (e.gap * e.speed + 0.01)) : 1;
   let extra = 0;
   if (w.pierce > 1) extra += Math.min(w.pierce, k) - 1 > 0 ? (Math.min(w.pierce, k) - 1) * 0.35 : 0;
   if (w.pellets > 1) {
     const at = e.melee ? e.d / 2 : e.d;                     // you meet a rusher halfway
     const cone = 2 * at * Math.tan(w.spread * 2);           // metres the pattern covers
-    extra += Math.min(k - 1, cone / 1.5) * 0.5;               // men ~1.5 m apart
+    extra += Math.min(k - 1, cone / 1.5) * 0.5 * clump;       // men ~1.5 m apart
   }
-  if (w.blast) extra += Math.min(k - 1, w.blast / 2.5) * 0.5;
+  if (w.blast) extra += Math.min(k - 1, w.blast / 2.5) * 0.5 * clump;
   if (w.sweep && w.burst > 1) extra += (Math.min(w.burst, k) - 1) * 0.3;
   // a ricochet finds the next man for you — no line-up needed, unlike pierce
   if (w.ricochet) extra += Math.min(k - 1, w.ricochet) * 0.6;
   // a beam dragged across a group takes whoever it crosses
-  if (w.beam) extra += Math.min(k - 1, 2) * 0.5;
+  if (w.beam) extra += Math.min(k - 1, 2) * 0.5 * clump;
   // a zoom is tunnel vision: one man at a time, whatever the round does after
   if (w.zoom) extra = 0;
   return 1 + extra;
@@ -413,25 +429,13 @@ function volleyNeed(e, door) {
 // shooting, so a busy room stretches every kill (t / (1 - load)); that is
 // what makes a group more than the sum of its men.
 function matchup(e, w, door, group) {
-  const G = group ?? groupOf(e.type, door);
+  const G = group ?? e.count ?? groupOf(e.type, door);
   const { t, rounds, p } = killCost(e, w, G);
   const drain = TIME.drain * scarcity('timeDrain', door);
   let P = 0, bank = 0, extraRounds = 0;
-  if (e.melee && e.R) {
-    // a kamikaze room: at most four of them — a pack of seven that each
-    // demand an escape run is not a question, it is a wall
-    const K = Math.min(G, 4);
-    const r = rush(e, w, door, K, e.R, e.fuse);
-    P = r.P * G / K; bank = r.bank * G / K;
-  } else if (e.melee) {
-    // they are the clock: all of them arrive together, and whatever is left
-    // standing when they do is finished with the world stopped
-    // every man still on his feet when they arrive is a hard dodge at arm's
-    // length (~1.2 s of footwork); the rest were a glance
-    const arrive = e.d / e.speed;
-    const reached = Math.max(0, G - arrive / t);
-    P = G * 0.15 + reached * 1.2;
-    bank = Math.max(0, G * t - arrive) * drain;
+  if (e.melee) {
+    const r = rush(e, w, door, G, e.R || 0, e.fuse || 0);
+    P = r.P; bank = r.bank;
   } else if (e.sweep) {
     // he is the clock too: kill him inside the charge or finish it frozen
     const charge = e.aim * (w.stopsCharge ? 1.6 : 1);
@@ -461,7 +465,7 @@ function matchup(e, w, door, group) {
     }
   }
   const refund = TIME.bonus * scarcity('timeGain', door);
-  return { P: P / G, R: bank / (G * refund), rounds: rounds + extraRounds / G, t, p, G: e.melee && e.R ? Math.min(G, 4) : G };
+  return { P: P / G, R: bank / (G * refund), rounds: rounds + extraRounds / G, t, p, G };
 }
 
 // --- the ladder check ----------------------------------------------------------
@@ -554,16 +558,15 @@ export const WAVES = {
   'close pressure':    { door: 19, w: ['shotgun', 2], mix: [['gunner', 2, 1, 7], ['rusher', 3, 2, 16]] },
   // the answer to the plates is carried by the man behind them
   'take his gun':      { door: 20, w: ['pistol', 1], mix: [['shieldbearer', 2, 2, 8], ['bomber', 1, 1, 13], ['gunner', 2, 1, 10]] },
-  // PROPOSED TYPES (see --newcomers). A kamikaze is a clock, and a clock
-  // only asks a question when something else is competing for the aim.
-  'kamikaze in the crowd': { door: 25, w: ['pistol', 2], mix: [['gunner', 2, 2, 9], ['kamikaze', 2, 1, 16]] },
+  // A kamikaze is a clock, and a clock only asks a question when something
+  // else is competing for the aim.
+  'kamikaze in the crowd': { door: 25, w: ['pistol', 2], mix: [['gunner', 2, 2, 9], ['kamikaze', 2, 2, 16]] },
   // a spotter fires nothing: while it is up every other man leads you
   'the spotter':       { door: 25, w: ['pistol', 2], mix: [['gunner', 3, 2, 9], ['drone', 1, 1, 11]] },
 };
 // proposed types, built from a gunner with their traits: not in ENEMY_BASE
 // because nothing on the ladder uses them yet
 const PROPOSED = {
-  kamikaze: { melee: true, speed: 5.0, d: 16, R: 5 },
   // a spotter HOVERS to watch — the jinking is the Mk II that shoots.
   // Measured: a spotter that jinks like the Mk II is so slow to hit that the
   // gunners stay the right first target (x1.00), and the spotter asks nothing.
@@ -703,21 +706,32 @@ function matrix() {
 // DRONE — head-sized (0.3 m), just above head height, jinking the whole time.
 // Mk I SPOTS: fires nothing, but while it is up every other man leads you
 // (see --waves, 'the spotter'). Mk II fires. Mk III dives: a kamikaze with wings.
-const KAMIKAZE = { speed: 4.2, d: 16, R: 3.5, fuse: 0.5 };
 
-// one kamikaze-style rush: G of them from `d`; whoever is still up when he
-// reaches R and finishes his fuse costs you an escape run, frozen
+// A RUSH: G men who come at you, each on his own timer — man i sets off
+// i x `gap` seconds after the first, all visible from the start (the wave
+// assembles at once), so any of them can be shot while he waits. Each has a
+// DEADLINE: when he reaches you (a rusher, R = 0) or when his fuse runs out
+// inside R (a kamikaze). The right order is earliest deadline first, which
+// here is the order they set off. Whoever is still up at his deadline costs
+// you: a rusher a hard dodge at arm's length (~1.2 s of footwork), a
+// kamikaze an escape run of R, paid frozen because it is longer than the fuse.
+//
+// Numbers make it harder in two ways at once: more deadlines to meet, and —
+// because a tighter gap packs them together — less time between them. A
+// stagger wider than your kill time is a queue you can work through; a
+// stagger tighter than it is a pile-up, and the pile-up is where it bites.
 function rush(e, w, door, G, R, fuse, core) {
   const drain = TIME.drain * scarcity('timeDrain', door);
   const target = { ...e, bodyW: core ?? e.bodyW, strafe: 0 };   // he comes straight at you
   const reach = Math.max(0, (e.d - R) / e.speed) + fuse;
-  let clock = 0, escapes = 0;
-  for (let k = G; k >= 1; k--) {
-    clock += killCost(target, w, k).t;
-    if (clock > reach) escapes++;
+  const gap = e.gap || 0;
+  let clock = 0, misses = 0;
+  for (let i = 0; i < G; i++) {
+    clock += killCost(target, w, G - i).t;
+    if (clock > reach + i * gap) misses++;
   }
-  const run = REACT + (R + 0.5) / MOVE;
-  return { P: G * 0.15 + escapes * run * 1.5, bank: escapes * run * drain, escapes };
+  const cost = R ? REACT + (R + 0.5) / MOVE : 1.2;
+  return { P: G * 0.15 + misses * cost * (R ? 1.5 : 1), bank: misses * cost * drain, escapes: misses };
 }
 
 function newcomers() {
@@ -733,9 +747,9 @@ function newcomers() {
 
   const rows = {
     // a kamikaze room is priced per KILL, like every other row
-    'kamikaze Mk I x3':     (w) => per(rush({ ...gunner, ...KAMIKAZE }, w, door, 3, KAMIKAZE.R, KAMIKAZE.fuse), 3),
-    'kamikaze Mk II x3':    (w) => per(rush({ ...gunner, ...KAMIKAZE, speed: 5.0 }, w, door, 3, 5, KAMIKAZE.fuse), 3),
-    'kamikaze Mk III x4':   (w) => per(rush({ ...gunner, ...KAMIKAZE, speed: 5.0, d: 14 }, w, door, 4, 5, 0.35), 4),
+    'kamikaze Mk I x5':     (w) => matchup(enemy('kamikaze', 1), w, door),
+    'kamikaze Mk II x6':    (w) => matchup(enemy('kamikaze', 2), w, door),
+    'kamikaze Mk III x7':   (w) => matchup(enemy('kamikaze', 3), w, door),
     // Frankenstein Mk I: ONE man firing TWO rounds together, one shot to kill
     'frankenstein Mk I':    (w) => {
       const t = killCost(gunner, w, 1).t;
