@@ -41,10 +41,12 @@ work was unmerged; it was, then, and is not now.)
 
 ---
 
-## The arsenal branch — NOT merged, NOT live (2026-09-25)
+## The arsenal work — LIVE on `main` since 2026-09-26 (the playtest build)
 
-Branch **`claude/time-shatter-design-rf8z87`**. Everything in this section is
-on that branch only; `main` (and so timeshatter.app) has none of it. The
+Built on branch **`claude/time-shatter-design-rf8z87`** and fast-forwarded
+onto `main` at `ca00859`, so timeshatter.app carries all of it, including the
+playtest-only switches (`PLAYTEST.on`, `SIGHT.playtest`) — turn both off
+before anything that is meant for players rather than for the owner. The
 design it builds from is **`docs/ARSENAL.md`** — floors, bosses, the weapon
 ladder, streaks — and the model behind its numbers is `tools/sim-arsenal.mjs`.
 What is still owed is item 00 of `docs/BACKLOG.md`.

@@ -2,8 +2,9 @@
 
 ## 00. The arsenal branch — what is built, and what is still owed
 
-Design: `docs/ARSENAL.md`. Branch `claude/time-shatter-design-rf8z87`, **not
-merged to `main`** (so not live). Built there: the weapon switcher (3 slots),
+Design: `docs/ARSENAL.md`. Built on branch `claude/time-shatter-design-rf8z87`
+and **live on `main` since 2026-09-26** as the playtest build (`PLAYTEST.on`
+and `SIGHT.playtest` are both on; turn them off for a public release). Built there: the weapon switcher (3 slots),
 the tempo streak, debut cards, the blinker, the Keeper's room on door 9 with
 slow time as his reward, and the no-misses streak with sight. Owed:
 
