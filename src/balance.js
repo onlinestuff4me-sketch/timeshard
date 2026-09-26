@@ -1976,3 +1976,8 @@ export const SIGHT = {
   // until the drone boss exists to hand it over. Set false when he does.
   playtest: true,
 };
+
+// THE PLAYTEST BUILD (decided 2026-09-26). While on, the title screen carries
+// a PLAYTEST button: floor 1 from door 1, straight to the Keeper, the intro
+// cards shown again, sight on or off, and SEND LOG. Off for a public release.
+export const PLAYTEST = { on: true };

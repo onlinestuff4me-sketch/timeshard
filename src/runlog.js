@@ -7,9 +7,8 @@
 // frame-rate sample. The log is written to localStorage as it goes, so the
 // LAST run is still there after a death, a reload or closing the app.
 //
-// Getting it out: `issueUrl()` builds a pre-filled GitHub issue on the repo
-// (the player taps Submit, signed in as themselves — nothing here holds a
-// key), `text()` is the whole log for Copy or Share.
+// Getting it out: `send()` posts it to the repo as an issue in the background
+// (see below); `text()` is the whole log as plain text, for a harness.
 // ---------------------------------------------------------------------------
 
 const KEY = 'ts_runlog_last';
@@ -149,29 +148,73 @@ export function text(note = '') {
   ].join('\n');
 }
 
-// A pre-filled GitHub issue. URLs past ~8 KB get refused, so the body is the
-// note, the summary and as many of the LAST events as fit; the full log goes
-// by Copy or Share.
-export function issueUrl(note = '') {
-  note = note.slice(0, 600);
+// ---------------------------------------------------------------------------
+// ONE TAP, IN THE BACKGROUND. The log goes to the repo as an issue labelled
+// `playtest`, posted with a GitHub key that lives ONLY in this device's
+// storage — the owner pastes it once (a fine-grained token that can create
+// issues on this one repo). Nothing in the game's code or the repo holds a
+// key: a key in a public repo is revoked by GitHub on sight, and readable by
+// anyone who opens the page. A send that fails (offline, a bad key) waits in
+// an outbox and goes with the next one.
+// ---------------------------------------------------------------------------
+const TOKEN_KEY = 'ts_gh_token';
+const OUTBOX_KEY = 'ts_log_outbox';
+export function hasKey() { try { return !!localStorage.getItem(TOKEN_KEY); } catch { return false; } }
+export function setKey(k) {
+  try { if (k) localStorage.setItem(TOKEN_KEY, k.trim()); else localStorage.removeItem(TOKEN_KEY); } catch { /* private */ }
+}
+function outbox() { try { return JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]'); } catch { return []; } }
+function setOutbox(list) { try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(list.slice(-10))); } catch { /* full */ } }
+export function pending() { return outbox().length; }
+
+// The report for the run in hand: a title and a body GitHub will take (the
+// body cap is 65,536 characters; the oldest events go first).
+function report() {
   const L = current();
   const door = L ? L.peak.door : '?';
-  const title = `Playtest: ${note ? note.slice(0, 60) : 'run log'} (door ${door})`;
-  const head = [
-    note ? `**Note:** ${note}\n` : '',
-    '```', summary(L), '```', '',
-    '<details><summary>Last events</summary>', '', '```',
-  ].join('\n');
+  const when = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const title = `Playtest log: door ${door}, ${(L && L.meta && L.meta.build) || '?'}, ${when}`;
+  const head = '```\n' + summary(L) + '\n```\n\n<details><summary>Events</summary>\n\n```\n';
   const tail = '\n```\n</details>\n';
-  const budget = 6500;   // encoded characters for the whole body
-  const lines = L ? L.events.map(line) : [];
-  let body = head + tail;
-  let take = 0;
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const next = head + lines.slice(i).join('\n') + tail;
-    if (encodeURIComponent(next).length > budget) break;
-    body = next; take = lines.length - i;
+  let lines = L ? L.events.map(line) : [];
+  let body = head + lines.join('\n') + tail;
+  while (body.length > 60000 && lines.length > 50) {
+    lines = lines.slice(Math.ceil(lines.length / 10));
+    body = head + '(earlier events left out)\n' + lines.join('\n') + tail;
   }
-  if (take < lines.length) body += `\n_${lines.length - take} earlier events left out; the full log was copied separately if needed._\n`;
-  return `https://github.com/${REPO}/issues/new?labels=playtest&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+  return { title, body, labels: ['playtest'] };
+}
+
+async function post(item, key) {
+  const res = await fetch(`https://api.github.com/repos/${REPO}/issues`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json' },
+    body: JSON.stringify(item),
+  });
+  if (!res.ok) { const e = new Error('github ' + res.status); e.status = res.status; throw e; }
+  const j = await res.json();
+  return j.number;
+}
+
+// Queue this run's report and flush the outbox. Resolves to
+// { sent, waiting, number?, error? } — never rejects.
+export async function send() {
+  if (log) { ev('report'); save(true); }
+  const list = outbox();
+  list.push(report());
+  setOutbox(list);
+  return flush();
+}
+export async function flush() {
+  let key = null;
+  try { key = localStorage.getItem(TOKEN_KEY); } catch { /* private */ }
+  if (!key) return { sent: 0, waiting: pending(), error: 'no key' };
+  const list = outbox();
+  let sent = 0, number = null, error = null;
+  while (list.length) {
+    try { number = await post(list[0], key); list.shift(); sent++; setOutbox(list); }
+    catch (e) { error = e.status === 401 || e.status === 403 || e.status === 404 ? 'bad key' : 'offline'; break; }
+  }
+  return { sent, waiting: list.length, number, error };
 }

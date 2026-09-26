@@ -15,7 +15,7 @@ import * as THREE from '../lib/three.module.min.js';
 import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, TIME, LEG, SHATTER,
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
-  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT } from './balance.js';
+  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT, PLAYTEST } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -30,7 +30,7 @@ import { haptic, persist, forget, hydrateStorage, shellSetup, isNative } from '.
 import * as runlog from './runlog.js';
 // WHICH BUILD A RUN LOG CAME FROM. Bump it when a playtest build goes out, so
 // a report can be matched to the code that produced it.
-const BUILD = 'arsenal-2026-09-26';
+const BUILD = 'slice-1';
 runlog.setContext(() => ({
   d: inHall() && hall ? hall.doorsPassed + 1 : game.wave,
   w: worldT,
@@ -6187,11 +6187,15 @@ function onPointerDown(ev) {
   const inName = ev.target && ev.target.closest && ev.target.closest('#savename');
   // ...and the run log's card, whose note is typed into and whose buttons act
   // on `click` (the only event iOS lets open a link, copy or share from)
-  const inLog = ev.target && ev.target.closest && ev.target.closest('#logpanel .logcard');
+  const inLog = ev.target && ev.target.closest && ev.target.closest('#keycard .ptcard, #ptmenu .ptcard');
   if (!inSettings && !inUnlockScroll && !inSelScroll && !inAsk && !inName && !inLog) ev.preventDefault();
   sfx.init();
-  if (el.logpanel.style.display === 'flex') {   // the run log is open
-    if (!inLog) closeLog();                       // a tap outside closes it
+  if (el.keycard.style.display === 'flex') {     // the one-time key card
+    if (!inLog) closeKeyCard();                   // a tap outside cancels it
+    return;
+  }
+  if (el.ptmenu.style.display === 'flex') {      // the playtest menu
+    if (!inLog) closePlaytest();
     return;
   }
   if (el.settings.style.display === 'flex') {   // settings modal open
@@ -6242,7 +6246,7 @@ function onPointerDown(ev) {
         return;
       }
       if (ev.target.closest('#plog')) {
-        openLog('pause');
+        sendLog();               // one tap; the pause menu stays up
         return;
       }
       if (ev.target.closest('#pendrun')) {
@@ -6304,7 +6308,11 @@ function onPointerDown(ev) {
     // brief lockout after dying so panic taps don't skip the death screen
     if (game.state === 'dead' && performance.now() - deathAt < 1000) return;
     if (game.state === 'dead' && ev.target && ev.target.id === 'logbtn') {
-      openLog('dead');
+      sendLog();
+      return;
+    }
+    if (game.state === 'menu' && ev.target && ev.target.id === 'ptlink') {
+      openPlaytest();
       return;
     }
     if (game.state === 'dead' && ev.target && ev.target.id === 'menubtn') {
@@ -8843,72 +8851,110 @@ function setTimeLocked(v) {
   if (v && timeUses >= 6) el.timebtn.classList.remove('hint');   // lesson learned
 }
 
-// --- the run log panel (src/runlog.js): a playtest report, sent as a
-// pre-filled GitHub issue, copied, or shared. Opened from the pause menu or
-// the death screen; closing it goes back to whichever it came from.
-let logFrom = null;
-// THE TAP THAT OPENS THE PANEL MUST NOT PRESS A BUTTON IN IT. The pause menu
-// acts on pointerdown, the panel appears under the same finger, and the click
-// that follows the lift lands on whatever is there now — SEND TO GITHUB.
-let logOpenedAt = 0;
-const logGhost = (ev) => {
-  if (performance.now() - logOpenedAt < 500) { ev.preventDefault(); ev.stopPropagation(); return true; }
+// --- SEND LOG (src/runlog.js). One tap: the run's log is posted to the repo
+// as a `playtest` issue in the background, and a toast says how it went. The
+// first time, a card asks for the GitHub key this device will post with (it
+// is kept on the device and nowhere else); the report is queued before the
+// card opens, so nothing is lost if the setup is abandoned.
+//
+// THE TAP THAT OPENS A CARD MUST NOT PRESS A BUTTON IN IT: menus here act on
+// pointerdown, the card appears under the same finger, and the click that
+// follows the lift lands on whatever is there now.
+let cardOpenedAt = 0;
+const ghostTap = (ev) => {
+  if (performance.now() - cardOpenedAt < 500) { ev.preventDefault(); ev.stopPropagation(); return true; }
   return false;
 };
-function openLog(from) {
-  logFrom = from;
-  logOpenedAt = performance.now();
-  if (from === 'pause') el.pausemenu.style.display = 'none';
-  const $ = (id) => document.getElementById(id);
-  $('logsum').textContent = runlog.summary();
-  $('logstatus').textContent = '';
-  logRefreshLink();
-  el.logpanel.style.display = 'flex';
+let toastT = 0;
+function toast(text, ms = 2800) {
+  const t = document.getElementById('logtoast');
+  if (!t) return;
+  t.textContent = text;
+  t.classList.add('on');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('on'), ms);
 }
-function closeLog() {
-  el.logpanel.style.display = 'none';
-  if (logFrom === 'pause' && game.state === 'paused') el.pausemenu.style.display = 'flex';
-  logFrom = null;
+function sayResult(r) {
+  if (r.sent) toast(r.number ? `LOG SENT · #${r.number}` : 'LOG SENT');
+  else if (r.error === 'bad key') toast('GITHUB REFUSED THE KEY · SET IT AGAIN', 4000);
+  else if (r.error === 'no key') toast('LOG SAVED · ADD A KEY TO SEND IT', 3500);
+  else toast('LOG SAVED · IT WILL SEND WHEN ONLINE', 3500);
 }
-function logNote() { return (document.getElementById('lognote').value || '').trim(); }
-function logRefreshLink() { document.getElementById('logsend').href = runlog.issueUrl(logNote()); }
-function logSay(t) { document.getElementById('logstatus').textContent = t; }
-(function wireLog() {
+let sendingUntil = 0;
+async function sendLog() {
+  if (performance.now() < sendingUntil) return;   // one report per tap, not per bounce
+  sendingUntil = performance.now() + 3000;
+  if (!runlog.hasKey()) {
+    await runlog.send();          // queued now; it goes once there is a key
+    openKeyCard();
+    return;
+  }
+  toast('SENDING LOG…', 10000);
+  sayResult(await runlog.send());
+}
+function openKeyCard() {
+  cardOpenedAt = performance.now();
+  document.getElementById('keyin').value = '';
+  el.keycard.style.display = 'flex';
+}
+function closeKeyCard() { el.keycard.style.display = 'none'; }
+async function saveKey() {
+  const k = document.getElementById('keyin').value.trim();
+  if (!k) { toast('PASTE THE KEY FIRST'); return; }
+  runlog.setKey(k);
+  closeKeyCard();
+  toast('SENDING LOG…', 10000);
+  const r = await runlog.flush();
+  if (r.error === 'bad key') runlog.setKey(null);   // do not keep a key that does not work
+  sayResult(r);
+  refreshPlaytest();
+}
+
+// --- THE PLAYTEST MENU: the vertical slice from the title screen. Floor 1
+// from door 1, straight to the Keeper, the intro cards shown again, sight on
+// or off, and the log. Shown while PLAYTEST.on (balance.js).
+let playtestJump = null;   // 'keeper': initHall starts on the Keeper's leg
+function refreshPlaytest() {
   const $ = (id) => document.getElementById(id);
-  if (!$('logpanel')) return;
-  $('lognote').addEventListener('input', logRefreshLink);
-  $('logsend').addEventListener('click', (ev) => {
-    if (logGhost(ev)) return;
-    logRefreshLink();
-    runlog.ev('report', { via: 'github' });
-    logSay('Opening GitHub. Tap Submit there to send it.');
+  if (!$('ptmenu')) return;
+  $('ptbuild').textContent = `build ${BUILD}` + (runlog.pending() ? ` · ${runlog.pending()} log(s) waiting` : '');
+  $('ptsight').textContent = 'SIGHT: ' + (sightForced === false ? 'OFF' : 'ON');
+  $('ptkey').textContent = 'GITHUB KEY: ' + (runlog.hasKey() ? 'SET · TAP TO FORGET' : 'NOT SET');
+}
+function openPlaytest() {
+  cardOpenedAt = performance.now();
+  refreshPlaytest();
+  el.ptmenu.style.display = 'flex';
+}
+function closePlaytest() { el.ptmenu.style.display = 'none'; }
+function startPlaytest(kind) {
+  closePlaytest();
+  game.mode = 'hall';
+  setTutorArmed(false);
+  pendingResumeDoor = kind === 'keeper' ? KEEPER.door : 1;
+  playtestJump = kind;
+  runlog.ev('playtest', { start: kind });
+  startRunFromMenu();
+}
+(function wirePlaytest() {
+  const $ = (id) => document.getElementById(id);
+  if (!$('ptmenu')) return;
+  const on = (id, fn) => $(id).addEventListener('click', (ev) => { if (!ghostTap(ev)) fn(); });
+  on('keysave', saveKey);
+  on('keyclose', closeKeyCard);
+  on('ptfloor', () => startPlaytest('floor'));
+  on('ptkeeper', () => startPlaytest('keeper'));
+  on('ptcards', () => { carded.clear(); saveProgress(); toast('INTRO CARDS WILL SHOW AGAIN'); });
+  on('ptsight', () => { sightForced = sightForced === false ? null : false; refreshPlaytest(); });
+  on('ptsend', () => sendLog());
+  on('ptkey', () => {
+    if (runlog.hasKey()) { runlog.setKey(null); toast('KEY FORGOTTEN'); refreshPlaytest(); }
+    else openKeyCard();
   });
-  $('logcopy').addEventListener('click', async (ev) => {
-    if (logGhost(ev)) return;
-    const t = runlog.text(logNote());
-    try { await navigator.clipboard.writeText(t); logSay('Copied. Paste it into a message to Claude.'); }
-    catch {
-      // no clipboard: put it in the note box, selected, so a long-press copies it
-      const n = $('lognote'); n.value = t; n.focus(); n.select();
-      logSay('Copy was blocked. The log is in the box above, selected: copy it from there.');
-    }
-  });
-  $('logshare').addEventListener('click', async (ev) => {
-    if (logGhost(ev)) return;
-    const t = runlog.text(logNote());
-    try {
-      const file = new File([t], 'timeshatter-run.txt', { type: 'text/plain' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Time Shatter run log' });
-      } else if (navigator.share) {
-        await navigator.share({ title: 'Time Shatter run log', text: t });
-      } else { logSay('Sharing is not available here. Use COPY FULL LOG.'); return; }
-      logSay('Shared.');
-    } catch (e) {
-      if (!e || e.name !== 'AbortError') logSay('Sharing failed. Use COPY FULL LOG.');
-    }
-  });
-  $('logclose').addEventListener('click', (ev) => { if (!logGhost(ev)) closeLog(); });
+  on('ptclose', closePlaytest);
+  if (!PLAYTEST.on) $('ptlink').style.display = 'none';
+  // anything a failed send left waiting goes as soon as the game is up
+  if (runlog.hasKey() && runlog.pending()) setTimeout(() => runlog.flush().then((r) => { if (r.sent) toast('WAITING LOGS SENT'); }), 4000);
 })();
 
 // --- pause: freezes the whole simulation; settings + end run live inside
@@ -11485,7 +11531,8 @@ const el = {
   score: document.getElementById('score'),
   menubtn: document.getElementById('menubtn'),
   logbtn: document.getElementById('logbtn'),
-  logpanel: document.getElementById('logpanel'),
+  keycard: document.getElementById('keycard'),
+  ptmenu: document.getElementById('ptmenu'),
   pausebtn: document.getElementById('pausebtn'),
   pausemenu: document.getElementById('pausemenu'),
   settings: document.getElementById('settings'),
@@ -13770,8 +13817,11 @@ function initHall(from = 1) {
   hall = { legs: [], grid: new Set(), cur: 0, doorsPassed: door - 1,
     checkpoint: { x: 0, z: 0 },
     legInDoor: 0, legsThisDoor: doorLegs(door), mem: newRunMemory(unlocks) };
+  // PLAYTEST: SKIP TO THE KEEPER starts on his leg, not on the corridor before it
+  if (playtestJump === 'keeper' && door === KEEPER.door) hall.legInDoor = hall.legsThisDoor - 1;
+  playtestJump = null;
   const proto0 = forced(composeProtocol(door, lifetimeDoors, hall.mem));
-  if (keeperLeg(door, 0)) keeperProto(proto0);
+  if (keeperLeg(door, hall.legInDoor)) keeperProto(proto0);
   hall.legs.push(buildHallLeg(0, 0, proto0));
   recordMetProto(hall.legs[0].proto);   // leg 1 counts too; only 2+ used to
   applyLegVisibility(true);             // leg 1 starts in its own weather
@@ -14275,6 +14325,10 @@ function crossHallDoor() {
       // lines the player reached door 81 with no button and no meter and the
       // whole school firing volleys at somebody who could not answer them.
       if (!taught) tutorRevealButton();
+    } else if (doorDone && game.mode === 'hall' && hall.keeperTaken
+        && hall.doorsPassed + 1 === KEEPER.door + 1) {
+      // FLOOR 1 IS BEHIND YOU: the Keeper's door was its last (docs/ARSENAL.md §1)
+      showBanner('FLOOR 2', 2400);
     } else if (!openedModes.length) {
       // ...and when a mode opened, the mode IS the headline: the shape of the
       // corridor can wait for the next door.
@@ -16815,9 +16869,8 @@ window.__ts = {
     ghost: GHOST_MAT.visible ? +GHOST_MAT.opacity.toFixed(2) : 0 }),
   aimHit, aimMiss, aimSet: (n) => { aimStreak.n = n; aimStreak.spent = -1; },
   setSight: (v) => { sightForced = v === null ? null : !!v; },
-  runlog: () => ({ summary: runlog.summary(), text: runlog.text(), url: runlog.issueUrl('probe note'),
-    log: runlog.current() }),
-  openLog, closeLog,
+  runlog: () => ({ summary: runlog.summary(), text: runlog.text(), log: runlog.current() }),
+  sendLog, openPlaytest, startPlaytest, runlogPending: () => runlog.pending(),
   keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
   meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,

@@ -1,21 +1,40 @@
 import { boot, done } from './lib.mjs';
-// THE RUN LOG (src/runlog.js): a playtest report.
+// SEND LOG AND THE PLAYTEST MENU (src/runlog.js).
 //
-// A run started from the menu is recorded — doors, kills, misses, the death
-// and what caused it — and kept on disk, so the report is still there on the
-// death screen. RUN LOG on the pause menu and SEND RUN LOG on the death screen
-// open the panel; its GitHub link is a pre-filled issue on the repo, short
-// enough to open, carrying the note and the summary.
+// A run from the menu is recorded — a kill, a miss, the pause, the death and
+// its cause — and saved as it goes. SEND LOG is one tap: the first time it
+// queues the report and asks once for this device's GitHub key; after that it
+// posts the log to the repo as a `playtest` issue in the background and says
+// so. A send that fails waits in an outbox. The title's PLAYTEST menu starts
+// straight on the Keeper's leg.
+//
+// GitHub is never called: `fetch` is replaced in the page and every request
+// is recorded, so the probe checks what WOULD have been posted.
 const SEED = () => { try { const now = Date.now();
   localStorage.setItem('timeshard_taught', '1'); localStorage.setItem('ts_deepest_door', '40');
   localStorage.setItem('ts_s0_used', '1'); localStorage.setItem('ts_s0_mode', 'hall');
   localStorage.setItem('ts_s0_doors', '40'); localStorage.setItem('ts_s0_rdoor', '1');
   localStorage.setItem('ts_s0_at', String(now - 3e5)); localStorage.setItem('ts_s0_born', String(now - 9e6));
-  localStorage.setItem('ts_s0_carded', JSON.stringify(['rusher', 'shotgunner']));
+  localStorage.setItem('ts_s0_carded', JSON.stringify(['rusher', 'shotgunner', 'blinker']));
   localStorage.setItem('ts_saves', JSON.stringify([{ i: 0, name: '', num: 1, mode: 'hall' }]));
-} catch {} };
+} catch {}
+  // GitHub, stubbed: record every request, answer as the issues API would
+  window.__posts = [];
+  window.__offline = false;
+  const real = window.fetch;
+  window.fetch = async (url, opt) => {
+    if (String(url).startsWith('https://api.github.com/')) {
+      if (window.__offline) throw new TypeError('Failed to fetch');
+      window.__posts.push({ url: String(url), auth: opt.headers.Authorization, body: JSON.parse(opt.body) });
+      return { ok: true, status: 201, json: async () => ({ number: 40 + window.__posts.length }) };
+    }
+    return real(url, opt);
+  };
+};
 const { browser, page, errs } = await boot({ seed: SEED });
 const bad = (m) => console.log('FAIL ' + m);
+const toast = () => page.evaluate(() => document.getElementById('logtoast').textContent);
+const shown = (id) => page.evaluate((id) => getComputedStyle(document.getElementById(id)).display !== 'none', id);
 await page.waitForTimeout(1600);
 await page.tap('.go');
 await page.waitForFunction(() => document.getElementById('overlay').classList.contains('hidden'),
@@ -47,66 +66,83 @@ await page.evaluate(async () => {
   await shoot(3);
 });
 
-// ---- the pause menu opens the panel -----------------------------------------
+// ---- first SEND LOG, no key yet: queued, and the one-time card ------------
 await page.evaluate(() => { document.getElementById('pausebtn').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); });
 await page.waitForTimeout(300);
-const paused = await page.evaluate(() => window.__ts.game.state);
-if (paused !== 'paused') bad('the pause button did not pause: ' + paused);
 await page.tap('#plog');
-await page.waitForTimeout(300);
-let p = await page.evaluate(() => ({
-  open: getComputedStyle(document.getElementById('logpanel')).display === 'flex',
-  sum: document.getElementById('logsum').textContent,
-  href: document.getElementById('logsend').getAttribute('href') || '',
-}));
-console.log('from pause:    open=' + p.open + ' href=' + p.href.slice(0, 70) + '…');
-if (!p.open) bad('RUN LOG on the pause menu did not open the panel');
-const ghost = await page.evaluate(() => document.getElementById('logstatus').textContent);
-if (ghost) bad('the tap that opened the panel also pressed a button in it: ' + ghost);
-if (!/Kills: gunner 1/.test(p.sum)) bad('the summary does not count the kill: ' + p.sum);
-if (!/accuracy 50%/.test(p.sum)) bad('the summary does not show one hit in two shots: ' + p.sum);
-if (!p.href.startsWith('https://github.com/onlinestuff4me-sketch/timeshard/issues/new?')) bad('the send link is not a new issue on the repo');
-// typing a note goes into the link
-await page.fill('#lognote', 'the second round missed on purpose');
-p = await page.evaluate(() => decodeURIComponent(document.getElementById('logsend').getAttribute('href')));
-if (!p.includes('the second round missed on purpose')) bad('the note is not in the issue');
-if (p.length > 8000) bad('the issue link is too long to open: ' + p.length);
-await page.waitForTimeout(500);   // past the panel's ghost-click guard
-await page.tap('#logclose');
+await page.waitForTimeout(400);
+let st = await page.evaluate(() => ({ card: getComputedStyle(document.getElementById('keycard')).display,
+  waiting: window.__ts.runlogPending(), posts: window.__posts.length }));
+console.log('no key yet:    ' + JSON.stringify(st));
+if (st.card !== 'flex') bad('the first SEND LOG did not ask for a key');
+if (st.waiting !== 1) bad('the report was not queued before the card opened: ' + st.waiting);
+if (st.posts) bad('something was posted with no key');
+
+// ---- the key, once: the queued report goes, in the background ------------
+await page.waitForTimeout(500);   // past the card's ghost-tap guard
+await page.fill('#keyin', 'github_pat_TESTKEY');
+await page.tap('#keysave');
+await page.waitForFunction(() => window.__posts.length >= 1, null, { timeout: 5000 }).catch(() => {});
 await page.waitForTimeout(200);
-const back = await page.evaluate(() => ({
-  panel: getComputedStyle(document.getElementById('logpanel')).display,
-  pause: getComputedStyle(document.getElementById('pausemenu')).display }));
-if (back.panel !== 'none' || back.pause !== 'flex') bad('closing the panel did not return to the pause menu: ' + JSON.stringify(back));
+let posts = await page.evaluate(() => window.__posts);
+console.log('after the key: ' + posts.length + ' post(s), toast "' + await toast() + '"');
+if (posts.length !== 1) bad('the queued report was not sent once the key was saved');
+else {
+  const p = posts[0];
+  if (!p.url.endsWith('/repos/onlinestuff4me-sketch/timeshard/issues')) bad('posted to ' + p.url);
+  if (p.auth !== 'Bearer github_pat_TESTKEY') bad('not posted with the saved key');
+  if (!(p.body.labels || []).includes('playtest')) bad('the issue is not labelled playtest');
+  if (!/Kills: gunner 1/.test(p.body.body)) bad('the report does not count the kill');
+  if (!/accuracy 50%/.test(p.body.body)) bad('the report does not show 1 hit in 2 shots');
+  if (!/ kill /.test(p.body.body) || !/ miss /.test(p.body.body)) bad('the events are not in the report');
+}
+if (!/LOG SENT/.test(await toast())) bad('no LOG SENT toast');
+if (await page.evaluate(() => window.__ts.runlogPending())) bad('the outbox was not emptied');
+if (!(await shown('pausemenu'))) bad('the pause menu did not stay up');
+
+// ---- offline: saved, and sent with the next one ---------------------------
+await page.evaluate(() => { window.__offline = true; });
+await page.waitForTimeout(3100);   // past the one-report-per-tap guard
+await page.tap('#plog');
+await page.waitForTimeout(600);
+st = await page.evaluate(() => ({ waiting: window.__ts.runlogPending(), posts: window.__posts.length }));
+console.log('offline:       ' + JSON.stringify(st) + ' toast "' + await toast() + '"');
+if (st.waiting !== 1) bad('an offline send was not kept for later');
+if (!/WILL SEND/.test(await toast())) bad('an offline send did not say it will send later');
+await page.evaluate(() => { window.__offline = false; });
 await page.tap('#presume');
 await page.waitForTimeout(300);
 
-// ---- a death is logged with its cause, and the death screen can send it ----
-await page.evaluate(() => {
-  const t = window.__ts;
-  t.player.iframes = 0;
-  const b = { by: 'probe' };
-  t.die(false);
-});
+// ---- the death screen: one tap sends both, and does not start a retry ----
+await page.evaluate(() => { window.__ts.player.iframes = 0; window.__ts.die(false); });
 await page.waitForFunction(() => getComputedStyle(document.getElementById('logbtn')).display !== 'none',
   null, { timeout: 8000 }).catch(() => {});
-const dead = await page.evaluate(() => {
-  const L = JSON.parse(localStorage.getItem('ts_runlog_last') || 'null');
-  return { btn: getComputedStyle(document.getElementById('logbtn')).display,
-    deaths: L && L.counts.deaths.length, kinds: L ? [...new Set(L.events.map((e) => e.k))] : [] };
-});
-console.log('after death:   ' + JSON.stringify(dead));
-if (dead.btn === 'none') bad('the death screen has no SEND RUN LOG');
-if (dead.deaths !== 1) bad('the death is not in the saved log');
-for (const k of ['kill', 'hit', 'miss', 'pause', 'death']) if (!dead.kinds.includes(k)) bad('no ' + k + ' event in the log');
-await page.waitForTimeout(1100);   // past the death screen's panic-tap lockout
+await page.waitForTimeout(3200);   // past the panic-tap lockout and the send guard
 await page.tap('#logbtn');
-await page.waitForTimeout(300);
-const fromDead = await page.evaluate(() => ({
-  open: getComputedStyle(document.getElementById('logpanel')).display === 'flex',
-  state: window.__ts.game.state }));
-if (!fromDead.open) bad('SEND RUN LOG on the death screen did not open the panel');
-if (fromDead.state !== 'dead') bad('tapping SEND RUN LOG started a retry: ' + fromDead.state);
+await page.waitForFunction(() => window.__posts.length >= 3, null, { timeout: 5000 }).catch(() => {});
+st = await page.evaluate(() => ({ posts: window.__posts.length, waiting: window.__ts.runlogPending(),
+  state: window.__ts.game.state,
+  death: /Deaths: door \d+ \(/.test(window.__posts[window.__posts.length - 1]?.body.body || '') }));
+console.log('death screen:  ' + JSON.stringify(st));
+if (st.posts !== 3) bad('the death screen did not send this run and the waiting one: ' + st.posts);
+if (st.waiting) bad('the outbox was not emptied');
+if (!st.death) bad('the death is not in the report');
+if (st.state !== 'dead') bad('SEND LOG started a retry: ' + st.state);
+
+// ---- PLAYTEST menu: straight onto the Keeper's leg -----------------------
+await page.tap('#menubtn');
+await page.waitForFunction(() => window.__ts.game.state === 'menu', null, { timeout: 8000 });
+await page.waitForTimeout(800);
+if (!(await shown('ptlink'))) bad('the title screen has no PLAYTEST button');
+await page.tap('#ptlink');
+await page.waitForTimeout(600);
+if (!(await shown('ptmenu'))) bad('PLAYTEST did not open its menu');
+await page.tap('#ptkeeper');
+await page.waitForFunction(() => window.__ts.game.state === 'play' || window.__ts.game.state === 'intro',
+  null, { timeout: 20000 });
+const k = await page.evaluate(() => ({ door: window.__ts.hall().doorsPassed + 1, keeper: !!window.__ts.keeper() }));
+console.log('skip to keeper: ' + JSON.stringify(k));
+if (k.door !== 9 || !k.keeper) bad('SKIP TO THE KEEPER did not start on his leg');
 
 done('runlog', errs);
 await browser.close();

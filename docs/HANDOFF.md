@@ -85,14 +85,23 @@ What is still owed is item 00 of `docs/BACKLOG.md`.
 **To play it:** a tunnel run reaching door 9 plays the Keeper on that door's
 second leg. Sight shows from the first 10 hits in a row.
 
-**Playtest reports come in as GitHub issues labelled `playtest`.** RUN LOG
-(pause menu) or SEND RUN LOG (death screen) opens a panel: a note, a summary,
-and SEND TO GITHUB, which opens a pre-filled issue on this repo that the owner
-submits. Nothing in the game holds a GitHub key; the owner's own sign-in does
-the posting. The issue carries the note, the summary and the last events that
-fit in a URL (~6.5 KB); COPY FULL LOG and SHARE carry all of it. Each report
-names its build (`BUILD` in `src/main.js`) — bump it when a playtest build
-goes out. The last run's log lives in localStorage as `ts_runlog_last`.
+**THE VERTICAL SLICE, and how it is tested (decided 2026-09-26: on `main`).**
+The title screen has a **PLAYTEST** button (`PLAYTEST.on` in `src/balance.js`;
+turn it off for a public release). It opens: PLAY FLOOR 1 (door 1, no
+tutorial), SKIP TO THE KEEPER (starts on door 9's last leg), RESET INTRO
+CARDS, SIGHT on/off, SEND LAST RUN'S LOG, and the GitHub key.
+
+**Playtest reports arrive as GitHub issues labelled `playtest`.** SEND LOG is
+one tap on the pause menu, on the death screen, or in the PLAYTEST menu: the
+run's log (summary plus every event) is POSTed to the repo's issues API in the
+background and a toast says LOG SENT · #n. The first tap asks once for a
+fine-grained GitHub token (this repo, Issues read/write) and keeps it in the
+device's localStorage (`ts_gh_token`) and nowhere else — a token in the
+public repo would be revoked by GitHub's secret scanning and readable by
+anyone. A send that fails waits in `ts_log_outbox` and goes with the next one,
+or on the next launch. Each report names its build (`BUILD` in
+`src/main.js`, now `slice-1`) — bump it when a playtest build goes out. Read
+the reports with the GitHub issues list, label `playtest`.
 
 **Red on this machine that is not the branch's:** `music` fails the same way
 on the commit before this work; `duelup` failed there in an earlier run.
