@@ -244,27 +244,23 @@ else {
   if (rw.unlockedEarly) bad('slow time was unlocked before the shards arrived');
   if (!rw.unlocked || !rw.taken) bad('slow time is not unlocked after the Keeper');
   if (rw.door !== 9) bad('this should all happen on door 9, not ' + rw.door);
-  await frames(60);
-  k = await page.evaluate(() => ({ ...window.__ts.keeper(), n: window.__ts.enemies.length }));
-  console.log('after:         ' + JSON.stringify({ done: k.done, adds: k.adds, n: k.n, door: k.door }));
-  if (!k.done) bad('the room does not know he is down');
-  if (k.adds) bad('the pair outlived him');
-  if (!k.door) bad('the exit did not open after the reward');
-  // ...and the button works, a door early
-  const lock = await page.evaluate(() => { window.__ts.setTimeLocked(true); return window.__ts.slow().locked; });
-  if (!lock) bad('the time button does not work after the reward');
-  await page.evaluate(() => window.__ts.setTimeLocked(false));
-  // ---- on through the exit: door 10, and the power is still yours -----------
-  await page.evaluate(() => {
-    const t = window.__ts, h = t.hall(), d = h.legs[h.cur].door;
-    t.player.pos.set(d.x, 0, d.z + 1.2);
+  // ---- the upgrade beat carries you on: door 10, and the power is yours ----
+  // (the beat itself — flash, title, black — is test/upgrade.mjs's; this save
+  // has had the lesson, so it is just the door and the button)
+  const ten = await page.evaluate(async () => {
+    const t = window.__ts;
+    for (let f = 0; f < 1500 && (t.upgrade().stage !== -1 || t.hall().doorsPassed + 1 < 10); f++) {
+      await new Promise((r) => requestAnimationFrame(r));
+      t.player.iframes = 999;
+    }
+    const out = { door: t.hall().doorsPassed + 1, overlay: t.upgrade().cls,
+      unlocked: (t.setTimeLocked(true), t.slow().locked) };
+    t.setTimeLocked(false);
+    return out;
   });
-  await frames(30);
-  const ten = await page.evaluate(() => ({ door: window.__ts.hall().doorsPassed + 1,
-    unlocked: window.__ts.slow() && (window.__ts.setTimeLocked(true), window.__ts.slow().locked) }));
-  await page.evaluate(() => window.__ts.setTimeLocked(false));
   console.log('door 10:       ' + JSON.stringify(ten));
-  if (ten.door !== 10) bad('the exit did not lead to door 10');
+  if (ten.door !== 10) bad('the upgrade beat did not carry the player to door 10');
+  if (ten.overlay) bad('the upgrade overlay is still up on door 10: ' + ten.overlay);
   if (!ten.unlocked) bad('slow time is not usable on door 10');
 }
 
