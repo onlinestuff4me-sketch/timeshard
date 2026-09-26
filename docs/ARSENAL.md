@@ -870,26 +870,26 @@ makes him different in one short line, and how to beat him outright:
 | type | what makes him different | tip (only where it isn't obvious) |
 |---|---|---|
 | gunner | no card (the onboarding is his) | – |
-| rusher | Unarmed. But he charges at you. | Watch out when his arm pulls back. |
+| rusher | He charges at you. | Watch out when his arm pulls back. |
 | shotgunner | Deadly up close. | Keep your distance. |
-| shield | His shield stops shots from the front. | Hit uncovered spots. Or get behind him. |
+| shield | His shield stops shots. | Hit uncovered areas. Or get behind him. |
 | heavy | Fires three rounds at a time. | – |
 | sniper | Slow to aim. His round is fast. | Move while he aims. |
-| bomber | Throws grenades at your feet. | Keep out of the red ring. |
+| bomber | Throws grenades. | Keep out of the red ring. |
 | armored | Body shots bounce off. | Aim for the head. |
 | rocketeer | His rocket follows you. | Put a wall between you and it. |
-| laser | Charges, then sweeps a beam across the room. | Cover does not stop it. Kill him first. |
-| **blinker** (the Keeper) | Dodges the moment you fire. | Fire to make him move, then at where he’ll be. |
+| laser | Beam sweeps across the room. | Cover does not stop it. Kill him quick. |
+| **blinker** (the Keeper) | Dodges the moment you fire. | Fire to make him move, then shoot where he’ll be. |
 | kamikaze *(not built)* | Explodes when he reaches you. | Shoot him near his friends. |
-| Frankenstein *(not built)* | Two guns. Only his arms break. | Shoot off each arm. |
+| Frankenstein *(not built)* | Two guns. Only his arms shatter. | Shoot off each arm. |
 | drone *(not built)* | While it flies, the others aim better. | – |
 | spawner *(not built)* | Brings shattered enemies back. | Break the dish while they are down. |
 
 The blurbs in `protocols.js` keep the building's voice; the cards do not.
 
-**Status: the owner's edits from the review page (2026-09-25) are in** — the
-rusher, shotgunner, shield, bomber and blinker in the game, and Frankenstein
-and drone above. Cards the owner left untouched keep the second draft. The
+**Status: the owner's edits from two review passes (2026-09-25 and -26) are
+in** — the rusher, shotgunner, shield, bomber, laser and blinker in the game,
+and Frankenstein and drone above. Cards the owner left untouched keep the second draft. The
 review page records no explicit approvals, so any card may still change.
 
 ---
