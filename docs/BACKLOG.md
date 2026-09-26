@@ -4,25 +4,35 @@
 
 Design: `docs/ARSENAL.md`. Built on branch `claude/time-shatter-design-rf8z87`
 and **live on `main` since 2026-09-26** as the playtest build (`PLAYTEST.on`
-and `SIGHT.playtest` are both on; turn them off for a public release). Built there: the weapon switcher (3 slots),
-the tempo streak, debut cards, the blinker, the Keeper's room on door 9 with
-slow time as his reward, and the no-misses streak with sight. Owed:
+and `SIGHT.playtest` are both on; turn them off for a public release). Built there: all five floors (9/7/7/7/9) with the
+elevator between them; the weapon switcher (3 slots, the pill a pickup would
+push out dims); the tempo streak; debut cards, and a small name tag over a
+known type on later runs; the blinker, kamikaze, Frankenstein, drone and
+spawner; the four bosses (Keeper → slow time, Frankenstein → the seeker, the
+drone → sight, the spawner → a second life) and the finale Keeper on door 39;
+the no-misses streak with sight (at 50 it also rings where the next wave
+stands up); the Mk II/III tier ladder with stronger drops; SEND LOG and the
+PLAYTEST menu. Owed:
 
 1. **Debut card copy:** the owner's first review pass is applied (seven cards
    edited, `docs/ARSENAL.md` §11). No card was explicitly approved, so the
    copy can still move; the review page is https://claude.ai/artifact/QGjhzcWe2tPfuCLybTCWEu
-2. **SIGHT.playtest is on**: sight is owned from door 1 of every tunnel run
-   because the drone boss that should give it does not exist. Turn it off
-   (`SIGHT.playtest = false` in `src/balance.js`) when he does.
-3. **Sight at 50 should also show where the next wave will assemble.** Not built.
-4. **No HUD count for the no-misses streak.** The design says the silhouettes
+2. **Playtest switches:** `SIGHT.playtest` (sight owned from door 1) and
+   `PLAYTEST.on` (the PLAYTEST menu) are on. Turn both off in
+   `src/balance.js` for a public release; the drone boss gives sight properly.
+3. **No HUD count for the no-misses streak.** The design says the silhouettes
    are the indicator; whether a number is also wanted is the owner's call.
-5. **The elevator** after the Keeper. Door 10 follows on foot as before.
-6. **The rest of the floors' bosses** (Frankenstein, drone, spawner), the
-   kamikaze, the drone, the spawner, and the finale Keeper (§14).
-7. **Switcher leftovers:** dim the pill a pickup would replace; the seeker slot.
-8. **Card leftovers:** the small name tag on returning runs (the old one-word
-   flash still plays), and the tier-up line under the door number.
+4. **The gauntlet** at the end of each floor, and the city window at the finale.
+5. **Tier leftovers:** the AP rifle, bomber III's two lobs, the rocketeer's
+   guided pair, laser tiers, the spawner's Mk II/III, and a look for a
+   higher-Mk enemy (today only his line under the door number says so).
+6. **Boss leftovers:** Frankenstein's twin-pistol drop; the spawner's hovering
+   debris (the ring carries it for now).
+7. **The seeker's switcher slot** is its own (it refills from kamikaze packs);
+   whether it should take one of the three is open.
+8. **The elevator is a beat, not a ride:** the screen darkens and names the
+   floor for 1.3 s while the run carries on under it. A real ride (a car, the
+   floor numbers ticking) is still open.
 9. **Pre-existing red on this machine:** `music` (bullet time does not duck the
    music, -0.3 dB) fails on the commit before the branch's work too; `duelup`
    failed on the base in an earlier run. Neither is caused by the branch;

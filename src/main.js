@@ -1347,6 +1347,28 @@ function meetClose() {
   if (el.meetcard) el.meetcard.classList.remove('on');
   if (el.meetpin) el.meetpin.classList.remove('on');
 }
+// THE NAME TAG over a type this save already knows, the first time a run meets
+// him — rides on him for a couple of seconds, then goes
+let nameTag = null;
+const _vTag = new THREE.Vector3();
+function placeNameTag() {
+  const tag = document.getElementById('nametag');
+  if (!tag) return;
+  const T = nameTag;
+  if (!T || performance.now() > T.until || !enemies.includes(T.e) || T.e.state === 'assemble' || meetCard.on) {
+    tag.classList.remove('on');
+    if (T && performance.now() > T.until) nameTag = null;
+    return;
+  }
+  const row = ELEMENTS.find((x) => x.id === T.e.type && x.kind === 'enemy');
+  tag.textContent = (row ? row.name : T.e.type.toUpperCase()) + (T.e.mk > 1 ? ROMAN[T.e.mk] : '');
+  _vTag.set(T.e.pos.x, 2.15 * T.e.g.scale.y, T.e.pos.z).project(camera);
+  if (_vTag.z > 1 || Math.abs(_vTag.x) > 1.1 || Math.abs(_vTag.y) > 1.1) { tag.classList.remove('on'); return; }
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  tag.style.left = ((_vTag.x * 0.5 + 0.5) * w) + 'px';
+  tag.style.top = ((-_vTag.y * 0.5 + 0.5) * h) + 'px';
+  tag.classList.add('on');
+}
 // the ring rides on him every frame the card is up (the camera may be moving
 // as the world stops)
 const _vMeet = new THREE.Vector3(), _vMeetUp = new THREE.Vector3();
@@ -1916,6 +1938,33 @@ function addGhosts(g) {
   }
 }
 let sightShown = 0;
+// SIGHT AT 50 (docs/ARSENAL.md §12) also shows where the next of them will
+// stand up: faint rings on the door approach, where the door group assembles,
+// while there is still a wave to come. Made at boot, never allocated in play.
+const NEXT_MAT = new THREE.MeshBasicMaterial({ color: 0xff2d1a, transparent: true, opacity: 0.35,
+  depthTest: false, depthWrite: false, side: THREE.DoubleSide });
+const nextRings = [];
+function updateNextRings(k) {
+  const L = hall && hall.legs && hall.legs[hall.cur];
+  const want = k >= 3 && game.mode === 'hall' && L && L.approach && game.spawnQueue.length > 0;
+  if (want && !nextRings.length) {
+    for (let i = 0; i < 3; i++) {
+      const m = new THREE.Mesh(REVIVE_RING_GEO, NEXT_MAT);
+      m.rotation.x = -Math.PI / 2;
+      m.renderOrder = 6;
+      scene.add(m);
+      nextRings.push(m);
+    }
+  }
+  for (let i = 0; i < nextRings.length; i++) {
+    const cell = want && L.approach[Math.min(i, L.approach.length - 1)];
+    nextRings[i].visible = !!cell;
+    if (cell) {
+      nextRings[i].position.set(cell[0] * HALL.cell, 0.05, cell[1] * HALL.cell);
+      nextRings[i].scale.setScalar(1.6 + 0.2 * Math.sin(performance.now() / 300 + i));
+    }
+  }
+}
 function updateSight() {
   const k = game.state === 'play' || game.state === 'intro' ? (sightOwned() ? sightTier() : 0) : 0;
   if (k !== sightShown && (game.state === 'play' || game.state === 'intro')) {
@@ -1924,6 +1973,7 @@ function updateSight() {
   sightShown = k;
   GHOST_MAT.visible = k > 0;
   if (k > 0) GHOST_MAT.opacity = SIGHT.ghost[k - 1];
+  updateNextRings(k);
 }
 
 function killBullet(i, sparkAt) {
@@ -2852,6 +2902,9 @@ function removePickup(i) {
 }
 
 function updatePickups(dt, sdt) {
+  // the pill a nearby pickup would push out: redrawn only when that changes
+  const po = wouldPushOut();
+  if (po !== pushOutShown) { pushOutShown = po; updateAmmoHud(); }
   for (let i = pickups.length - 1; i >= 0; i--) {
     const p = pickups[i];
     p.t += dt;
@@ -4102,8 +4155,10 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
              && (simple() || carded.has(type))) {
     // ...the name flash is for a type this save already knows. A new one gets
     // the debut card when he stands up (meetMaybe), and a flash now would
-    // name him twice.
-    warnFlash([type.toUpperCase() + '.']);   // silent card: the name is enough
+    // name him twice. IN THE TUNNEL it is a small name tag over him instead
+    // (docs/ARSENAL.md §11): a returning player is told who, not stopped.
+    if (game.mode === 'hall') nameTag = { e: enemies[enemies.length - 1], until: performance.now() + 2600 };
+    else warnFlash([type.toUpperCase() + '.']);   // silent card: the name is enough
   }
   seen[type] = true;
   return true;   // ...and `false` from the early return that refuses a spot
@@ -4895,6 +4950,20 @@ function warmupDoor() {
 // what you hold that the HUD should say while you hold it (a second life)
 function hudPowers(sep) {
   return hall && hall.secondLife && !hall.secondLifeUsed ? `${sep}2ND LIFE` : '';
+}
+// THE ELEVATOR (docs/ARSENAL.md §1): between floors the screen goes dark for
+// a beat and says where you are going — the ride, not a cut. It never takes
+// input; the run carries on under it.
+let elevatorT = 0;
+function elevator(n) {
+  const e = document.getElementById('elevator');
+  if (!e) return;
+  e.querySelector('b').textContent = `FLOOR ${n}`;
+  e.classList.add('on');
+  sfx.airlock();
+  vibrate([20, 60, 20]);
+  clearTimeout(elevatorT);
+  elevatorT = setTimeout(() => e.classList.remove('on'), 1300);
 }
 // THE TIER-UP LINE (decided: secondary to the door number): "GUNNER MK II ·
 // FIRES IN PAIRS", small, under the headline, on the door a tier arrives
@@ -12807,6 +12876,19 @@ function updateAmmoHud() {
 // under it one pill per slot — filled for a gun you carry, ringed for the one
 // in your hand, hollow for an empty slot, faint for a gun that is out of
 // rounds. Subtle on purpose: it is read at a glance, between fights.
+// WHICH SLOT A PICKUP ON THE FLOOR NEAR YOU WOULD PUSH OUT, or -1: a new gun
+// with the bag full evicts the oldest find (never the pistol) — see bagPut —
+// and the pill for it dims before you walk over it, so the choice is seen
+function wouldPushOut() {
+  if (!switcherOn() || player.bag.length < SWITCHER.slots) return -1;
+  const near = pickups.some((p) => p.type !== CLIP && !bagFind(p.type)
+    && Math.hypot(p.g.position.x - player.pos.x, p.g.position.z - player.pos.z) < 7);
+  if (!near) return -1;
+  let i = player.bag.length - 1;
+  while (i > 0 && player.bag[i].type === 'pistol') i--;
+  return i;
+}
+let pushOutShown = -1;
 function switcherHud(spec, name) {
   let line;
   if (player.weapon === 'knife') line = 'KNIFE · NO AMMO';
@@ -12822,9 +12904,11 @@ function switcherHud(spec, name) {
   const l = can ? '<b class="sw" data-dir="-1">◀</b>' : '';
   const r = can ? '<b class="sw" data-dir="1">▶</b>' : '';
   let pills = '';
+  const out = wouldPushOut();
   for (let i = 0; i < SWITCHER.slots; i++) {
     const b = player.bag[i];
-    const cls = !b ? 'pill empty' : b.type === player.weapon ? 'pill on' : bagLoaded(b) ? 'pill' : 'pill dry';
+    const cls = (!b ? 'pill empty' : b.type === player.weapon ? 'pill on' : bagLoaded(b) ? 'pill' : 'pill dry')
+      + (i === out ? ' out' : '');
     pills += `<i class="${cls}"></i>`;
   }
   // the tempo count rides beside the pills once it is worth something
@@ -15202,7 +15286,10 @@ function crossHallDoor() {
     // last floor's boss is behind you (docs/ARSENAL.md §1)
     const newFloor = doorDone && game.mode === 'hall'
       && floorOf(hall.doorsPassed + 1).first === hall.doorsPassed + 1;
-    if (newFloor) showBanner(`FLOOR ${floorOf(hall.doorsPassed + 1).floor}`, 2400);
+    if (newFloor) {
+      showBanner(`FLOOR ${floorOf(hall.doorsPassed + 1).floor}`, 2400);
+      elevator(floorOf(hall.doorsPassed + 1).floor);
+    }
     // THE NEW POWER GETS THE FRAME TO ITSELF. On the door it unlocks, the
     // headline is what just arrived rather than what the corridor is shaped
     // like — and the button makes the same entrance the onboarding used to
@@ -17455,6 +17542,7 @@ function frame(now) {
   if (tutorStep !== null) tutorPlaceWorldCue();
   if (game.mode === 'duel') duelPlaceMeetPins();
   placeMeetPin();
+  placeNameTag();
   updateSight();   // the no-misses streak, shown through walls if sight is yours
 
   renderFrame(dt);
@@ -17788,6 +17876,8 @@ window.__ts = {
   sendLog, openPlaytest, startPlaytest, runlogPending: () => runlog.pending(),
   seekers: () => seekers.length, seekerRefill, droneMarking, revives: () => revives.length,
   tierLine, wspec: () => ({ ...wspec(), mk: player.mk || 1 }), mkHere,
+  nextRings: () => nextRings.filter((m) => m.visible).length, wouldPushOut,
+  nameTag: () => { const t = document.getElementById('nametag'); return t && t.classList.contains('on') ? t.textContent : null; },
   // one enemy round from (x, z) at the player, for a harness that needs a
   // round in the air without waiting on the room's shot clock
   enemyRound: (x, z) => {

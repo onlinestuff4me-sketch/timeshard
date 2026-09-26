@@ -44,8 +44,10 @@ school keeps its own gap on door 10); the door map drives `TYPE_INTRO`
 (armored 18, kamikaze 20, rocketeer 22, laser 32); a type a boss debuts
 (`BOSS_TYPES`, `byBoss` in protocols) joins the next floor's cast with no door
 debut of its own; and each floor's last leg is its boss's room once that boss
-is built (`bossLeg()`). Checked by `test/floors.mjs`. Not built: the elevator
-itself, and the gauntlet.
+is built (`bossLeg()`). Checked by `test/floors.mjs`. The elevator is a beat
+(`elevator()`): crossing onto a floor's first door darkens the screen for
+1.3 s and names the floor, while the run carries on under it; checked by
+`test/leftovers.mjs`. Not built: the gauntlet, and a real ride.
 
 **Decided: each floor has its own cast, and every floor ends in a boss who
 introduces the next floor's hardest type.** The boss is the big version, met
@@ -782,7 +784,7 @@ leg (`keeperTick()`, `KEEPER`, `test/keeper.mjs`): the seal, the pair on its
 3 s loop, his own fire clock, three hits and three phases, the phase-3 time
 stop, and the reward (his shards hang, stream into you, and the button
 arrives on door 9; door 10 is still slow time's first room and the school
-runs from there). **Not built:** the elevator. Calls made while building it:
+runs from there). The elevator beat follows him (§1). Calls made while building it:
 a wall cuts his blink short (down to 0.9 m) rather than cancelling it; the
 shotgunners stand in from the start rather than arriving in phase 2 (the room
 section below overrides the phase table); a shotgun shell takes at most one
@@ -901,9 +903,10 @@ They scale by **how many at once**:
 RETREAT keeps its own cards). Code: `meetMaybe()` in `src/main.js`, the copy
 as `meet`/`hint` on each enemy row in `src/protocols.js`, remembered per save
 (`carded`), checked by `test/meetcard.mjs`. The gunner has no card: the
-onboarding introduces him. Not built yet: the small name tag on returning
-runs (the old one-word name flash still plays there), and the tier-up line
-under the door number, which waits for the tiers themselves.
+onboarding introduces him. On later runs a type this save knows gets a small
+name tag riding over him for 2.6 s the first time the run meets him
+(`placeNameTag()`; the city and rush keep the one-word flash); the tier-up
+line sits under the door number (§4). Checked by `test/leftovers.mjs`.
 
 **Decided: every new enemy type is announced.** The machinery exists. NO
 RETREAT stops the world on a type's first appearance and shows a card
@@ -958,10 +961,10 @@ makes him different in one short line, and how to beat him outright:
 | rocketeer | His rocket follows you. | Put a wall between you and it. |
 | laser | Beam sweeps across the room. | Cover does not stop it. Kill him quick. |
 | **blinker** (the Keeper) | Dodges the moment you fire. | Fire to make him move, then shoot where he’ll be. |
-| kamikaze *(not built)* | Explodes when he reaches you. | Shoot him near his friends. |
-| Frankenstein *(not built)* | Two guns. Only his arms shatter. | Shoot off each arm. |
-| drone *(not built)* | While it flies, the others aim better. | – |
-| spawner *(not built)* | Brings shattered enemies back. | Break the dish while they are down. |
+| kamikaze | Explodes when he reaches you. | Shoot him near his friends. |
+| Frankenstein | Two guns. Only his arms shatter. | Shoot off each arm. |
+| drone | While it flies, the others aim better. | – |
+| spawner | Brings shattered enemies back. | Break the dish while they are down. |
 
 The blurbs in `protocols.js` keep the building's voice; the cards do not.
 
@@ -1044,8 +1047,10 @@ building it: one trigger pull is one shot however many pellets; a burst
 weapon's rounds are each their own shot; a launcher shell is a hit if its
 blast shatters anyone; landing on the Keeper without killing him is a hit;
 a round that flies off into the distance and expires is a miss; the streak
-is the run's (a new run starts at 0, a retry keeps it). Not built: the next
-wave's assembly spot at 50, and any HUD count (the owner's call).
+is the run's (a new run starts at 0, a retry keeps it). At 50, while a wave
+is still to come, three faint red rings mark the door approach where it will
+stand up (`updateNextRings()`, checked by `test/leftovers.mjs`). Not built:
+any HUD count (the owner's call).
 After the drone boss, a run of hits without a miss lets you see through walls:
 
 | hits in a row | what you see |
@@ -1158,9 +1163,10 @@ the switcher, each guard is taken with the best gun you carry:
 
 **Built** (tunnel, city and rush; the simplified modes keep one gun). Code:
 `switcherOn()` through `bagTake()` in `src/main.js`, numbers in `SWITCHER` in
-`src/balance.js`, checked by `test/switcher.mjs`. Not built yet: dimming the
-pill a new pickup would push out, and the seeker's slot (it waits for the
-seeker).
+`src/balance.js`, checked by `test/switcher.mjs`. With the bag full, the pill
+a gun on the floor within 7 m would push out dims before you walk over it
+(`wouldPushOut()`, checked by `test/leftovers.mjs`). The seeker keeps its own
+slot and refills from kamikaze packs (§ seeker).
 
 **Decided: you keep the guns you find and swipe between them.** Today a pickup
 is the one gun you hold, plus clips. With a switcher, *take his gun* stops

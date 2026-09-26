@@ -79,8 +79,8 @@ What is still owed is item 00 of `docs/BACKLOG.md`.
 - **Debut cards are plain words**, not the building's riddles: what makes him
   different, and a tip only where it is not obvious. The owner's first review
   pass (on an approve-or-edit page) is applied; the copy can still move.
-- **Sight is on from door 1 for playtesting** (`SIGHT.playtest`), because the
-  drone boss that should give it is not built.
+- **Sight is on from door 1 for playtesting** (`SIGHT.playtest`); the drone
+  boss on door 23 gives it properly. Turn it off for a public release.
 - **Streak counting:** one trigger pull is one shot however many pellets; plate,
   armor and a blinker's dodged bait are misses; the streak lasts the run.
 

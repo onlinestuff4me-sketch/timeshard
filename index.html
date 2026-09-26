@@ -310,6 +310,16 @@
   body.slowmo #pausebtn { color:#8a909a; }
 
   /* pause + settings modals share the how-to card look */
+  #elevator { position:fixed; inset:0; z-index:12; pointer-events:none; opacity:0;
+            display:flex; align-items:center; justify-content:center;
+            background:rgba(10,11,13,.82); transition:opacity .35s ease; }
+  #elevator.on { opacity:1; }
+  #elevator b { color:#eef0f3; font-size:22px; font-weight:900; letter-spacing:.4em; }
+  #nametag { position:fixed; z-index:9; pointer-events:none; display:none; transform:translate(-50%, -100%);
+            font-size:10px; font-weight:900; letter-spacing:.22em; color:#fff; padding:3px 7px;
+            background:rgba(22,24,29,.62); border-radius:999px; white-space:nowrap; }
+  #nametag.on { display:block; }
+  #ammo .pill.out { opacity:.18; transform:scale(.7); }
   /* THE TIER-UP LINE: secondary to the door number, under it */
   .tierline { display:block; font-size:.42em; letter-spacing:.18em; margin-top:.55em; opacity:.85; }
   #keycard, #ptmenu { position:fixed; inset:0; z-index:16; display:none;
@@ -1608,6 +1618,9 @@
   <div id="ptclose" class="pbtn">CLOSE</div>
 </div></div>
 <div id="logtoast"></div>
+<!-- THE ELEVATOR between floors, and the name tag over a known type -->
+<div id="elevator"><b>FLOOR 2</b></div>
+<div id="nametag"></div>
 
 <div id="htp">
   <div class="htpcard">
