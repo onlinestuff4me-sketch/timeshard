@@ -94,9 +94,12 @@ fit in a URL (~6.5 KB); COPY FULL LOG and SHARE carry all of it. Each report
 names its build (`BUILD` in `src/main.js`) — bump it when a playtest build
 goes out. The last run's log lives in localStorage as `ts_runlog_last`.
 
-**Red on this machine that is not the branch's:** `music` and `fire` fail the
-same way on the commit before this work; `duelup` failed there in an earlier
-run. `blinker`, `keeper` and `tempo` failed under the full suite until they
+**Red on this machine that is not the branch's:** `music` fails the same way
+on the commit before this work; `duelup` failed there in an earlier run.
+**Walker probes must seed every type as met** (`ts_s0_carded`): a debut card
+stops the world until a tap, and a walker never taps — `fire` was blamed on
+the machine for a week for exactly that. `rooms` also stops at door 8 now,
+because door 9's last leg is the Keeper. `blinker`, `keeper` and `tempo` failed under the full suite until they
 were made to wait on game state rather than wall time (`docs/TESTING.md`).
 
 ---

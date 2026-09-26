@@ -23,9 +23,11 @@ slow time as his reward, and the no-misses streak with sight. Owed:
 8. **Card leftovers:** the small name tag on returning runs (the old one-word
    flash still plays), and the tier-up line under the door number.
 9. **Pre-existing red on this machine:** `music` (bullet time does not duck the
-   music, -0.3 dB) and `fire` (doors 5 and 8 never open past leg 1) fail on
-   the commit before the branch's work too; `duelup` failed on the base in an
-   earlier run. None is caused by the branch; none has been root-caused.
+   music, -0.3 dB) fails on the commit before the branch's work too; `duelup`
+   failed on the base in an earlier run. Neither is caused by the branch;
+   neither has been root-caused. (`fire` was listed here and was wrong: it was
+   the debut card stopping the world at door 4 with a walker that never taps.
+   `fire` and `rooms` now seed every type as met and pass.)
 
 ## Game Center — ACHIEVEMENTS and LEADERBOARDS
 

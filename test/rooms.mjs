@@ -37,9 +37,15 @@ const SEED = () => { try { const now = Date.now();
   localStorage.setItem('ts_s0_used', '1'); localStorage.setItem('ts_s0_mode', 'hall');
   localStorage.setItem('ts_s0_doors', '30'); localStorage.setItem('ts_s0_rdoor', '1');
   localStorage.setItem('ts_s0_at', String(now - 3e5)); localStorage.setItem('ts_s0_born', String(now - 9e6));
+  // EVERY TYPE ALREADY MET: a debut card stops the world until a tap, and a
+  // walker never taps — it stood at the rusher's first door for the rest of
+  // the run. The cards have their own probe (meetcard.mjs).
+  localStorage.setItem('ts_s0_carded', JSON.stringify(['rusher', 'shotgunner', 'shieldbearer', 'heavy', 'sniper', 'bomber', 'armored', 'rocketeer', 'laser', 'blinker']));
   localStorage.setItem('ts_saves', JSON.stringify([{ i: 0, name: '', num: 1, mode: 'hall' }]));
 } catch {} };
-const LAST = 9;
+// NOT DOOR 9: its last leg is the Keeper's room (docs/ARSENAL.md §10), a boss
+// fight a walker cannot win and that funds no room. keeper.mjs plays it.
+const LAST = 8;
 const { browser, page, errs } = await boot({ seed: SEED });
 const bad = (m) => console.log('FAIL ' + m);
 await page.waitForTimeout(1600);

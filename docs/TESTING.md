@@ -81,6 +81,16 @@ await page.evaluate(async () => {
 The same applies to any threshold: wait for the bank to reach the floor, not
 for the number of seconds you think it takes.
 
+## A card that waits for a tap stops every walker
+
+The debut card (docs/ARSENAL.md §11) holds the world at zero until a touch.
+A probe that walks doors never touches, so the first time a save meets a type
+the walk simply stops — no error, just a door that never opens and a table of
+zeros from there on. `fire.mjs` read as "machine timing" for days because of
+it. Any probe that walks the tunnel past door 3 seeds `ts_s0_carded` with
+every type (see `rooms.mjs`), and any that reaches door 9 either stops at 8 or
+expects the Keeper's room.
+
 ## The trap that hid a whole feature
 
 `seal.js` verified "the player cannot walk back through it" by pushing

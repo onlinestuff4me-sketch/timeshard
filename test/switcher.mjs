@@ -49,6 +49,9 @@ if (!s.took || s.hand !== 'shotgun') bad('the shotgun was not taken into the han
 if (s.bag.map((b) => b.type).join() !== 'shotgun,pistol') bad('bag order is not most-recent-first: ' + s.bag.map((b) => b.type));
 
 // ---- a clip is pistol ammo, and no longer a downgrade or a refusal -------
+// (the pistol's shelf starts full, so empty it a little first)
+await page.evaluate(() => { window.__ts.player.reserve.pistol = 1; });
+s = await state();
 const clipsBefore = s.bag.find((b) => b.type === 'pistol').clips;
 s = await walkOver('clip');
 console.log('shotgun, over a clip:     ' + JSON.stringify(s));
