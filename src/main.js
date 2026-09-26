@@ -16,7 +16,7 @@ import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, 
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
   doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT, PLAYTEST,
-  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI, FRANK } from './balance.js';
+  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI, FRANK, DRONE } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -2947,7 +2947,37 @@ const limbProf2 = (len, r0, r1, r2) => [
   { y: -len, rx: r2, rz: r2 * 0.92, jm: 0.4 },
 ];
 
+// THE DRONE'S BODY: a flat hull with four rotor arms and its own light
+// (PILLARS §6: a blackout cannot hide it), hung at `hover` over its own
+// feet so the group stays on the floor like every other body. The limb
+// groups every body has are here too, empty, so the walk and aim code has
+// something to turn.
+function buildDroneMesh(size = 1, hover = DRONE.hover) {
+  const g = new THREE.Group();
+  const hull = new THREE.Group();
+  hull.position.y = hover;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.42 * size, 0.16 * size, 0.42 * size), MAT_GUNMETAL);
+  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.16 * size, 0.08 * size, 0.06 * size), MAT_WHITEFLASH);
+  eye.position.set(0, -0.02 * size, 0.22 * size);
+  hull.add(body, eye);
+  for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.34 * size, 0.04 * size, 0.05 * size), MAT_BLACK);
+    arm.position.set(dx * 0.26 * size, 0.05 * size, dz * 0.26 * size);
+    arm.rotation.y = dx * dz > 0 ? -Math.PI / 4 : Math.PI / 4;
+    const rotor = new THREE.Mesh(new THREE.BoxGeometry(0.26 * size, 0.015 * size, 0.04 * size), EM(0xc8281a));
+    rotor.position.set(dx * 0.36 * size, 0.09 * size, dz * 0.36 * size);
+    rotor.userData.rotor = true;
+    hull.add(arm, rotor);
+  }
+  g.add(hull);
+  const E = () => { const x = new THREE.Group(); g.add(x); return x; };
+  const legL = E(), legR = E(), armL = E(), armR = E(), shinL = E(), shinR = E();
+  return { g, legL, legR, armL, armR, egun: null, egunL: null, chest: eye, hull,
+    shinL, shinR, kneeRest: 0, armLock: true, armRLock: true, armLRest: 0, armRRest: 0,
+    egunBaseMat: MAT_BLACK, foreL: armL, foreR: armR };
+}
 function buildEnemyMesh(type) {
+  if (type === 'drone') return buildDroneMesh();
   const g = new THREE.Group();
   const P = { ...EP };
   // per-type builds: the heavy is broader everywhere, the bomber pear-shaped
@@ -3359,6 +3389,8 @@ const ENEMY_TYPES = {
   kamikaze: { speed: KAMI.speed, scale: [1.02, 0.96, 1.02], drop: 0, unarmed: true },
   // two guns that fire together; only his arms can be shot away — see frankHit
   frankenstein: { speed: 1.5, scale: [1.1, 1.06, 1.1], drop: 0, aimTime: 0.7, cd: [1.5, 0.9], mul: 1, pellets: 1, twin: true },
+  // fires nothing: while he is up, the others lead you — see droneMarking
+  drone: { speed: DRONE.speed, scale: [1, 1, 1], drop: 0, unarmed: true, flyer: true },
 };
 const unarmed = (t) => t === 'rusher' || !!(ENEMY_TYPES[t] && ENEMY_TYPES[t].unarmed);
 
@@ -3916,7 +3948,7 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
   const sy = spec.scale[1], sxz = spec.scale[0];
   // target points sampled from the REAL body-part boxes, so the finished
   // swarm matches the model's silhouette and the reveal is near-seamless
-  const PARTS = [
+  const PARTS = type === 'drone' ? [[1, 0, DRONE.hover, 0.6, 0.2, 0.6]] : [
     [0.45, 0, 1.12, 0.44, 0.62, 0.26],     // weight, cx, cy, w, h, d — torso
     [0.12, 0, 1.62, 0.26, 0.28, 0.26],     // head
     [0.10, 0, 0.74, 0.38, 0.20, 0.24],     // hips
@@ -4408,10 +4440,13 @@ function enemyFire(e, toPlayer) {
   lastEnemyShotAt = worldT;   // the room's shot floor: everyone else waits
   const origin = _v2.set(e.pos.x, 1.35, e.pos.z).addScaledVector(toPlayer, 0.45);
   // shots go where you ARE — if you don't slide out of the way, they connect
+  // ...unless a drone is watching: then they go where you are GOING
+  const lead = droneMarking() ? DRONE.lead * Math.hypot(player.pos.x - origin.x, player.pos.z - origin.z)
+    / Math.max(1, enemyBulletSpeed() * (spec.mul || 1)) : 0;
   const target = _v3.set(
-    player.pos.x + (Math.random() - 0.5) * 0.24,
+    player.pos.x + player.vel.x * lead + (Math.random() - 0.5) * 0.24,
     EYE_HEIGHT - 0.25 + (Math.random() - 0.5) * 0.24,
-    player.pos.z + (Math.random() - 0.5) * 0.24
+    player.pos.z + player.vel.z * lead + (Math.random() - 0.5) * 0.24
   );
   const baseDir = target.sub(origin).normalize();
   if (spec.twin) {
@@ -5199,6 +5234,7 @@ function updateEnemy(e, sdt) {
       return;   // not hittable, not moving, not shooting yet
     }
     case 'advance': {
+      if (e.type === 'drone') { droneMove(e, sdt, dist, toPlayer); break; }
       if (e.type === 'kamikaze') {
         // his slot in the pack: set off KAMI.gap after the man before him
         if (e.kGo === undefined) { e.kGo = Math.max(worldT, kamiNext); kamiNext = e.kGo + KAMI.gap; }
@@ -5632,6 +5668,53 @@ function updateBlink(e) {
 }
 
 // ---------------------------------------------------------------------------
+// THE DRONE (docs/ARSENAL.md §8; DRONE in balance.js). It keeps its band —
+// closing when far, backing off when near, drifting sideways between — at
+// hover height, rotors turning. It never fires. While one is up and formed,
+// droneMarking() is true and every round aims into your motion.
+// ---------------------------------------------------------------------------
+function droneMarking() {
+  return enemies.some((e) => e.type === 'drone' && e.state !== 'assemble' && e.alive);
+}
+function droneMove(e, sdt, dist, toPlayer) {
+  const [near, far] = DRONE.keep;
+  const sp = e.speed;   // the boss's is set per phase (droneHurt)
+  let fx = 0, fz = 0;
+  if (dist > far) { fx = toPlayer.x; fz = toPlayer.z; }
+  else if (dist < near) { fx = -toPlayer.x; fz = -toPlayer.z; }
+  // A SPOTTER HOVERS STILL inside its band: one that jinked would never be
+  // the first target (§8). Only the boss drifts, and jinks once hurt.
+  if (e.boss) {
+    e.strafeT -= sdt;
+    if (e.strafeT <= 0) { e.strafe *= -1; e.strafeT = (e.bossPhase || 1) > 1 ? 0.5 + Math.random() : 2 + Math.random() * 2; }
+    fx += -toPlayer.z * e.strafe * 0.6; fz += toPlayer.x * e.strafe * 0.6;
+  }
+  const n = Math.hypot(fx, fz);
+  if (n > 1e-6) {
+    e.pos.x += (fx / n) * sp * sdt;
+    e.pos.z += (fz / n) * sp * sdt;
+  }
+  resolveEnemyCollisions(e);
+  if (e.hull) {
+    e.hull.position.y = (e.hoverY || DRONE.hover) + Math.sin(worldT * 2.2 + (e.walkPhase || 0)) * 0.06;
+    e.hull.traverse((m) => { if (m.userData.rotor) m.rotation.y += sdt * 40; });
+  }
+}
+function droneHurt(e, at) {
+  e.hp--;
+  e.bossPhase = (e.bossPhase || 1) + 1;
+  e.speed = DRONE.bossSpeed[Math.min(DRONE.bossSpeed.length - 1, e.bossPhase - 1)];
+  const L = hall && hall.legs[hall.cur];
+  if (L && L.boss) L.boss.phase = e.bossPhase;
+  spawnSparks(at, 0xf4f5f7);
+  spawnShatter(at, _v1.set(0, 0.5, 0), Math.round(SHATTER.perKill * 0.25));
+  sfx.clank();
+  vibrate([20, 30, 20]);
+  runlog.ev('drone-hit', { phase: e.bossPhase });
+  showBanner('FASTER', 1000);
+}
+
+// ---------------------------------------------------------------------------
 // FRANKENSTEIN (docs/ARSENAL.md §8; FRANK in balance.js; PILLARS §2). There is
 // no health: every hit changes what he does. A round that meets an arm takes
 // it and its gun; one that meets the plate clanks (a miss, for the streak).
@@ -5760,7 +5843,7 @@ function keeperLeg(door, legIx) {
 // WHICH BOSS, IF ANY, OWNS THIS LEG: the last leg of a floor's last door
 // (docs/ARSENAL.md §1). Only bosses that are built answer; the rest of the
 // floors end in an ordinary leg until theirs is.
-const BOSSES_BUILT = new Set(['keeper', 'frankenstein']);
+const BOSSES_BUILT = new Set(['keeper', 'frankenstein', 'drone']);
 function bossLeg(door, legIx) {
   if (game.mode !== 'hall' || tutorStep !== null || tutorShaping) return null;
   const f = floorOf(door);
@@ -5793,13 +5876,18 @@ const keeperAt = (L, [dx, dz]) => ({ x: (L.spine[0][0] + dx) * HALL.cell, z: (L.
 // EACH BOSS'S ADDS CARRY HIS ANSWER (docs/ARSENAL.md §12): the Keeper's pair
 // of shotgunners (the cone's re-aim), Frankenstein's pair of bombers (the
 // launcher takes both arms in one aim)
-const BOSS_ADDS = { keeper: 'shotgunner', frankenstein: 'bomber' };
+// ...and the drone's gunners (it steers them) with a shotgunner (the cone,
+// for a target overhead)
+const BOSS_ADDS = { keeper: ['shotgunner', 'shotgunner'], frankenstein: ['bomber', 'bomber'],
+  drone: ['gunner', 'gunner', 'shotgunner'] };
+const ADD_SPOTS = [...KEEPER_ADDS, [0, 11.6]];   // the third stands BEHIND the boss, not in the lane to him
 function keeperSpawnAdds(L) {
   const B = L.boss;
-  const type = BOSS_ADDS[B.kind] || 'shotgunner';
+  const types = BOSS_ADDS[B.kind] || BOSS_ADDS.keeper;
   B.adds = [];
-  for (const spot of KEEPER_ADDS) {
-    spawnEnemy(type, keeperAt(L, spot));
+  for (let i = 0; i < types.length; i++) {
+    const type = types[i];
+    spawnEnemy(type, keeperAt(L, ADD_SPOTS[i]));
     const a = enemies[enemies.length - 1];
     a.drops = TYPE_DROP[type];   // each one leaves the answer behind
     B.adds.push(a);
@@ -5818,9 +5906,36 @@ function frankStart(L) {
   runlog.ev('frank-start');
   keeperSpawnAdds(L);
 }
+function droneBossStart(L) {
+  const B = L.boss;
+  const at = keeperAt(L, KEEPER_SPOT);
+  // built directly rather than by spawnEnemy's type table: the boss is the
+  // same kind of thing at a size the table does not know
+  spawnEnemy('drone', at);
+  const k = enemies[enemies.length - 1];
+  scene.remove(k.g);
+  const big = buildDroneMesh(DRONE.bossSize, DRONE.bossHover);
+  big.g.position.copy(k.g.position);
+  big.g.visible = k.g.visible;
+  addGhosts(big.g);
+  scene.add(big.g);
+  Object.assign(k, big, { pos: big.g.position });
+  k.boss = 'drone';
+  k.droneSize = DRONE.bossSize;
+  k.hoverY = DRONE.bossHover;
+  k.hp = DRONE.bossHp;
+  k.bossPhase = 1;
+  k.speed = DRONE.bossSpeed[0];
+  k.engageDist = 60;
+  B.keeper = k;
+  B.phase = 1;
+  runlog.ev('drone-start');
+  keeperSpawnAdds(L);
+}
 function keeperStart(L) {
   const B = L.boss;
   if (B.kind === 'frankenstein') { frankStart(L); return; }
+  if (B.kind === 'drone') { droneBossStart(L); return; }
   spawnEnemy('blinker', keeperAt(L, KEEPER_SPOT));
   const k = enemies[enemies.length - 1];
   k.boss = 'keeper';
@@ -5944,8 +6059,16 @@ function keeperRewardTick(B, dt) {
       return;
     }
     R.given = true;
-    hall.keeperTaken = true;
     keeperStopUntil = 0;
+    if (B.kind === 'drone') {
+      // SIGHT (docs/ARSENAL.md §12): the no-misses streak now shows through walls
+      hall.sightTaken = true;
+      runlog.ev('boss-reward', { power: 'sight' });
+      showBanner('SIGHT', 2400);
+      vibrate([15, 30, 15, 30, 40]);
+      return;
+    }
+    hall.keeperTaken = true;
     runlog.ev('keeper-reward');
     slowBank = SLOWMO.base;
     updateSlowMeter();
@@ -6323,6 +6446,16 @@ function updateBullets(sdt) {
         if (e.state === 'assemble') continue;   // still thin air — no hitbox
         const sy = e.g.scale.y, sx = Math.max(e.g.scale.x, 1);
         // head first: a sphere around the skull (bigger on armored units)
+        if (e.type === 'drone') {
+          const size = e.droneSize || 1, hy = e.hoverY || DRONE.hover;
+          const rr = DRONE.hitR * size;
+          if (segPointDistSq(b.prev, b.pos, e.pos.x, hy, e.pos.z) >= rr * rr) continue;
+          if (b.shot) b.shot.hit = true;
+          if (e.hp > 1) { droneHurt(e, b.pos); consumed = true; break; }
+          killEnemy(j, _v1.copy(b.vel).normalize());
+          consumed = true;
+          break;
+        }
         if (e.type === 'frankenstein') {
           const r = frankHit(e, b);
           if (r === 'miss') continue;
@@ -9287,6 +9420,7 @@ function startPlaytest(kind) {
   on('ptfloor', () => startPlaytest('floor'));
   on('ptkeeper', () => startPlaytest('keeper'));
   on('ptfrank', () => startPlaytest('frankenstein'));
+  on('ptdrone', () => startPlaytest('drone'));
   on('ptcards', () => { carded.clear(); saveProgress(); toast('INTRO CARDS WILL SHOW AGAIN'); });
   on('ptsight', () => { sightForced = sightForced === false ? null : false; refreshPlaytest(); });
   on('ptsend', () => sendLog());
@@ -16858,7 +16992,8 @@ function frame(now) {
     : inHall() && hall
       ? (hall.legs[hall.cur].door.open
           ? `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}OPEN \u2014 GO`
-          : `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`)
+          : `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`
+            + (droneMarking() ? `${SEP}MARKED` : ''))
       : game.state === 'play' && left > 0
         ? `WAVE ${game.wave}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`
         : `WAVE ${game.wave}${SEP}${game.kills}`;
@@ -17238,7 +17373,7 @@ window.__ts = {
   setSight: (v) => { sightForced = v === null ? null : !!v; },
   runlog: () => ({ summary: runlog.summary(), text: runlog.text(), log: runlog.current() }),
   sendLog, openPlaytest, startPlaytest, runlogPending: () => runlog.pending(),
-  seekers: () => seekers.length, seekerRefill,
+  seekers: () => seekers.length, seekerRefill, droneMarking,
   keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
   meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,

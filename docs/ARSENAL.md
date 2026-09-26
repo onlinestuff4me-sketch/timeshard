@@ -615,6 +615,18 @@ Plated head to foot, a gun in each hand, both firing together.
 
 ### Drone
 
+**Built (2026-09-26), Mk I and the floor-3 boss:** `DRONE` in
+`src/balance.js`, `droneMove()`/`droneMarking()` in `src/main.js`, checked by
+`test/drone.mjs`. The spotter hovers still at 2.45 m, holds 7–11 m, never
+fires; while one is up the HUD reads MARKED and every round aims into your
+motion (measured: 4.2 m ahead of a player moving sideways at 4 m/s from 12 m).
+One round on the hull brings it down. The boss on door 23's last leg is the
+same hull at 2.4×, four hits, faster each time and jinking once hurt, with two
+gunners and a shotgunner on a loop (the third stands behind him, out of the
+lane); his reward is SIGHT, streamed into you (`hall.sightTaken`).
+`SIGHT.playtest` is still on, so sight is owned from door 1 until the owner
+turns that off.
+
 Head-sized, just above head height.
 
 - **Height is the axis a portrait screen has.** The camera is 80° vertical

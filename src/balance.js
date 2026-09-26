@@ -93,15 +93,15 @@ export const TEMPO = {
 // was it, and it joins the ordinary cast from the next floor's first door.
 export const TYPE_INTRO = {
   gunner: 1, rusher: 4, shotgunner: 6, shieldbearer: 8, blinker: 9, heavy: 11,
-  sniper: 13, bomber: 15, frankenstein: 16, armored: 18, kamikaze: 20, rocketeer: 22, laser: 32,
+  sniper: 13, bomber: 15, frankenstein: 16, armored: 18, kamikaze: 20, rocketeer: 22, drone: 23, laser: 32,
 };
-export const BOSS_TYPES = ['blinker', 'frankenstein'];   // debuted by a boss, not a door
+export const BOSS_TYPES = ['blinker', 'frankenstein', 'drone'];   // debuted by a boss, not a door
 
 // Veteran fill after the debut: [share, cap] -> min(cap, floor(total/share)).
 export const TYPE_SHARE = {   // veteran shooter fill: floor(total/share), capped
   shotgunner: [4, 4], heavy: [5, 3], shieldbearer: [8, 2],
   sniper: [7, 2], bomber: [6, 2], armored: [9, 2], rocketeer: [8, 2],
-  blinker: [9, 2], kamikaze: [6, 4], frankenstein: [10, 1],
+  blinker: [9, 2], kamikaze: [6, 4], frankenstein: [10, 1], drone: [12, 1],
 };
 
 // The weapon each enemy was carrying — what they leave on the floor.
@@ -2032,4 +2032,16 @@ export const FRANK = {
   fire: 1.4,           // world-s between the boss's pairs
   addsBack: 3,
   rushSpeed: 3.4,
+};
+
+// THE DRONE (docs/ARSENAL.md §8, §12). Mk I is a spotter: head-sized, just
+// above head height, fires nothing — and while one is up, every other man
+// LEADS you (`lead`: how much of your own motion they aim into). It hovers
+// to watch, keeping `keep` metres off; a spotter that jinked would never be
+// the first target. The floor-3 boss is the same thing the size of a car,
+// taking `bossHp` hits, faster each time, with gunners it steers and a
+// shotgunner on a loop (the cone, for a target overhead). His reward is SIGHT.
+export const DRONE = {
+  hover: 2.45, keep: [7, 11], speed: 2.2, hitR: 0.3, lead: 1.0,
+  bossSize: 2.4, bossHover: 2.05, bossHp: 4, bossSpeed: [1.6, 2.4, 3.2, 4.0],
 };
