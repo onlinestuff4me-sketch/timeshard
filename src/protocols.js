@@ -114,18 +114,21 @@ export const ELEMENTS = [
   { id: 'bomber', name: 'BOMBER', kind: 'enemy', tier: 3, minDoor: 15, unlockAt: 0, weight: 4, impl: true,
     blurb: 'Area denial. The floor is the weapon.',
     meet: 'Throws grenades.', hint: 'Keep out of the red ring.' },
-  { id: 'armored', name: 'ARMORED', kind: 'enemy', tier: 3, minDoor: 17, unlockAt: 0, weight: 3, impl: true,
+  { id: 'armored', name: 'ARMORED', kind: 'enemy', tier: 3, minDoor: 18, unlockAt: 0, weight: 3, impl: true,
     blurb: 'Body plated. The head was not considered a risk.',
     meet: 'Body shots bounce off.', hint: 'Aim for the head.' },
-  { id: 'rocketeer', name: 'ROCKETEER', kind: 'enemy', tier: 4, minDoor: 19, unlockAt: 0, weight: 3, impl: true,
+  { id: 'kamikaze', name: 'KAMIKAZE', kind: 'enemy', tier: 3, minDoor: 20, unlockAt: 0, weight: 3, impl: true,
+    blurb: 'Personnel carrier, single use. Keep the distance.',
+    meet: 'Explodes when he reaches you.', hint: 'Shoot him near his friends.' },
+  { id: 'rocketeer', name: 'ROCKETEER', kind: 'enemy', tier: 4, minDoor: 22, unlockAt: 0, weight: 3, impl: true,
     blurb: 'Guided munition. It will follow. Break the line.',
     meet: 'His rocket follows you.', hint: 'Put a wall between you and it.' },
-  { id: 'laser', name: 'LASER', kind: 'enemy', tier: 4, minDoor: 21, unlockAt: 0, weight: 2, impl: true,
+  { id: 'laser', name: 'LASER', kind: 'enemy', tier: 4, minDoor: 32, unlockAt: 0, weight: 2, impl: true,
     blurb: 'Sweep emitter. Cover is irrelevant. Kill it.',
     meet: 'Beam sweeps across the room.', hint: 'Cover does not stop it. Kill him quick.' },
-  // Not composed into waves (impl: false): he arrives with the floor-1 boss,
-  // who is one, and the floors after it. The row is here for his card.
-  { id: 'blinker', name: 'BLINKER', kind: 'enemy', tier: 4, minDoor: 99, unlockAt: 0, weight: 0, impl: false,
+  // BY A BOSS: the Keeper is the first blinker, so the type has no door debut
+  // of its own (byBoss) and joins the ordinary cast from floor 2 (door 10).
+  { id: 'blinker', name: 'BLINKER', kind: 'enemy', tier: 4, minDoor: 10, unlockAt: 0, weight: 0, impl: true, byBoss: true,
     blurb: 'Reads the trigger. Moves before the round does.',
     meet: 'Dodges the moment you fire.', hint: 'Fire to make him move, then shoot where he’ll be.' },
 
@@ -231,7 +234,7 @@ export function composeProtocol(door, lifetimeDoors, mem, rand = Math.random) {
   // protocol debut stands down for one door rather than sharing it. One new
   // thing per door is still the rule — this only decides which one.
   const dueEnemy = ELEMENTS.filter((e) => e.kind === 'enemy' && eligible(e) &&
-    !mem.seen.has(e.id) && e.minDoor === door);
+    !mem.seen.has(e.id) && e.minDoor === door && !e.byBoss);   // a boss was his debut
   //
   // ...AND THE TWO SCHEDULES KEEP THEIR OWN COOLDOWNS. They used to share one
   // (`lastDebutDoor`), which an enemy debut also set — so once types landed

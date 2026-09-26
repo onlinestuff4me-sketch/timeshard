@@ -36,6 +36,17 @@ The ladder, `--waves` and `--schedule` exit non-zero if anything leaves its band
 
 ## 1. Floors and elevators
 
+**Built (2026-09-26):** `FLOORS`, `floorOf()` and `BOSS_OF_FLOOR` in
+`src/balance.js`; the HUD leads with the floor (`F2 · DOOR 11`); a new floor
+is announced on its first door; the warm-up door eases the room (`WARMUP`:
+three-quarters of the men up at once, a 30% longer shot gap — the slow-time
+school keeps its own gap on door 10); the door map drives `TYPE_INTRO`
+(armored 18, kamikaze 20, rocketeer 22, laser 32); a type a boss debuts
+(`BOSS_TYPES`, `byBoss` in protocols) joins the next floor's cast with no door
+debut of its own; and each floor's last leg is its boss's room once that boss
+is built (`bossLeg()`). Checked by `test/floors.mjs`. Not built: the elevator
+itself, and the gauntlet.
+
 **Decided: each floor has its own cast, and every floor ends in a boss who
 introduces the next floor's hardest type.** The boss is the big version, met
 once, as the type's debut. The next floor then fills with ordinary ones.
@@ -499,6 +510,15 @@ room, and R (bank per kill ÷ refund).
 For scale: two gunners firing together cost 2.45 per pair.
 
 ### Kamikaze
+
+**Built (2026-09-26), Mk I:** `KAMI` in `src/balance.js`, `kamiBurst()` in
+`src/main.js`, checked by `test/kamikaze.mjs`. A pack of five sets off 0.35 s
+apart; he arms 3.5 m out and bursts 0.5 s later, taking everything inside the
+radius. Two calls made building him: **shot, he still pops** — his friends
+inside the radius go, you do not (the card's tip, "Shoot him near his
+friends") — and **he is exempt from the door-approach hold** that keeps a
+leg's last few waiting at the door: coming to you is his act. Debuts on door
+20 as the door map has it (the ladder table below predates the map).
 
 **Decided: his own type, not the rusher's Mk II.** Both come at you and both
 get harder by **numbers**: how many, and how tightly their timers are

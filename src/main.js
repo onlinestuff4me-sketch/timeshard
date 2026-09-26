@@ -15,7 +15,8 @@ import * as THREE from '../lib/three.module.min.js';
 import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, TIME, LEG, SHATTER,
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
-  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT, PLAYTEST } from './balance.js';
+  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT, PLAYTEST,
+  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -2864,12 +2865,16 @@ function buildEnemyMesh(type) {
   // per-type builds: the heavy is broader everywhere, the bomber pear-shaped
   if (type === 'heavy') { P.shld *= 1.18; P.waist *= 1.22; P.chest *= 1.15; P.hip *= 1.1; P.armt *= 1.3; P.legt *= 1.15; }
   if (type === 'bomber') { P.waist *= 1.35; P.hip *= 1.12; P.chest *= 1.12; }
+  // the kamikaze is top-heavy — a barrel of a chest on short legs — so he
+  // reads as "not a rusher" across a room before either of them moves
+  if (type === 'kamikaze') { P.shld *= 1.25; P.waist *= 1.45; P.chest *= 1.35; P.hip *= 0.95; P.legt *= 1.1; P.armt *= 1.15; }
   const seed = 1 + Math.floor(Math.random() * 97);
   const jit = P.jit, m = P.musc;
   const C = type === 'armored' ? { body: 0x3a3d45, chest: 0x3a3d45, pelvis: 0x33363d, head: 0xe03222 }
     : type === 'sniper' ? { body: 0xb81205, chest: 0xa21507, pelvis: 0x8c1004, head: 0xc8281a }
     : type === 'rusher' ? { body: 0xe0321f, chest: 0xe83a26, pelvis: 0xc8281a, head: 0xf5533f }
     : type === 'blinker' ? { body: 0xb01d12, chest: 0xc8281a, pelvis: 0x8c1004, head: 0xe03222 }
+    : type === 'kamikaze' ? { body: 0x7a0f06, chest: 0xff5a1f, pelvis: 0x5e0b04, head: 0x8c1004 }
     : { body: 0xc8281a, chest: 0xd3291b, pelvis: 0xa21507, head: 0xe03222 };
   const M = { body: EM(C.body), chest: EM(C.chest), pelvis: EM(C.pelvis), head: EM(C.head) };
   const lean = P.lean + (type === 'rusher' ? 0.22 : 0);   // the rusher stalks hunched
@@ -3001,7 +3006,7 @@ function buildEnemyMesh(type) {
       fa.add(palm, thumb);
     }
   };
-  const handheld = type !== 'rusher' && type !== 'rocketeer' && type !== 'laser';
+  const handheld = type !== 'rusher' && type !== 'rocketeer' && type !== 'laser' && type !== 'kamikaze';
   addHand(AL.fore, -1, false);
   addHand(AR.fore, 1, type === 'rocketeer' || (handheld && type !== 'bomber'));
   let egun = null;
@@ -3256,7 +3261,10 @@ const ENEMY_TYPES = {
   laser: { speed: 0.9, scale: [1, 1, 1], drop: 0, aimTime: 2.6, cd: [5.0, 1.5], mul: 1, pellets: 1, engage: [30, 6], laser: true },
   // blinks aside the frame you fire at him, then is spent — see BLINKER
   blinker: { speed: 2.2, scale: [0.94, 1.02, 0.94], drop: 0, aimTime: 0.6, cd: [1.4, 0.8], mul: 1, pellets: 1, blinker: true },
+  // no gun: he runs at you, arms, and bursts — see KAMI and updateKamikaze
+  kamikaze: { speed: KAMI.speed, scale: [1.02, 0.96, 1.02], drop: 0, unarmed: true },
 };
+const unarmed = (t) => t === 'rusher' || !!(ENEMY_TYPES[t] && ENEMY_TYPES[t].unarmed);
 
 function pointInObstacle(x, z, pad) {
   for (const o of obstacles) {
@@ -4158,6 +4166,7 @@ function killEnemy(i, impulseDir) {
   }
   if (game.state !== 'menu') vibrate(15);   // every kill lands in the thumb
   e.shatterPieces = spawnShatter(e.pos, impulseDir);
+  if (e.type === 'kamikaze' && !e.bursting) queueMicrotask(() => kamiBurst(e, false));
   runlog.ev('kill', { type: e.boss || e.type, gun: player.weapon });
   const drop = ENEMY_TYPES[e.type].drop;
   const kind = TYPE_DROP[e.type];
@@ -4165,7 +4174,7 @@ function killEnemy(i, impulseDir) {
   // Only someone who was carrying a gun can leave ammo behind. A rusher
   // comes at you with his hands, so a pistol clip dropping off his body was
   // loot appearing from nowhere.
-  const armed = e.type !== 'rusher';
+  const armed = !unarmed(e.type);
   // SCARCITY: the tap closes with depth. This is the lever the whole game
   // hangs off — once clips stop arriving you start hiding, picking shots and
   // spending the freeze to line them up, which is the actual game.
@@ -4649,7 +4658,20 @@ function shotGap() {
   const d = hall ? hall.doorsPassed + 1 : 1;
   const t = Math.max(0, Math.min(1,
     (d - OPENING.gapDoors) / Math.max(1, OPENING.gapBy - OPENING.gapDoors)));
-  return OPENING.gapFrom + (OPENING.gapTo - OPENING.gapFrom) * t;
+  return (OPENING.gapFrom + (OPENING.gapTo - OPENING.gapFrom) * t) * (warmupDoor() ? WARMUP.gap : 1);
+}
+// THE FIRST DOOR OUT OF AN ELEVATOR (docs/ARSENAL.md §1): floors 2 and on
+// open a notch easier — see WARMUP. The tunnel only; the simplified modes
+// have no floors.
+function warmupDoor() {
+  if (game.mode !== 'hall' || !hall) return false;
+  const d = hall.doorsPassed + 1, f = floorOf(d);
+  return f.floor > 1 && d === f.first;
+}
+// the HUD's floor, in the tunnel only: "F2 · DOOR 11 · ..."
+function floorTag() {
+  if (game.mode !== 'hall' || !hall) return '';
+  return `F${floorOf(hall.doorsPassed + 1).floor}\u00A0\u00A0\u00B7\u00A0\u00A0`;
 }
 // A door's budget, split across its legs — weighted to the LAST of them, so
 // walking deeper into a door is walking into more of it rather than less.
@@ -4825,7 +4847,7 @@ function schoolOpenVolley() {
   if (aiming >= want) { schoolVolleyT = worldT; return; }
   const ready = [];
   for (const e of enemies) {
-    if (e.state !== 'advance' || e.type === 'rusher') continue;
+    if (e.state !== 'advance' || unarmed(e.type)) continue;
     if ((e.seenT || 0) <= RAMP.sightGrace) continue;       // they get to SEE him
     const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
     if (d >= e.engageDist) continue;
@@ -5011,6 +5033,7 @@ function updateEnemy(e, sdt) {
   e.stateT += sdt;
   e.fireCd -= sdt;
   if (e.type === 'blinker') updateBlink(e);
+  if (e.type === 'kamikaze') kamiPulse(e);
 
   let moveSpeed = 0;
 
@@ -5018,7 +5041,7 @@ function updateEnemy(e, sdt) {
 
   // a burst, once started, always completes — no melee interrupt mid-volley.
   // Rushers never use this: their whole attack is the telegraphed lunge.
-  if (dist < 1.5 && e.type !== 'rusher' &&
+  if (dist < 1.5 && !unarmed(e.type) &&
       e.state !== 'melee' && e.state !== 'burst' && e.state !== 'assemble') {
     e.state = 'melee'; e.stateT = 0;
   }
@@ -5064,6 +5087,12 @@ function updateEnemy(e, sdt) {
       return;   // not hittable, not moving, not shooting yet
     }
     case 'advance': {
+      if (e.type === 'kamikaze') {
+        // his slot in the pack: set off KAMI.gap after the man before him
+        if (e.kGo === undefined) { e.kGo = Math.max(worldT, kamiNext); kamiNext = e.kGo + KAMI.gap; }
+        if (worldT < e.kGo) break;
+        if (dist < KAMI.r) { e.state = 'fuse'; e.stateT = 0; sfx.alert(); break; }
+      }
       moveSpeed = e.speed;
       e.strafeT -= sdt;
       if (e.strafeT <= 0) { e.strafe *= -1; e.strafeT = 1 + Math.random() * 2; }
@@ -5108,7 +5137,9 @@ function updateEnemy(e, sdt) {
       // and they may strafe, but they never walk back down the corridor and
       // round a corner — so the fight that opens the door is always fought
       // with the door in frame.
-      if (e.holdZ !== undefined && dir.z < 0 && e.pos.z <= e.holdZ) dir.z = 0;
+      // (Not the kamikaze: coming to you IS his act, and a pack that waits
+      // at the door for you to walk into its radius is a mine field.)
+      if (e.holdZ !== undefined && e.type !== 'kamikaze' && dir.z < 0 && e.pos.z <= e.holdZ) dir.z = 0;
       // ...AND THE MAN IN THE ROOM STAYS IN THE ROOM UNTIL YOU ARE IN IT.
       // He does not close the distance AT ALL while he is unarmed — not a
       // ceiling at the room's near edge, which is what this was: the vault's
@@ -5195,7 +5226,7 @@ function updateEnemy(e, sdt) {
       const los = hasLineOfSight(_v2.set(e.pos.x, 1.35, e.pos.z),
         _v3.set(player.pos.x, EYE_HEIGHT - 0.3, player.pos.z));
       e.seenT = los ? (e.seenT || 0) + sdt : 0;
-      if (e.type !== 'rusher' && dist < duelEngage(e) && e.fireCd <= 0 &&
+      if (!unarmed(e.type) && dist < duelEngage(e) && e.fireCd <= 0 &&
           (!ENEMY_TYPES[e.type].shielded || Math.cos(e.g.rotation.y - wantYaw) > 0.8) &&
           performance.now() >= game.noFireBefore && !tutorHoldsFire(e) &&
           stagedArmed(e) &&
@@ -5313,6 +5344,11 @@ function updateEnemy(e, sdt) {
           e.fireCd = (spec.cd[0] + Math.random() * spec.cd[1]) * aimSpeedFactor();
         }
       }
+      break;
+    }
+    case 'fuse': {
+      // ARMED: he stands and the core races; the burst comes at KAMI.fuse
+      if (e.stateT >= KAMI.fuse) kamiBurst(e, true);
       break;
     }
     case 'recover': {
@@ -5479,6 +5515,45 @@ function updateBlink(e) {
 }
 
 // ---------------------------------------------------------------------------
+// THE KAMIKAZE (docs/ARSENAL.md §8; KAMI in balance.js). His core is his light
+// (PILLARS §6): it beats slowly while he walks and races once he is armed. The
+// two states are two precompiled materials, swapped, never a new one.
+// ---------------------------------------------------------------------------
+let kamiNext = 0;   // world time the next man of a pack may set off
+function kamiPulse(e) {
+  const armed = e.state === 'fuse';
+  const hz = armed ? 10 : (worldT < (e.kGo || 0) ? 0.8 : 2);
+  const on = Math.sin(worldT * hz * Math.PI * 2 + (e.walkPhase || 0)) > 0.2;
+  e.chest.material = on || (armed && e.stateT > KAMI.fuse * 0.7) ? MAT_WHITEFLASH : EM(0xff5a1f);
+}
+// THE BURST. `fused`: his fuse ran out, and everything inside KAMI.r goes,
+// you included. Not fused: he was shot, and his friends inside KAMI.r go with
+// him — shooting him beside them is the payoff — but you do not.
+function kamiBurst(e, fused) {
+  if (e.bursting) return;
+  e.bursting = true;
+  const at = new THREE.Vector3(e.pos.x, 1.0, e.pos.z);
+  spawnSparks(at, 0xff2d1a);
+  spawnSparks(at, 0xffd0a0);
+  spawnRipple(new THREE.Vector3(at.x, 0.5, at.z), _v1.set(0, 1, 0), true);
+  sfx.boom();
+  vibrate(fused ? [40, 30, 40] : 28);
+  runlog.ev('kamikaze', { fused });
+  const victims = enemies.filter((o) => o !== e && o.state !== 'assemble'
+    && Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < KAMI.r);
+  const self = enemies.indexOf(e);
+  if (self >= 0 && fused) killEnemy(self, _v1.set(0, 1, 0));
+  for (const o of victims) {
+    const j = enemies.indexOf(o);
+    if (j >= 0) killEnemy(j, _v1.set(o.pos.x - at.x, 0.4, o.pos.z - at.z).normalize());
+  }
+  if (fused && player.alive && player.iframes <= 0
+      && Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < KAMI.r) {
+    hitPlayer(false, 'kamikaze');
+  }
+}
+
+// ---------------------------------------------------------------------------
 // THE KEEPER'S ROOM (docs/ARSENAL.md §10). Floor 1 ends in it: the last leg of
 // KEEPER.door is a short corridor into a sealed chamber, and the seal shutting
 // behind you is what stands him and his pair up. He is a blinker who takes
@@ -5498,8 +5573,17 @@ const KEEPER_PLAN = (() => {
 const KEEPER_SPOT = [0, 10.5];
 const KEEPER_ADDS = [[-1.6, 9.6], [1.6, 9.6]];
 function keeperLeg(door, legIx) {
-  return game.mode === 'hall' && tutorStep === null && !tutorShaping
-    && door === KEEPER.door && legIx === doorLegs(door) - 1;
+  return bossLeg(door, legIx) === 'keeper';
+}
+// WHICH BOSS, IF ANY, OWNS THIS LEG: the last leg of a floor's last door
+// (docs/ARSENAL.md §1). Only bosses that are built answer; the rest of the
+// floors end in an ordinary leg until theirs is.
+const BOSSES_BUILT = new Set(['keeper']);
+function bossLeg(door, legIx) {
+  if (game.mode !== 'hall' || tutorStep !== null || tutorShaping) return null;
+  const f = floorOf(door);
+  if (!f.boss || door !== f.last || legIx !== doorLegs(door) - 1) return null;
+  return BOSSES_BUILT.has(f.boss) ? f.boss : null;
 }
 function keeperProto(proto) {
   proto.plan = KEEPER_PLAN;
@@ -8758,7 +8842,8 @@ function renderDiscover() {
 // by three waves instead of landing together as the ramp maxes out.
 function composeWave(n) {
   const total = Math.min(COMP.baseTotal + COMP.perWave * n, COMP.totalCap);
-  const debut = Object.keys(TYPE_INTRO).find((t) => TYPE_INTRO[t] === n);
+  // a type a boss introduced has no door debut: the boss was it
+  const debut = Object.keys(TYPE_INTRO).find((t) => TYPE_INTRO[t] === n && !BOSS_TYPES.includes(t));
   const queue = [];
   // the horde core: rushers scale up fast once they debut — this is a game
   // about managing the melee crush while gunfire crosses the street
@@ -8771,7 +8856,9 @@ function composeWave(n) {
   for (let i = 0; i < rushers; i++) queue.push('rusher');
   // the debuting type gets a real showing
   if (debut && debut !== 'gunner' && debut !== 'rusher' && debut !== 'laser') {
-    for (let i = 0; i < Math.max(2, Math.round(total * COMP.debutFrac)); i++) queue.push(debut);
+    // a kamikaze pack only bites in numbers: his debut is a whole pack
+    const n0 = debut === 'kamikaze' ? KAMI.pack : Math.max(2, Math.round(total * COMP.debutFrac));
+    for (let i = 0; i < n0; i++) queue.push(debut);
   }
   // veteran shooters fill in, capped so gunners keep at least ~25% of the wave
   const specials = [];
@@ -8795,8 +8882,9 @@ function composeWave(n) {
     const i = queue.indexOf(debut);
     if (i > 0) { queue.splice(i, 1); queue.unshift(debut); }
   }
-  // one laser anchors every other wave from its debut on
-  if (n >= 10 && n % 2 === 0) queue.unshift('laser');
+  // one laser anchors every other wave from its debut on (it read `n >= 10`,
+  // a debut door written twice; the door map moved him to floor 5)
+  if (n > TYPE_INTRO.laser && n % 2 === 0) queue.unshift('laser');
   return queue;
 }
 
@@ -12631,11 +12719,13 @@ function legHeadline(proto) {
   return line || `DOOR ${hall ? hall.doorsPassed + 1 : 1}`;
 }
 
+const bannerLog = [];   // what was announced, for a harness
 function showBanner(html, dur = 1600) {
   // The onboarding owns the screen. "THE DOOR IS OPEN" landing on top of
   // "DRAG TO MOVE" is two instructions at once, and the one the player needs
   // is the smaller of the two.
   if (tutorStep !== null) return;
+  bannerLog.push(String(html)); if (bannerLog.length > 30) bannerLog.shift();
   messageQueue.push({ html, dur });
   pumpMessages();
 }
@@ -12745,7 +12835,8 @@ function maxAlive() {
     // A condition thins the crowd as well as the loot: two bodies met
     // separately are two searches, where a clump is one problem solved once.
     const n = Math.max(1, schoolFloor(game.wave), Math.round(doorAlive(game.wave)
-      * OPENING.aliveMul * condTax(legCondition(), 'groupSize')));
+      * OPENING.aliveMul * condTax(legCondition(), 'groupSize')
+      * (warmupDoor() ? WARMUP.alive : 1)));
     // ...AND A ROOM MAY HOLD A CROWD A CORRIDOR CANNOT.
     //
     // This is the dial that decides whether a fight is a queue or a swarm, and
@@ -14323,6 +14414,11 @@ function crossHallDoor() {
     // startSlowLesson.
     const taught = startSlowLesson();
     enteredSlow = taught;
+    // A NEW FLOOR IS SAID FIRST, whatever else the door says after it: the
+    // last floor's boss is behind you (docs/ARSENAL.md §1)
+    const newFloor = doorDone && game.mode === 'hall'
+      && floorOf(hall.doorsPassed + 1).first === hall.doorsPassed + 1;
+    if (newFloor) showBanner(`FLOOR ${floorOf(hall.doorsPassed + 1).floor}`, 2400);
     // THE NEW POWER GETS THE FRAME TO ITSELF. On the door it unlocks, the
     // headline is what just arrived rather than what the corridor is shaped
     // like — and the button makes the same entrance the onboarding used to
@@ -14346,11 +14442,7 @@ function crossHallDoor() {
       // lines the player reached door 81 with no button and no meter and the
       // whole school firing volleys at somebody who could not answer them.
       if (!taught) tutorRevealButton();
-    } else if (doorDone && game.mode === 'hall' && hall.keeperTaken
-        && hall.doorsPassed + 1 === KEEPER.door + 1) {
-      // FLOOR 1 IS BEHIND YOU: the Keeper's door was its last (docs/ARSENAL.md §1)
-      showBanner('FLOOR 2', 2400);
-    } else if (!openedModes.length) {
+    } else if (!openedModes.length && !newFloor) {
       // ...and when a mode opened, the mode IS the headline: the shape of the
       // corridor can wait for the next door.
       showBanner(legHeadline(hall.legs[hall.cur] && hall.legs[hall.cur].proto), 2000);
@@ -15346,7 +15438,7 @@ function duelScriptHoldsFire() {
 // three men in the room, two of them in range, ONE round in the air on a beat
 // whose entire job is to show the player a shape a sidestep cannot answer.
 function duelCanVolley(e) {
-  if (!e || !e.alive || e.state === 'assemble' || e.type === 'rusher') return false;
+  if (!e || !e.alive || e.state === 'assemble' || unarmed(e.type)) return false;
   const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
   return d <= duelEngage(e);
 }
@@ -16349,7 +16441,18 @@ function frame(now) {
         // room had promised to a later group and skip the group list
         // entirely, so a combination room that opens on a rusher would
         // quietly stop building.
-        if (born && next === 'rusher' && game.mode !== 'duel') {
+        if (born && next === 'kamikaze' && game.mode !== 'duel') {
+          // KAMIKAZES COME AS A PACK (KAMI.pack), and set off one by one
+          // after they are all up — see kamiNext
+          let extra = Math.min(KAMI.pack - 1, maxAlive() - enemies.length, room - 1);
+          for (let i = 0; i < game.spawnQueue.length && extra > 0;) {
+            if (game.spawnQueue[i] === 'kamikaze') {
+              game.spawnQueue.splice(i, 1);
+              spawnEnemy('kamikaze', null, true);
+              extra--;
+            } else i++;
+          }
+        } else if (born && next === 'rusher' && game.mode !== 'duel') {
           // rushers hunt in packs of 3-4: pull the rest of the pack from
           // anywhere in the wave and send them out the same alley together
           let extra = Math.min(2 + (Math.random() < 0.5 ? 1 : 0),
@@ -16513,8 +16616,8 @@ function frame(now) {
     ? `RUSH${SEP}${markPips} ${markPips === 1 ? 'MARK' : 'MARKS'}`
     : inHall() && hall
       ? (hall.legs[hall.cur].door.open
-          ? `DOOR ${hall.doorsPassed + 1}${SEP}OPEN \u2014 GO`
-          : `DOOR ${hall.doorsPassed + 1}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`)
+          ? `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}OPEN \u2014 GO`
+          : `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`)
       : game.state === 'play' && left > 0
         ? `WAVE ${game.wave}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`
         : `WAVE ${game.wave}${SEP}${game.kills}`;
@@ -16835,6 +16938,8 @@ window.__ts = {
   // the walking. This is the same two calls the corridor makes, in the same
   // order, so everything they trigger — the leg beyond being composed, the
   // lesson being armed and then entered — happens exactly as it does in play.
+  floorOf, warmup: () => warmupDoor(), banners: () => bannerLog.slice(),
+  hudText: () => el.score.textContent,
   crossDoor: () => {
     if (!hall) return null;
     openHallDoor();

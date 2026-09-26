@@ -84,15 +84,20 @@ export const TEMPO = {
 // 31 — or, on a first run, instead of door 201. `minDoor` in protocols.js
 // carries the same schedule and both are read: this one composes the wave,
 // that one decides what the door may claim in its headline.
+// THE DOOR MAP (docs/ARSENAL.md §1). A type introduced by a BOSS carries the
+// boss's door (the Keeper's is 9): it has no door debut of its own, the boss
+// was it, and it joins the ordinary cast from the next floor's first door.
 export const TYPE_INTRO = {
-  gunner: 1, rusher: 4, shotgunner: 6, shieldbearer: 8, heavy: 11,
-  sniper: 13, bomber: 15, armored: 17, rocketeer: 19, laser: 21,
+  gunner: 1, rusher: 4, shotgunner: 6, shieldbearer: 8, blinker: 9, heavy: 11,
+  sniper: 13, bomber: 15, armored: 18, kamikaze: 20, rocketeer: 22, laser: 32,
 };
+export const BOSS_TYPES = ['blinker'];   // debuted by a boss, not a door
 
 // Veteran fill after the debut: [share, cap] -> min(cap, floor(total/share)).
 export const TYPE_SHARE = {   // veteran shooter fill: floor(total/share), capped
   shotgunner: [4, 4], heavy: [5, 3], shieldbearer: [8, 2],
   sniper: [7, 2], bomber: [6, 2], armored: [9, 2], rocketeer: [8, 2],
+  blinker: [9, 2], kamikaze: [6, 4],
 };
 
 // The weapon each enemy was carrying — what they leave on the floor.
@@ -1981,3 +1986,32 @@ export const SIGHT = {
 // a PLAYTEST button: floor 1 from door 1, straight to the Keeper, the intro
 // cards shown again, sight on or off, and SEND LOG. Off for a public release.
 export const PLAYTEST = { on: true };
+
+// FLOORS (docs/ARSENAL.md §1, decided): five floors of 9/7/7/7/9 doors, each
+// ending in a boss on its last door's last leg, who debuts the next floor's
+// hardest type. Past the fifth floor the tunnel goes on in nine-door floors
+// with no boss (a later mode's business).
+export const FLOORS = [9, 7, 7, 7, 9];
+export const BOSS_OF_FLOOR = ['keeper', 'frankenstein', 'drone', 'spawner', 'finale'];
+// THE WARM-UP DOOR: the first door out of each elevator steps the pressure
+// back — fewer men up at once and a longer gap between rounds — so the weapons
+// the last floor handed over get one door to be enjoyed.
+export const WARMUP = { alive: 0.75, gap: 1.3 };
+export function floorOf(door) {
+  let first = 1;
+  for (let i = 0; i < FLOORS.length; i++) {
+    const last = first + FLOORS[i] - 1;
+    if (door <= last) return { floor: i + 1, first, last, boss: BOSS_OF_FLOOR[i] };
+    first = last + 1;
+  }
+  const k = Math.floor((door - first) / 9);
+  return { floor: FLOORS.length + 1 + k, first: first + 9 * k, last: first + 9 * k + 8, boss: null };
+}
+
+// THE KAMIKAZE (docs/ARSENAL.md §8, Mk I). He comes in a pack that sets off
+// `gap` world-seconds apart, arms `r` metres from you, and bursts `fuse`
+// seconds later: everything inside `r` goes, his own side included. Shot
+// before that, he still pops — his friends inside `r` go with him, you do
+// not. Clearing `r` takes longer than the fuse on foot: the run is bought
+// with the time button.
+export const KAMI = { r: 3.5, fuse: 0.5, gap: 0.35, speed: 2.7, pack: 5 };
