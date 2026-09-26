@@ -95,7 +95,8 @@ console.log('fire mid-swap:            ' + JSON.stringify(gated));
 if (gated.mag1 !== gated.mag0) bad('a round was fired during the swap');
 
 // ---- an empty gun leaves the rotation, and the hand moves on -------------
-await wait(400);
+// wait on the swap itself, not the wall clock: a loaded machine runs slow frames
+await page.waitForFunction(() => window.__ts.player.swapT <= 0, null, { timeout: 8000 });
 const dry = await page.evaluate(async () => {
   const t = window.__ts;
   const was = t.player.weapon;
