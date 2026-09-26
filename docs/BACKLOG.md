@@ -14,8 +14,8 @@ the no-misses streak with sight (at 50 it also rings where the next wave
 stands up); the Mk II/III tier ladder with stronger drops; SEND LOG and the
 PLAYTEST menu. Owed:
 
-0. **Playtest 2026-09-26, answered:** the Keeper was eased (he is fought
-   before slow time exists; §10 has the numbers) and the debut card became a
+0. **Playtest 2026-09-26, answered:** the Keeper's punish window went
+   from 1.2 s to 1.75 s, everything else as first built (§10) and the debut card became a
    framed close-up with a plain panel (§11). Both want a second look on the
    phone.
 1. **Debut card copy:** the owner's first review pass is applied (seven cards

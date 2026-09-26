@@ -834,20 +834,19 @@ That glow is the window.
 
 ### The fight, in three phases
 
-**Eased after the first phone playtest (2026-09-26): "way too hard without a
-time button."** The table above prices an ideal thumb; a real one on a phone
-screen, with the pair of shotgunners on it, needs more room. The cooldowns
-went from 1.5/1.2/1.2 s to **2.4/2.0/2.0 s**, his rounds from 1.5/1.25 s to
-2.2/1.8 s apart, the pair comes back after 8 s, not 3, and the time stop is a
-**three-round** volley 0.32 rad apart, held 1.8 s, every 7 s (was five rounds,
-0.2 rad, 1.4 s, every 5 s). The finale Keeper keeps his own, harder numbers
-(`FINALE`): by then you have the button.
+**Tuned after the first phone playtest (2026-09-26): "way too hard without a
+time button."** The table above prices an ideal thumb. First try eased
+everything; the owner took it back to the original fight and asked for one
+change only: **the punish window after a blink goes from 1.2 s to 1.75 s**
+(phase 1 from 1.5 s to 2.0 s, so phase 2 still reads as faster). His rounds,
+the pair and the time stop are as first built. The finale Keeper keeps his
+own, harder numbers (`FINALE`): by then you have the button.
 
 | phase | cooldown | what it teaches |
 |---|---|---|
-| **1. Blink** | 2.4 s | a single shot is dodged; bait, then punish. The pistol works. |
-| **2. Faster** | 2.0 s | the pistol's punish window closes. **Shotgunners assemble**; take a shotgun off one: *take his gun* (§3), inside a boss fight. |
-| **3. He stops the world** | 2.0 s | he freezes the room for a moment. His rounds **hang in the air** where you can see them, then all release at once, a volley. You survive by reading the hanging rounds and being somewhere else when time restarts. It is the lesson of the slow-time school, taught one room before you are given the button. |
+| **1. Blink** | 2.0 s | a single shot is dodged; bait, then punish. The pistol works. |
+| **2. Faster** | 1.75 s | the pistol's punish window closes. **Shotgunners assemble**; take a shotgun off one: *take his gun* (§3), inside a boss fight. |
+| **3. He stops the world** | 1.75 s | he freezes the room for a moment. His rounds **hang in the air** where you can see them, then all release at once, a volley. You survive by reading the hanging rounds and being somewhere else when time restarts. It is the lesson of the slow-time school, taught one room before you are given the button. |
 
 Then he shatters, and you get the power you just watched him use.
 

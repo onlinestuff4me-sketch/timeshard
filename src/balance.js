@@ -1956,23 +1956,23 @@ export const BLINKER = {
 // is a phase. Phase 3 adds his time stop: the world halts for `stopReal`
 // real seconds, his volley hangs in the air where you can read it, and it
 // all lets go at once.
-// EASED 2026-09-26 (playtest: "way too hard without a time button"). He is
-// fought BEFORE slow time exists — it is his reward — so every window is sized
-// for a thumb at full speed: a long punish after each blink, his rounds and the
-// pair's return spaced out, and a three-round volley with gaps you can walk
-// through, held long enough to find one. The finale Keeper has FINALE's numbers.
+// TUNED 2026-09-26 (playtest: "way too hard without a time button"). He is
+// fought BEFORE slow time exists — it is his reward. Everything is as first
+// built except the punish window after each blink, which the owner asked to
+// lengthen from 1.2 s to 1.75 s; phase 1 keeps its step above that (2.0 s)
+// so phase 2 still reads as FASTER. The finale Keeper has FINALE's numbers.
 export const KEEPER = {
   door: 9,
   hp: 3,
   scale: 1.15,
   speed: 0.7,
-  fire: [2.2, 1.8, 1.8],        // world-s between his rounds, on his own clock
-  blinkCd: [2.4, 2.0, 2.0],     // world-s spent after a blink: the punish window
-  addsBack: 8,                  // world-s after the second shotgunner goes
-  stopEvery: 7,                 // world-s between time stops in phase 3
-  stopReal: 1.8,                // real s the world is held for
-  volley: 3,                    // rounds in the hanging volley
-  volleySpread: 0.32,           // rad between neighbouring rounds
+  fire: [1.5, 1.25, 1.25],      // world-s between his rounds, on his own clock
+  blinkCd: [2.0, 1.75, 1.75],   // world-s spent after a blink: the punish window
+  addsBack: 3,                  // world-s after the second shotgunner goes
+  stopEvery: 5,                 // world-s between time stops in phase 3
+  stopReal: 1.4,                // real s the world is held for
+  volley: 5,                    // rounds in the hanging volley
+  volleySpread: 0.2,            // rad between neighbouring rounds
   hangM: 4,                     // m out from his muzzle the rounds hang
   reward: [0.9, 1.6],           // real s: his shards hang, then stream into you
 };
