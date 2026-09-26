@@ -18,6 +18,10 @@ export const WEAPONS = {
   sniper: { cd: 0.9, pellets: 1, spread: 0, kick: 2.4, speed: 95, pierce: 3, mag: 2, maxClips: 3, reload: 1.75 },
   launcher: { cd: 0.9, pellets: 1, spread: 0, kick: 2.6, speed: 26, mag: 2, maxClips: 3, reload: 2.0, blast: 5.5 },
   rocket: { cd: 1.2, pellets: 1, spread: 0, kick: 3, speed: 34, mag: 2, maxClips: 3, reload: 2.35, blast: 8 },
+  // THE SEEKER (docs/ARSENAL.md §12): one kamikaze of your own, the
+  // Frankenstein boss's reward. One at a time, no clips: a kamikaze pack
+  // cleared before any of it arms leaves one core behind (+1).
+  seeker: { cd: 0.6, pellets: 1, spread: 0, kick: 1.2, speed: 9, mag: 1, maxClips: 0, reload: 0, seeker: true },
 };
 
 // THE WEAPON SWITCHER — you keep the guns you find and swipe between them.
@@ -89,15 +93,15 @@ export const TEMPO = {
 // was it, and it joins the ordinary cast from the next floor's first door.
 export const TYPE_INTRO = {
   gunner: 1, rusher: 4, shotgunner: 6, shieldbearer: 8, blinker: 9, heavy: 11,
-  sniper: 13, bomber: 15, armored: 18, kamikaze: 20, rocketeer: 22, laser: 32,
+  sniper: 13, bomber: 15, frankenstein: 16, armored: 18, kamikaze: 20, rocketeer: 22, laser: 32,
 };
-export const BOSS_TYPES = ['blinker'];   // debuted by a boss, not a door
+export const BOSS_TYPES = ['blinker', 'frankenstein'];   // debuted by a boss, not a door
 
 // Veteran fill after the debut: [share, cap] -> min(cap, floor(total/share)).
 export const TYPE_SHARE = {   // veteran shooter fill: floor(total/share), capped
   shotgunner: [4, 4], heavy: [5, 3], shieldbearer: [8, 2],
   sniper: [7, 2], bomber: [6, 2], armored: [9, 2], rocketeer: [8, 2],
-  blinker: [9, 2], kamikaze: [6, 4],
+  blinker: [9, 2], kamikaze: [6, 4], frankenstein: [10, 1],
 };
 
 // The weapon each enemy was carrying — what they leave on the floor.
@@ -2015,3 +2019,17 @@ export function floorOf(door) {
 // not. Clearing `r` takes longer than the fuse on foot: the run is bought
 // with the time button.
 export const KAMI = { r: 3.5, fuse: 0.5, gap: 0.35, speed: 2.7, pack: 5 };
+
+// FRANKENSTEIN (docs/ARSENAL.md §8, §12; PILLARS §2). A gun in each hand, both
+// firing together. Only his arms shatter, and each arm takes its gun: body
+// and head are plate. The second arm shatters an ordinary one; the floor-2
+// boss instead opens his chest and rushes you, bursting like a kamikaze.
+// The boss fires on his own clock (`fire`, a pair each time), with two
+// bombers on a loop (their launcher takes both arms in one aim).
+export const FRANK = {
+  armR: 0.15,          // m: the arm's hit capsule, before his scale
+  bossScale: 1.2,
+  fire: 1.4,           // world-s between the boss's pairs
+  addsBack: 3,
+  rushSpeed: 3.4,
+};

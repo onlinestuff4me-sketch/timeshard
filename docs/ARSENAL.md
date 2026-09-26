@@ -576,6 +576,16 @@ door budget in §1.
 
 ### Frankenstein
 
+**Built (2026-09-26):** `FRANK` in `src/balance.js`, `frankHit()` and
+`frankArmOff()` in `src/main.js`, checked by `test/frankenstein.mjs`. **Every
+Frankenstein is arms-only**, not just the boss: the owner's approved card says
+"Only his arms shatter", so the gentler one-hit Mk I in the table below is
+dropped. A body or head shot clanks off (a miss, for the streak); an arm takes
+its gun; he fires a pair while he has both. An ordinary one comes apart with
+his second arm; the floor-2 boss opens his chest and rushes, bursting like a
+kamikaze at 3.5 m, and one shot on the open chest stops him. His twin-pistol
+drop is not built.
+
 Plated head to foot, a gun in each hand, both firing together.
 
 - **Mk I is gentler than two gunners, not harsher.** Two rounds at once from
@@ -952,6 +962,14 @@ The schedule now has the kamikaze on door 20 (floor 3), not floor 4, and
 ### The rewards
 
 **Slow time** (the Keeper). As today, from door 10.
+
+**Built (2026-09-26):** the Frankenstein boss on door 16's last leg (the
+Keeper's room, generalised: `bossProto()`, `BOSS_ADDS`), his two bombers on a
+loop, and the seeker: his shards stream together on the floor where he fell,
+the exit waits until it is picked up, it fires a homing charge that bursts in
+3.5 m (you included), and a kamikaze pack cleared without any of it arming
+refills it (+1, one at a time). The seeker is never the automatic fallback
+when a gun runs dry, and it stays in the bag empty.
 
 **The seeker** (Frankenstein; a weapon, so it's collected). One kamikaze of
 your own. Send it and it hunts the nearest enemy, then bursts, shattering him

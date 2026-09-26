@@ -16,7 +16,7 @@ import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, 
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
   doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT, PLAYTEST,
-  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI } from './balance.js';
+  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI, FRANK } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -1141,7 +1141,21 @@ const knifeVM = new THREE.Group();
   knifeVM.rotation.z = -0.12;
 }
 knifeVM.visible = false;
-gun.add(pistolVM, shotgunVM, sniperVM, burstVM, launcherVM, rocketVM, knifeVM);
+// SEEKER: a squat charge with its core showing — the kamikaze's, turned round
+const seekerVM = new THREE.Group();
+{
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.2), MAT_BLACK);
+  body.position.set(0, 0.02, -0.16);
+  // (MAT_WHITE, not MAT_WHITEFLASH: this is built at load, above that line)
+  const core = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.06), MAT_WHITE);
+  core.position.set(0, 0.03, -0.27);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.15, 0.08), MAT_BLACK);
+  grip.position.set(0, -0.09, 0.0);
+  grip.rotation.x = 0.3;
+  seekerVM.add(body, core, grip);
+}
+seekerVM.visible = false;
+gun.add(pistolVM, shotgunVM, sniperVM, burstVM, launcherVM, rocketVM, knifeVM, seekerVM);
 // camera-attached meshes must never be frustum-culled: a stale bound can
 // blink the equipped gun out of existence
 gun.traverse((o) => { o.frustumCulled = false; });
@@ -1266,6 +1280,7 @@ function setWeapon(type, clips) {
   burstVM.visible = type === 'burst';
   launcherVM.visible = type === 'launcher';
   rocketVM.visible = type === 'rocket';
+  seekerVM.visible = type === 'seeker';
   knifeVM.visible = type === 'knife';
   updateAmmoHud();
 }
@@ -1433,6 +1448,7 @@ function equipFromBag(b) {
   burstVM.visible = b.type === 'burst';
   launcherVM.visible = b.type === 'launcher';
   rocketVM.visible = b.type === 'rocket';
+  seekerVM.visible = b.type === 'seeker';
   knifeVM.visible = false;
   gunKick = 0.6;                // the new gun comes up
   sfx.pickup();
@@ -1446,13 +1462,14 @@ function equipFromBag(b) {
 // come to the knife. A spare with an empty magazine comes up and is racked.
 function bagRunDry() {
   bagSync();
-  if (player.weapon !== 'pistol') {
+  // (the seeker stays in the bag empty, waiting for the next pack's core)
+  if (player.weapon !== 'pistol' && player.weapon !== 'seeker') {
     player.bag = player.bag.filter((b) => b.type !== player.weapon);
     delete player.reserve[player.weapon];
   }
   let next = null;
   for (const b of player.bag) {
-    if (b.type === player.weapon || !bagLoaded(b)) continue;
+    if (b.type === player.weapon || b.type === 'seeker' || !bagLoaded(b)) continue;
     if (!next || weaponRank(b.type) > weaponRank(next.type)) next = b;
   }
   if (!next) { giveKnife(); return; }
@@ -1478,6 +1495,7 @@ function addClip(w) {
 // only rule left is the one the player can feel — you keep the best thing you
 // have found, and you keep the ammunition for everything else.
 function takePickup(type) {
+  if (type === 'seeker' && hall) hall.seekerTaken = true;
   if (switcherOn()) return bagTake(type);
   const want = type === CLIP ? 'pistol' : type;
   recordMet([want]);                               // ids match the registry's
@@ -1507,6 +1525,7 @@ function takePickup(type) {
 // up loaded: its first magazine is not taken off the shelf.
 function bagTake(type) {
   const want = type === CLIP ? 'pistol' : type;
+  if (want === 'seeker' && hall) hall.seekerTaken = true;
   recordMet([want]);
   if (type !== CLIP) duel.gotGun = true;
   bagSync();
@@ -1532,7 +1551,7 @@ function bagTake(type) {
 function bestSpare() {
   let best = null;
   for (const w of WEAPON_ORDER) {
-    if (w === 'knife' || w === player.weapon) continue;
+    if (w === 'knife' || w === 'seeker' || w === player.weapon) continue;
     if ((player.reserve[w] || 0) > 0) best = w;
   }
   return best;
@@ -2600,6 +2619,69 @@ function updateGrenades(sdt) {
 // Homing missiles — slow but they steer toward you with a limited turn rate.
 // Dodge with a hard sideways cut, or put a wall between you and it.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// THE SEEKER in flight: hunts the nearest enemy and bursts in KAMI.r — him,
+// anyone beside him, and YOU if you are that close (docs/ARSENAL.md §12).
+// ---------------------------------------------------------------------------
+const seekers = [];
+const SEEKER_TURN = 5;   // rad/s of world time
+const seekerGeo = new THREE.BoxGeometry(0.14, 0.12, 0.18);
+function spawnSeeker(origin, dir, shot) {
+  const mesh = new THREE.Mesh(seekerGeo, MAT_WHITEFLASH);
+  mesh.position.copy(origin);
+  scene.add(mesh);
+  seekers.push({ mesh, pos: origin.clone(), vel: dir.clone().multiplyScalar(WEAPONS.seeker.speed), life: 6, shot });
+  runlog.ev('seeker');
+}
+function updateSeekers(sdt) {
+  for (let i = seekers.length - 1; i >= 0; i--) {
+    const s = seekers[i];
+    s.life -= sdt;
+    let target = null, best = Infinity;
+    for (const e of enemies) {
+      if (e.state === 'assemble') continue;
+      const d = Math.hypot(e.pos.x - s.pos.x, e.pos.z - s.pos.z);
+      if (d < best) { best = d; target = e; }
+    }
+    if (target) {
+      const want = _v1.set(target.pos.x - s.pos.x, 1.1 - s.pos.y, target.pos.z - s.pos.z).normalize()
+        .multiplyScalar(WEAPONS.seeker.speed);
+      s.vel.lerp(want, Math.min(1, SEEKER_TURN * sdt));
+      s.vel.setLength(WEAPONS.seeker.speed);
+    }
+    s.pos.addScaledVector(s.vel, sdt);
+    s.mesh.position.copy(s.pos);
+    s.mesh.rotation.y += sdt * 8;
+    if (best < 0.9 || s.life <= 0 || pointInObstacle(s.pos.x, s.pos.z, 0.1)) {
+      scene.remove(s.mesh);
+      seekers.splice(i, 1);
+      const n0 = enemies.length;
+      const at = new THREE.Vector3(s.pos.x, 1.0, s.pos.z);
+      spawnSparks(at, 0xff2d1a); spawnSparks(at, 0xffd0a0);
+      spawnRipple(new THREE.Vector3(at.x, 0.5, at.z), _v1.set(0, 1, 0), true);
+      sfx.boom(); vibrate(30);
+      for (const o of enemies.filter((o) => o.state !== 'assemble'
+        && Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < KAMI.r)) {
+        const j = enemies.indexOf(o);
+        if (j >= 0) killEnemy(j, _v1.set(o.pos.x - at.x, 0.4, o.pos.z - at.z).normalize());
+      }
+      if (player.alive && player.iframes <= 0
+          && Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < KAMI.r) hitPlayer(false, 'own seeker');
+      if (s.shot) { if (enemies.length < n0) s.shot.hit = true; shotRoundDone(s.shot); }
+    }
+  }
+}
+// +1 seeker, one at a time, into its slot (or its hand)
+function seekerRefill() {
+  const b = player.bag && player.bag.find((x) => x.type === 'seeker');
+  if (!b) return;
+  if (player.weapon === 'seeker') { if (player.mag >= 1) return; player.mag = 1; }
+  else { if (b.mag >= 1) return; b.mag = 1; }
+  showBanner('+1 SEEKER', 1400);
+  runlog.ev('seeker-refill');
+  updateAmmoHud();
+}
+
 const missiles = [];   // {mesh, pos, vel, life, rippleAcc}
 const MISSILE_SPEED = 7.5;
 const MISSILE_TURN = 1.7;      // rad/s of steering authority (world time)
@@ -2697,6 +2779,11 @@ function spawnPickup(pos, type = 'shotgun') {
     const grip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.18, 0.1), MAT_BLACK);
     grip.position.set(0, -0.15, 0.12);
     spin.add(tube, mouth, grip);
+  } else if (type === 'seeker') {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.26, 0.36), MAT_BLACK);
+    const core = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.16, 0.06), MAT_WHITEFLASH);
+    core.position.z = -0.19;
+    spin.add(body, core);
   } else if (type === 'sniper') {
     const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.15), MAT_BLACK);
     const scope = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.2), MAT_GUNMETAL);
@@ -2724,7 +2811,8 @@ function spawnPickup(pos, type = 'shotgun') {
   g.add(spin, ring);
   g.position.set(pos.x, 0, pos.z);
   scene.add(g);
-  pickups.push({ g, spin, ring, type, t: Math.random() * 6, life: PICKUP_LIFE });
+  // a boss's weapon does not sink: the exit waits for it
+  pickups.push({ g, spin, ring, type, t: Math.random() * 6, life: type === 'seeker' ? Infinity : PICKUP_LIFE });
   if (!spawnPickup.hinted) {   // one-time tutorial nudge
     spawnPickup.hinted = true;
     showBanner('WALK OVER IT TO TAKE IT', 1800);
@@ -2867,6 +2955,7 @@ function buildEnemyMesh(type) {
   if (type === 'bomber') { P.waist *= 1.35; P.hip *= 1.12; P.chest *= 1.12; }
   // the kamikaze is top-heavy — a barrel of a chest on short legs — so he
   // reads as "not a rusher" across a room before either of them moves
+  if (type === 'frankenstein') { P.shld *= 1.15; P.chest *= 1.1; P.armt *= 1.2; }
   if (type === 'kamikaze') { P.shld *= 1.25; P.waist *= 1.45; P.chest *= 1.35; P.hip *= 0.95; P.legt *= 1.1; P.armt *= 1.15; }
   const seed = 1 + Math.floor(Math.random() * 97);
   const jit = P.jit, m = P.musc;
@@ -2875,6 +2964,7 @@ function buildEnemyMesh(type) {
     : type === 'rusher' ? { body: 0xe0321f, chest: 0xe83a26, pelvis: 0xc8281a, head: 0xf5533f }
     : type === 'blinker' ? { body: 0xb01d12, chest: 0xc8281a, pelvis: 0x8c1004, head: 0xe03222 }
     : type === 'kamikaze' ? { body: 0x7a0f06, chest: 0xff5a1f, pelvis: 0x5e0b04, head: 0x8c1004 }
+    : type === 'frankenstein' ? { body: 0xc8281a, chest: 0x3a3d45, pelvis: 0x33363d, head: 0x3a3d45 }
     : { body: 0xc8281a, chest: 0xd3291b, pelvis: 0xa21507, head: 0xe03222 };
   const M = { body: EM(C.body), chest: EM(C.chest), pelvis: EM(C.pelvis), head: EM(C.head) };
   const lean = P.lean + (type === 'rusher' ? 0.22 : 0);   // the rusher stalks hunched
@@ -3009,7 +3099,7 @@ function buildEnemyMesh(type) {
   const handheld = type !== 'rusher' && type !== 'rocketeer' && type !== 'laser' && type !== 'kamikaze';
   addHand(AL.fore, -1, false);
   addHand(AR.fore, 1, type === 'rocketeer' || (handheld && type !== 'bomber'));
-  let egun = null;
+  let egun = null, egunL = null;
   if (handheld && type !== 'bomber') {
     egun = new THREE.Group();
     egun.position.y = -foreL;
@@ -3040,6 +3130,10 @@ function buildEnemyMesh(type) {
     grip.position.set(0, -0.17, -0.085);
     egun.add(receiver, grip);
     AR.fore.add(egun);
+    if (type === 'frankenstein') {   // a gun in EACH hand
+      egunL = egun.clone();
+      AL.fore.add(egunL);
+    }
   }
   if (type === 'bomber') {   // a grenade in the throwing hand
     egun = new THREE.Mesh(tboxGeo(0.14, 0.14, 0.14, 0.14, 0.14), MAT_BLACK);
@@ -3229,7 +3323,7 @@ function buildEnemyMesh(type) {
   blob.userData.noGhost = true;   // a shadow is not a body part: sight skips it
   g.add(blob);
 
-  return { g, legL, legR, armL, armR, egun, chest,
+  return { g, legL, legR, armL, armR, egun, egunL, chest, foreL: AL.fore, foreR: AR.fore,
     shinL: LG.shin, shinR: RG.shin, kneeRest: EP.knee,
     armLock, armRLock, armLRest, armRRest,
     egunBaseMat: type === 'laser' ? EM(0xff2d1a) : MAT_BLACK };
@@ -3263,6 +3357,8 @@ const ENEMY_TYPES = {
   blinker: { speed: 2.2, scale: [0.94, 1.02, 0.94], drop: 0, aimTime: 0.6, cd: [1.4, 0.8], mul: 1, pellets: 1, blinker: true },
   // no gun: he runs at you, arms, and bursts — see KAMI and updateKamikaze
   kamikaze: { speed: KAMI.speed, scale: [1.02, 0.96, 1.02], drop: 0, unarmed: true },
+  // two guns that fire together; only his arms can be shot away — see frankHit
+  frankenstein: { speed: 1.5, scale: [1.1, 1.06, 1.1], drop: 0, aimTime: 0.7, cd: [1.5, 0.9], mul: 1, pellets: 1, twin: true },
 };
 const unarmed = (t) => t === 'rusher' || !!(ENEMY_TYPES[t] && ENEMY_TYPES[t].unarmed);
 
@@ -3378,6 +3474,7 @@ function sideRoom(L, x, z) {
 function spawnEnemy(type = 'gunner', at = null, paced = false) {
   const parts = buildEnemyMesh(type);
   addGhosts(parts.g);
+  if (type === 'kamikaze') queueMicrotask(() => { const e = enemies.find((o) => o.g === parts.g); if (e) kamiJoinPack(e); });
   const spec = ENEMY_TYPES[type];
   parts.g.scale.set(...spec.scale);
   const bodyR = bodyRadius(type, parts.g);
@@ -4167,6 +4264,7 @@ function killEnemy(i, impulseDir) {
   if (game.state !== 'menu') vibrate(15);   // every kill lands in the thumb
   e.shatterPieces = spawnShatter(e.pos, impulseDir);
   if (e.type === 'kamikaze' && !e.bursting) queueMicrotask(() => kamiBurst(e, false));
+  if (e.type === 'kamikaze') queueMicrotask(() => kamiPackCheck(e));
   runlog.ev('kill', { type: e.boss || e.type, gun: player.weapon });
   const drop = ENEMY_TYPES[e.type].drop;
   const kind = TYPE_DROP[e.type];
@@ -4316,6 +4414,19 @@ function enemyFire(e, toPlayer) {
     player.pos.z + (Math.random() - 0.5) * 0.24
   );
   const baseDir = target.sub(origin).normalize();
+  if (spec.twin) {
+    // A PAIR, one from each hand still attached — the paired fire he teaches
+    const side = _v4.set(-toPlayer.z, 0, toPlayer.x);
+    for (const [arm, sgn] of [[e.armR, 1], [e.armL, -1]]) {
+      if (!arm.visible) continue;
+      const o = origin.clone().addScaledVector(side, 0.32 * sgn);
+      spawnBullet(o, _v5.set(player.pos.x - o.x, EYE_HEIGHT - 0.25 - o.y, player.pos.z - o.z).normalize(), false, spec.mul || 1);
+      bullets[bullets.length - 1].by = e.boss || e.type;
+    }
+    muzzleFlash(origin.x, origin.y, origin.z, 0.85);
+    sfx.enemyShot();
+    return;
+  }
   for (let p = 0; p < (spec.pellets || 1); p++) {
     const d = baseDir.clone();
     if (spec.spread) {
@@ -4350,6 +4461,7 @@ function enemyFire(e, toPlayer) {
 function setEgunFlash(e, mat) {
   // "off" restores the gun's own base material (the laser's crystal is red)
   const m = mat === MAT_BLACK ? (e.egunBaseMat || MAT_BLACK) : mat;
+  if (e.egunL) e.egunL.children[0].material = m;   // Frankenstein's other hand
   const tips = e.egun.isGroup && e.egun.userData.flash;
   if (tips) {
     for (const t of tips) t.material = m;
@@ -5041,7 +5153,7 @@ function updateEnemy(e, sdt) {
 
   // a burst, once started, always completes — no melee interrupt mid-volley.
   // Rushers never use this: their whole attack is the telegraphed lunge.
-  if (dist < 1.5 && !unarmed(e.type) &&
+  if (dist < 1.5 && !unarmed(e.type) && !e.rushing &&
       e.state !== 'melee' && e.state !== 'burst' && e.state !== 'assemble') {
     e.state = 'melee'; e.stateT = 0;
   }
@@ -5091,7 +5203,11 @@ function updateEnemy(e, sdt) {
         // his slot in the pack: set off KAMI.gap after the man before him
         if (e.kGo === undefined) { e.kGo = Math.max(worldT, kamiNext); kamiNext = e.kGo + KAMI.gap; }
         if (worldT < e.kGo) break;
-        if (dist < KAMI.r) { e.state = 'fuse'; e.stateT = 0; sfx.alert(); break; }
+      }
+      if ((e.type === 'kamikaze' || e.rushing) && dist < KAMI.r) {
+        e.state = 'fuse'; e.stateT = 0; sfx.alert();
+        if (e.pack && kamiPacks[e.pack]) kamiPacks[e.pack].armed = true;
+        break;
       }
       moveSpeed = e.speed;
       e.strafeT -= sdt;
@@ -5139,7 +5255,7 @@ function updateEnemy(e, sdt) {
       // with the door in frame.
       // (Not the kamikaze: coming to you IS his act, and a pack that waits
       // at the door for you to walk into its radius is a mine field.)
-      if (e.holdZ !== undefined && e.type !== 'kamikaze' && dir.z < 0 && e.pos.z <= e.holdZ) dir.z = 0;
+      if (e.holdZ !== undefined && e.type !== 'kamikaze' && !e.rushing && dir.z < 0 && e.pos.z <= e.holdZ) dir.z = 0;
       // ...AND THE MAN IN THE ROOM STAYS IN THE ROOM UNTIL YOU ARE IN IT.
       // He does not close the distance AT ALL while he is unarmed — not a
       // ceiling at the room's near edge, which is what this was: the vault's
@@ -5256,6 +5372,7 @@ function updateEnemy(e, sdt) {
       const aimT = spec.aimTime * aimSpeedFactor();
       const t = Math.min(e.stateT / aimT, 1);
       if (!e.armRLock) e.armR.rotation.x = -t * (Math.PI / 2 - 0.06);
+      if (spec.twin) e.armL.rotation.x = -t * (Math.PI / 2 - 0.06);
       setEgunFlash(e, e.stateT > aimT * 0.7 ? MAT_WHITEFLASH : MAT_BLACK);
       if (e.stateT >= aimT) {
         // Someone else just pulled a trigger? Hold, arm still up, and take
@@ -5515,11 +5632,76 @@ function updateBlink(e) {
 }
 
 // ---------------------------------------------------------------------------
+// FRANKENSTEIN (docs/ARSENAL.md §8; FRANK in balance.js; PILLARS §2). There is
+// no health: every hit changes what he does. A round that meets an arm takes
+// it and its gun; one that meets the plate clanks (a miss, for the streak).
+// Returns 'miss' (the round passed him), 'plate', 'arm' or 'kill'.
+// ---------------------------------------------------------------------------
+const _fa = new THREE.Vector3(), _fb = new THREE.Vector3();
+function frankHit(e, b) {
+  const sc = Math.max(e.g.scale.x, 1);
+  const armR = FRANK.armR * sc;
+  // the rush: his chest is open, and anything that reaches him stops him
+  if (e.rushing) {
+    _v2.set(e.pos.x, 0.15, e.pos.z); _v3.set(e.pos.x, 1.7 * e.g.scale.y, e.pos.z);
+    return segSegDistSq(b.prev, b.pos, _v2, _v3) < 0.4 * 0.4 ? 'kill' : 'miss';
+  }
+  for (const [arm, fore] of [[e.armR, e.foreR], [e.armL, e.foreL]]) {
+    if (!arm.visible) continue;
+    arm.getWorldPosition(_fa);
+    fore.localToWorld(_fb.set(0, -0.3, 0));
+    if (segSegDistSq(b.prev, b.pos, _fa, _fb) < armR * armR) return frankArmOff(e, arm, _fb);
+  }
+  const headshot = segPointDistSq(b.prev, b.pos, e.pos.x, 1.62 * e.g.scale.y, e.pos.z) < 0.28 * 0.28 * sc * sc;
+  _v2.set(e.pos.x, 0.15, e.pos.z); _v3.set(e.pos.x, 1.5 * e.g.scale.y, e.pos.z);
+  if (!headshot && segSegDistSq(b.prev, b.pos, _v2, _v3) >= 0.34 * 0.34 * sc * sc) return 'miss';
+  spawnSparks(b.pos, 0xf4f5f7);
+  sfx.clank();
+  return 'plate';
+}
+function frankArmOff(e, arm, at) {
+  arm.visible = false;
+  spawnShatter(at, _v1.set(0, 0.5, 0), Math.round(SHATTER.perKill * 0.3));
+  sfx.shatter();
+  vibrate(18);
+  const left = [e.armR, e.armL].filter((a) => a.visible).length;
+  runlog.ev('frank-arm', { left, boss: !!e.boss });
+  if (left > 0) return 'arm';
+  // BOTH ARMS GONE. An ordinary one comes apart; the boss opens his chest and
+  // runs at you — the kamikaze's rush, seen for the first time
+  if (!e.boss) return 'kill';
+  e.rushing = true;
+  e.speed = FRANK.rushSpeed;
+  e.state = 'advance'; e.stateT = 0;
+  e.fireCd = 1e9;
+  e.chest.material = MAT_WHITEFLASH;
+  showBanner('HE IS COMING', 1200);
+  return 'arm';
+}
+
+// ---------------------------------------------------------------------------
 // THE KAMIKAZE (docs/ARSENAL.md §8; KAMI in balance.js). His core is his light
 // (PILLARS §6): it beats slowly while he walks and races once he is armed. The
 // two states are two precompiled materials, swapped, never a new one.
 // ---------------------------------------------------------------------------
 let kamiNext = 0;   // world time the next man of a pack may set off
+// PACKS, for the seeker's refill (docs/ARSENAL.md §12): kamikazes that stand
+// up within two seconds of each other are one pack. A pack cleared without
+// any of it arming leaves one core behind: +1 seeker, one at a time.
+const kamiPacks = {};
+let kamiPackSeq = 0, kamiLastSpawn = -1e9;
+function kamiJoinPack(e) {
+  if (worldT - kamiLastSpawn > 2) kamiPacks[++kamiPackSeq] = { armed: false };
+  kamiLastSpawn = worldT;
+  e.pack = kamiPackSeq;
+}
+function kamiPackCheck(e) {
+  const P = e.pack && kamiPacks[e.pack];
+  if (!P || P.done) return;
+  if (enemies.some((o) => o !== e && o.pack === e.pack)) return;
+  P.done = true;
+  if (!P.armed) seekerRefill();
+}
 function kamiPulse(e) {
   const armed = e.state === 'fuse';
   const hz = armed ? 10 : (worldT < (e.kGo || 0) ? 0.8 : 2);
@@ -5578,25 +5760,29 @@ function keeperLeg(door, legIx) {
 // WHICH BOSS, IF ANY, OWNS THIS LEG: the last leg of a floor's last door
 // (docs/ARSENAL.md §1). Only bosses that are built answer; the rest of the
 // floors end in an ordinary leg until theirs is.
-const BOSSES_BUILT = new Set(['keeper']);
+const BOSSES_BUILT = new Set(['keeper', 'frankenstein']);
 function bossLeg(door, legIx) {
   if (game.mode !== 'hall' || tutorStep !== null || tutorShaping) return null;
   const f = floorOf(door);
   if (!f.boss || door !== f.last || legIx !== doorLegs(door) - 1) return null;
   return BOSSES_BUILT.has(f.boss) ? f.boss : null;
 }
-function keeperProto(proto) {
+function keeperProto(proto) { return bossProto(proto, 'keeper'); }
+// EVERY BOSS ROOM IS THE KEEPER'S ROOM (docs/ARSENAL.md §12): the same sealed
+// chamber, the same adds on a loop, a different man at the far end.
+function bossProto(proto, kind) {
   proto.plan = KEEPER_PLAN;
   proto.condition = null;
   proto.measures = [];
   proto.enemyDebut = null;
-  proto.boss = 'keeper';
+  proto.boss = kind;
   return proto;
 }
 // The wave for his leg is nobody: the room stands itself up when the seal
 // shuts (keeperTick), and until he is down the door stays shut (L.boss).
 function keeperArm(L) {
-  L.boss = { phase: 0, keeper: null, adds: [], addsAt: null, stopAt: 0, done: false };
+  // (`keeper` is the boss himself, whichever boss this room is for)
+  L.boss = { kind: L.proto.boss, phase: 0, keeper: null, adds: [], addsAt: null, stopAt: 0, done: false };
   L.quota = L.stretches.map(() => 0);
   L.fill = L.quota.slice();
   L.released = 0; L.markK = undefined; L.budget = 0; L.doorMark = undefined;
@@ -5604,18 +5790,37 @@ function keeperArm(L) {
   return [];
 }
 const keeperAt = (L, [dx, dz]) => ({ x: (L.spine[0][0] + dx) * HALL.cell, z: (L.spine[0][1] + dz) * HALL.cell });
+// EACH BOSS'S ADDS CARRY HIS ANSWER (docs/ARSENAL.md §12): the Keeper's pair
+// of shotgunners (the cone's re-aim), Frankenstein's pair of bombers (the
+// launcher takes both arms in one aim)
+const BOSS_ADDS = { keeper: 'shotgunner', frankenstein: 'bomber' };
 function keeperSpawnAdds(L) {
   const B = L.boss;
+  const type = BOSS_ADDS[B.kind] || 'shotgunner';
   B.adds = [];
   for (const spot of KEEPER_ADDS) {
-    spawnEnemy('shotgunner', keeperAt(L, spot));
+    spawnEnemy(type, keeperAt(L, spot));
     const a = enemies[enemies.length - 1];
-    a.drops = TYPE_DROP.shotgunner;   // each one leaves the answer behind
+    a.drops = TYPE_DROP[type];   // each one leaves the answer behind
     B.adds.push(a);
   }
 }
+function frankStart(L) {
+  const B = L.boss;
+  spawnEnemy('frankenstein', keeperAt(L, KEEPER_SPOT));
+  const k = enemies[enemies.length - 1];
+  k.boss = 'frankenstein';
+  k.g.scale.multiplyScalar(FRANK.bossScale);
+  k.speed = 1.1;
+  k.engageDist = 60;
+  B.keeper = k;
+  B.phase = 1;
+  runlog.ev('frank-start');
+  keeperSpawnAdds(L);
+}
 function keeperStart(L) {
   const B = L.boss;
+  if (B.kind === 'frankenstein') { frankStart(L); return; }
   spawnEnemy('blinker', keeperAt(L, KEEPER_SPOT));
   const k = enemies[enemies.length - 1];
   k.boss = 'keeper';
@@ -5631,6 +5836,7 @@ function keeperStart(L) {
   keeperSpawnAdds(L);
 }
 function keeperFireGap(e) {
+  if (e.boss === 'frankenstein') return FRANK.fire;
   return KEEPER.fire[Math.max(0, (e.bossPhase || 1) - 1)];
 }
 // A HIT THAT DOES NOT KILL HIM moves him on a phase and gives him his blink
@@ -5683,7 +5889,9 @@ function keeperStop(e) {
 // he stood, and then they stream into you — and the button arrives with the
 // last of them. Real time throughout, because the world is stopped for all of
 // it. KEEPER.reward: [hang, stream] in real seconds.
-function keeperRewardStart(B, k) {
+// ...OR A WEAPON: the shards stream together on the floor where he fell and
+// make it there, and the exit stays locked until it is picked up.
+function keeperRewardStart(B, k, weapon = null) {
   const pieces = (k.shatterPieces || []).filter(([it, gen]) => it.on && it.gen === gen);
   for (const [it] of pieces) {
     it.hold = 0;
@@ -5691,7 +5899,8 @@ function keeperRewardStart(B, k) {
     it.fx = it.px; it.fy = it.py; it.fz = it.pz;
     it.delay = Math.random() * KEEPER.reward[1] * 0.45;
   }
-  B.reward = { t: 0, t0: performance.now(), pieces, given: false };
+  B.reward = { t: 0, t0: performance.now(), pieces, given: false, weapon,
+    at: weapon ? new THREE.Vector3(k.pos.x, 0.85, k.pos.z) : null };
   keeperStopUntil = Infinity;   // held until the power is given, not a stopwatch
   timeScale = 0;
   setTimeLocked(false);
@@ -5703,7 +5912,12 @@ function keeperRewardTick(B, dt) {
   if (R.given) return;
   R.t = (performance.now() - R.t0) / 1000;   // wall clock, like the stop itself
   const [hang, stream] = KEEPER.reward;
-  const tx = player.pos.x, ty = EYE_HEIGHT - 0.35, tz = player.pos.z;
+  if (R.streamed) {   // the weapon is on the floor: given when it is picked up
+    if (hall.seekerTaken) { R.given = true; runlog.ev('boss-reward', { weapon: R.weapon }); }
+    return;
+  }
+  const tx = R.at ? R.at.x : player.pos.x, ty = R.at ? R.at.y : EYE_HEIGHT - 0.35;
+  const tz = R.at ? R.at.z : player.pos.z;
   for (const [it, gen] of R.pieces) {
     if (!it.on || it.gen !== gen) continue;
     const u = (R.t - hang - it.delay) / (stream * 0.55);
@@ -5718,10 +5932,18 @@ function keeperRewardTick(B, dt) {
   }
   debrisPool.mesh.instanceMatrix.needsUpdate = true;
   if (R.t >= hang + stream) {
-    R.given = true;
     for (const [it, gen] of R.pieces) {
       if (it.on && it.gen === gen) { it.on = false; debrisPool.mesh.setMatrixAt(it.idx, HIDDEN); }
     }
+    if (R.weapon) {
+      R.streamed = true;
+      keeperStopUntil = 0;
+      spawnPickup(R.at, R.weapon);
+      showBanner(R.weapon.toUpperCase(), 2000);
+      vibrate([15, 30, 40]);
+      return;
+    }
+    R.given = true;
     hall.keeperTaken = true;
     keeperStopUntil = 0;
     runlog.ev('keeper-reward');
@@ -5747,7 +5969,7 @@ function keeperTick(L, dt) {
     for (let i = enemies.length - 1; i >= 0; i--) {
       if (B.adds.includes(enemies[i])) { enemies[i].drops = null; killEnemy(i, _v1.set(0, 0, 1)); }
     }
-    keeperRewardStart(B, k);
+    keeperRewardStart(B, k, B.kind === 'frankenstein' ? 'seeker' : null);
     return;
   }
   // the pair: back KEEPER.addsBack after the SECOND of them goes
@@ -5755,7 +5977,7 @@ function keeperTick(L, dt) {
     if (B.addsAt === null) B.addsAt = worldT + KEEPER.addsBack;
     else if (worldT >= B.addsAt) { B.addsAt = null; keeperSpawnAdds(L); }
   }
-  if (B.phase >= 3 && k.state !== 'assemble' && worldT >= B.stopAt
+  if (B.kind === 'keeper' && B.phase >= 3 && k.state !== 'assemble' && worldT >= B.stopAt
       && performance.now() >= keeperStopUntil) {
     keeperStop(k);
     B.stopAt = worldT + KEEPER.stopEvery;
@@ -5856,6 +6078,7 @@ function playerFire(aimAt = null) {
       d.z += (Math.random() - 0.5) * 2 * spec.spread;
       d.normalize();
     }
+    if (spec.seeker) { spawnSeeker(origin, d, shot); lanes.push(d); continue; }
     if (spec.blast) spawnPlayerShell(origin, d, spec);
     else spawnBullet(origin, d, true, spec.speed, spec.pierce || 0);
     const into = spec.blast ? shells : bullets;
@@ -6100,6 +6323,14 @@ function updateBullets(sdt) {
         if (e.state === 'assemble') continue;   // still thin air — no hitbox
         const sy = e.g.scale.y, sx = Math.max(e.g.scale.x, 1);
         // head first: a sphere around the skull (bigger on armored units)
+        if (e.type === 'frankenstein') {
+          const r = frankHit(e, b);
+          if (r === 'miss') continue;
+          if (r === 'arm' && b.shot) b.shot.hit = true;   // an arm off is a hit
+          if (r === 'kill') { if (b.shot) b.shot.hit = true; killEnemy(j, _v1.copy(b.vel).normalize()); }
+          consumed = true;
+          break;
+        }
         const headR = (e.type === 'armored' ? 0.3 : 0.24) * sx;
         const headshot = segPointDistSq(b.prev, b.pos, e.pos.x, 1.62 * sy, e.pos.z) < headR * headR;
         let bodyshot = false;
@@ -9040,7 +9271,9 @@ function startPlaytest(kind) {
   }
   game.mode = 'hall';
   setTutorArmed(false);
-  pendingResumeDoor = kind === 'keeper' ? KEEPER.door : 1;
+  // a boss: the last door of his floor (docs/ARSENAL.md §1)
+  const bossDoor = { keeper: 9, frankenstein: 16, drone: 23, spawner: 30, finale: 39 }[kind];
+  pendingResumeDoor = bossDoor || 1;
   playtestJump = kind;
   runlog.ev('playtest', { start: kind });
   startRunFromMenu();
@@ -9053,6 +9286,7 @@ function startPlaytest(kind) {
   on('keyclose', closeKeyCard);
   on('ptfloor', () => startPlaytest('floor'));
   on('ptkeeper', () => startPlaytest('keeper'));
+  on('ptfrank', () => startPlaytest('frankenstein'));
   on('ptcards', () => { carded.clear(); saveProgress(); toast('INTRO CARDS WILL SHOW AGAIN'); });
   on('ptsight', () => { sightForced = sightForced === false ? null : false; refreshPlaytest(); });
   on('ptsend', () => sendLog());
@@ -12994,6 +13228,10 @@ function clearField() {
     scene.remove(shells[i].mesh);
     shells.splice(i, 1);
   }
+  for (let i = seekers.length - 1; i >= 0; i--) {
+    scene.remove(seekers[i].mesh);
+    seekers.splice(i, 1);
+  }
   for (let i = pickups.length - 1; i >= 0; i--) removePickup(i);
 }
 
@@ -13646,7 +13884,7 @@ function hallAllowance() {
 
 function hallWave(n) {
   const bossL = inHall() && hall && hall.legs[hall.cur];
-  if (bossL && bossL.proto && bossL.proto.boss === 'keeper') return keeperArm(bossL);
+  if (bossL && bossL.proto && bossL.proto.boss) return keeperArm(bossL);
   let hallWant = null;
   // A LEG HOLDS ITS SHARE OF THE DOOR, and nothing else. The old rule sized a
   // leg from its own geometry — every stretch worth a few bodies — which is
@@ -13930,10 +14168,11 @@ function initHall(from = 1) {
     checkpoint: { x: 0, z: 0 },
     legInDoor: 0, legsThisDoor: doorLegs(door), mem: newRunMemory(unlocks) };
   // PLAYTEST: SKIP TO THE KEEPER starts on his leg, not on the corridor before it
-  if (playtestJump === 'keeper' && door === KEEPER.door) hall.legInDoor = hall.legsThisDoor - 1;
+  if (playtestJump && playtestJump !== 'floor' && door === floorOf(door).last) hall.legInDoor = hall.legsThisDoor - 1;
   playtestJump = null;
   const proto0 = forced(composeProtocol(door, lifetimeDoors, hall.mem));
-  if (keeperLeg(door, hall.legInDoor)) keeperProto(proto0);
+  const bk0 = bossLeg(door, hall.legInDoor);
+  if (bk0) bossProto(proto0, bk0);
   hall.legs.push(buildHallLeg(0, 0, proto0));
   recordMetProto(hall.legs[0].proto);   // leg 1 counts too; only 2+ used to
   applyLegVisibility(true);             // leg 1 starts in its own weather
@@ -14311,7 +14550,8 @@ function openHallDoor() {
     armSlowLesson(hall.legInDoor + 1 >= hall.legsThisDoor ? nextDoor : 0);
     const proto = forced(composeProtocol(nextDoor, lifetimeDoors, hall.mem));
     const nextLeg = hall.legInDoor + 1 >= hall.legsThisDoor ? 0 : hall.legInDoor + 1;
-    if (keeperLeg(nextDoor, nextLeg)) keeperProto(proto);   // floor 1's boss
+    const bk = bossLeg(nextDoor, nextLeg);
+    if (bk) bossProto(proto, bk);   // the floor's boss
     hall.legs.push(buildHallLeg(L.endGx, L.endGz + 1, proto));
   }
   rebuildHallObstacles();
@@ -16590,6 +16830,7 @@ function frame(now) {
   updateRipples(sdt);
   updateGrenades(sdt);
   updateMissiles(sdt);
+  updateSeekers(sdt);
   updatePickups(dt, sdt);
 
   // --- HUD
@@ -16980,7 +17221,7 @@ window.__ts = {
     const B = L && L.boss;
     if (!B) return null;
     const k = B.keeper;
-    return { phase: B.phase, done: B.done, started: !!k,
+    return { kind: B.kind, phase: B.phase, done: B.done, started: !!k,
       alive: !!k && enemies.includes(k), hp: k ? k.hp : null,
       adds: B.adds.filter((a) => enemies.includes(a)).length, addsAt: B.addsAt,
       stopping: performance.now() < keeperStopUntil, sealed: !!(L.seal && L.seal.shut),
@@ -16997,6 +17238,7 @@ window.__ts = {
   setSight: (v) => { sightForced = v === null ? null : !!v; },
   runlog: () => ({ summary: runlog.summary(), text: runlog.text(), log: runlog.current() }),
   sendLog, openPlaytest, startPlaytest, runlogPending: () => runlog.pending(),
+  seekers: () => seekers.length, seekerRefill,
   keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
   meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,
