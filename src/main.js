@@ -6245,6 +6245,11 @@ function onPointerDown(ev) {
         openSettings();
         return;
       }
+      if (ev.target.closest('#ppt')) {
+        el.pausemenu.style.display = 'none';   // one card at a time
+        openPlaytest('pause');
+        return;
+      }
       if (ev.target.closest('#plog')) {
         sendLog();               // one tap; the pause menu stays up
         return;
@@ -8914,6 +8919,7 @@ async function saveKey() {
 // from door 1, straight to the Keeper, the intro cards shown again, sight on
 // or off, and the log. Shown while PLAYTEST.on (balance.js).
 let playtestJump = null;   // 'keeper': initHall starts on the Keeper's leg
+let playtestFrom = null;   // 'pause' when opened over a paused run
 function refreshPlaytest() {
   const $ = (id) => document.getElementById(id);
   if (!$('ptmenu')) return;
@@ -8921,14 +8927,29 @@ function refreshPlaytest() {
   $('ptsight').textContent = 'SIGHT: ' + (sightForced === false ? 'OFF' : 'ON');
   $('ptkey').textContent = 'GITHUB KEY: ' + (runlog.hasKey() ? 'SET · TAP TO FORGET' : 'NOT SET');
 }
-function openPlaytest() {
+function openPlaytest(from = 'menu') {
+  playtestFrom = from;
   cardOpenedAt = performance.now();
   refreshPlaytest();
   el.ptmenu.style.display = 'flex';
 }
-function closePlaytest() { el.ptmenu.style.display = 'none'; }
+function closePlaytest() {
+  el.ptmenu.style.display = 'none';
+  // back to the paused run it was opened over
+  if (playtestFrom === 'pause' && game.state === 'paused') el.pausemenu.style.display = 'flex';
+  playtestFrom = null;
+}
 function startPlaytest(kind) {
-  closePlaytest();
+  const midRun = playtestFrom === 'pause';
+  playtestFrom = null;
+  el.ptmenu.style.display = 'none';
+  // FROM A PAUSED RUN: that run ends here (its log is kept, as any ended run's
+  // is) and the new one starts from the title, the same road every run takes
+  if (midRun || game.state !== 'menu') {
+    el.pausemenu.style.display = 'none';
+    sfx.fadeAll(1, 0.2);
+    showMenu();
+  }
   game.mode = 'hall';
   setTutorArmed(false);
   pendingResumeDoor = kind === 'keeper' ? KEEPER.door : 1;

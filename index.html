@@ -1580,9 +1580,9 @@
   <h2>ONE-TIME SETUP</h2>
   <p class="ptp">Logs go to the game's GitHub as issues. Make a key that can only do that, paste it here once, and SEND LOG becomes one tap. The key stays on this phone.</p>
   <ol class="ptp ptsteps">
-    <li>Open <a id="keymake" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → new fine-grained token</a></li>
-    <li>Repository access: <b>Only select repositories → timeshard</b></li>
-    <li>Permissions → Issues: <b>Read and write</b>. Generate, copy.</li>
+    <li>Open <a id="keymake" href="https://github.com/settings/personal-access-tokens/new?name=Time%20Shatter%20playtest%20logs&description=Lets%20the%20game%20post%20playtest%20logs%20as%20issues&target_name=onlinestuff4me-sketch&expires_in=366&issues=write" target="_blank" rel="noopener">this GitHub page</a> (name and permission are filled in)</li>
+    <li>Repository access: <b>Only select repositories → timeshard</b>. Check Issues says <b>Read and write</b>.</li>
+    <li>Tap <b>Generate token</b>, copy it, and paste it below.</li>
   </ol>
   <input id="keyin" type="password" autocomplete="off" placeholder="github_pat_…">
   <div id="keysave" class="pbtn red">SAVE AND SEND</div>
@@ -1649,6 +1649,7 @@
     <div id="presume" class="pbtn red">RESUME</div>
     <div id="psettings" class="pbtn">SETTINGS</div>
     <div id="plog" class="pbtn">SEND LOG</div>
+    <div id="ppt" class="pbtn">PLAYTEST</div>
     <div id="pendrun" class="pbtn">END RUN</div>
   </div>
 </div>

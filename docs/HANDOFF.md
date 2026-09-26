@@ -86,16 +86,19 @@ What is still owed is item 00 of `docs/BACKLOG.md`.
 second leg. Sight shows from the first 10 hits in a row.
 
 **THE VERTICAL SLICE, and how it is tested (decided 2026-09-26: on `main`).**
-The title screen has a **PLAYTEST** button (`PLAYTEST.on` in `src/balance.js`;
+The title screen and the pause menu both have a **PLAYTEST** button (`PLAYTEST.on` in `src/balance.js`;
 turn it off for a public release). It opens: PLAY FLOOR 1 (door 1, no
-tutorial), SKIP TO THE KEEPER (starts on door 9's last leg), RESET INTRO
+tutorial), SKIP TO THE KEEPER (starts on door 9's last leg; from the pause
+menu either one ends the current run first), RESET INTRO
 CARDS, SIGHT on/off, SEND LAST RUN'S LOG, and the GitHub key.
 
 **Playtest reports arrive as GitHub issues labelled `playtest`.** SEND LOG is
 one tap on the pause menu, on the death screen, or in the PLAYTEST menu: the
 run's log (summary plus every event) is POSTed to the repo's issues API in the
 background and a toast says LOG SENT · #n. The first tap asks once for a
-fine-grained GitHub token (this repo, Issues read/write) and keeps it in the
+fine-grained GitHub token (this repo, Issues read/write; the card's link
+pre-fills GitHub's form where GitHub supports it — only the owner can mint
+one, so this step cannot be done for them) and keeps it in the
 device's localStorage (`ts_gh_token`) and nowhere else — a token in the
 public repo would be revoked by GitHub's secret scanning and readable by
 anyone. A send that fails waits in `ts_log_outbox` and goes with the next one,

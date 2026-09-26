@@ -144,5 +144,27 @@ const k = await page.evaluate(() => ({ door: window.__ts.hall().doorsPassed + 1,
 console.log('skip to keeper: ' + JSON.stringify(k));
 if (k.door !== 9 || !k.keeper) bad('SKIP TO THE KEEPER did not start on his leg');
 
+// ---- PLAYTEST from the pause menu: CLOSE goes back to the pause, and a pick
+// ends this run and starts the new one -------------------------------------
+await page.waitForTimeout(1500);
+await page.evaluate(() => { document.getElementById('pausebtn').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); });
+await page.waitForTimeout(300);
+await page.tap('#ppt');
+await page.waitForTimeout(600);
+if (!(await shown('ptmenu'))) bad('PLAYTEST on the pause menu did not open its menu');
+await page.tap('#ptclose');
+await page.waitForTimeout(300);
+if (!(await shown('pausemenu'))) bad('closing PLAYTEST did not return to the pause menu');
+await page.tap('#ppt');
+await page.waitForTimeout(600);
+await page.tap('#ptfloor');
+await page.waitForFunction(() => window.__ts.game.state === 'play' || window.__ts.game.state === 'intro',
+  null, { timeout: 20000 }).catch(() => {});
+const f1 = await page.evaluate(() => ({ state: window.__ts.game.state, door: window.__ts.hall().doorsPassed + 1,
+  keeper: !!window.__ts.keeper(), pause: getComputedStyle(document.getElementById('pausemenu')).display }));
+console.log('pause → floor 1: ' + JSON.stringify(f1));
+if (f1.door !== 1 || f1.keeper) bad('PLAY FLOOR 1 from the pause menu did not start at door 1');
+if (f1.pause !== 'none') bad('the pause menu is still up over the new run');
+
 done('runlog', errs);
 await browser.close();
