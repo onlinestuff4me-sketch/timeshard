@@ -93,15 +93,16 @@ export const TEMPO = {
 // was it, and it joins the ordinary cast from the next floor's first door.
 export const TYPE_INTRO = {
   gunner: 1, rusher: 4, shotgunner: 6, shieldbearer: 8, blinker: 9, heavy: 11,
-  sniper: 13, bomber: 15, frankenstein: 16, armored: 18, kamikaze: 20, rocketeer: 22, drone: 23, laser: 32,
+  sniper: 13, bomber: 15, frankenstein: 16, armored: 18, kamikaze: 20, rocketeer: 22, drone: 23,
+  spawner: 30, laser: 32,
 };
-export const BOSS_TYPES = ['blinker', 'frankenstein', 'drone'];   // debuted by a boss, not a door
+export const BOSS_TYPES = ['blinker', 'frankenstein', 'drone', 'spawner'];   // debuted by a boss, not a door
 
 // Veteran fill after the debut: [share, cap] -> min(cap, floor(total/share)).
 export const TYPE_SHARE = {   // veteran shooter fill: floor(total/share), capped
   shotgunner: [4, 4], heavy: [5, 3], shieldbearer: [8, 2],
   sniper: [7, 2], bomber: [6, 2], armored: [9, 2], rocketeer: [8, 2],
-  blinker: [9, 2], kamikaze: [6, 4], frankenstein: [10, 1], drone: [12, 1],
+  blinker: [9, 2], kamikaze: [6, 4], frankenstein: [10, 1], drone: [12, 1], spawner: [14, 1],
 };
 
 // The weapon each enemy was carrying — what they leave on the floor.
@@ -2044,4 +2045,18 @@ export const FRANK = {
 export const DRONE = {
   hover: 2.45, keep: [7, 11], speed: 2.2, hitR: 0.3, lead: 1.0,
   bossSize: 2.4, bossHover: 2.05, bossHp: 4, bossSpeed: [1.6, 2.4, 3.2, 4.0],
+};
+
+// THE SPAWNER (docs/ARSENAL.md §9, §12). A dome with a dish. While the dish
+// turns, anyone who shatters within `r` of it hangs where he fell for `hang`
+// WORLD seconds (a freeze stretches it: that is the time button's answer),
+// then reassembles. Nothing killed under it refunds bank or drops anything.
+// Break the dish and everything it holds stays down. The floor-4 boss holds
+// the whole room (`bossHang`), and his dish has one second life: the first
+// break hangs HIM for `bossReform`, his guards stay down, and he comes back
+// with all of them. His reward is a second life of your own.
+export const SPAWNER = {
+  r: 10, hang: 2, dishR: 0.3,
+  bossSize: 1.5, bossHang: 3, bossReform: 4,
+  bossGuards: ['shotgunner', 'heavy', 'armored', 'blinker', 'gunner', 'bomber'],
 };

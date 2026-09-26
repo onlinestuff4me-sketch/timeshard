@@ -654,6 +654,22 @@ Head-sized, just above head height.
 
 ## 9. The Spawner
 
+**Built (2026-09-26), Mk I and the floor-4 boss:** `SPAWNER` in
+`src/balance.js`, `spawnerHolding()`/`queueRevive()`/`updateRevives()` in
+`src/main.js`, checked by `test/spawner.mjs`. A kill within 10 m of a live
+dish hangs for 2 world-seconds inside a filling ring, then stands up where he
+fell; it refunds no bank and drops nothing; the door waits for hangs; break
+the dish and every hang it holds ends. The dish is the only thing a round can
+break — the dome is plate (a sphere round the dome, so a round passing over it
+to the dish is not stopped on the way in). The boss on door 30's last leg
+holds his six guards (shotgunner, heavy, armored, blinker, gunner, bomber)
+with a 3 s hang; his dish's first break hangs HIM for 4 s while his guards stay
+down, then he reforms and restores the room to six (not six more); the second
+break ends him. Reward: **a second life** — once a run, the hit that would
+shatter you stops the world instead; the HUD says 2ND LIFE while you hold it.
+Not built: the hang's hovering debris (the ring carries it for now), and the
+Mk II/III spawners.
+
 A small armored dome with a spinning radio dish on top. While the dish
 turns, any man near it who shatters **hangs where he fell for 2 seconds, then
 reassembles**. Shattering his guards only buys time; the dish is the kill.

@@ -16,7 +16,7 @@ import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, 
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
   doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT, PLAYTEST,
-  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI, FRANK, DRONE } from './balance.js';
+  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI, FRANK, DRONE, SPAWNER } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -2976,8 +2976,33 @@ function buildDroneMesh(size = 1, hover = DRONE.hover) {
     shinL, shinR, kneeRest: 0, armLock: true, armRLock: true, armLRest: 0, armRRest: 0,
     egunBaseMat: MAT_BLACK, foreL: armL, foreR: armR };
 }
+// THE SPAWNER'S BODY: an armored dome, a mast, and the dish that turns on
+// top of it — the dish is the only thing on him a round can break.
+function buildSpawnerMesh(size = 1) {
+  const g = new THREE.Group();
+  const dome = new THREE.Mesh(new THREE.CylinderGeometry(0.5 * size, 0.68 * size, 0.62 * size, 10), MAT_GUNMETAL);
+  dome.position.y = 0.31 * size;
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.28 * size, 0.5 * size, 0.2 * size, 10), MAT_GUNMETAL);
+  cap.position.y = 0.72 * size;
+  const mast = new THREE.Mesh(new THREE.BoxGeometry(0.07 * size, 0.42 * size, 0.07 * size), MAT_BLACK);
+  mast.position.y = 1.0 * size;
+  const dish = new THREE.Group();
+  dish.position.y = 1.22 * size;
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.72 * size, 0.05 * size, 0.36 * size), EM(0xc8281a));
+  plate.rotation.x = -0.5;
+  const light = new THREE.Mesh(new THREE.BoxGeometry(0.1 * size, 0.1 * size, 0.1 * size), MAT_WHITEFLASH);
+  light.position.set(0, 0.08 * size, 0.1 * size);
+  dish.add(plate, light);
+  g.add(dome, cap, mast, dish);
+  const E = () => { const x = new THREE.Group(); g.add(x); return x; };
+  const legL = E(), legR = E(), armL = E(), armR = E(), shinL = E(), shinR = E();
+  return { g, legL, legR, armL, armR, egun: null, egunL: null, chest: light, dish, dishY: 1.22 * size,
+    shinL, shinR, kneeRest: 0, armLock: true, armRLock: true, armLRest: 0, armRRest: 0,
+    egunBaseMat: MAT_BLACK, foreL: armL, foreR: armR };
+}
 function buildEnemyMesh(type) {
   if (type === 'drone') return buildDroneMesh();
+  if (type === 'spawner') return buildSpawnerMesh();
   const g = new THREE.Group();
   const P = { ...EP };
   // per-type builds: the heavy is broader everywhere, the bomber pear-shaped
@@ -3391,6 +3416,8 @@ const ENEMY_TYPES = {
   frankenstein: { speed: 1.5, scale: [1.1, 1.06, 1.1], drop: 0, aimTime: 0.7, cd: [1.5, 0.9], mul: 1, pellets: 1, twin: true },
   // fires nothing: while he is up, the others lead you — see droneMarking
   drone: { speed: DRONE.speed, scale: [1, 1, 1], drop: 0, unarmed: true, flyer: true },
+  // stands still and turns its dish; see spawnerHolding and the revives
+  spawner: { speed: 0, scale: [1, 1, 1], drop: 0, unarmed: true },
 };
 const unarmed = (t) => t === 'rusher' || !!(ENEMY_TYPES[t] && ENEMY_TYPES[t].unarmed);
 
@@ -3948,7 +3975,8 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
   const sy = spec.scale[1], sxz = spec.scale[0];
   // target points sampled from the REAL body-part boxes, so the finished
   // swarm matches the model's silhouette and the reveal is near-seamless
-  const PARTS = type === 'drone' ? [[1, 0, DRONE.hover, 0.6, 0.2, 0.6]] : [
+  const PARTS = type === 'drone' ? [[1, 0, DRONE.hover, 0.6, 0.2, 0.6]]
+    : type === 'spawner' ? [[0.8, 0, 0.4, 1.2, 0.7, 1.2], [0.2, 0, 1.2, 0.7, 0.2, 0.4]] : [
     [0.45, 0, 1.12, 0.44, 0.62, 0.26],     // weight, cx, cy, w, h, d — torso
     [0.12, 0, 1.62, 0.26, 0.28, 0.26],     // head
     [0.10, 0, 0.74, 0.38, 0.20, 0.24],     // hips
@@ -4282,7 +4310,11 @@ function killEnemy(i, impulseDir) {
   removeEnemyShards(e);   // a mid-assembly kill (menu demo) must not leak shards
   tempoKill();
   removeBeam(e);          // shattering the laser cuts his sweep instantly
-  if (timeMode === 'toggle' && (game.state === 'play' || game.state === 'intro')) {
+  // UNDER A SPAWNER a kill is not a kill yet: no bank, no drop, and he hangs
+  // for the dish's `hang`, then comes back (docs/ARSENAL.md §9)
+  const heldBy = spawnerHolding(e);
+  if (heldBy) queueRevive(e, heldBy);
+  if (!heldBy && timeMode === 'toggle' && (game.state === 'play' || game.state === 'intro')) {
     // kills buy time — but they buy LESS of it as you go deeper, which is
     // what turns the freeze from a habit into a decision
     // ...and pay DOUBLE in the slow-time school, where the point of a cluster
@@ -4335,7 +4367,8 @@ function killEnemy(i, impulseDir) {
   // again, and loot is meant to be scarce.
   const debut = game.mode === 'duel' && kind && !duel.gotGun
     && duel.debutDrop !== duelRoom() && duelPlan(duelRoom()).cast.includes(e.type);
-  if (debut) { duel.debutDrop = duelRoom(); spawnPickup(e.pos, kind); }
+  if (heldBy) { /* nothing drops until the dish is gone */ }
+  else if (debut) { duel.debutDrop = duelRoom(); spawnPickup(e.pos, kind); }
   else if (tutorStep !== null && armed) spawnPickup(e.pos, CLIP);
   else if (typeof drop === 'string') spawnPickup(e.pos, drop);      // named loot
   else if (e.drops) spawnPickup(e.pos, e.drops);                    // a boss's pair
@@ -4815,6 +4848,10 @@ function warmupDoor() {
   const d = hall.doorsPassed + 1, f = floorOf(d);
   return f.floor > 1 && d === f.first;
 }
+// what you hold that the HUD should say while you hold it (a second life)
+function hudPowers(sep) {
+  return hall && hall.secondLife && !hall.secondLifeUsed ? `${sep}2ND LIFE` : '';
+}
 // the HUD's floor, in the tunnel only: "F2 · DOOR 11 · ..."
 function floorTag() {
   if (game.mode !== 'hall' || !hall) return '';
@@ -5235,6 +5272,7 @@ function updateEnemy(e, sdt) {
     }
     case 'advance': {
       if (e.type === 'drone') { droneMove(e, sdt, dist, toPlayer); break; }
+      if (e.type === 'spawner') { if (e.dish && !e.hanging) e.dish.rotation.y += sdt * 3; break; }
       if (e.type === 'kamikaze') {
         // his slot in the pack: set off KAMI.gap after the man before him
         if (e.kGo === undefined) { e.kGo = Math.max(worldT, kamiNext); kamiNext = e.kGo + KAMI.gap; }
@@ -5668,6 +5706,87 @@ function updateBlink(e) {
 }
 
 // ---------------------------------------------------------------------------
+// THE SPAWNER (docs/ARSENAL.md §9; SPAWNER in balance.js). A kill near a live
+// dish is a hang: a ring on the floor fills over `hang` world-seconds and he
+// stands up again where he fell. Break the dish and every hang it is holding
+// ends there. The door waits for hangs as it waits for men.
+// ---------------------------------------------------------------------------
+const revives = [];
+const REVIVE_RING_GEO = new THREE.RingGeometry(0.55, 0.75, 28);
+const REVIVE_RING_MAT = new THREE.MeshBasicMaterial({ color: 0xff2d1a, transparent: true, opacity: 0.6,
+  side: THREE.DoubleSide, depthWrite: false });
+function spawnerHolding(e) {
+  if (e.type === 'spawner' || e.boss || e.noRevive) return null;
+  for (const s of enemies) {
+    if (s.type !== 'spawner' || s === e || s.state === 'assemble' || s.hanging) continue;
+    const r = s.boss === 'spawner' ? Infinity : SPAWNER.r;
+    if (Math.hypot(s.pos.x - e.pos.x, s.pos.z - e.pos.z) < r) return s;
+  }
+  return null;
+}
+function queueRevive(e, by) {
+  const ring = new THREE.Mesh(REVIVE_RING_GEO, REVIVE_RING_MAT);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(e.pos.x, 0.03, e.pos.z);
+  ring.scale.setScalar(0.2);
+  scene.add(ring);
+  const hang = by.boss === 'spawner' ? SPAWNER.bossHang : SPAWNER.hang;
+  revives.push({ type: e.type, x: e.pos.x, z: e.pos.z, t0: worldT, at: worldT + hang, by, ring,
+    add: !!(hall && hall.legs[hall.cur].boss && hall.legs[hall.cur].boss.adds.includes(e)) });
+  runlog.ev('hang', { type: e.type });
+}
+function dropRevive(i) { scene.remove(revives[i].ring); revives.splice(i, 1); }
+function updateRevives() {
+  for (let i = revives.length - 1; i >= 0; i--) {
+    const v = revives[i];
+    // the dish is gone (or reforming): he stays down
+    if (!enemies.includes(v.by) || v.by.hanging) { dropRevive(i); continue; }
+    const u = Math.min(1, (worldT - v.t0) / Math.max(1e-3, v.at - v.t0));
+    v.ring.scale.setScalar(0.2 + 0.8 * u);
+    if (worldT < v.at) continue;
+    dropRevive(i);
+    spawnEnemy(v.type, { x: v.x, z: v.z });
+    const back = enemies[enemies.length - 1];
+    if (v.add && hall) { const B = hall.legs[hall.cur].boss; if (B) B.adds.push(back); }
+  }
+}
+function clearRevives() { for (let i = revives.length - 1; i >= 0; i--) dropRevive(i); }
+// THE BOSS'S ONE SECOND LIFE: the first break hangs HIM, his guards stay
+// down, and after SPAWNER.bossReform he stands up with the whole room
+function spawnerSecondLife(e, at) {
+  e.usedLife = true;
+  e.hanging = true;
+  e.reformAt = worldT + SPAWNER.bossReform;
+  e.g.visible = false;
+  spawnShatter(new THREE.Vector3(e.pos.x, 1, e.pos.z), _v1.set(0, 1, 0), Math.round(SHATTER.perKill * 0.6));
+  spawnSparks(at, 0xf4f5f7);
+  sfx.shatter(); vibrate([30, 40, 30]);
+  showBanner('IT WILL COME BACK', 1600);
+  runlog.ev('spawner-life');
+}
+function spawnerReformTick(L) {
+  const B = L.boss, k = B && B.keeper;
+  if (!k || !k.hanging || worldT < k.reformAt) return;
+  k.hanging = false;
+  k.g.visible = true;
+  // ...AND THE WHOLE ROOM WITH IT: every guard not standing comes back at
+  // his post; the ones still up stay as they are (the room is six, not twelve)
+  const up = B.adds.filter((a) => enemies.includes(a));
+  const types = BOSS_ADDS.spawner;
+  const have = {};
+  for (const a of up) have[a.type] = (have[a.type] || 0) + 1;
+  B.adds = up;
+  for (let i = 0; i < types.length; i++) {
+    if (have[types[i]] > 0) { have[types[i]]--; continue; }
+    spawnEnemy(types[i], keeperAt(L, ADD_SPOTS[i]));
+    const g = enemies[enemies.length - 1];
+    g.drops = TYPE_DROP[types[i]];
+    B.adds.push(g);
+  }
+  showBanner('AGAIN', 1200);
+}
+
+// ---------------------------------------------------------------------------
 // THE DRONE (docs/ARSENAL.md §8; DRONE in balance.js). It keeps its band —
 // closing when far, backing off when near, drifting sideways between — at
 // hover height, rotors turning. It never fires. While one is up and formed,
@@ -5843,7 +5962,7 @@ function keeperLeg(door, legIx) {
 // WHICH BOSS, IF ANY, OWNS THIS LEG: the last leg of a floor's last door
 // (docs/ARSENAL.md §1). Only bosses that are built answer; the rest of the
 // floors end in an ordinary leg until theirs is.
-const BOSSES_BUILT = new Set(['keeper', 'frankenstein', 'drone']);
+const BOSSES_BUILT = new Set(['keeper', 'frankenstein', 'drone', 'spawner']);
 function bossLeg(door, legIx) {
   if (game.mode !== 'hall' || tutorStep !== null || tutorShaping) return null;
   const f = floorOf(door);
@@ -5879,8 +5998,9 @@ const keeperAt = (L, [dx, dz]) => ({ x: (L.spine[0][0] + dx) * HALL.cell, z: (L.
 // ...and the drone's gunners (it steers them) with a shotgunner (the cone,
 // for a target overhead)
 const BOSS_ADDS = { keeper: ['shotgunner', 'shotgunner'], frankenstein: ['bomber', 'bomber'],
-  drone: ['gunner', 'gunner', 'shotgunner'] };
-const ADD_SPOTS = [...KEEPER_ADDS, [0, 11.6]];   // the third stands BEHIND the boss, not in the lane to him
+  drone: ['gunner', 'gunner', 'shotgunner'], spawner: SPAWNER.bossGuards };
+const ADD_SPOTS = [...KEEPER_ADDS, [0, 11.6],   // the third stands BEHIND the boss, not in the lane to him
+  [-1.2, 7.4], [1.2, 7.4], [-0.6, 8.8]];      // the spawner's guard: six
 function keeperSpawnAdds(L) {
   const B = L.boss;
   const types = BOSS_ADDS[B.kind] || BOSS_ADDS.keeper;
@@ -5932,9 +6052,29 @@ function droneBossStart(L) {
   runlog.ev('drone-start');
   keeperSpawnAdds(L);
 }
+function spawnerBossStart(L) {
+  const B = L.boss;
+  spawnEnemy('spawner', keeperAt(L, KEEPER_SPOT));
+  const k = enemies[enemies.length - 1];
+  scene.remove(k.g);
+  const big = buildSpawnerMesh(SPAWNER.bossSize);
+  big.g.position.copy(k.g.position);
+  big.g.visible = k.g.visible;
+  addGhosts(big.g);
+  scene.add(big.g);
+  Object.assign(k, big, { pos: big.g.position });
+  k.boss = 'spawner';
+  k.spawnerSize = SPAWNER.bossSize;
+  k.engageDist = 60;
+  B.keeper = k;
+  B.phase = 1;
+  runlog.ev('spawner-start');
+  keeperSpawnAdds(L);
+}
 function keeperStart(L) {
   const B = L.boss;
   if (B.kind === 'frankenstein') { frankStart(L); return; }
+  if (B.kind === 'spawner') { spawnerBossStart(L); return; }
   if (B.kind === 'drone') { droneBossStart(L); return; }
   spawnEnemy('blinker', keeperAt(L, KEEPER_SPOT));
   const k = enemies[enemies.length - 1];
@@ -6060,6 +6200,15 @@ function keeperRewardTick(B, dt) {
     }
     R.given = true;
     keeperStopUntil = 0;
+    if (B.kind === 'spawner') {
+      // A SECOND LIFE (docs/ARSENAL.md §12): once this run, a hit that
+      // would shatter you does not — see hitPlayer
+      hall.secondLife = true;
+      runlog.ev('boss-reward', { power: 'second life' });
+      showBanner('A SECOND LIFE', 2400);
+      vibrate([15, 30, 15, 30, 40]);
+      return;
+    }
     if (B.kind === 'drone') {
       // SIGHT (docs/ARSENAL.md §12): the no-misses streak now shows through walls
       hall.sightTaken = true;
@@ -6095,8 +6244,10 @@ function keeperTick(L, dt) {
     keeperRewardStart(B, k, B.kind === 'frankenstein' ? 'seeker' : null);
     return;
   }
-  // the pair: back KEEPER.addsBack after the SECOND of them goes
-  if (!B.adds.some((a) => enemies.includes(a))) {
+  if (B.kind === 'spawner') spawnerReformTick(L);
+  // the pair: back KEEPER.addsBack after the SECOND of them goes (not the
+  // spawner's guard: HE brings them back, one by one, as they fall)
+  if (B.kind !== 'spawner' && !B.adds.some((a) => enemies.includes(a))) {
     if (B.addsAt === null) B.addsAt = worldT + KEEPER.addsBack;
     else if (worldT >= B.addsAt) { B.addsAt = null; keeperSpawnAdds(L); }
   }
@@ -6446,6 +6597,24 @@ function updateBullets(sdt) {
         if (e.state === 'assemble') continue;   // still thin air — no hitbox
         const sy = e.g.scale.y, sx = Math.max(e.g.scale.x, 1);
         // head first: a sphere around the skull (bigger on armored units)
+        if (e.type === 'spawner') {
+          if (e.hanging) continue;   // reforming: nothing there to hit
+          const size = e.spawnerSize || 1;
+          const rr = SPAWNER.dishR * size;
+          if (segPointDistSq(b.prev, b.pos, e.pos.x, e.dishY, e.pos.z) < rr * rr) {
+            if (b.shot) b.shot.hit = true;
+            if (e.boss === 'spawner' && !e.usedLife) { spawnerSecondLife(e, b.pos); consumed = true; break; }
+            killEnemy(j, _v1.copy(b.vel).normalize());
+            consumed = true;
+            break;
+          }
+          // the dome is plate — a sphere round the dome itself, so a round
+          // passing over it to the dish is not stopped on the way in
+          if (segPointDistSq(b.prev, b.pos, e.pos.x, 0.35 * size, e.pos.z) < 0.7 * 0.7 * size * size) {
+            spawnSparks(b.pos, 0xf4f5f7); sfx.clank(); consumed = true; break;
+          }
+          continue;
+        }
         if (e.type === 'drone') {
           const size = e.droneSize || 1, hy = e.hoverY || DRONE.hover;
           const rr = DRONE.hitR * size;
@@ -9421,6 +9590,7 @@ function startPlaytest(kind) {
   on('ptkeeper', () => startPlaytest('keeper'));
   on('ptfrank', () => startPlaytest('frankenstein'));
   on('ptdrone', () => startPlaytest('drone'));
+  on('ptspawner', () => startPlaytest('spawner'));
   on('ptcards', () => { carded.clear(); saveProgress(); toast('INTRO CARDS WILL SHOW AGAIN'); });
   on('ptsight', () => { sightForced = sightForced === false ? null : false; refreshPlaytest(); });
   on('ptsend', () => sendLog());
@@ -13221,6 +13391,19 @@ let deathAt = 0;
 
 function hitPlayer(ended = false, by = '?') {
   if (!player.alive || (player.iframes > 0 && !ended)) return;
+  // THE SECOND LIFE (the spawner's reward): once a run, the hit that would
+  // shatter you stops the world instead, and you stand back up
+  if (!ended && tutorStep === null && game.mode === 'hall' && hall && hall.secondLife && !hall.secondLifeUsed) {
+    hall.secondLifeUsed = true;
+    player.iframes = 2.5;
+    keeperStopUntil = performance.now() + 1200;
+    timeScale = 0;
+    spawnSparks(new THREE.Vector3(player.pos.x, 1.2, player.pos.z), 0xff2d1a);
+    showBanner('SECOND LIFE', 1800);
+    vibrate([60, 40, 60]);
+    runlog.ev('second-life', { by });
+    return;
+  }
   runlog.ev(ended ? 'end-run' : 'death', { by });
   // THE ONBOARDING CAN BE FAILED, and it has to be. It used to hand out
   // invulnerability, which taught the one thing this game must never teach:
@@ -13366,6 +13549,7 @@ function clearField() {
     scene.remove(seekers[i].mesh);
     seekers.splice(i, 1);
   }
+  clearRevives();
   for (let i = pickups.length - 1; i >= 0; i--) removePickup(i);
 }
 
@@ -16321,7 +16505,7 @@ function updateHall(dt) {
   const legFight = tutorStep === null
     || !!(tutorLegsOf()[tutorLegIx] && (tutorLegsOf()[tutorLegIx].enemies || []).length);
   if (L.boss) keeperTick(L, dt);
-  if (game.state === 'play' && !L.door.open && legFight
+  if (game.state === 'play' && !L.door.open && legFight && revives.length === 0
       && !(L.boss && !(L.boss.reward && L.boss.reward.given)) &&
       game.spawnQueue.length === 0 && enemies.length === 0 &&
       performance.now() >= killFlashUntil) {
@@ -16965,6 +17149,7 @@ function frame(now) {
   updateGrenades(sdt);
   updateMissiles(sdt);
   updateSeekers(sdt);
+  updateRevives();
   updatePickups(dt, sdt);
 
   // --- HUD
@@ -16991,9 +17176,9 @@ function frame(now) {
     ? `RUSH${SEP}${markPips} ${markPips === 1 ? 'MARK' : 'MARKS'}`
     : inHall() && hall
       ? (hall.legs[hall.cur].door.open
-          ? `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}OPEN \u2014 GO`
+          ? `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}OPEN \u2014 GO` + hudPowers(SEP)
           : `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`
-            + (droneMarking() ? `${SEP}MARKED` : ''))
+            + (droneMarking() ? `${SEP}MARKED` : '') + hudPowers(SEP))
       : game.state === 'play' && left > 0
         ? `WAVE ${game.wave}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`
         : `WAVE ${game.wave}${SEP}${game.kills}`;
@@ -17373,7 +17558,7 @@ window.__ts = {
   setSight: (v) => { sightForced = v === null ? null : !!v; },
   runlog: () => ({ summary: runlog.summary(), text: runlog.text(), log: runlog.current() }),
   sendLog, openPlaytest, startPlaytest, runlogPending: () => runlog.pending(),
-  seekers: () => seekers.length, seekerRefill, droneMarking,
+  seekers: () => seekers.length, seekerRefill, droneMarking, revives: () => revives.length,
   keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
   meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,
