@@ -59,6 +59,7 @@ What is still owed is item 00 of `docs/BACKLOG.md`.
 | Blinker: dodges on the trigger pull, then is spent (chest glows white) | `blinkersReact`, `BLINKER` | `blinker.mjs` |
 | The Keeper: floor 1's boss on door 9's last leg; slow time is his reward | `keeperTick`, `KEEPER` | `keeper.mjs` |
 | No-misses streak and sight (enemies through walls) | `aimMiss`, `SIGHT` | `sight.mjs` |
+| Run log: a playtest report from the pause menu or death screen | `src/runlog.js`, `openLog` | `runlog.mjs` |
 
 **Decisions made while building (all recorded in `docs/ARSENAL.md`):**
 
@@ -83,6 +84,15 @@ What is still owed is item 00 of `docs/BACKLOG.md`.
 
 **To play it:** a tunnel run reaching door 9 plays the Keeper on that door's
 second leg. Sight shows from the first 10 hits in a row.
+
+**Playtest reports come in as GitHub issues labelled `playtest`.** RUN LOG
+(pause menu) or SEND RUN LOG (death screen) opens a panel: a note, a summary,
+and SEND TO GITHUB, which opens a pre-filled issue on this repo that the owner
+submits. Nothing in the game holds a GitHub key; the owner's own sign-in does
+the posting. The issue carries the note, the summary and the last events that
+fit in a URL (~6.5 KB); COPY FULL LOG and SHARE carry all of it. Each report
+names its build (`BUILD` in `src/main.js`) — bump it when a playtest build
+goes out. The last run's log lives in localStorage as `ts_runlog_last`.
 
 **Red on this machine that is not the branch's:** `music` and `fire` fail the
 same way on the commit before this work; `duelup` failed there in an earlier

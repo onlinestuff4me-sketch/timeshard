@@ -27,6 +27,16 @@ import { MODES, modeById, isSimple, LOCKED_MODES, unlockLine, modeUnlocked }
   from './modes.js';
 import { loadTutorial, previewing as tutorPreviewing, NO_GRANTS } from './tutorial.js';
 import { haptic, persist, forget, hydrateStorage, shellSetup, isNative } from './native.js';
+import * as runlog from './runlog.js';
+// WHICH BUILD A RUN LOG CAME FROM. Bump it when a playtest build goes out, so
+// a report can be matched to the code that produced it.
+const BUILD = 'arsenal-2026-09-26';
+runlog.setContext(() => ({
+  d: inHall() && hall ? hall.doorsPassed + 1 : game.wave,
+  w: worldT,
+}));
+window.addEventListener('error', (e) => runlog.ev('error', { msg: String(e.message || e).slice(0, 200) }));
+window.addEventListener('unhandledrejection', (e) => runlog.ev('error', { msg: String(e.reason).slice(0, 200) }));
 
 // ---------------------------------------------------------------------------
 // THE DOOR-TO-DOOR MODES.
@@ -1194,6 +1204,7 @@ let jabT = 0;
 
 function setWeapon(type, clips) {
   const spec = WEAPONS[type];
+  if (type !== player.weapon) runlog.ev('gun', { to: type });
   // the gun leaving the hand keeps its rounds in the bag — saved BEFORE the
   // hand is overwritten, or the swap would write the new gun's full magazine
   // over the old one's slot
@@ -1247,6 +1258,7 @@ function meetMaybe(e) {
   dropAllPointers();
   meetCard.on = true;
   meetCard.at = performance.now();
+  runlog.ev('card', { type: e.type });
   meetCard.e = e;
   const c = el.meetcard;
   if (c) {
@@ -1319,6 +1331,7 @@ function tempoTick(sdt) {
 function tempoKill() {
   if (!switcherOn() || game.state !== 'play') return;
   tempo.n = tempo.clock - tempo.last <= TEMPO.window ? tempo.n + 1 : 1;
+  if (tempo.n % 5 === 0) runlog.ev('tempo', { n: tempo.n });
   tempo.last = tempo.clock;
   updateAmmoHud();
 }
@@ -1729,12 +1742,14 @@ function shotRoundDone(shot) {
   if (--shot.left > 0) return;
   if (shot.hit) aimHit(); else aimMiss();
 }
-function aimHit() { aimStreak.n++; aimStreak.hits++; }
+function aimHit() { aimStreak.n++; aimStreak.hits++; runlog.ev('hit', { n: aimStreak.n }); }
 // EACH TIER FORGIVES ONE MISS. The first drops you to its floor and spends it;
 // the second drops you to the floor below, whose forgiveness is fresh.
 //   43 -miss-> 30 -2 hits-> 32 -miss-> 10 -2-> 12 -miss-> 10 -4-> 14 -miss-> 0
 function aimMiss() {
   aimStreak.misses++;
+  const was = aimStreak.n;
+  queueMicrotask(() => runlog.ev('miss', { from: was, to: aimStreak.n }));
   const f = sightFloor(aimStreak.n);
   if (f === 0) { aimStreak.n = 0; aimStreak.spent = -1; return; }
   if (aimStreak.spent !== f) { aimStreak.n = f; aimStreak.spent = f; return; }
@@ -1770,8 +1785,13 @@ function addGhosts(g) {
     n.add(gh);
   }
 }
+let sightShown = 0;
 function updateSight() {
   const k = game.state === 'play' || game.state === 'intro' ? (sightOwned() ? sightTier() : 0) : 0;
+  if (k !== sightShown && (game.state === 'play' || game.state === 'intro')) {
+    runlog.ev('sight', { tier: k, streak: aimStreak.n });
+  }
+  sightShown = k;
   GHOST_MAT.visible = k > 0;
   if (k > 0) GHOST_MAT.opacity = SIGHT.ghost[k - 1];
 }
@@ -2465,7 +2485,7 @@ function explodeGrenade(i) {
   vibrate(30);
   if (player.alive && player.iframes <= 0 &&
       Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < BLAST_R) {
-    hitPlayer();
+    hitPlayer(false, 'bomber');
   }
   for (let j = enemies.length - 1; j >= 0; j--) {   // friendly fire is fair game
     const e = enemies[j];
@@ -2526,7 +2546,7 @@ function explodeMissile(i) {
   sfx.boom();
   if (player.alive && player.iframes <= 0 &&
       Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < MISSILE_BLAST) {
-    hitPlayer();
+    hitPlayer(false, 'rocketeer');
   }
   for (let j = enemies.length - 1; j >= 0; j--) {
     const e = enemies[j];
@@ -3939,6 +3959,7 @@ function killEnemy(i, impulseDir) {
   }
   if (game.state !== 'menu') vibrate(15);   // every kill lands in the thumb
   e.shatterPieces = spawnShatter(e.pos, impulseDir);
+  runlog.ev('kill', { type: e.boss || e.type, gun: player.weapon });
   const drop = ENEMY_TYPES[e.type].drop;
   const kind = TYPE_DROP[e.type];
   const r = Math.random();
@@ -4096,6 +4117,7 @@ function enemyFire(e, toPlayer) {
       d.normalize();
     }
     spawnBullet(origin, d, false, (spec.mul || 1));
+    bullets[bullets.length - 1].by = e.type;   // for the run log's cause of death
   }
   // THE ROUNDS THE CARD IS ABOUT. `duelNoteMeet` runs above, before a single
   // pellet exists, so the ring cannot be aimed there — this is where the
@@ -5085,7 +5107,7 @@ function updateEnemy(e, sdt) {
     case 'melee': {
       e.armL.rotation.x = -Math.min(e.stateT / 0.45, 1) * 2.2;   // windup swing
       if (e.stateT >= 0.45) {
-        if (dist < 1.8) hitPlayer();
+        if (dist < 1.8) hitPlayer(false, e.type + ' melee');
         e.state = 'recover'; e.stateT = 0;
       }
       break;
@@ -5119,7 +5141,7 @@ function updateEnemy(e, sdt) {
       const lungeCap = game.mode === 'duel'
         ? (SIMPLE.duel.minM + 0.6) / RUSH_LUNGE : 0.34;
       if (dist < 1.35 || e.stateT >= lungeCap) {
-        if (dist < 1.35) hitPlayer();
+        if (dist < 1.35) hitPlayer(false, e.type);
         e.state = 'lungerest'; e.stateT = 0; e.lungeCd = 1.5;
       }
       break;
@@ -5303,6 +5325,7 @@ function keeperStart(L) {
   k.bossPhase = 1;
   B.keeper = k;
   B.phase = 1;
+  runlog.ev('keeper-start');
   keeperSpawnAdds(L);
 }
 function keeperFireGap(e) {
@@ -5326,6 +5349,7 @@ function keeperHurt(e, at) {
   sfx.clank();
   vibrate([20, 30, 20]);
   if (phase === 3 && B) B.stopAt = worldT + 0.6;   // the first stop comes quickly
+  runlog.ev('keeper-hit', { phase });
   showBanner(phase === 3 ? 'HE STOPS THE WORLD' : 'FASTER', 1400);
 }
 // HIS TIME STOP IS HIS, NOT A FREEZE FOR YOU (PILLARS §1). The world halts for
@@ -5346,8 +5370,10 @@ function keeperStop(e) {
     const aim = new THREE.Vector3(
       o.x + d.x * 10, EYE_HEIGHT - 0.25, o.z + d.z * 10).sub(o).normalize();
     spawnBullet(o, aim, false, 1);
+    bullets[bullets.length - 1].by = 'keeper volley';
   }
   lastEnemyShotAt = worldT;
+  runlog.ev('keeper-stop');
   sfx.enemyShot();
   muzzleFlash(e.pos.x, 1.35, e.pos.z, 1);
 }
@@ -5396,6 +5422,7 @@ function keeperRewardTick(B, dt) {
     }
     hall.keeperTaken = true;
     keeperStopUntil = 0;
+    runlog.ev('keeper-reward');
     slowBank = SLOWMO.base;
     updateSlowMeter();
     tutorRevealButton();
@@ -5466,7 +5493,7 @@ function updateBeam(e, sdt) {
   const t = px * dx + pz * dz;
   if (t > 0 && t < BEAM_LEN) {
     const d = Math.abs(px * dz - pz * dx);
-    if (d < 0.35 && player.alive) hitPlayer();
+    if (d < 0.35 && player.alive) hitPlayer(false, 'laser');
   }
   if (b.t >= BEAM_TIME) removeBeam(e);
 }
@@ -5649,7 +5676,7 @@ function detonateShell(i) {
   // your own ordnance can absolutely kill you — mind the walls
   if (player.alive && player.iframes <= 0 &&
       Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < sh.blast * 0.55) {
-    hitPlayer();
+    hitPlayer(false, 'own blast');
   }
 }
 function updateShells(sdt) {
@@ -5830,7 +5857,7 @@ function updateBullets(sdt) {
       _v3.set(player.pos.x, EYE_HEIGHT + 0.1, player.pos.z);
       if (segSegDistSq(b.prev, b.pos, _v2, _v3) < PLAYER_RADIUS * PLAYER_RADIUS) {
         killBullet(i, b.pos);
-        hitPlayer();
+        hitPlayer(false, b.by || 'round');
       }
     }
   }
@@ -5940,8 +5967,15 @@ function onPointerDown(ev) {
   // acting on the tap; it cannot un-prevent a default already prevented, so
   // without this line the field could be rendered and never typed into.
   const inName = ev.target && ev.target.closest && ev.target.closest('#savename');
-  if (!inSettings && !inUnlockScroll && !inSelScroll && !inAsk && !inName) ev.preventDefault();
+  // ...and the run log's card, whose note is typed into and whose buttons act
+  // on `click` (the only event iOS lets open a link, copy or share from)
+  const inLog = ev.target && ev.target.closest && ev.target.closest('#logpanel .logcard');
+  if (!inSettings && !inUnlockScroll && !inSelScroll && !inAsk && !inName && !inLog) ev.preventDefault();
   sfx.init();
+  if (el.logpanel.style.display === 'flex') {   // the run log is open
+    if (!inLog) closeLog();                       // a tap outside closes it
+    return;
+  }
   if (el.settings.style.display === 'flex') {   // settings modal open
     if (inSettings) {
       if (ev.target.closest && ev.target.closest('#sethaptics')) {
@@ -5989,10 +6023,14 @@ function onPointerDown(ev) {
         openSettings();
         return;
       }
+      if (ev.target.closest('#plog')) {
+        openLog('pause');
+        return;
+      }
       if (ev.target.closest('#pendrun')) {
         el.pausemenu.style.display = 'none';
         game.state = game.pausedFrom || 'play';
-        hitPlayer(true);
+        hitPlayer(true, 'END RUN');
         return;
       }
     }
@@ -6047,6 +6085,10 @@ function onPointerDown(ev) {
   if (game.state === 'menu' || game.state === 'dead' || game.state === 'gameover') {
     // brief lockout after dying so panic taps don't skip the death screen
     if (game.state === 'dead' && performance.now() - deathAt < 1000) return;
+    if (game.state === 'dead' && ev.target && ev.target.id === 'logbtn') {
+      openLog('dead');
+      return;
+    }
     if (game.state === 'dead' && ev.target && ev.target.id === 'menubtn') {
       if (tutorDeadPending) endTutorial(false);   // quitting the lesson quits it
       showMenu();
@@ -8576,11 +8618,80 @@ let slowBank = SLOWMO.base;
 function setTimeLocked(v) {
   if (v && !timeUnlocked()) return;                          // not yours yet
   if (v && timeMode === 'toggle' && slowBank <= 0) return;   // dry tank
+  if (!!v !== timeLocked) runlog.ev('slow', { on: !!v, bank: slowBank });
   if (v && !timeLocked) noteTimeUse();
   timeLocked = v;
   el.timebtn.classList.toggle('locked', v);
   if (v && timeUses >= 6) el.timebtn.classList.remove('hint');   // lesson learned
 }
+
+// --- the run log panel (src/runlog.js): a playtest report, sent as a
+// pre-filled GitHub issue, copied, or shared. Opened from the pause menu or
+// the death screen; closing it goes back to whichever it came from.
+let logFrom = null;
+// THE TAP THAT OPENS THE PANEL MUST NOT PRESS A BUTTON IN IT. The pause menu
+// acts on pointerdown, the panel appears under the same finger, and the click
+// that follows the lift lands on whatever is there now — SEND TO GITHUB.
+let logOpenedAt = 0;
+const logGhost = (ev) => {
+  if (performance.now() - logOpenedAt < 500) { ev.preventDefault(); ev.stopPropagation(); return true; }
+  return false;
+};
+function openLog(from) {
+  logFrom = from;
+  logOpenedAt = performance.now();
+  if (from === 'pause') el.pausemenu.style.display = 'none';
+  const $ = (id) => document.getElementById(id);
+  $('logsum').textContent = runlog.summary();
+  $('logstatus').textContent = '';
+  logRefreshLink();
+  el.logpanel.style.display = 'flex';
+}
+function closeLog() {
+  el.logpanel.style.display = 'none';
+  if (logFrom === 'pause' && game.state === 'paused') el.pausemenu.style.display = 'flex';
+  logFrom = null;
+}
+function logNote() { return (document.getElementById('lognote').value || '').trim(); }
+function logRefreshLink() { document.getElementById('logsend').href = runlog.issueUrl(logNote()); }
+function logSay(t) { document.getElementById('logstatus').textContent = t; }
+(function wireLog() {
+  const $ = (id) => document.getElementById(id);
+  if (!$('logpanel')) return;
+  $('lognote').addEventListener('input', logRefreshLink);
+  $('logsend').addEventListener('click', (ev) => {
+    if (logGhost(ev)) return;
+    logRefreshLink();
+    runlog.ev('report', { via: 'github' });
+    logSay('Opening GitHub. Tap Submit there to send it.');
+  });
+  $('logcopy').addEventListener('click', async (ev) => {
+    if (logGhost(ev)) return;
+    const t = runlog.text(logNote());
+    try { await navigator.clipboard.writeText(t); logSay('Copied. Paste it into a message to Claude.'); }
+    catch {
+      // no clipboard: put it in the note box, selected, so a long-press copies it
+      const n = $('lognote'); n.value = t; n.focus(); n.select();
+      logSay('Copy was blocked. The log is in the box above, selected: copy it from there.');
+    }
+  });
+  $('logshare').addEventListener('click', async (ev) => {
+    if (logGhost(ev)) return;
+    const t = runlog.text(logNote());
+    try {
+      const file = new File([t], 'timeshatter-run.txt', { type: 'text/plain' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Time Shatter run log' });
+      } else if (navigator.share) {
+        await navigator.share({ title: 'Time Shatter run log', text: t });
+      } else { logSay('Sharing is not available here. Use COPY FULL LOG.'); return; }
+      logSay('Shared.');
+    } catch (e) {
+      if (!e || e.name !== 'AbortError') logSay('Sharing failed. Use COPY FULL LOG.');
+    }
+  });
+  $('logclose').addEventListener('click', (ev) => { if (!logGhost(ev)) closeLog(); });
+})();
 
 // --- pause: freezes the whole simulation; settings + end run live inside
 function openPause() {
@@ -8590,6 +8701,7 @@ function openPause() {
   updateSchoolCoach(false);
   game.pausedFrom = game.state;
   game.state = 'paused';
+  runlog.ev('pause');
   sfx.fadeAll(0, 0.16);   // silence: a frozen world must not drone
   el.pausemenu.style.display = 'flex';
   input.pointers.clear();
@@ -11154,6 +11266,8 @@ const el = {
   overlay: document.getElementById('overlay'),
   score: document.getElementById('score'),
   menubtn: document.getElementById('menubtn'),
+  logbtn: document.getElementById('logbtn'),
+  logpanel: document.getElementById('logpanel'),
   pausebtn: document.getElementById('pausebtn'),
   pausemenu: document.getElementById('pausemenu'),
   settings: document.getElementById('settings'),
@@ -11465,6 +11579,7 @@ function refreshMenuPrimary() {
 }
 
 function showMenu() {
+  runlog.end('menu');
   sfx.fadeAll(1, 0.35);
   // THE MENU COMES IN ON THE DROP and then loops the whole track. It looped
   // the sparse opening six bars once, so a player on the start screen heard
@@ -11514,7 +11629,7 @@ function showMenu() {
   menuBackdrop();
   renderDiscover();
   updateSndBtn();
-  el.menubtn.style.display = 'none';
+  el.menubtn.style.display = 'none'; el.logbtn.style.display = 'none';
   el.redflash.style.opacity = 0;
   el.overlay.classList.add('menu');
   el.overlay.classList.remove('hidden');
@@ -12336,8 +12451,9 @@ function maxAlive() {
 
 let deathAt = 0;
 
-function hitPlayer(ended = false) {
+function hitPlayer(ended = false, by = '?') {
   if (!player.alive || (player.iframes > 0 && !ended)) return;
+  runlog.ev(ended ? 'end-run' : 'death', { by });
   // THE ONBOARDING CAN BE FAILED, and it has to be. It used to hand out
   // invulnerability, which taught the one thing this game must never teach:
   // that a round which connects is survivable. It kills you here exactly as
@@ -12407,7 +12523,7 @@ function hitPlayer(ended = false) {
       // frame of the lesson, so tapping MAIN MENU here lost the onboarding
       // permanently — and the only route back is a Settings row that is
       // signposted nowhere. There is one button on this screen.
-      el.menubtn.style.display = 'none';
+      el.menubtn.style.display = 'none'; el.logbtn.style.display = 'none';
       el.overlay.classList.remove('hidden');
       return;
     }
@@ -12443,6 +12559,7 @@ function hitPlayer(ended = false) {
     goEl.classList.add('long');
     goEl.classList.remove('two');   // the menu's two-line CONTINUE shape
     el.menubtn.style.display = 'inline-block';
+    el.logbtn.style.display = 'inline-block';   // report this run while it is fresh
     el.overlay.classList.remove('hidden');
   }, ended ? 400 : 900);
 }
@@ -12513,6 +12630,8 @@ function advanceFromOverlay() {
     runPlayT = 0;
     bagReset();
     sfx.flush();   // a fresh run starts silent, whatever the last one was doing
+    runlog.start({ mode: game.mode, door: inHall() ? pendingResumeDoor : 1, build: BUILD,
+      sight: SIGHT.playtest, timeMode });
     if (game.mode === 'rush') initRush();
     else if (inHall()) initHall(pendingResumeDoor);
     else { startWave(1); showGuide(); }
@@ -12531,6 +12650,7 @@ function advanceFromOverlay() {
     stickHide();        // a fresh screen: the last thumb's spot is not this run's
     sprintTo = null;
     bagReset();
+    runlog.ev('retry');
     if (game.mode === 'rush') initRush();
     else if (inHall()) retryHall();
     else startWave(game.wave);
@@ -13006,7 +13126,7 @@ function updateGrinder(dtReal) {
     L.released = Math.max(0, (L.released || 0) - eaten.length);
     game.spawnTimer = Math.min(game.spawnTimer, 1.2);
   }
-  if (player.alive && game.state === 'play' && player.pos.z < face) hitPlayer();
+  if (player.alive && game.state === 'play' && player.pos.z < face) hitPlayer(false, 'grinder');
 }
 
 function rebuildHallObstacles() {
@@ -13761,6 +13881,11 @@ function openHallDoor() {
 
 function crossHallDoor() {
   let openedModes = [];   // gates this crossing passed — see below
+  queueMicrotask(() => {
+    const L = hall && hall.legs[hall.cur];
+    runlog.ev('door', { leg: hall ? hall.legInDoor + 1 : 0,
+      form: L && L.proto ? (L.proto.boss || (L.proto.form && L.proto.form.id) || '') : '' });
+  });
   const prev = hall.legs[hall.cur];
   prev.door.open = false;   // sealed behind you — no going back
   prev.door.slab.material = DOOR_SEAL_MAT;
@@ -15422,6 +15547,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - lastT) / 1000, 0.05);
   lastT = now;
+  if (game.state === 'play' || game.state === 'intro') runlog.tick();
 
   if (game.state === 'paused') {   // hard freeze: just keep the frame up
     clearPendingLook();
@@ -16380,6 +16506,9 @@ window.__ts = {
     ghost: GHOST_MAT.visible ? +GHOST_MAT.opacity.toFixed(2) : 0 }),
   aimHit, aimMiss, aimSet: (n) => { aimStreak.n = n; aimStreak.spent = -1; },
   setSight: (v) => { sightForced = v === null ? null : !!v; },
+  runlog: () => ({ summary: runlog.summary(), text: runlog.text(), url: runlog.issueUrl('probe note'),
+    log: runlog.current() }),
+  openLog, closeLog,
   keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
   meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,
