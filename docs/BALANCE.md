@@ -730,7 +730,7 @@ in frame.
 | `perCell` | 0.5 + 0.05·door | bodies per corridor cell, capped at 0.9 |
 | `stretchMin` / `stretchCap` | 2 / 4 | no stretch is ever emptier or fuller |
 | `finaleWave` | 3 | the one final group waiting at the door |
-| `lookahead` | 1 | stretches past yours that may also spawn |
+| `lookahead` | 2 | stretches past yours that may also spawn |
 | `spawnMin` / `spawnMax` | 9–40 m | how far ahead a corridor spawn may appear |
 
 **Leg total** = `round(bodyCells × perCell(door)) + 3`, split
@@ -751,7 +751,7 @@ make a zig-zagging service run, which is shorter to walk, the bigger fight.
 All gaps are multiplied by a 0.85–1.15 jitter. Spawns are suppressed while a
 message card is on screen, and in the tunnel they are hard-gated to at least
 **4 m ahead** of the player, and to the stretch the player
-is in (plus 1). The last **3** of a leg stage on
+is in (plus 2). The last **3** of a leg stage on
 the door approach, in line of sight of the slab, so the door opens in view.
 
 ## Time control

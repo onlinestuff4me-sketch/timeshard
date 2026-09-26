@@ -1383,6 +1383,199 @@ easy to satisfy and useless.
 > that asks for a group this big", so a more generous table drags the whole
 > slow-time lesson earlier unless the threshold keeps pace. Door 10 either way.
 
+## The door-6 volley was one round, and "ready" meant the wrong thing
+
+Reported as still-open after the room work: NO RETREAT's slow-time handover
+fires one round where the beat is written for three. It failed identically on
+`4cb32f5`, so it predated that change, and `duelup` had been catching it.
+
+Traced frame by frame rather than reasoned about, because two separate things
+were wrong and each one alone would have looked like a tuning miss:
+
+* **`up_meet` counted men who had FORMED, not men who could SHOOT.** A man who
+  has not closed to his engage distance stays in `advance` — he never enters
+  `aim`, so he is never in the volley however loudly he is cued. Three men in
+  the room, two in range, one round in the air. This is the second time this
+  beat has been fixed by narrowing what "ready" means: the first was "a man
+  still assembling has no hitbox". Same shape, one step further out.
+  `duelCanVolley` now asks alive, formed, not a rusher, and *in range*.
+* **The volley's join window timed out the slowest man.** `volleyStep * volley
+  + volleySlack` is a third of a second and is sized for a room whose men are
+  already standing on the same clock. The script cues everybody at once from
+  wherever they are, so their telegraphs finish at different times: two fired
+  0.10 s apart, the third was still raising when the window shut, and he was
+  then held for the room's full 2.2 s gap. During that one scripted beat the
+  window is the beat.
+* ...and `up_fire` ended on "nobody is still raising", which is true in the
+  gap between one man firing and the next being let through. It ends on the
+  room's own counter now (`duelVolleyN >= volley`), with the clock and the
+  raising test kept as the ways out of a room that cannot finish a volley.
+
+Measured after: all three aim together, fire 0.05–0.10 s apart, and the world
+stops with three rounds crossing the strip. The dodge beat rings two of them
+instead of one.
+
+`__ts.duelVolley()` exposes the counter, because the only way to tell "the
+volley is small" from "the volley is being spaced out" is to see it.
+
+## The levels were empty because of where the plan put people, not how many
+
+Playtest, three things: *"somehow the hallways and rooms feel a bit too
+empty... more enemies should appear in rooms especially, hallways can be tight
+so we don't have to increase volume there"*; the shield enemy at door 8 arrives
+*"right in the doorway so you can't get past him nor can you shoot him"*; and
+NO RETREAT's weapon-pickup rule should carry over, *"where the most powerful
+weapon you pick up stays equipped, and the ammo for other weapons stays with
+you."*
+
+`fire.mjs` already said the doors were spending 92% of what the table dealt
+them, so nothing was being lost. `test/rooms.mjs` is new and answers the other
+half — of what a door DOES spend, where does it stand:
+
+| | before | after |
+|---|---|---|
+| men up at once, standing still at doors 1/3/5/8 | **2, 3, 4, 5** | **5, 6, 8, 10** |
+| of bodies met, share standing in rooms | 19% | **36%** |
+| ...in corridors | 30% | 26% |
+| ...at the door | 51% | 37% |
+| room-owed men standing outside the room | — | **0** |
+| rounds a minute, doors 1-8 | 3.6–8.0 | 8.1, against the 14.0 `gapFrom` allows |
+| rounds that beat the room clock | — | 0 of 5 |
+| doors spending their plan | 92% | **100%** |
+
+**The men-up-at-once row is the whole complaint, and it was one dial.**
+`maxAlive` is `doorAlive` — the biggest group the door asks for — times the
+scarcity tax, and measured it came out as *exactly* the table's biggest group
+at every door: 2, 3, 4, 5. A door can deal twenty-two bodies and still only
+ever have five of them on their feet. `OPENING.aliveMul` (1.35) and
+`roomAlive` (1.6, in rooms only) raise the ceiling; `LEG.lookahead` 1 → 2
+widens the release window from two stretches to three so there is a plan to
+fill it with. None of it costs incoming fire, and that is measured rather than
+hoped: the leg shares one shot clock, so eleven men fire no more often than
+five. The rate landing on 14.1 is not a regression — it is the pace `gapFrom`
+was set to and the rooms were previously too sparse to reach it.
+
+**Two real defects behind "rooms feel empty", neither of them a number.**
+
+* **A room was funded and the men stood in the corridor.** The first-sight
+  floor asks for thirteen metres of clear ground before a body may be placed,
+  and refuses outright when there is nowhere that far — right in a winding
+  corridor, where the alternative is a man four metres round a bend, and wrong
+  in the one place on the leg that is open floor. A 16 m room cannot offer
+  thirteen clear metres from most of itself. Measured at door 4: funded for
+  three, placed *none* of them there, four stood in the corridor instead. Room
+  bodies get the room floor now — and get it for **having** a room
+  (`featureStretch`), not for the form being called `vault`, which is the
+  property that every other line about rooms already reads.
+* **A leg with one leftover group put it at the back, so the leg opened on
+  silence.** Measured standing at the start of door 1 for fourteen world
+  seconds: quota `[0,0,5,0,1,2]`, allowance **0**, nobody at all — every body
+  was funded by stretch 2 or later and the window only reaches stretch 1. The
+  door group already guards the door, so the leftovers ARE the leg's opening.
+  They go to the front now, and a leg whose front is still empty borrows one
+  man from the room.
+
+**What did not work, and is out rather than tuned — twice, the same way.**
+The first attempt at "across the board" was a tail of extra pairs on every
+door: 29 sight refusals on door 7, 32 on door 9, both legs stalled with the
+door never opening, delivery down from 92% to 75%. The second moved the same
+bonus to the door approach on legs that compose without a room, on the
+reasoning that the approach is the widest ground those legs have: 32 refusals
+on door 8 and that leg shut too. Bodies are placed through four rules and a
+tight winding corridor has nowhere for extra men to stand. **More bodies than
+the ground can hold is not more fight, it is a leg that never ends.**
+
+So a room-less leg keeps exactly the plan it had, and "across the board" is
+answered by `aliveMul` and `lookahead` — which raise how many of the SAME
+bodies are on their feet and need no floor that is not already there. The room
+cap came down to five for the same reason: asked for nine, a room placed six of
+them outside itself.
+
+**A room body goes in the room or goes back on the queue — while the room is
+still AHEAD of the player, and not after.** The placement loop falls through to
+wider pools when the tight one has nothing, and for a man the room is paying
+for that drift IS the bug: twelve stood outside the room against eleven inside
+it, which measures as a plan delivered and plays as an empty room.
+
+The second clause is the whole thing working, and I shipped the version without
+it first and watched it stall. The funding scan only looks FORWARD, so a room
+behind the player is never offered again, its `fill` never enters the release
+window, and the door — which waits on an empty queue — never opens. Doors 5
+through 9 all stopped at leg 1 of 2 and the walk delivered 36% of its plan.
+Insist while insisting can still work; let him drift once it cannot.
+`test/rooms.mjs` counts the drift as `strays`.
+
+**And two measurements of the same thing disagreed by half a cell.** The room's
+cells are chosen with `z0 - cell/2 .. z1 + cell/2`, so that is what the room
+is; the stray counter and the probe were both testing the bare band, and
+placement adds up to 0.8 m of jitter on top. A room that was visibly full
+reported twenty-six strays against five men inside it. All three read the
+pool's own definition now — which is the rule this file keeps relearning: when
+a measurement and the code disagree about what a thing IS, the code's
+definition is the one to measure against.
+
+**The shield in the doorway was two problems.** Measured, one stood 1.9 m from
+the door slab, inside the approach, with **0.00 m of floor either side** — a
+2.53 m corridor and a 0.94 m body. He is the one type whose counterplay is
+floor: you beat the shield by outpacing his pivot, and outpacing a pivot means
+having somewhere to walk to. So he is never the man guarding the door, he keeps
+`LEG.shieldDoorM` from the slab and `shieldSideM` either side, and his slew is
+a **pair** — 0.42 rad/s before the time button and 0.80 after, 24°/s then
+46°/s, where it had been a hard-coded 0.7 for both. He is beatable on foot when
+you meet him on door 8 and beatable with the power afterwards, which is the
+power being worth something. Measured after: 0 of 4 in the approach, ≥2.57 m
+clear, pair confirmed.
+
+**The bag is a shelf per weapon now.** `player.clips` was one number belonging
+to whatever gun was in your hands, so every drop ranking below your weapon was
+a downgrade and `takePickup` had to decline them and leave them on the floor.
+`player.reserve` is per weapon and `player.clips` is an accessor onto the
+current shelf — written that way rather than hunted down call site by call
+site, because the call sites are the reload, the dry-fire, the HUD and the
+lesson, and one missed is a gun that silently reloads out of another gun's
+ammunition. Running a weapon dry now reaches for the best thing in the bag and
+pays a rack for it; the blade is the last thing in it. `dropToKnife` keeps its
+name and does the looking, because `playerFire` calls it and that function is
+landed on another branch.
+
+**And one dial had two questions hanging off it.** Widening `LEG.lookahead`
+to 2 also widened `finale` — whether a release is the group that guards the
+door was asked with `playerStretch + lookahead >= finLast` — so the door group
+started coming out a stretch early. That is the pile-up in front of the slab
+the stretch budget exists to prevent, and it took NO RETREAT down with it:
+`duelheat` measured no rooms at all, because the strip's fight was being
+released as the door group before the room had built. `LEG.doorReach` is its
+own dial now and has not moved. Third time this session's shape: two questions
+sharing one number.
+
+Two probes needed fixing rather than the game, and both are worth knowing:
+
+* **`test/shield.mjs` reads the dial before it walks.** `timeUnlocked()`
+  answers `tutorMay('timebtn')` while a lesson is running, so a probe that
+  walks through door 10 and then warps back to door 8 is told the power is
+  already in hand — and reported the shield's slew as 0.80 everywhere. The
+  game was right about the state the probe had created.
+* **`test/wayback.mjs` now stages the corridor it needs.** Its premise is "a
+  cleared floor in a leg that still OWES bodies", and it got the second half by
+  luck: killing everything each step drew the next release and the queue
+  outlasted the sequence. A wider release window drains the queue faster, it
+  hit zero mid-probe, the needle correctly stayed up on a cleared leg and the
+  probe correctly failed at measuring the wrong thing. It pushes bodies onto
+  the queue itself now, the same lesson the enemy-mark half of that file
+  already learned.
+* **`duelheat` says so when it measures nothing**, instead of a TypeError on
+  `heat[0]`. A stack trace in the middle of a suite log reads like the game is
+  broken and buries the actual finding.
+
+One thing worth knowing for next time: **`test/rooms.mjs` walks forward from
+door 1 and never warps.** The first draft warped between doors and reported
+doors 6 and 8 as empty corridors — it was re-walking door 4's spent leg.
+`warpDoor` moves the door NUMBER and not the fight in front of you, and this
+is the third probe in this file to learn that. Its band test also takes no
+slack: stretches are contiguous, so half a cell of give makes every boundary
+belong to the earlier stretch, and the room's staged body is placed at its near
+edge on purpose — with slack, every staged man filed as corridor.
+
 ## The tunnel ramp, condensed — and the second schedule underneath it
 
 Playtest: *"The ramp for Tunnel feels too slow now. I'd like it to be more

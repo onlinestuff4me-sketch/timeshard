@@ -383,6 +383,83 @@ export const OPENING = {
     [7, 7, 7, 6, 6, 5, 4, 3],   // 20 45
     [7, 7, 7, 7, 6, 5, 4, 3],   // 21 46          LASER
   ],
+  // ---------------------------------------------------------------------
+  // THE ROOM GETS THE CROWD. THE CORRIDOR DOES NOT.
+  //
+  // Playtest: "the hallways and rooms feel a bit too empty... more enemies
+  // should appear in rooms especially, hallways can be tight so we don't have
+  // to increase volume there." Measured across doors 2-14, of 63 bodies met:
+  // 19% stood in rooms, 30% in corridors and 51% at the door. The open space
+  // the player walks into looking for a fight was the emptiest part of the leg.
+  //
+  // It was getting the LEFTOVERS. `hallWave` gives the biggest group to the
+  // door and the second biggest to the room, so the room's share was whatever
+  // the climax did not want. These turn that around: the room's group is
+  // multiplied and topped up, and the bodies are ADDED to the leg rather than
+  // taken off the corridor, so a hallway holds exactly what it held before.
+  //
+  // This is why it costs no difficulty. The room shares ONE shot clock with
+  // the rest of the leg (`gapFrom`), so eight men in a room fire no more often
+  // than three did — they each wait longer for a turn. What changes is how
+  // many silhouettes are standing there, which is the thing the playtest
+  // asked for and the thing players say they enjoy.
+  // THE CAPS ARE WHAT THE FLOOR CAN PHYSICALLY HOLD, not what would be nice.
+  //
+  // Every body is placed through four rules — ahead of the player, at least
+  // `vaultSpawnMin` away, clear of the furniture, and past the first-sight
+  // floor — and a room is sixteen metres deep, so a handful of its cells
+  // qualify at any moment. Asked for nine, it placed six of them in the
+  // CORRIDOR either side (the `strays` counter in test/rooms.mjs) and refused
+  // thirty candidates doing it. Five is what a room actually seats; the old
+  // rule dealt it the second-biggest group, which measured about three.
+  roomMul: 1.5,        // x the group the room would have been dealt
+  roomAdd: 1,          // ...plus this, so even a lone man becomes a pair
+  roomCap: 5,          // ...and never more than this: it is a room, not a mob
+  // HOW MANY MAY STAND IN IT AT ONCE, x the door's ordinary ceiling. The
+  // crowd cap is what a moment FEELS like — `maxAlive` is the dial that
+  // decides whether a fight is a queue or a swarm — and a 16 m pillared hall
+  // can hold a swarm where a 4 m corridor can only hold a queue. Applied only
+  // while the player is in the room or a stretch short of it.
+  roomAlive: 1.6,
+  // ...AND THE WHOLE TUNNEL GETS A SMALLER ONE, because the crowd cap is the
+  // only dial that decides what a MOMENT feels like.
+  //
+  // `maxAlive` is `doorAlive` — the biggest group the door asks for — times
+  // the scarcity tax, and measured standing at the start of doors 1, 3, 5 and
+  // 8 with nobody killed, the men up at once were exactly 2, 3, 4 and 5: the
+  // table's biggest group, every time. A door can deal twenty-two bodies and
+  // still only ever have five of them on their feet, and five spread down
+  // forty metres of corridor is the "too empty" of the playtest.
+  //
+  // This is safe against the ramp and that is measured, not hoped: the room
+  // shares ONE shot clock (`gapFrom`), so seven men fire no more often than
+  // five — they each wait longer for a turn. test/fire.mjs watches the two
+  // numbers together for exactly this reason, and rounds a minute has to stay
+  // under the 60/gapFrom the clock allows while bodies met goes up.
+  aliveMul: 1.35,
+  // ...AND A LEG WITH NO ROOM GETS NOTHING EXTRA, WHICH IS THE ANSWER.
+  //
+  // "Across the board" was the other half of the same playtest, and not every
+  // leg composes with a feature stretch — measured, doors 5 and 7 had none in
+  // either of their legs. Two attempts to give those legs more anyway are out
+  // rather than tuned, and they failed the same way:
+  //
+  //   a tail of extra pairs on every door — 29 refusals on door 7, 32 on door
+  //   9, both legs stalled with the door never opening, delivery down from 92%
+  //   to 75%
+  //
+  //   the same bonus at the DOOR instead, since the approach is the widest
+  //   ground a room-less leg has — 32 refusals on door 8 and the leg shut
+  //
+  // Bodies are placed through four rules (ahead of the player, `spawnMin`
+  // away, clear of the furniture, past the first-sight floor), and a corridor
+  // that is tight and winding has nowhere for extra men to stand. MORE BODIES
+  // THAN THE GROUND CAN HOLD IS NOT MORE FIGHT, IT IS A LEG THAT NEVER ENDS.
+  //
+  // So a room-less leg keeps the plan it always had, and the across-the-board
+  // half of the playtest is answered by `aliveMul` and `LEG.lookahead`
+  // instead — which raise how many of the SAME bodies are standing at once,
+  // and need no floor that is not already there.
   encCap: 7,           // the biggest group the game ever asks for. SEVEN, not
                        // six: the table above now reaches six on door 9, and a
                        // cap the table has already hit is not a ceiling, it is
@@ -814,7 +891,41 @@ export const LEG = {
   perCellCap: 0.9,                 // ...to this ceiling
   stretchMin: 2, stretchCap: 4,    // no stretch is ever emptier or fuller
   finaleWave: 3,                   // the one final group waiting at the door
-  lookahead: 1,                    // stretches past yours that may also spawn
+  // STRETCHES PAST YOURS THAT MAY ALSO SPAWN — and this is the dial that
+  // decides how populated a leg FEELS, which is not the same question as how
+  // many bodies it holds.
+  //
+  // A leg's plan is spent through a window of `playerStretch` to
+  // `playerStretch + lookahead`, so at one it funded the stretch you are
+  // standing in and the next. Measured standing still at the start of doors
+  // 1, 3, 5 and 8 with nobody killed: three men up, at every one of them,
+  // however deep the door — because the allowance was whatever those two
+  // stretches still owed and that is one group. The door dealt eighteen
+  // bodies and the moment held three.
+  //
+  // Playtest: "somehow the hallways and rooms feel a bit too empty... the goal
+  // is to have the levels feel more populated by enemies and give players more
+  // chances to shatter." Two is the answer to that sentence: the same plan,
+  // the same totals, the same shot clock, spent over three stretches instead
+  // of two. It also puts the men further ahead, which is where you want to
+  // see them — the first-sight floor asks for thirteen metres and a window
+  // one stretch deep often has nowhere that far to offer.
+  //
+  // The approach is still excluded until the door is actually in frame (see
+  // `legBudget`), so this cannot stack a wave in front of the slab.
+  lookahead: 2,
+  // ...AND "AM I AT THE DOOR" IS A DIFFERENT QUESTION, with its own reach.
+  //
+  // `finale` — whether a release is the group that guards the door — was asked
+  // with `playerStretch + lookahead >= finLast`, so widening the spawn window
+  // silently widened the definition of being at the door too, and the door
+  // group started coming out a stretch early. That is the pile-up in front of
+  // the slab that the stretch budget exists to prevent, and it took NO RETREAT
+  // with it: `duelheat` measured no rooms at all, because the strip's fight
+  // was being released as the door group before the room had built.
+  //
+  // Two questions, two dials. This one has not moved.
+  doorReach: 1,
   // A LEG THAT NAMES A ROOM HAS TO AFFORD ONE. The opening ramp gives a leg
   // one or two bodies, and a leg whose headline says PILLARS ARE YOUR ONLY
   // COVER needs one of them standing in the pillars AND one waiting at the
@@ -866,6 +977,25 @@ export const LEG = {
   openerOnArrival: true,
   spawnMin: 9,                     // nearest a corridor spawn may appear (m)
   spawnMax: 40,                    // and the furthest
+  // ---------------------------------------------------------------------
+  // THE SHIELDED MAN NEEDS A WAY ROUND HIM, or he is not an enemy, he is a
+  // locked door.
+  //
+  // Playtest: "at door eight we introduce the shield enemy right in the
+  // doorway so you can't get past him nor can you shoot him." Measured, one
+  // stood 1.9 m from the door slab, inside the approach, with 0.00 m of floor
+  // either side of him — the corridor is 2.53 m wide there and he is 0.94 m
+  // across. That is not a fight with a flanking answer, it is a cork.
+  //
+  // The shield is the one type whose whole counterplay is FLOOR: you beat it
+  // by outpacing his pivot, and outpacing a pivot means having somewhere to
+  // walk to. So he gets placement rules nobody else needs.
+  shieldDoorM: 10,                 // never nearer the door slab than this
+  shieldSideM: 2.2,                // ...nor with less floor than this to either
+                                   // side. A 4 m cell with a body in the
+                                   // middle leaves 1.5 m, which is a squeeze
+                                   // past a man already facing you; 2.2 m is
+                                   // half a cell clear on top of his shoulder.
 };
 
 // VISIBILITY, and the conditions that change it.

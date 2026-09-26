@@ -76,6 +76,132 @@ approach is worth exactly one final group — the wave you clear with the door
 in frame. A stretch's share is released when you **walk into it**, so the
 fight travels with you and nothing piles up in front of the door.
 
+### The room gets the crowd
+
+Playtest: *"the hallways and rooms feel a bit too empty... more enemies should
+appear in rooms especially, hallways can be tight so we don't have to increase
+volume there."* Measured across doors 2–14, of 63 bodies met **19% stood in
+rooms, 30% in corridors and 51% at the door** — the open space the player walks
+into looking for a fight was the emptiest part of the leg, because it was
+getting the leftovers: the biggest group guards the door and the room took
+whatever the climax did not want.
+
+Four dials answer that, and the first three cost no incoming fire at all,
+because a leg shares **one shot clock** (`gapFrom`) — eight men in a room fire
+no more often than three did, they each wait longer for a turn.
+
+| dial | what it does |
+|---|---|
+| `OPENING.roomMul`, `roomAdd`, `roomCap` | the room's group, multiplied and topped up, **added** to the leg rather than taken off the corridor — so a hallway holds exactly what it held before |
+| `OPENING.roomAlive` | how many may stand in the room at once, × the leg's ordinary ceiling. A 16 m pillared hall can hold a swarm where a 4 m corridor can only hold a queue |
+| `OPENING.aliveMul` | the crowd ceiling for the whole tunnel |
+| `LEG.lookahead` | how far ahead of you the plan may be spent — see below |
+
+**Every cap is what the floor can physically hold, not what would be nice.**
+Bodies are placed through four rules — ahead of the player, at least
+`vaultSpawnMin` away, clear of the furniture, and past the first-sight floor —
+and a room is sixteen metres deep, so only a handful of its cells qualify at
+any moment. Asked for nine, a room placed six of them in the corridor either
+side and refused thirty candidates doing it. Five is what a room seats.
+
+**A leg with no room gets nothing extra, and that is the answer rather than a
+gap.** Two attempts to give those legs more anyway are out rather than tuned,
+and they failed identically: a tail of extra pairs on every door produced 29
+sight refusals on door 7 and 32 on door 9, both legs stalled with the door
+never opening and delivery down from 92% to 75%; the same bonus moved to the
+door approach produced 32 on door 8 and shut that leg. A tight winding corridor
+has nowhere for extra men to stand. **More bodies than the ground can hold is
+not more fight, it is a leg that never ends.** The across-the-board half of the
+playtest is answered by `aliveMul` and `lookahead` instead, which raise how
+many of the *same* bodies are on their feet and need no floor that is not
+already there.
+
+**A room body goes in the room or goes back on the queue — while the room is
+still ahead of the player, and not after.** The placement loop falls through to
+wider pools when the tight one has no spot, and for a man the room is paying
+for that drift *is* the bug: twelve stood outside the room against eleven
+inside it, which reads as a plan delivered and plays as an empty room.
+
+The second half of that sentence is not a hedge, it is the whole thing working.
+Refusing unconditionally stalls the leg: the funding scan only looks **forward**,
+so a room behind the player is never offered again, its `fill` never enters the
+release window, and the door — which waits on an empty queue — never opens.
+Measured, doors 5 through 9 all stopped at leg 1 of 2 and the walk delivered
+36% of its plan. Insist while insisting can still work; let him drift once it
+cannot. `test/rooms.mjs` counts the drift as `strays`, which is the honest
+record of what the trade costs.
+
+Two things this measurement changed that were not tuning:
+
+* **The first-sight floor is a corridor rule, and a room is not a corridor.**
+  Thirteen metres of clear ground is right where the alternative is a body four
+  metres round a bend, and wrong in the one place on the leg that is open
+  floor — a 16 m room cannot offer thirteen clear metres from most of itself,
+  so most of its candidates were refused and its share was paid back as
+  silence. Measured at door 4: funded for three, placed none, four stood in the
+  corridor instead. A room body gets the room floor (`vaultSpawnMin`), and it
+  gets it for **having** a room (`featureStretch`) rather than for the form
+  being called `vault`.
+* **A leg with one group left over now puts it at the front.** It used to go to
+  the stretch nearest the door, so a leg with two encounters released *nothing*
+  until the player had walked most of it: measured standing at the start of
+  door 1 for fourteen world seconds, quota `[0,0,5,0,1,2]`, allowance 0, nobody
+  at all. That is the "hallways feel empty" of the playtest exactly. The last
+  group already guards the door, so the leftovers are the leg's opening — and
+  an opening belongs at the start. A leg whose front is still empty borrows one
+  man from the room: a quiet stretch is allowed as a breath, not as a first
+  impression.
+
+**`LEG.lookahead` is the dial that decides how populated a leg feels**, which
+is not the same question as how many bodies it holds. At one it funded the
+stretch you stand in and the next, and standing still at the start of doors 1,
+3, 5 and 8 with nobody killed gave **three men up at every one of them** —
+however deep the door. It is two now: the same plan and the same totals, spent
+over three stretches instead of two.
+
+Measured after all of it:
+
+| | before | after |
+|---|---|---|
+| men up at once, standing still at doors 1/3/5/8 | 2, 3, 4, 5 | **5, 6, 8, 10** |
+| of bodies met, share standing in a room | 19% | **36%** |
+| ...in a corridor | 30% | 26% |
+| ...at the door | 51% | 37% |
+| room-owed men standing outside the room | — | **0** |
+| doors spending what the table deals them | 92% | **100%** |
+| rounds a minute, doors 1–8 | 3.6–8.0 | 8.1, against the 14.0 the clock allows |
+| rounds that beat the room clock | — | 0 of 5 |
+
+Twice the men on their feet and **less** incoming fire than before — which is
+the shared shot clock doing exactly what it is for. `test/rooms.mjs` fails on
+defects (a funded room left empty, room-owed men standing outside it, a leg
+that never opens) and only prints the share, because a share is a ratio between
+two things that both moved.
+
+### The shielded man needs a way round him
+
+Playtest: *"at door eight we introduce the shield enemy right in the doorway so
+you can't get past him nor can you shoot him."* Measured, one stood **1.9 m
+from the door slab, inside the approach, with 0.00 m of floor either side** —
+the corridor is 2.53 m wide there and he is 0.94 m across.
+
+The shield is the one type whose counterplay is *floor*: you beat it by
+outpacing his pivot, and outpacing a pivot means having somewhere to walk to.
+So he gets two placement rules nobody else needs (`LEG.shieldDoorM`,
+`shieldSideM`) and is never the man guarding the door. And his slew is a
+**pair** of numbers, not one: `ENEMY_TYPES.shieldbearer.slew` is 0.42 rad/s
+before the time button arrives and 0.80 after — 24°/s, then 46°/s. He is
+beatable on foot when you meet him and beatable with the power afterwards,
+which is the power being worth something. Measured after: 0 of 4 in the
+approach, ≥2.5 m clear either side, and the pair confirmed at 0.42 → 0.80 with
+the live men agreeing with the dial.
+
+> `timeUnlocked()` answers `tutorMay('timebtn')` while a lesson is running, so
+> anything that walks through door 10 and then looks back at door 8 will be
+> told the power is already in hand. That is the game being right about the
+> state the walk created, and it cost a probe an afternoon: `test/shield.mjs`
+> reads the dial **before** it walks.
+
 **The opening doors override this.** Only gunners until door 3
 (`EARLY.gunnerOnlyDoors`), and through that same door nobody fires while a
 round is still on its way to you (`EARLY.oneRoundDoors`). Three doors, not

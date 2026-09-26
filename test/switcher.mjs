@@ -33,9 +33,9 @@ const walkOver = (type) => page.evaluate(async (type) => {
   }
   const took = t.pickups.length < n0;
   for (let i = t.pickups.length - 1; i >= 0; i--) t.pickups.length = i;
-  return { took, hand: t.player.weapon, bag: t.bag() };
+  return { took, hand: t.player.weapon, bag: t.slots() };
 }, type);
-const state = () => page.evaluate(() => ({ hand: window.__ts.player.weapon, bag: window.__ts.bag() }));
+const state = () => page.evaluate(() => ({ hand: window.__ts.player.weapon, bag: window.__ts.slots() }));
 const wait = (ms) => page.waitForTimeout(ms);
 
 const on = await page.evaluate(() => window.__ts.switcherOn());
@@ -98,11 +98,21 @@ const dry = await page.evaluate(async () => {
   const was = t.player.weapon;
   t.player.mag = 0; t.player.clips = 0; t.player.fireCd = 0;
   t.playerFire();
-  return { was, hand: t.player.weapon, bag: t.bag().map((b) => b.type) };
+  return { was, hand: t.player.weapon, bag: t.slots().map((b) => b.type) };
 });
 console.log('run dry:                  ' + JSON.stringify(dry));
 if (dry.hand === dry.was) bad('the hand stayed on an empty gun');
 if (dry.was !== 'pistol' && dry.bag.includes(dry.was)) bad('the empty ' + dry.was + ' is still in the bag');
+
+// ---- main's rule inside the switcher: a lesser gun goes in the bag, not the hand
+await page.evaluate(() => window.__ts.bagReset());
+await walkOver('burst');
+s = await walkOver('shotgun');
+console.log('burst, over a shotgun:    ' + JSON.stringify(s));
+if (!s.took) bad('the lesser gun was left on the floor');
+if (s.hand !== 'burst') bad('a lesser gun took the better one out of the hand: ' + s.hand);
+if (!s.bag.some((b) => b.type === 'shotgun')) bad('the lesser gun did not go into the bag');
+if (s.bag[0].type !== 'burst') bad('the gun in the hand is not first in the bag: ' + s.bag.map((b) => b.type));
 
 // ---- THE SWIPE ZONE: a real drag on the name swaps, and turns nothing ------
 await wait(400);
