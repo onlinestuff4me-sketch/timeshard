@@ -87,13 +87,13 @@ else {
   if (k.hp !== 3) bad('he should take three hits, has ' + k.hp);
   if (k.adds !== 2) bad('the pair is not in the room: ' + k.adds);
 
-  // ---- he fires on his own clock: 1.5 s shot to shot in phase 1 ------------
+  // ---- he fires on his own clock: 2.2 s shot to shot in phase 1 ------------
   const gaps = await page.evaluate(async () => {
     const t = window.__ts, L = t.hall().legs[t.hall().cur];
     const out = [];
     let last = t.worldClock().last;
     const t0 = performance.now();
-    while (out.length < 4 && performance.now() - t0 < 20000) {
+    while (out.length < 4 && performance.now() - t0 < 40000) {
       await new Promise((r) => requestAnimationFrame(r));
       t.player.iframes = 999;
       for (const a of L.boss.adds) { a.speed = 0; a.fireCd = 1e9; if (a.state === 'aim') a.state = 'advance'; }
@@ -104,15 +104,17 @@ else {
   });
   console.log('his clock:     ' + JSON.stringify(gaps));
   if (gaps.length < 3) bad('he is not firing: ' + gaps.length + ' gaps');
-  else if (gaps.slice(1).some((g) => Math.abs(g - 1.5) > 0.15)) bad('phase 1 gaps are not 1.5 s');
+  else if (gaps.slice(1).some((g) => Math.abs(g - 2.2) > 0.15)) bad('phase 1 gaps are not 2.2 s');
 
-  // ---- the pair comes back 3 s after the second one goes -------------------
+  // ---- the pair comes back 8 s after the second one goes -------------------
   const back = await page.evaluate(async () => {
     const t = window.__ts, L = t.hall().legs[t.hall().cur];
     for (const a of L.boss.adds) { const i = t.enemies.indexOf(a); if (i >= 0) { a.g.visible = false; t.enemies.splice(i, 1); } }
     const w0 = t.worldClock().now;
-    const t0 = performance.now();
-    while (performance.now() - t0 < 8000) {
+    // capped on the world clock, not the wall: 8 world-seconds can be a lot
+    // longer than that on a loaded machine
+    const tw = performance.now();
+    while (t.worldClock().now - w0 < 12 && performance.now() - tw < 60000) {
       await new Promise((r) => requestAnimationFrame(r));
       t.player.iframes = 999;
       if (t.keeper().adds === 2) break;
@@ -121,7 +123,7 @@ else {
   });
   console.log('pair back:     ' + JSON.stringify(back));
   if (back.adds !== 2) bad('the pair never came back');
-  else if (back.after < 2.8 || back.after > 3.6) bad('the pair came back after ' + back.after + ' s, not 3');
+  else if (back.after < 7.8 || back.after > 8.6) bad('the pair came back after ' + back.after + ' s, not 8');
   // ...and out of the way for the rest of this, so their rounds are not the test
   await page.evaluate(() => {
     const t = window.__ts, L = t.hall().legs[t.hall().cur];
@@ -165,7 +167,7 @@ else {
   if (!r.dodged) bad('the bait was not dodged');
   if (r.hp !== 2 || r.phase !== 2) bad('the punish did not move him to phase 2');
   const cd2 = await page.evaluate(() => window.__ts.keeperEnemy().blinkCd);
-  if (Math.abs(cd2 - 1.2) > 1e-6) bad('phase 2 blink cooldown is ' + cd2 + ', not 1.2');
+  if (Math.abs(cd2 - 2.0) > 1e-6) bad('phase 2 blink cooldown is ' + cd2 + ', not 2.0');
 
   r = await baitPunish();
   console.log('hit 2:         ' + JSON.stringify(r));
@@ -182,7 +184,7 @@ else {
     if (!t.keeper().stopping) return { stopped: false };
     const hang = t.bullets.filter((b) => !b.fromPlayer).map((b) => [b, b.pos.clone()]);
     const w0 = t.worldClock().now;
-    // only while he holds it: the stop is 1.4 real seconds however slow the frames
+    // only while he holds it: the stop is 1.8 real seconds however slow the frames
     let w1 = 0, moved = 0;
     for (let i = 0; i < 20; i++) {
       await new Promise((r) => requestAnimationFrame(r));
@@ -202,7 +204,7 @@ else {
   console.log('time stop:     ' + JSON.stringify(stop));
   if (!stop.stopped) bad('phase 3 never stopped the world');
   else {
-    if (stop.rounds < 5) bad('the volley has ' + stop.rounds + ' rounds hanging, not 5');
+    if (stop.rounds < 3) bad('the volley has ' + stop.rounds + ' rounds hanging, not 3');
     if (stop.world > 0.005) bad('the world moved ' + stop.world + ' s during his stop');
     if (stop.moved > 0.05) bad('a hanging round moved ' + stop.moved + ' m');
     if (stop.released < stop.rounds) bad('only ' + stop.released + ' of the hanging rounds let go');

@@ -1305,9 +1305,10 @@ const weaponRank = (w) => WEAPON_ORDER.indexOf(w);
 
 // ---------------------------------------------------------------------------
 // THE DEBUT CARD (docs/ARSENAL.md §11). The first time this save ever meets a
-// type, the world stops the moment he finishes assembling: a ring on him, his
-// name, one line on what he does, and — only where it is not obvious — a
-// hint, phrased as a nudge. A touch takes it down. The copy lives with the
+// type, the world stops the moment he finishes assembling and the camera turns
+// and zooms to frame him (meetFrame): the room dims, he is drawn over it
+// (meetSpot), and a plain panel at the bottom gives his name, one line on what
+// he does, and — only where it is not obvious — a tip. A touch takes it down. The copy lives with the
 // type in protocols.js (`meet`, `hint`). Once per save: a returning player is
 // not stopped fifteen times a run. Not in the simplified modes, which have
 // their own cards (duelMeetCard), and never during the onboarding.
@@ -1339,13 +1340,86 @@ function meetMaybe(e) {
     c.classList.toggle('longname', row.name.length > 10);
     c.classList.add('on');
   }
+  document.body.classList.add('meeting');
   vibrate([14, 50, 14]);
 }
 function meetClose() {
   meetCard.on = false;
   meetCard.e = null;
   if (el.meetcard) el.meetcard.classList.remove('on');
-  if (el.meetpin) el.meetpin.classList.remove('on');
+  document.body.classList.remove('meeting');
+}
+// THE CARD'S SHOT. The camera stays at your eye (a camera moved into the room
+// can end up inside a wall) and turns to him, and the lens closes until he
+// fills about 42% of the frame's height, set in its upper half so the panel
+// below never covers him. Eased in over a beat, and back out when the card
+// goes: your aim is where you left it.
+const MEET_CAM = { fill: 0.42, y: 0.3, minFov: 12, in: 5, out: 8 };
+const meetCam = { k: 0, yaw: 0, pitch: 0, fov: FOV_NORMAL };
+function meetFrame(rdt) {
+  const e = meetCard.e;
+  const want = meetCard.on && e && e.alive ? 1 : 0;
+  meetCam.k += (want - meetCam.k) * Math.min(1, rdt * (want ? MEET_CAM.in : MEET_CAM.out));
+  if (!want && meetCam.k < 0.002) meetCam.k = 0;
+  if (want) {
+    const dx = e.pos.x - player.pos.x, dz = e.pos.z - player.pos.z;
+    const d = Math.max(0.8, Math.hypot(dx, dz));
+    const sy = e.g.scale.y || 1;
+    const H = 2.2 * sy;
+    meetCam.fov = Math.min(FOV_NORMAL, Math.max(MEET_CAM.minFov,
+      2 * Math.atan(H / (2 * MEET_CAM.fill * d)) * 180 / Math.PI));
+    meetCam.yaw = Math.atan2(-dx, -dz);
+    // look a little under his chest, so he sits in the top half of the frame
+    const lift = Math.atan(MEET_CAM.y * Math.tan(meetCam.fov * Math.PI / 360));
+    meetCam.pitch = Math.atan2(1.1 * sy - EYE_HEIGHT, d) - lift;
+  }
+  if (!meetCam.k) return;
+  const k = meetCam.k * meetCam.k * (3 - 2 * meetCam.k);
+  let dy = meetCam.yaw - player.yaw;
+  dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+  camera.rotation.y = player.yaw + dy * k;
+  camera.rotation.x = player.pitch + (meetCam.pitch - player.pitch) * k;
+  camera.rotation.z = player.roll * (1 - k);
+}
+// HIM, OVER A DIMMED ROOM: after the frame is drawn, a dark sheet goes over
+// it and he is drawn again on top — through a wall if one is in the way. Made
+// at boot (PILLARS §8): the sheet is one quad, and the fog is pushed back
+// rather than removed, which would recompile his materials.
+const spotScene = new THREE.Scene();
+const spotCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const SPOT_MAT = new THREE.MeshBasicMaterial({ color: 0x07080a, transparent: true, opacity: 0,
+  depthTest: false, depthWrite: false });
+spotScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), SPOT_MAT));
+const MEET_DIM = 0.74;
+const MEET_LIFT = 1.7;
+const _spotHid = [];
+function meetSpot() {
+  const e = meetCard.e;
+  if (!meetCam.k || !e || !e.g.parent) return;
+  SPOT_MAT.opacity = MEET_DIM * meetCam.k;
+  const auto = renderer.autoClear;
+  renderer.autoClear = false;
+  renderer.setRenderTarget(null);
+  renderer.render(spotScene, spotCam);
+  renderer.clearDepth();
+  _spotHid.length = 0;
+  for (const o of scene.children) {
+    if (o.visible && o !== e.g && o !== camera && !o.isLight) { o.visible = false; _spotHid.push(o); }
+  }
+  const bg = scene.background, fog = scene.fog;
+  const fn = fog && fog.near, ff = fog && fog.far;
+  scene.background = null;
+  if (fog) { fog.near = 1e4; fog.far = 2e4; }
+  // ...and lit a little brighter than the room was, so he lifts off it
+  const h0 = hemi.intensity, s0 = sun.intensity;
+  hemi.intensity = h0 * MEET_LIFT; sun.intensity = s0 * MEET_LIFT;
+  renderer.render(scene, camera);
+  hemi.intensity = h0; sun.intensity = s0;
+  scene.background = bg;
+  if (fog) { fog.near = fn; fog.far = ff; }
+  for (const o of _spotHid) o.visible = true;
+  _spotHid.length = 0;
+  renderer.autoClear = auto;
 }
 // THE NAME TAG over a type this save already knows, the first time a run meets
 // him — rides on him for a couple of seconds, then goes
@@ -1368,23 +1442,6 @@ function placeNameTag() {
   tag.style.left = ((_vTag.x * 0.5 + 0.5) * w) + 'px';
   tag.style.top = ((-_vTag.y * 0.5 + 0.5) * h) + 'px';
   tag.classList.add('on');
-}
-// the ring rides on him every frame the card is up (the camera may be moving
-// as the world stops)
-const _vMeet = new THREE.Vector3(), _vMeetUp = new THREE.Vector3();
-function placeMeetPin() {
-  const pin = el.meetpin, e = meetCard.e;
-  if (!pin) return;
-  if (!meetCard.on || !e || !e.alive) { pin.classList.remove('on'); return; }
-  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
-  _vMeet.set(e.pos.x, 1.0, e.pos.z).project(camera);
-  if (_vMeet.z > 1 || Math.abs(_vMeet.x) > 1.2 || Math.abs(_vMeet.y) > 1.2) { pin.classList.remove('on'); return; }
-  _vMeetUp.set(e.pos.x, 2.0, e.pos.z).project(camera);
-  const r = Math.max(26, Math.min(110, Math.abs(_vMeetUp.y - _vMeet.y) * 0.5 * h * 1.2));
-  pin.style.width = pin.style.height = (2 * r) + 'px';
-  pin.style.left = ((_vMeet.x * 0.5 + 0.5) * w - r) + 'px';
-  pin.style.top = ((-_vMeet.y * 0.5 + 0.5) * h - r) + 'px';
-  pin.classList.add('on');
 }
 
 // ---------------------------------------------------------------------------
@@ -12490,7 +12547,6 @@ const el = {
 
   duelmeet: document.getElementById('duelmeet'),
   meetcard: document.getElementById('meetcard'),
-  meetpin: document.getElementById('meetpin'),
   dueltap: document.getElementById('dueltap'),
   duelpins: [...document.querySelectorAll('#duelpins i')],
   tutorhand: document.getElementById('tutorhand'),
@@ -17199,10 +17255,16 @@ function frame(now) {
     camera.rotation.y = player.yaw;
     camera.rotation.x = player.pitch;
     camera.rotation.z = player.roll;
+    meetFrame(dt);   // a debut card turns the camera onto him
+    if (meetCam.k) gun.visible = false;
   }
 
   // bullet-time zoom: FOV tightens as time slows
-  const wantFov = FOV_SLOW + (FOV_NORMAL - FOV_SLOW) * Math.min(timeScale, 1);
+  let wantFov = FOV_SLOW + (FOV_NORMAL - FOV_SLOW) * Math.min(timeScale, 1);
+  if (meetCam.k) {
+    const k = meetCam.k * meetCam.k * (3 - 2 * meetCam.k);
+    wantFov += (meetCam.fov - wantFov) * k;
+  }
   if (Math.abs(camera.fov - wantFov) > 0.05) {
     camera.fov = wantFov;
     camera.updateProjectionMatrix();
@@ -17541,11 +17603,11 @@ function frame(now) {
   el.crosshair.classList.toggle('hot', player.fireCd > 0);
   if (tutorStep !== null) tutorPlaceWorldCue();
   if (game.mode === 'duel') duelPlaceMeetPins();
-  placeMeetPin();
   placeNameTag();
   updateSight();   // the no-misses streak, shown through walls if sight is yours
 
   renderFrame(dt);
+  meetSpot();   // a debut card: the room dims and he is drawn over it
   // THE VEIL COMES OFF ON THE FIRST REAL PICTURE, not when the module has
   // finished importing: the menu's own backdrop is a rendered corridor, and
   // uncovering before it exists is uncovering the blank canvas. See #boot.
@@ -17890,7 +17952,11 @@ window.__ts = {
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,
     what: el.meetcard && el.meetcard.querySelector('.what').textContent,
     hint: el.meetcard && el.meetcard.querySelector('.hint').textContent,
-    pin: !!(el.meetpin && el.meetpin.classList.contains('on')) }),
+    shot: +meetCam.k.toFixed(3), fov: +camera.fov.toFixed(1),
+    // where his chest sits on screen, -1..1 each way (y up)
+    ndc: meetCard.e ? (({ x, y }) => ({ x: +x.toFixed(2), y: +y.toFixed(2) }))(
+      new THREE.Vector3(meetCard.e.pos.x, 1.1 * meetCard.e.g.scale.y, meetCard.e.pos.z).project(camera)) : null,
+    dim: +SPOT_MAT.opacity.toFixed(2) }),
   // THE SWITCHER'S SLOTS (bag order, each with its magazine and its shelf)
   slots: () => { bagSync(); return player.bag.map((b) => ({ ...b, clips: player.reserve[b.type] || 0 })); },
   // THE BAG, from the outside. `player.clips` is only the shelf for whatever

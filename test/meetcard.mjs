@@ -2,8 +2,9 @@ import { boot, done } from './lib.mjs';
 // THE DEBUT CARD (docs/ARSENAL.md §11), in the tunnel.
 //
 // The first time a save meets a type, the world stops as he finishes
-// assembling: a ring on him, his name, what he does, and a hint only where his
-// weakness is not obvious. A touch takes it down and does nothing else. Once
+// assembling and the camera turns and zooms to frame him over a dimmed room;
+// a panel gives his name, what he does, and a hint only where his weakness is
+// not obvious. A touch takes it down and does nothing else. Once
 // per save — the same type later, or after a reload, is not stopped again —
 // and never for the gunner, whose introduction is the onboarding.
 const SEED = () => { try { const now = Date.now();
@@ -45,14 +46,18 @@ const meetOne = (type) => page.evaluate(async (type) => {
 
 await start();
 
-// ---- a new type: stopped, named, ringed -----------------------------------
+// ---- a new type: stopped, named, framed -----------------------------------
 let m = await meetOne('rusher');
 console.log('rusher:        ' + JSON.stringify(m));
 if (!m.on) bad('a rusher this save has never met did not get a card');
 if (m.who !== 'RUSHER') bad('the card names ' + m.who);
 if (!/charges at you/i.test(m.what)) bad('the card does not say what he does: ' + m.what);
 if (!/arm pulls back/i.test(m.hint)) bad('the rusher\'s hint is missing: ' + m.hint);
-if (!m.pin) bad('there is no ring on him');
+if (m.shot < 0.95) bad('the camera did not settle on him: ' + m.shot);
+if (!(m.fov < 45)) bad('the lens did not close on him: fov ' + m.fov);
+if (!m.ndc || Math.abs(m.ndc.x) > 0.1 || m.ndc.y < 0.15 || m.ndc.y > 0.45) bad('he is not framed in the top half: ' + JSON.stringify(m.ndc));
+if (m.dim < 0.6) bad('the room was not dimmed: ' + m.dim);
+await page.screenshot({ path: 'test/out/meetcard.png' });
 if (m.worldMoved > 0.002) bad('the world kept moving under the card: ' + m.worldMoved + ' s');
 
 // ---- a touch takes it down, and fires nothing ------------------------------
@@ -64,6 +69,12 @@ const after = await page.evaluate(() => ({ on: window.__ts.meet().on, mag: windo
 console.log('after a tap:   ' + JSON.stringify(after));
 if (after.on) bad('a tap did not take the card down');
 if (after.mag !== mag0) bad('the tap that dismissed the card also fired');
+await page.waitForFunction(() => window.__ts.meet().shot === 0, null, { timeout: 5000 }).catch(() => {});
+const back = await page.evaluate(() => ({ shot: window.__ts.meet().shot, fov: window.__ts.meet().fov,
+  hidden: document.body.classList.contains('meeting') }));
+console.log('camera back:   ' + JSON.stringify(back));
+if (back.shot !== 0 || back.fov < 60) bad('the camera did not come back from the card: ' + JSON.stringify(back));
+if (back.hidden) bad('the controls stayed hidden after the card');
 
 // ---- the same type again: no card -----------------------------------------
 m = await meetOne('rusher');

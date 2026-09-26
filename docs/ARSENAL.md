@@ -834,11 +834,20 @@ That glow is the window.
 
 ### The fight, in three phases
 
+**Eased after the first phone playtest (2026-09-26): "way too hard without a
+time button."** The table above prices an ideal thumb; a real one on a phone
+screen, with the pair of shotgunners on it, needs more room. The cooldowns
+went from 1.5/1.2/1.2 s to **2.4/2.0/2.0 s**, his rounds from 1.5/1.25 s to
+2.2/1.8 s apart, the pair comes back after 8 s, not 3, and the time stop is a
+**three-round** volley 0.32 rad apart, held 1.8 s, every 7 s (was five rounds,
+0.2 rad, 1.4 s, every 5 s). The finale Keeper keeps his own, harder numbers
+(`FINALE`): by then you have the button.
+
 | phase | cooldown | what it teaches |
 |---|---|---|
-| **1. Blink** | 1.5 s | a single shot is dodged; bait, then punish. The pistol works. |
-| **2. Faster** | 1.2 s | the pistol's punish window closes. **Shotgunners assemble**; take a shotgun off one: *take his gun* (§3), inside a boss fight. |
-| **3. He stops the world** | 1.2 s | he freezes the room for a moment. His rounds **hang in the air** where you can see them, then all release at once, a volley. You survive by reading the hanging rounds and being somewhere else when time restarts. It is the lesson of the slow-time school, taught one room before you are given the button. |
+| **1. Blink** | 2.4 s | a single shot is dodged; bait, then punish. The pistol works. |
+| **2. Faster** | 2.0 s | the pistol's punish window closes. **Shotgunners assemble**; take a shotgun off one: *take his gun* (§3), inside a boss fight. |
+| **3. He stops the world** | 2.0 s | he freezes the room for a moment. His rounds **hang in the air** where you can see them, then all release at once, a volley. You survive by reading the hanging rounds and being somewhere else when time restarts. It is the lesson of the slow-time school, taught one room before you are given the button. |
 
 Then he shatters, and you get the power you just watched him use.
 
@@ -919,13 +928,21 @@ introduction):
 1. **The first room holds him alone.** It is the existing debut rule: a new
    type arrives in a quieter room. For the four bosses, the boss fight is the
    debut and the card opens it.
-2. **When he finishes assembling, the world stops.** He gets the ring the
-   debut card uses, the rest of the room dims, and the card shows **three
-   lines at most**:
+2. **When he finishes assembling, the world stops and the camera frames
+   him** (redesigned 2026-09-26 after the first phone playtest: the old card,
+   big outlined words over the room with a ring on him, was "too complicated
+   and cluttered"). The camera stays at your eye (a camera moved into the room
+   can end up in a wall), turns to him and zooms until he fills about 42% of
+   the frame's height, in its upper half; the room dims and he is drawn over
+   it, lit a little brighter, through a wall if one is in the way
+   (`meetFrame()`, `meetSpot()`, numbers in `MEET_CAM`, `MEET_DIM`,
+   `MEET_LIFT`). The controls fade out. The words sit in **one plain panel at
+   the bottom**, three lines at most:
    - his **name**;
    - **what he does**, in one line;
    - a **tip**, *only if how to beat him isn't obvious*, said plainly.
-3. **A touch releases the world.**
+3. **A touch releases the world**, and the camera eases back to where you
+   were aiming.
 
 **Once per save, not per run.** The full stop plays the first time you ever
 meet a type (UNLOCKS already records it). On later runs a small name tag over
