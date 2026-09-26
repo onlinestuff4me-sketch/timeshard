@@ -2060,3 +2060,16 @@ export const SPAWNER = {
   bossSize: 1.5, bossHang: 3, bossReform: 4,
   bossGuards: ['shotgunner', 'heavy', 'armored', 'blinker', 'gunner', 'bomber'],
 };
+
+// THE FINALE (docs/ARSENAL.md §14): the Keeper again, on door 39. He dodges at
+// the trigger with a `cd`-second cooldown — a teleport at full speed, a dash
+// you can read in slow time — and only his HEAD counts (`hp` of them). Besides
+// his rounds he sends a rocket or a small kamikaze of his own every `volleyEvery`
+// world-seconds. A spawner behind him keeps the room alive: his guards hang
+// `SPAWNER.bossHang`, HE hangs `keeperHang`, and the loop breaks when the dish
+// goes while he is down.
+export const FINALE = {
+  cd: 0.65, hp: 3, fire: 1.25, volleyEvery: 4, keeperHang: 6,
+  guards: ['shotgunner', 'heavy', 'armored', 'gunner', 'bomber'],
+  mini: { speed: 5.5, r: 2.0, life: 7 },   // his kamikazes: they hunt YOU
+};

@@ -1188,6 +1188,17 @@ of the fight.
 
 ## 14. The finale: the Keeper, reassembled
 
+**Built (2026-09-26):** `FINALE` in `src/balance.js`, `finaleStart()`/
+`finaleTick()` in `src/main.js`, checked by `test/finale.mjs`. Door 39's last
+leg: the Keeper with a 0.65 s dodge, armored (body shots clank; three head
+hits), firing his rounds on a 1.25 s clock and, every 4 world-seconds, a
+homing rocket or a small kamikaze of his own that hunts you (2 m burst). A
+spawner stands in the chamber beside and behind him holding him and five
+guards (shotgunner, heavy, armored, gunner, bomber): guards hang 3 s, he hangs
+6 s. Break the dish while he is down and the loop is broken: his shards hang,
+RUN COMPLETE, and the exit opens onto floor 6. **Not built:** the wall
+shattering outward onto the white city (the run simply continues).
+
 **Decided: the Keeper is the ultimate boss.** The run ends where it began,
 against the man whose time you took, now carrying a piece of every floor.
 

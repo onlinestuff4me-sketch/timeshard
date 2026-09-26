@@ -16,7 +16,7 @@ import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, 
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
   doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT, PLAYTEST,
-  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI, FRANK, DRONE, SPAWNER } from './balance.js';
+  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI, FRANK, DRONE, SPAWNER, FINALE } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -2637,6 +2637,7 @@ function updateSeekers(sdt) {
   for (let i = seekers.length - 1; i >= 0; i--) {
     const s = seekers[i];
     s.life -= sdt;
+    if (s.hostile) { if (updateMini(s, i, sdt)) continue; continue; }
     let target = null, best = Infinity;
     for (const e of enemies) {
       if (e.state === 'assemble') continue;
@@ -5706,6 +5707,101 @@ function updateBlink(e) {
 }
 
 // ---------------------------------------------------------------------------
+// THE FINALE (docs/ARSENAL.md §14; FINALE in balance.js). The Keeper, again:
+// head only, a 0.65 s cooldown, rockets and small kamikazes of his own, and a
+// spawner behind him that keeps reassembling him. Beat him, and in his
+// 6-second hang re-clear the guards and break the dish: the loop is broken.
+// ---------------------------------------------------------------------------
+function finaleKeeperSetup(k) {
+  k.boss = 'finale';
+  k.hp = FINALE.hp;
+  k.g.scale.multiplyScalar(KEEPER.scale);
+  k.speed = KEEPER.speed;
+  k.engageDist = 60;
+  k.blinkCd = FINALE.cd;
+  k.bossPhase = 1;
+  k.volleyAt = worldT + 2;
+  k.volleyN = 0;
+}
+function finaleStart(L) {
+  const B = L.boss;
+  spawnEnemy('blinker', keeperAt(L, KEEPER_SPOT));
+  const k = enemies[enemies.length - 1];
+  finaleKeeperSetup(k);
+  B.keeper = k;
+  B.phase = 1;
+  // the spawner stands behind him, out of the lane, holding the whole room
+  spawnEnemy('spawner', keeperAt(L, [1.3, 10.9]));   // inside the chamber, beside and behind him
+  B.spawner = enemies[enemies.length - 1];
+  B.spawner.finaleSpawner = true;
+  runlog.ev('finale-start');
+  keeperSpawnAdds(L);
+}
+function finaleHurt(e, at) {
+  e.hp--;
+  e.hurtUntil = worldT + 0.3;
+  e.bossPhase = FINALE.hp - e.hp + 1;
+  e.blinkReady = worldT;   // every phase is its own bait and punish
+  e.chest.material = EM(0xc8281a);
+  spawnSparks(at, 0xf4f5f7);
+  sfx.clank();
+  vibrate([20, 30, 20]);
+  runlog.ev('finale-hit', { phase: e.bossPhase });
+  showBanner(e.hp === 1 ? 'ONE MORE' : 'AGAIN', 1100);
+}
+// his small kamikazes: they hunt YOU and burst in FINALE.mini.r
+function spawnMini(k) {
+  const o = new THREE.Vector3(k.pos.x, 1.4, k.pos.z);
+  const mesh = new THREE.Mesh(seekerGeo, MAT_WHITEFLASH);
+  mesh.position.copy(o);
+  mesh.scale.setScalar(0.8);
+  scene.add(mesh);
+  const d = new THREE.Vector3(player.pos.x - o.x, 0, player.pos.z - o.z).normalize();
+  seekers.push({ mesh, pos: o, vel: d.multiplyScalar(FINALE.mini.speed), life: FINALE.mini.life, hostile: true });
+  sfx.rocket();
+}
+function updateMini(s, i, sdt) {
+  const want = _v1.set(player.pos.x - s.pos.x, 1.0 - s.pos.y, player.pos.z - s.pos.z).normalize()
+    .multiplyScalar(FINALE.mini.speed);
+  s.vel.lerp(want, Math.min(1, 2.2 * sdt));
+  s.vel.setLength(FINALE.mini.speed);
+  s.pos.addScaledVector(s.vel, sdt);
+  s.mesh.position.copy(s.pos);
+  s.mesh.rotation.y += sdt * 10;
+  const d = Math.hypot(player.pos.x - s.pos.x, player.pos.z - s.pos.z);
+  if (d > 0.9 && s.life > 0 && !pointInObstacle(s.pos.x, s.pos.z, 0.1)) return false;
+  scene.remove(s.mesh);
+  seekers.splice(i, 1);
+  const at = new THREE.Vector3(s.pos.x, 1.0, s.pos.z);
+  spawnSparks(at, 0xff2d1a);
+  spawnRipple(new THREE.Vector3(at.x, 0.5, at.z), _v1.set(0, 1, 0), true);
+  sfx.boom();
+  if (player.alive && player.iframes <= 0 && d < FINALE.mini.r) hitPlayer(false, 'keeper kamikaze');
+  return true;
+}
+function finaleTick(L) {
+  const B = L.boss, k = B.keeper, sp = B.spawner;
+  const keeperUp = k && enemies.includes(k);
+  const held = revives.some((v) => v.finale);
+  // THE LOOP IS BROKEN when the dish is gone and he is down with nothing to
+  // bring him back
+  if (!enemies.includes(sp) && !keeperUp && !held) {
+    B.done = true;
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      if (B.adds.includes(enemies[i])) { enemies[i].drops = null; killEnemy(i, _v1.set(0, 0, 1)); }
+    }
+    keeperRewardStart(B, k);
+    return;
+  }
+  if (!keeperUp || k.state === 'assemble') return;
+  // his own volleys: a rocket, then a kamikaze, on his clock
+  if (worldT >= k.volleyAt) {
+    if (k.volleyN++ % 2 === 0) spawnMissile(k); else spawnMini(k);
+    k.volleyAt = worldT + FINALE.volleyEvery;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // THE SPAWNER (docs/ARSENAL.md §9; SPAWNER in balance.js). A kill near a live
 // dish is a hang: a ring on the floor fills over `hang` world-seconds and he
 // stands up again where he fell. Break the dish and every hang it is holding
@@ -5716,10 +5812,10 @@ const REVIVE_RING_GEO = new THREE.RingGeometry(0.55, 0.75, 28);
 const REVIVE_RING_MAT = new THREE.MeshBasicMaterial({ color: 0xff2d1a, transparent: true, opacity: 0.6,
   side: THREE.DoubleSide, depthWrite: false });
 function spawnerHolding(e) {
-  if (e.type === 'spawner' || e.boss || e.noRevive) return null;
+  if (e.type === 'spawner' || (e.boss && e.boss !== 'finale') || e.noRevive) return null;
   for (const s of enemies) {
     if (s.type !== 'spawner' || s === e || s.state === 'assemble' || s.hanging) continue;
-    const r = s.boss === 'spawner' ? Infinity : SPAWNER.r;
+    const r = s.boss === 'spawner' || s.finaleSpawner ? Infinity : SPAWNER.r;
     if (Math.hypot(s.pos.x - e.pos.x, s.pos.z - e.pos.z) < r) return s;
   }
   return null;
@@ -5730,8 +5826,10 @@ function queueRevive(e, by) {
   ring.position.set(e.pos.x, 0.03, e.pos.z);
   ring.scale.setScalar(0.2);
   scene.add(ring);
-  const hang = by.boss === 'spawner' ? SPAWNER.bossHang : SPAWNER.hang;
+  const hang = e.boss === 'finale' ? FINALE.keeperHang
+    : by.boss === 'spawner' || by.finaleSpawner ? SPAWNER.bossHang : SPAWNER.hang;
   revives.push({ type: e.type, x: e.pos.x, z: e.pos.z, t0: worldT, at: worldT + hang, by, ring,
+    finale: e.boss === 'finale',
     add: !!(hall && hall.legs[hall.cur].boss && hall.legs[hall.cur].boss.adds.includes(e)) });
   runlog.ev('hang', { type: e.type });
 }
@@ -5748,6 +5846,8 @@ function updateRevives() {
     spawnEnemy(v.type, { x: v.x, z: v.z });
     const back = enemies[enemies.length - 1];
     if (v.add && hall) { const B = hall.legs[hall.cur].boss; if (B) B.adds.push(back); }
+    // HE COMES BACK WHOLE: the finale's Keeper, reassembled
+    if (v.finale && hall) { finaleKeeperSetup(back); hall.legs[hall.cur].boss.keeper = back; }
   }
 }
 function clearRevives() { for (let i = revives.length - 1; i >= 0; i--) dropRevive(i); }
@@ -5962,7 +6062,7 @@ function keeperLeg(door, legIx) {
 // WHICH BOSS, IF ANY, OWNS THIS LEG: the last leg of a floor's last door
 // (docs/ARSENAL.md §1). Only bosses that are built answer; the rest of the
 // floors end in an ordinary leg until theirs is.
-const BOSSES_BUILT = new Set(['keeper', 'frankenstein', 'drone', 'spawner']);
+const BOSSES_BUILT = new Set(['keeper', 'frankenstein', 'drone', 'spawner', 'finale']);
 function bossLeg(door, legIx) {
   if (game.mode !== 'hall' || tutorStep !== null || tutorShaping) return null;
   const f = floorOf(door);
@@ -5998,7 +6098,7 @@ const keeperAt = (L, [dx, dz]) => ({ x: (L.spine[0][0] + dx) * HALL.cell, z: (L.
 // ...and the drone's gunners (it steers them) with a shotgunner (the cone,
 // for a target overhead)
 const BOSS_ADDS = { keeper: ['shotgunner', 'shotgunner'], frankenstein: ['bomber', 'bomber'],
-  drone: ['gunner', 'gunner', 'shotgunner'], spawner: SPAWNER.bossGuards };
+  drone: ['gunner', 'gunner', 'shotgunner'], spawner: SPAWNER.bossGuards, finale: FINALE.guards };
 const ADD_SPOTS = [...KEEPER_ADDS, [0, 11.6],   // the third stands BEHIND the boss, not in the lane to him
   [-1.2, 7.4], [1.2, 7.4], [-0.6, 8.8]];      // the spawner's guard: six
 function keeperSpawnAdds(L) {
@@ -6075,6 +6175,7 @@ function keeperStart(L) {
   const B = L.boss;
   if (B.kind === 'frankenstein') { frankStart(L); return; }
   if (B.kind === 'spawner') { spawnerBossStart(L); return; }
+  if (B.kind === 'finale') { finaleStart(L); return; }
   if (B.kind === 'drone') { droneBossStart(L); return; }
   spawnEnemy('blinker', keeperAt(L, KEEPER_SPOT));
   const k = enemies[enemies.length - 1];
@@ -6092,6 +6193,7 @@ function keeperStart(L) {
 }
 function keeperFireGap(e) {
   if (e.boss === 'frankenstein') return FRANK.fire;
+  if (e.boss === 'finale') return FINALE.fire;
   return KEEPER.fire[Math.max(0, (e.bossPhase || 1) - 1)];
 }
 // A HIT THAT DOES NOT KILL HIM moves him on a phase and gives him his blink
@@ -6171,6 +6273,22 @@ function keeperRewardTick(B, dt) {
     if (hall.seekerTaken) { R.given = true; runlog.ev('boss-reward', { weapon: R.weapon }); }
     return;
   }
+  if (B.kind === 'finale') {
+    // HIS SHARDS DO NOT COME TO YOU: you already have his time. They hang,
+    // and the run is over (the window to the city, §14, is not built)
+    if (R.t >= hang + stream) {
+      for (const [it, gen] of R.pieces) if (it.on && it.gen === gen) { it.on = false; debrisPool.mesh.setMatrixAt(it.idx, HIDDEN); }
+      debrisPool.mesh.instanceMatrix.needsUpdate = true;
+      R.given = true;
+      keeperStopUntil = 0;
+      hall.finaleDone = true;
+      runlog.ev('finale-done');
+      showBanner('THE KEEPER IS DOWN', 2600);
+      showBanner('RUN COMPLETE', 2600);
+      vibrate([30, 60, 30, 60, 90]);
+    }
+    return;
+  }
   const tx = R.at ? R.at.x : player.pos.x, ty = R.at ? R.at.y : EYE_HEIGHT - 0.35;
   const tz = R.at ? R.at.z : player.pos.z;
   for (const [it, gen] of R.pieces) {
@@ -6235,6 +6353,7 @@ function keeperTick(L, dt) {
     return;
   }
   const k = B.keeper;
+  if (B.kind === 'finale') { finaleTick(L); return; }
   if (!enemies.includes(k)) {
     // HE IS DOWN, AND THE ROOM IS HIS: the pair goes with him.
     B.done = true;
@@ -6662,8 +6781,9 @@ function updateBullets(sdt) {
             }
           }
         }
-        if (bodyshot && e.type === 'armored') {
-          // armor shrugs it off — only headshots take these down
+        if (bodyshot && (e.type === 'armored' || e.boss === 'finale')) {
+          // armor shrugs it off — only headshots take these down (the
+          // finale's Keeper is armored too: docs/ARSENAL.md §14)
           spawnSparks(b.pos, 0xf4f5f7);
           sfx.clank();
           consumed = true;
@@ -6671,9 +6791,10 @@ function updateBullets(sdt) {
         }
         if (e.hp > 1) {
           // one hit per shell: the rest of its pellets spark off him
-          if (worldT >= (e.hurtUntil || 0)) keeperHurt(e, b.pos);
+          if (worldT >= (e.hurtUntil || 0)) {
+            if (e.boss === 'finale') finaleHurt(e, b.pos); else keeperHurt(e, b.pos);
+          } else spawnSparks(b.pos, 0xf4f5f7);
           if (b.shot) b.shot.hit = true;   // landing on the Keeper is a hit
-          else spawnSparks(b.pos, 0xf4f5f7);
           consumed = true; break;
         }
         const impulse = _v1.copy(b.vel).normalize();
@@ -9591,6 +9712,7 @@ function startPlaytest(kind) {
   on('ptfrank', () => startPlaytest('frankenstein'));
   on('ptdrone', () => startPlaytest('drone'));
   on('ptspawner', () => startPlaytest('spawner'));
+  on('ptfinale', () => startPlaytest('finale'));
   on('ptcards', () => { carded.clear(); saveProgress(); toast('INTRO CARDS WILL SHOW AGAIN'); });
   on('ptsight', () => { sightForced = sightForced === false ? null : false; refreshPlaytest(); });
   on('ptsend', () => sendLog());
