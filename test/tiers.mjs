@@ -22,22 +22,25 @@ await page.tap('.go');
 await page.waitForFunction(() => window.__ts.game.state === 'play', null, { timeout: 20000 });
 await page.evaluate(() => {
   const t = window.__ts;
+  // every wait below is capped in frames, not wall time: dt is capped at 0.05 s,
+  // so a loaded machine slows the world and a wall-clock cap gives up early
   window.__step = async (n = 1) => { for (let i = 0; i < n; i++) { await new Promise((r) => requestAnimationFrame(r)); t.player.iframes = 999; } };
+  // walking over the drop leaves the player wherever it fell, maybe with a wall
+  // ahead: the later sections shoot from where the run started
+  window.__goHome = () => { const h = window.__home; t.player.pos.x = h.x; t.player.pos.z = h.z; t.player.yaw = h.yaw; };
   window.__clear = () => { for (const e of t.enemies) e.g.visible = false; t.enemies.length = 0; t.game.spawnQueue.length = 0; };
   window.__put = async (type, d, side = 0) => {
     const yaw = t.player.yaw;
     t.spawnEnemy(type, { x: t.player.pos.x - Math.sin(yaw) * d + Math.cos(yaw) * side, z: t.player.pos.z - Math.cos(yaw) * d - Math.sin(yaw) * side });
     const e = t.enemies[t.enemies.length - 1];
-    const t0 = performance.now();
-    while (e.state === 'assemble' && performance.now() - t0 < 6000) await window.__step();
+    for (let f = 0; e.state === 'assemble' && f < 400; f++) await window.__step();
     e.speed = 0; e.fireCd = 1e9;
     return e;
   };
   window.__fireAt = async (x, y, z) => {
     t.player.fireCd = 0; t.player.mag = 9; t.player.reloadT = 0; t.player.swapT = 0;
     t.fireAt(x, y, z);
-    const t0 = performance.now();
-    while (t.bullets.some((b) => b.fromPlayer) && performance.now() - t0 < 6000) {
+    for (let f = 0; t.bullets.some((b) => b.fromPlayer) && f < 400; f++) {
       for (const e of t.enemies) if (e.state !== 'aim') e.fireCd = 1e9;
       await window.__step();
     }
@@ -48,12 +51,12 @@ await page.evaluate(() => {
 const g = await page.evaluate(async () => {
   const t = window.__ts;
   window.__clear();
+  window.__home = { x: t.player.pos.x, z: t.player.pos.z, yaw: t.player.yaw };
   const e = await window.__put('gunner', 9);
   const n0 = t.bullets.filter((b) => !b.fromPlayer).length;
   e.fireCd = 0;
-  const t0 = performance.now();
   let n = 0;
-  while (performance.now() - t0 < 5000) {
+  for (let f = 0; f < 300; f++) {
     await window.__step();
     n = t.bullets.filter((b) => !b.fromPlayer).length - n0;
     if (n > 0) { await window.__step(); n = t.bullets.filter((b) => !b.fromPlayer).length - n0; break; }
@@ -89,6 +92,7 @@ if (!/PISTOL II/.test(up.hud)) bad('the HUD does not say PISTOL II: ' + up.hud);
 const sh = await page.evaluate(async () => {
   const t = window.__ts;
   window.__clear();
+  window.__goHome();
   let broke = 0, tries = 0;
   for (let k = 0; k < 12; k++) {
     // one of theirs, 6 m ahead, flying at the player; ours fired straight down its line
@@ -99,8 +103,7 @@ const sh = await page.evaluate(async () => {
     tries++;
     t.player.fireCd = 0; t.player.mag = 9; t.player.reloadT = 0; t.player.swapT = 0;
     t.fireAt(theirs.pos.x, theirs.pos.y, theirs.pos.z);
-    const t1 = performance.now();
-    while (t.bullets.some((b) => b.fromPlayer) && t.bullets.includes(theirs) && performance.now() - t1 < 4000) await window.__step();
+    for (let f = 0; t.bullets.some((b) => b.fromPlayer) && t.bullets.includes(theirs) && f < 300; f++) await window.__step();
     if (!t.bullets.includes(theirs)) broke++;
     await window.__step(30);
     window.__clear();
@@ -116,19 +119,29 @@ else if (sh.broke < 1 || sh.broke === sh.tries) bad('shatter should break some r
 const st = await page.evaluate(async () => {
   const t = window.__ts;
   window.__clear();
+  window.__goHome();
   t.setWeapon('shotgun', 3, 2);
   const target = await window.__put('gunner', 8);
   const other = await window.__put('gunner', 8, 2.2);
   other.state = 'aim'; other.stateT = 0; other.fireCd = 0; other.holdFireT = 0;
-  await window.__fireAt(target.pos.x, 1.2, target.pos.z);
-  return { mk: t.wspec().mk, stagger: !!t.wspec().stagger, targetDown: !t.enemies.includes(target),
+  // read his state on the frame the target falls: once staggered he advances,
+  // and a few frames later he may be back on his aim
+  t.player.fireCd = 0; t.player.mag = 9; t.player.reloadT = 0; t.player.swapT = 0;
+  t.fireAt(target.pos.x, 1.2, target.pos.z);
+  let atKill = null;
+  for (let f = 0; f < 400 && t.enemies.includes(target); f++) {
+    other.state = 'aim'; other.stateT = 0; other.fireCd = 1e9;   // pinned on his aim until the kill
+    await window.__step();
+  }
+  if (!t.enemies.includes(target)) atKill = other.state;
+  return { atKill, mk: t.wspec().mk, stagger: !!t.wspec().stagger, targetDown: !t.enemies.includes(target),
     weapon: t.player.weapon, mag: t.player.mag, swapT: t.player.swapT, reloadT: t.player.reloadT,
     otherState: other.state, otherAlive: t.enemies.includes(other) };
 });
 console.log('stagger:       ' + JSON.stringify(st));
 if (!st.stagger) bad('the Mk II shotgun does not stagger');
 if (!st.targetDown) bad('the shell did not kill its target');
-if (st.otherAlive && st.otherState === 'aim') bad('the man beside the kill kept his aim');
+if (st.otherAlive && st.atKill === 'aim') bad('the man beside the kill kept his aim');
 
 done('tiers', errs);
 await browser.close();
