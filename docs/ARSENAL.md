@@ -206,6 +206,26 @@ or an expensive screen), wave 3 hands over or demands the answer (take his gun).
 
 ## 4. The arsenal ladder
 
+**Built (2026-09-26):** `TIER_AT`, `mkFor()`, `ENEMY_MK`, `WEAPON_MK`,
+`TIER_LINE` in `src/balance.js`; `specFor()`/`especOf()`, `wspec()`,
+`shatterPass()`, `staggerAround()`, `tierLine()` in `src/main.js`; checked by
+`test/tiers.mjs`. Every tier the door map puts inside the five floors is in
+(doors 12–39). What each Mk does, as built: gunner II pairs, III faster rounds;
+rusher II/III faster; shotgunner II 7 pellets wider from 10 m, III 10;
+shield II turns 1.6× faster; heavy II 5-round burst, III 6 more often; bomber
+II a 3 m blast; sniper II ×3.6 rounds; blinker II blinks 1.7 m; Frankenstein
+III rushes when disarmed; armored II closes faster and aims quicker; rocketeer
+II tracks tighter; kamikaze II packs of 6, 0.3 s apart, 4.5 m; drone II jinks
+and fires. Weapons carry a Mk (pistol II/III pierce + shatter; shotgun II/III
+more pellets + stagger; burst II/III; sniper II/III; launcher II/III blast 8 +
+stagger; rocket II/III stagger), drops carry the Mk of the man who dropped
+them, the first of each new Mk always drops, a higher Mk upgrades the gun you
+carry where it sits (loaded), and the HUD names it (PISTOL II). The door a tier
+arrives carries a small line under the door number. **Not built:** the AP
+rifle (the armored man still drops the burst rifle), bomber III's two lobs, the
+rocketeer's guided pair, the laser's charge tiers (past floor 5 anyway), and
+any look for a higher Mk on the body.
+
 **Each Mk moves one axis, and his drop answers that axis.** The pairing is
 the whole design: the gunner fires in pairs, so his pistol breaks rounds in
 the air; the armored man advances, so his rounds crack plate and rock him back.

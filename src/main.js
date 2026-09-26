@@ -16,7 +16,8 @@ import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, 
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
   doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT, PLAYTEST,
-  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI, FRANK, DRONE, SPAWNER, FINALE } from './balance.js';
+  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI, FRANK, DRONE, SPAWNER, FINALE,
+  TIER_AT, mkFor, ENEMY_MK, TIER_LINE, WEAPON_MK, STAGGER_R } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
 // draws the real layouts rather than a second implementation of them.
@@ -1255,14 +1256,22 @@ let gunKick = 0;
 // one thrust and drives its own animation path, separate from the gun rig.
 let jabT = 0;
 
-function setWeapon(type, clips) {
-  const spec = WEAPONS[type];
+// A WEAPON'S NUMBERS AT ITS MK (docs/ARSENAL.md §4): the row with its Mk's
+// overrides merged over it. `player.mk` is the Mk of what is in the hand.
+const ROMAN = ['', '', ' II', ' III'];
+function wspec(w = player.weapon, mk = player.mk || 1) {
+  const o = WEAPON_MK[w] && WEAPON_MK[w][mk];
+  return o ? { ...WEAPONS[w], ...o } : WEAPONS[w];
+}
+function setWeapon(type, clips, mk = 1) {
+  const spec = wspec(type, mk);
   if (type !== player.weapon) runlog.ev('gun', { to: type });
   // the gun leaving the hand keeps its rounds in the bag — saved BEFORE the
   // hand is overwritten, or the swap would write the new gun's full magazine
   // over the old one's slot
   if (switcherOn()) bagSync();
   player.weapon = type;
+  player.mk = mk;
   // AN EQUIP DOES NOT EMPTY THE BAG. `clips` used to be assigned here
   // unconditionally, which was harmless when there was one number and is a
   // robbery now: switching to a gun you already hold four clips for would set
@@ -1273,7 +1282,7 @@ function setWeapon(type, clips) {
   player.mag = spec.mag === Infinity ? Infinity : spec.mag;
   player.reloadT = 0;
   player.swapT = 0;
-  if (switcherOn() && type !== 'knife') bagPut(type, player.mag, player.clips);
+  if (switcherOn() && type !== 'knife') bagPut(type, player.mag, mk);
   pistolVM.visible = type === 'pistol';
   shotgunVM.visible = type === 'shotgun';
   sniperVM.visible = type === 'sniper';
@@ -1406,10 +1415,10 @@ function bagSync() {
   const b = bagFind(player.weapon);
   if (b) b.mag = player.mag;
 }
-function bagPut(type, mag) {
+function bagPut(type, mag, mk = 1) {
   bagSync();
   player.bag = player.bag.filter((b) => b.type !== type);
-  player.bag.unshift({ type, mag });
+  player.bag.unshift({ type, mag, mk });
   // over the cap, the oldest find goes — never the pistol — and its clips too
   while (player.bag.length > SWITCHER.slots) {
     let i = player.bag.length - 1;
@@ -1439,6 +1448,7 @@ function equipFromBag(b) {
   bagSync();
   if (b.type !== player.weapon) runlog.ev('gun', { to: b.type, how: 'swap' });
   player.weapon = b.type;
+  player.mk = b.mk || 1;
   player.mag = b.mag;          // its clips come with it: player.clips reads its shelf
   player.reloadT = 0;           // a swap abandons a reload; the clip is not spent
   player.swapT = SWITCHER.swapT * tempoMul();
@@ -1494,9 +1504,9 @@ function addClip(w) {
 // away: the clip goes in the bag, the better gun stays in your hands, and the
 // only rule left is the one the player can feel — you keep the best thing you
 // have found, and you keep the ammunition for everything else.
-function takePickup(type) {
+function takePickup(type, mk = 1) {
   if (type === 'seeker' && hall) hall.seekerTaken = true;
-  if (switcherOn()) return bagTake(type);
+  if (switcherOn()) return bagTake(type, mk);
   const want = type === CLIP ? 'pistol' : type;
   recordMet([want]);                               // ids match the registry's
   // ...and once they are carrying one, the room stops explaining how. A CLIP
@@ -1523,9 +1533,23 @@ function takePickup(type) {
 // gun you did not have goes into the bag either way — into your hands if it
 // outranks what you hold, one swipe away if it does not. A gun arriving comes
 // up loaded: its first magazine is not taken off the shelf.
-function bagTake(type) {
+function bagTake(type, mk = 1) {
   const want = type === CLIP ? 'pistol' : type;
   if (want === 'seeker' && hall) hall.seekerTaken = true;
+  // A HIGHER MK REPLACES YOURS (docs/ARSENAL.md §4): the gun you carry is
+  // upgraded where it sits, loaded; the same or a lower Mk is a clip
+  const mine = type !== CLIP && bagFind(want);
+  if (mine && mk > (mine.mk || 1)) {
+    bagSync();
+    mine.mk = mk;
+    mine.mag = wspec(want, mk).mag;
+    if (player.weapon === want) { player.mk = mk; player.mag = mine.mag; player.reloadT = 0; }
+    recordMet([want]);
+    showBanner(want.toUpperCase() + ROMAN[mk], 1500);
+    runlog.ev('upgrade', { gun: want, mk });
+    updateAmmoHud();
+    return true;
+  }
   recordMet([want]);
   if (type !== CLIP) duel.gotGun = true;
   bagSync();
@@ -1535,9 +1559,9 @@ function bagTake(type) {
   if (!had && want === 'pistol' && !bagFind('pistol')) bagPut('pistol', 0);
   if (weaponRank(want) > weaponRank(held)) {
     if (had) { equipFromBag(bagFind(want)); if (player.mag <= 0) startReload(); }
-    else setWeapon(want);   // setWeapon puts it in the bag, magazine full
+    else setWeapon(want, undefined, mk);   // setWeapon puts it in the bag, magazine full
   } else if (!had && want !== 'pistol') {
-    bagPut(want, WEAPONS[want].mag);
+    bagPut(want, wspec(want, mk).mag, mk);
     // bagPut unshifted it ahead of the hand's own slot; the hand stays first
     const hand = bagFind(held);
     if (hand) { player.bag = [hand, ...player.bag.filter((b) => b !== hand)]; }
@@ -1589,7 +1613,7 @@ function giveKnife() {
 // A reload is the risk you take: seconds where all you can do is dodge.
 // It runs on REAL time, so freezing the world does not refill your gun.
 function startReload() {
-  const spec = WEAPONS[player.weapon];
+  const spec = wspec();
   if (player.reloadT > 0 || spec.mag === Infinity) return;
   if (player.mag >= spec.mag) return;
   if (player.clips <= 0) {
@@ -1634,7 +1658,7 @@ function updateReload(dt) {
     if (el.reloadbar.style.display !== 'none') el.reloadbar.style.display = 'none';
     return;
   }
-  const spec = WEAPONS[player.weapon];
+  const spec = wspec();
   el.reloadbar.style.display = 'block';
   el.reloadfill.style.width = Math.max(0, Math.min(1, player.reloadT / (player.reloadFull || spec.reload))) * 100 + '%';
   player.reloadT -= dt;
@@ -2573,7 +2597,7 @@ function spawnGrenade(e) {
   ring.rotation.x = -Math.PI / 2;
   ring.position.set(target.x, 0.02, target.z);
   scene.add(ring);
-  grenades.push({ mesh, ring, pos: origin.clone(), vel, t: 0 });
+  grenades.push({ mesh, ring, pos: origin.clone(), vel, t: 0, r: especOf(e).splash || BLAST_R });
   sfx.lob();
 }
 
@@ -2590,13 +2614,13 @@ function explodeGrenade(i) {
   sfx.boom();
   vibrate(30);
   if (player.alive && player.iframes <= 0 &&
-      Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < BLAST_R) {
+      Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < (gr.r || BLAST_R)) {
     hitPlayer(false, 'bomber');
   }
   for (let j = enemies.length - 1; j >= 0; j--) {   // friendly fire is fair game
     const e = enemies[j];
     if (e.state === 'assemble') continue;   // not material yet
-    if (Math.hypot(e.pos.x - at.x, e.pos.z - at.z) < BLAST_R * 0.8) {
+    if (Math.hypot(e.pos.x - at.x, e.pos.z - at.z) < (gr.r || BLAST_R) * 0.8) {
       killEnemy(j, _v1.set(e.pos.x - at.x, 0.5, e.pos.z - at.z).normalize());
     }
   }
@@ -2701,7 +2725,8 @@ function spawnMissile(e) {
   mesh.add(body, glow);
   mesh.position.copy(pos);
   scene.add(mesh);
-  missiles.push({ mesh, pos, vel: dir.multiplyScalar(MISSILE_SPEED), life: 8, rippleAcc: 0 });
+  missiles.push({ mesh, pos, vel: dir.multiplyScalar(MISSILE_SPEED), life: 8, rippleAcc: 0,
+    turn: (e.spec && e.spec.turn) || MISSILE_TURN });
   sfx.rocket();
 }
 
@@ -2734,7 +2759,7 @@ function updateMissiles(sdt) {
     if (m.life <= 0) { explodeMissile(i); continue; }
     // limited-authority homing: blend flight dir toward the player
     _v1.set(player.pos.x - m.pos.x, 1.1 - m.pos.y, player.pos.z - m.pos.z).normalize();
-    m.vel.normalize().addScaledVector(_v1, MISSILE_TURN * sdt).normalize().multiplyScalar(MISSILE_SPEED);
+    m.vel.normalize().addScaledVector(_v1, (m.turn || MISSILE_TURN) * sdt).normalize().multiplyScalar(MISSILE_SPEED);
     const prev = _v2.copy(m.pos);
     m.pos.addScaledVector(m.vel, sdt);
     m.mesh.position.copy(m.pos);
@@ -2765,7 +2790,7 @@ const pickups = [];   // {g, spin, ring, t, life}
 const PICKUP_LIFE = DROPS.life;
 const PICKUP_SINK = 1.2;   // final seconds: the gun sinks into the floor
 
-function spawnPickup(pos, type = 'shotgun') {
+function spawnPickup(pos, type = 'shotgun', mk = 1) {
   const g = new THREE.Group();
   const spin = new THREE.Group();
   if (type === CLIP) {
@@ -2813,7 +2838,7 @@ function spawnPickup(pos, type = 'shotgun') {
   g.position.set(pos.x, 0, pos.z);
   scene.add(g);
   // a boss's weapon does not sink: the exit waits for it
-  pickups.push({ g, spin, ring, type, t: Math.random() * 6, life: type === 'seeker' ? Infinity : PICKUP_LIFE });
+  pickups.push({ g, spin, ring, type, mk, t: Math.random() * 6, life: type === 'seeker' ? Infinity : PICKUP_LIFE });
   if (!spawnPickup.hinted) {   // one-time tutorial nudge
     spawnPickup.hinted = true;
     showBanner('WALK OVER IT TO TAKE IT', 1800);
@@ -2852,7 +2877,7 @@ function updatePickups(dt, sdt) {
       // it is a real decision. PICKUP_R is generous enough that walking
       // over it always registers.
       // ...and a drop that declines makes no noise and stays where it fell.
-      if (d2 < DROPS.pickupR * DROPS.pickupR && takePickup(p.type)) {
+      if (d2 < DROPS.pickupR * DROPS.pickupR && takePickup(p.type, p.mk || 1)) {
         sfx.pickup();
         vibrate(20);
         removePickup(i);
@@ -3531,11 +3556,22 @@ function sideRoom(L, x, z) {
   return Math.min(left, right);
 }
 
+// AN ENEMY'S OWN NUMBERS: his type's row with his Mk's overrides merged over
+// it (docs/ARSENAL.md §4). Only the tunnel has a ladder; everywhere else is Mk I.
+function mkHere(type) {
+  return game.mode === 'hall' && hall ? mkFor(type, hall.doorsPassed + 1) : 1;
+}
+function specFor(type, mk) {
+  const o = mk > 1 && ENEMY_MK[type] && ENEMY_MK[type][mk];
+  return o ? { ...ENEMY_TYPES[type], ...o } : ENEMY_TYPES[type];
+}
+const especOf = (e) => e.spec || ENEMY_TYPES[e.type];
 function spawnEnemy(type = 'gunner', at = null, paced = false) {
   const parts = buildEnemyMesh(type);
   addGhosts(parts.g);
+  const mk = mkHere(type);
   if (type === 'kamikaze') queueMicrotask(() => { const e = enemies.find((o) => o.g === parts.g); if (e) kamiJoinPack(e); });
-  const spec = ENEMY_TYPES[type];
+  const spec = specFor(type, mk);
   parts.g.scale.set(...spec.scale);
   const bodyR = bodyRadius(type, parts.g);
   // the wave attacks from one flank: spawn in an arc around the wave bearing
@@ -4023,6 +4059,7 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
   enemies.push({
     ...parts,
     type,
+    mk, spec,       // his Mk and the numbers it gives him (especOf)
     bodyR,          // how wide this body really is — see bodyRadius()
     speed: spec.speed,
     pos: parts.g.position,
@@ -4331,8 +4368,12 @@ function killEnemy(i, impulseDir) {
   if (e.type === 'kamikaze' && !e.bursting) queueMicrotask(() => kamiBurst(e, false));
   if (e.type === 'kamikaze') queueMicrotask(() => kamiPackCheck(e));
   runlog.ev('kill', { type: e.boss || e.type, gun: player.weapon });
-  const drop = ENEMY_TYPES[e.type].drop;
-  const kind = TYPE_DROP[e.type];
+  const drop = especOf(e).drop;
+  // the gunner's Mk II and III carry a better pistol (docs/ARSENAL.md §4)
+  const kind = TYPE_DROP[e.type] || (e.type === 'gunner' && e.mk > 1 ? 'pistol' : undefined);
+  // THE FIRST OF A NEW MK ALWAYS DROPS HIS WEAPON: the debut guarantee
+  const mkDebut = kind && e.mk > 1 && !(game.mkDrops || (game.mkDrops = new Set())).has(e.type + e.mk);
+  if (mkDebut) game.mkDrops.add(e.type + e.mk);
   const r = Math.random();
   // Only someone who was carrying a gun can leave ammo behind. A rusher
   // comes at you with his hands, so a pistol clip dropping off his body was
@@ -4369,12 +4410,13 @@ function killEnemy(i, impulseDir) {
   const debut = game.mode === 'duel' && kind && !duel.gotGun
     && duel.debutDrop !== duelRoom() && duelPlan(duelRoom()).cast.includes(e.type);
   if (heldBy) { /* nothing drops until the dish is gone */ }
+  else if (mkDebut) spawnPickup(e.pos, kind, e.mk);
   else if (debut) { duel.debutDrop = duelRoom(); spawnPickup(e.pos, kind); }
   else if (tutorStep !== null && armed) spawnPickup(e.pos, CLIP);
   else if (typeof drop === 'string') spawnPickup(e.pos, drop);      // named loot
   else if (e.drops) spawnPickup(e.pos, e.drops);                    // a boss's pair
   else if (kind && r < drop * scarcity('weaponDrop', door) * condTax(cond, 'weaponDrop')) {
-    spawnPickup(e.pos, kind);
+    spawnPickup(e.pos, kind, e.mk || 1);
   } else if (armed && r < DROPS.clipRate * scarcity('ammoDrop', door) * condTax(cond, 'ammoDrop')) {
     spawnPickup(e.pos, CLIP);
   }
@@ -4434,7 +4476,7 @@ function earlyRoundInFlight() {
 }
 
 function enemyFire(e, toPlayer) {
-  const spec = ENEMY_TYPES[e.type];
+  const spec = especOf(e);
   if (e.type === 'laser') {   // the charge completes: begin the sweep
     startBeam(e);
     return;
@@ -4483,11 +4525,12 @@ function enemyFire(e, toPlayer) {
     player.pos.z + player.vel.z * lead + (Math.random() - 0.5) * 0.24
   );
   const baseDir = target.sub(origin).normalize();
-  if (spec.twin) {
+  if (spec.twin || spec.pairs) {
     // A PAIR, one from each hand still attached — the paired fire he teaches
+    // (the gunner's Mk II fires pairs too: docs/ARSENAL.md §4)
     const side = _v4.set(-toPlayer.z, 0, toPlayer.x);
     for (const [arm, sgn] of [[e.armR, 1], [e.armL, -1]]) {
-      if (!arm.visible) continue;
+      if (spec.twin && !arm.visible) continue;
       const o = origin.clone().addScaledVector(side, 0.32 * sgn);
       spawnBullet(o, _v5.set(player.pos.x - o.x, EYE_HEIGHT - 0.25 - o.y, player.pos.z - o.z).normalize(), false, spec.mul || 1);
       bullets[bullets.length - 1].by = e.boss || e.type;
@@ -4853,6 +4896,20 @@ function warmupDoor() {
 function hudPowers(sep) {
   return hall && hall.secondLife && !hall.secondLifeUsed ? `${sep}2ND LIFE` : '';
 }
+// THE TIER-UP LINE (decided: secondary to the door number): "GUNNER MK II ·
+// FIRES IN PAIRS", small, under the headline, on the door a tier arrives
+function tierLine(door) {
+  if (game.mode !== 'hall') return '';
+  const lines = [];
+  for (const t in TIER_AT) {
+    const i = TIER_AT[t].indexOf(door);
+    if (i < 0) continue;
+    const mk = i + 2;
+    const row = ELEMENTS.find((x) => x.id === t && x.kind === 'enemy');
+    lines.push(`${row ? row.name : t.toUpperCase()} MK${ROMAN[mk]} \u00B7 ${(TIER_LINE[t] || {})[mk] || ''}`);
+  }
+  return lines.length ? `<span class="tierline">${lines.join('<br>')}</span>` : '';
+}
 // the HUD's floor, in the tunnel only: "F2 · DOOR 11 · ..."
 function floorTag() {
   if (game.mode !== 'hall' || !hall) return '';
@@ -5201,7 +5258,7 @@ function updateEnemy(e, sdt) {
   const dist = toPlayer.length();
   toPlayer.normalize();
   const wantYaw = Math.atan2(toPlayer.x, toPlayer.z);
-  if (ENEMY_TYPES[e.type].shielded) {
+  if (especOf(e).shielded) {
     // The shield is only beatable if you can outpace his pivot: he slews at a
     // fixed rate (in world time, so bullet time helps you circle him).
     let dYaw = wantYaw - e.g.rotation.y;
@@ -5209,8 +5266,8 @@ function updateEnemy(e, sdt) {
     // SLOW SLEW: CIRCLING HIM IS A REAL OPTION — and how slow depends on
     // whether the player has been given the thing that makes circling easy.
     // See ENEMY_TYPES.shieldbearer.slew.
-    const sl = ENEMY_TYPES[e.type].slew || [0.7, 0.7];
-    const maxTurn = (timeUnlocked() ? sl[1] : sl[0]) * sdt;
+    const sl = especOf(e).slew || [0.7, 0.7];
+    const maxTurn = (timeUnlocked() ? sl[1] : sl[0]) * (especOf(e).slewMul || 1) * sdt;
     e.g.rotation.y += Math.max(-maxTurn, Math.min(maxTurn, dYaw));
   } else {
     e.g.rotation.y = wantYaw;
@@ -5276,10 +5333,10 @@ function updateEnemy(e, sdt) {
       if (e.type === 'spawner') { if (e.dish && !e.hanging) e.dish.rotation.y += sdt * 3; break; }
       if (e.type === 'kamikaze') {
         // his slot in the pack: set off KAMI.gap after the man before him
-        if (e.kGo === undefined) { e.kGo = Math.max(worldT, kamiNext); kamiNext = e.kGo + KAMI.gap; }
+        if (e.kGo === undefined) { e.kGo = Math.max(worldT, kamiNext); kamiNext = e.kGo + (especOf(e).gap || KAMI.gap); }
         if (worldT < e.kGo) break;
       }
-      if ((e.type === 'kamikaze' || e.rushing) && dist < KAMI.r) {
+      if ((e.type === 'kamikaze' || e.rushing) && dist < (especOf(e).kamiR || KAMI.r)) {
         e.state = 'fuse'; e.stateT = 0; sfx.alert();
         if (e.pack && kamiPacks[e.pack]) kamiPacks[e.pack].armed = true;
         break;
@@ -5418,7 +5475,7 @@ function updateEnemy(e, sdt) {
         _v3.set(player.pos.x, EYE_HEIGHT - 0.3, player.pos.z));
       e.seenT = los ? (e.seenT || 0) + sdt : 0;
       if (!unarmed(e.type) && dist < duelEngage(e) && e.fireCd <= 0 &&
-          (!ENEMY_TYPES[e.type].shielded || Math.cos(e.g.rotation.y - wantYaw) > 0.8) &&
+          (!especOf(e).shielded || Math.cos(e.g.rotation.y - wantYaw) > 0.8) &&
           performance.now() >= game.noFireBefore && !tutorHoldsFire(e) &&
           stagedArmed(e) &&
           !earlyRoundInFlight() &&
@@ -5443,7 +5500,7 @@ function updateEnemy(e, sdt) {
     }
     case 'aim': {
       // telegraph: raise the gun arm, flash the gun white just before firing
-      const spec = ENEMY_TYPES[e.type];
+      const spec = especOf(e);
       const aimT = spec.aimTime * aimSpeedFactor();
       const t = Math.min(e.stateT / aimT, 1);
       if (!e.armRLock) e.armR.rotation.x = -t * (Math.PI / 2 - 0.06);
@@ -5531,7 +5588,7 @@ function updateEnemy(e, sdt) {
         e.burstLeft--;
         e.burstT = 0.22;
         if (e.burstLeft <= 0) {
-          const spec = ENEMY_TYPES[e.type];
+          const spec = especOf(e);
           e.state = 'recover'; e.stateT = 0;
           e.fireCd = (spec.cd[0] + Math.random() * spec.cd[1]) * aimSpeedFactor();
         }
@@ -5669,14 +5726,15 @@ function blinkersReact(origin, lanes) {
     const first = Math.random() < 0.5 ? 1 : -1;
     let best = null;
     for (const side of [first, -first]) {
-      for (let m = BLINKER.dist; m >= BLINKER.minDist - 1e-6; m -= 0.1) {
+      const far = especOf(e).blinkDist || BLINKER.dist;
+      for (let m = far; m >= BLINKER.minDist - 1e-6; m -= 0.1) {
         const x = e.pos.x + sx * side * m, z = e.pos.z + sz * side * m;
         if (pointInObstacle(x, z, BLINKER.pad)) continue;
         if (!hasLineOfSight(_v4.set(e.pos.x, 1.1, e.pos.z), _v5.set(x, 1.1, z))) continue;
         if (!best || m > best.m) best = { x, z, m };
         break;
       }
-      if (best && best.m >= BLINKER.dist - 1e-6) break;
+      if (best && best.m >= far - 1e-6) break;
     }
     if (!best) continue;
     e.blink = { x0: e.pos.x, z0: e.pos.z, x: best.x, z: best.z, t0: worldT };
@@ -5902,10 +5960,21 @@ function droneMove(e, sdt, dist, toPlayer) {
   if (dist > far) { fx = toPlayer.x; fz = toPlayer.z; }
   else if (dist < near) { fx = -toPlayer.x; fz = -toPlayer.z; }
   // A SPOTTER HOVERS STILL inside its band: one that jinked would never be
-  // the first target (§8). Only the boss drifts, and jinks once hurt.
-  if (e.boss) {
+  // the first target (§8). Only the boss drifts, and jinks once hurt; the
+  // Mk II jinks and FIRES.
+  if (especOf(e).fires && worldT >= (e.droneFireAt || 0)) {
+    if (e.droneFireAt) {
+      const o = new THREE.Vector3(e.pos.x, e.hull ? e.hull.position.y : DRONE.hover, e.pos.z);
+      spawnBullet(o, new THREE.Vector3(player.pos.x - o.x, EYE_HEIGHT - 0.25 - o.y, player.pos.z - o.z).normalize(), false, 1);
+      bullets[bullets.length - 1].by = 'drone';
+      lastEnemyShotAt = worldT;
+      sfx.enemyShot();
+    }
+    e.droneFireAt = worldT + 2.4 + Math.random();
+  }
+  if (e.boss || especOf(e).jink) {
     e.strafeT -= sdt;
-    if (e.strafeT <= 0) { e.strafe *= -1; e.strafeT = (e.bossPhase || 1) > 1 ? 0.5 + Math.random() : 2 + Math.random() * 2; }
+    if (e.strafeT <= 0) { e.strafe *= -1; e.strafeT = (e.bossPhase || 1) > 1 || especOf(e).jink ? 0.5 + Math.random() : 2 + Math.random() * 2; }
     fx += -toPlayer.z * e.strafe * 0.6; fz += toPlayer.x * e.strafe * 0.6;
   }
   const n = Math.hypot(fx, fz);
@@ -5971,7 +6040,7 @@ function frankArmOff(e, arm, at) {
   if (left > 0) return 'arm';
   // BOTH ARMS GONE. An ordinary one comes apart; the boss opens his chest and
   // runs at you — the kamikaze's rush, seen for the first time
-  if (!e.boss) return 'kill';
+  if (!e.boss && !especOf(e).rush) return 'kill';
   e.rushing = true;
   e.speed = FRANK.rushSpeed;
   e.state = 'advance'; e.stateT = 0;
@@ -6023,8 +6092,9 @@ function kamiBurst(e, fused) {
   sfx.boom();
   vibrate(fused ? [40, 30, 40] : 28);
   runlog.ev('kamikaze', { fused });
+  const R = especOf(e).kamiR || KAMI.r;
   const victims = enemies.filter((o) => o !== e && o.state !== 'assemble'
-    && Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < KAMI.r);
+    && Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < R);
   const self = enemies.indexOf(e);
   if (self >= 0 && fused) killEnemy(self, _v1.set(0, 1, 0));
   for (const o of victims) {
@@ -6032,7 +6102,7 @@ function kamiBurst(e, fused) {
     if (j >= 0) killEnemy(j, _v1.set(o.pos.x - at.x, 0.4, o.pos.z - at.z).normalize());
   }
   if (fused && player.alive && player.iframes <= 0
-      && Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < KAMI.r) {
+      && Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < R) {
     hitPlayer(false, 'kamikaze');
   }
 }
@@ -6442,7 +6512,7 @@ function playerFire(aimAt = null) {
     pendingFireAim = aimAt;   // a banked tap keeps the target it was aimed at
     return;
   }
-  const spec = WEAPONS[player.weapon];
+  const spec = wspec();
   if (spec.melee) { knifeStrike(spec); return; }
   if (player.mag <= 0) { startReload(); return; }       // dry: rack a new mag
   playerShots++;   // SHOOT THIS is answered by this going up
@@ -6475,7 +6545,10 @@ function playerFire(aimAt = null) {
     if (spec.blast) spawnPlayerShell(origin, d, spec);
     else spawnBullet(origin, d, true, spec.speed, spec.pierce || 0);
     const into = spec.blast ? shells : bullets;
-    into[into.length - 1].shot = shot;
+    const rnd = into[into.length - 1];
+    rnd.shot = shot;
+    rnd.shatter = spec.shatter || 0;   // breaks their rounds in the air
+    rnd.stagger = !!spec.stagger;      // knocks the men beside a kill off their aim
     lanes.push(d);
   }
   blinkersReact(origin, lanes);   // he moves on the trigger, not the round
@@ -6510,8 +6583,9 @@ function playerFire(aimAt = null) {
         d2.x += (Math.random() - 0.5) * 2 * spec.spread;
         d2.y += (Math.random() - 0.5) * 2 * spec.spread;
         d2.z += (Math.random() - 0.5) * 2 * spec.spread;
-        spawnBullet(muzzle.getWorldPosition(new THREE.Vector3()), d2.normalize(), true, spec.speed, 0);
+        spawnBullet(muzzle.getWorldPosition(new THREE.Vector3()), d2.normalize(), true, spec.speed, spec.pierce || 0);
         bullets[bullets.length - 1].shot = newShot(1);   // each round of a burst is its own
+        bullets[bullets.length - 1].shatter = spec.shatter || 0;
         gunKick = spec.kick * 0.7;
         sfx.shot(player.weapon);
       }, k * spec.burstGap * 1000);
@@ -6569,7 +6643,7 @@ function spawnPlayerShell(origin, dir, spec) {
   scene.add(mesh);
   shells.push({
     mesh, pos: origin.clone(), prev: origin.clone(),
-    vel: dir.clone().multiplyScalar(spec.speed), blast: spec.blast, life: 4,
+    vel: dir.clone().multiplyScalar(spec.speed), blast: spec.blast, life: 4, stagger: !!spec.stagger,
   });
 }
 function detonateShell(i) {
@@ -6591,6 +6665,7 @@ function detonateShell(i) {
     }
   }
   if (sh.shot) { if (enemies.length < n0) sh.shot.hit = true; shotRoundDone(sh.shot); }
+  if (sh.stagger) staggerAround(at);
   // your own ordnance can absolutely kill you — mind the walls
   if (player.alive && player.iframes <= 0 &&
       Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < sh.blast * 0.55) {
@@ -6618,7 +6693,35 @@ function updateShells(sdt) {
   }
 }
 
+// STAGGER (docs/ARSENAL.md §4): a kill with a staggering weapon knocks the men
+// within STAGGER_R off their aim — whoever was raising starts again.
+function staggerAround(p) {
+  for (const o of enemies) {
+    if (o.state !== 'aim' || Math.hypot(o.pos.x - p.x, o.pos.z - p.z) > STAGGER_R) continue;
+    o.state = 'advance'; o.stateT = 0;
+    o.fireCd = Math.max(o.fireCd || 0, 0.8);
+    if (o.egun) setEgunFlash(o, MAT_BLACK);
+  }
+}
+// SHATTER: a round of yours with `shatter` gets one roll against each of
+// theirs it passes within 0.35 m of; a win breaks theirs in the air.
+function shatterPass() {
+  const kill = new Set();
+  for (const b of bullets) {
+    if (!b.fromPlayer || !b.shatter) continue;
+    for (const o of bullets) {
+      if (o.fromPlayer || kill.has(o) || (b.rolled && b.rolled.has(o))) continue;
+      if (segPointDistSq(b.prev, b.pos, o.pos.x, o.pos.y, o.pos.z) > 0.35 * 0.35) continue;
+      (b.rolled || (b.rolled = new Set())).add(o);
+      if (Math.random() < b.shatter) kill.add(o);
+    }
+  }
+  if (!kill.size) return;
+  for (let i = bullets.length - 1; i >= 0; i--) if (kill.has(bullets[i])) killBullet(i, bullets[i].pos);
+  runlog.ev('shatter', { n: kill.size });
+}
 function updateBullets(sdt) {
+  shatterPass();
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.prev.copy(b.pos);
@@ -6761,7 +6864,7 @@ function updateBullets(sdt) {
           bodyshot = segSegDistSq(b.prev, b.pos, _v2, _v3) < 0.34 * 0.34;
         }
         if (!headshot && !bodyshot) continue;
-        if (ENEMY_TYPES[e.type].shielded) {
+        if (especOf(e).shielded) {
           // only the PLATE blocks: intersect the bullet's path with the
           // shield rectangle in his local frame — his gun side, head-over
           // and legs-under are all fair targets now
@@ -6799,6 +6902,7 @@ function updateBullets(sdt) {
         }
         const impulse = _v1.copy(b.vel).normalize();
         if (b.shot) b.shot.hit = true;
+        if (b.stagger) staggerAround(e.pos);
         killEnemy(j, impulse);
         if (b.pierce > 0) { b.pierce--; continue; }   // sniper rounds keep going
         consumed = true;
@@ -12206,7 +12310,7 @@ function updateTutorial(dtReal, movedM, yawDelta) {
         // magazine drops you to the knife, and finishing the shooting lesson
         // holding a knife reading KNIFE · NO AMMO is not the lesson
         if (player.weapon === 'knife') setWeapon('pistol');
-        player.mag = WEAPONS[player.weapon].mag;
+        player.mag = wspec().mag;
         player.clips = Math.max(player.clips, 1);
         updateAmmoHud();
       }
@@ -12672,8 +12776,8 @@ function showMenu() {
 }
 
 function updateAmmoHud() {
-  const spec = WEAPONS[player.weapon];
-  const name = player.weapon.toUpperCase();
+  const spec = wspec();
+  const name = player.weapon.toUpperCase() + ROMAN[player.mk || 1];
   if (switcherOn()) { el.ammo.innerHTML = switcherHud(spec, name); return; }
   if (player.weapon === 'knife') {
     el.ammo.textContent = 'KNIFE · NO AMMO';
@@ -15125,7 +15229,8 @@ function crossHallDoor() {
     } else if (!openedModes.length && !newFloor) {
       // ...and when a mode opened, the mode IS the headline: the shape of the
       // corridor can wait for the next door.
-      showBanner(legHeadline(hall.legs[hall.cur] && hall.legs[hall.cur].proto), 2000);
+      showBanner(legHeadline(hall.legs[hall.cur] && hall.legs[hall.cur].proto)
+        + (doorDone ? tierLine(hall.doorsPassed + 1) : ''), 2000);
     }
     // A DOOR CAN GIVE YOU TWO THINGS. The duel's gate is door 5, which is
     // crossed on the same step that hands over slow motion — and that branch
@@ -17031,7 +17136,7 @@ function frame(now) {
   const sway = Math.sin(now * 0.0011) * 0.004;
   // reload: the weapon folds forward and down out of frame, then swings
   // back up as the fresh magazine seats — every weapon uses the same rig
-  const spec = WEAPONS[player.weapon];
+  const spec = wspec();
   const rp = player.reloadT > 0 ? 1 - player.reloadT / spec.reload : 1;
   // The onboarding draws the weapon with the SAME rig — it swings up from
   // below the frame exactly as a fresh magazine seating does, so the first
@@ -17124,7 +17229,8 @@ function frame(now) {
         if (born && next === 'kamikaze' && game.mode !== 'duel') {
           // KAMIKAZES COME AS A PACK (KAMI.pack), and set off one by one
           // after they are all up — see kamiNext
-          let extra = Math.min(KAMI.pack - 1, maxAlive() - enemies.length, room - 1);
+          const pk = (ENEMY_MK.kamikaze[mkHere('kamikaze')] || {}).pack || KAMI.pack;
+          let extra = Math.min(pk - 1, maxAlive() - enemies.length, room - 1);
           for (let i = 0; i < game.spawnQueue.length && extra > 0;) {
             if (game.spawnQueue[i] === 'kamikaze') {
               game.spawnQueue.splice(i, 1);
@@ -17681,6 +17787,14 @@ window.__ts = {
   runlog: () => ({ summary: runlog.summary(), text: runlog.text(), log: runlog.current() }),
   sendLog, openPlaytest, startPlaytest, runlogPending: () => runlog.pending(),
   seekers: () => seekers.length, seekerRefill, droneMarking, revives: () => revives.length,
+  tierLine, wspec: () => ({ ...wspec(), mk: player.mk || 1 }), mkHere,
+  // one enemy round from (x, z) at the player, for a harness that needs a
+  // round in the air without waiting on the room's shot clock
+  enemyRound: (x, z) => {
+    const o = new THREE.Vector3(x, 1.35, z);
+    spawnBullet(o, new THREE.Vector3(player.pos.x - x, EYE_HEIGHT - 0.25 - 1.35, player.pos.z - z).normalize(), false, 1);
+    return bullets[bullets.length - 1];
+  },
   keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
   meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,

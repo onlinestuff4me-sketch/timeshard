@@ -2073,3 +2073,57 @@ export const FINALE = {
   guards: ['shotgunner', 'heavy', 'armored', 'gunner', 'bomber'],
   mini: { speed: 5.5, r: 2.0, life: 7 },   // his kamikazes: they hunt YOU
 };
+
+// ---------------------------------------------------------------------------
+// THE TIER LADDER (docs/ARSENAL.md §4, §1's door map). Each Mk moves one axis
+// and the weapon he drops answers it. TIER_AT is the door each Mk II / Mk III
+// first appears on (the door map; a type's later tiers are past floor 5).
+// ENEMY_MK and WEAPON_MK are overrides merged over the Mk I row.
+// ---------------------------------------------------------------------------
+export const TIER_AT = {
+  shotgunner: [12, 26], rusher: [16, 30], shieldbearer: [19], gunner: [21, 33],
+  heavy: [23, 38], bomber: [25], sniper: [27], blinker: [28], frankenstein: [29, 39],
+  armored: [34], rocketeer: [35], kamikaze: [36], drone: [37],
+};
+export function mkFor(type, door) {
+  const t = TIER_AT[type] || [];
+  let mk = 1;
+  for (const d of t) if (d && door >= d) mk++;
+  return mk;
+}
+export const ENEMY_MK = {
+  gunner: { 2: { pairs: true, cd: [1.25, 1.0] }, 3: { pairs: true, cd: [1.25, 1.0], mul: 2.0 } },
+  rusher: { 2: { speed: 4.4 }, 3: { speed: 5.0 } },
+  shotgunner: { 2: { pellets: 7, spread: 0.12, engage: [10, 4] }, 3: { pellets: 10, spread: 0.12, engage: [10, 4] } },
+  shieldbearer: { 2: { slewMul: 1.6 } },
+  heavy: { 2: { burst: 5 }, 3: { burst: 6, cd: [1.4, 0.8] } },
+  bomber: { 2: { splash: 3.0, cd: [1.9, 1.0] } },
+  sniper: { 2: { mul: 3.6 } },
+  blinker: { 2: { blinkDist: 1.7 } },
+  frankenstein: { 2: {}, 3: { rush: true } },
+  armored: { 2: { speed: 2.1, aimTime: 0.45 } },
+  rocketeer: { 2: { turn: 2.6, cd: [2.7, 1.2] } },
+  kamikaze: { 2: { kamiR: 4.5, pack: 6, gap: 0.3, speed: 3.0 } },
+  drone: { 2: { jink: true, fires: true } },
+};
+// the line under the door number the door a tier arrives (decided: secondary)
+export const TIER_LINE = {
+  gunner: { 2: 'FIRES IN PAIRS', 3: 'FASTER ROUNDS' }, rusher: { 2: 'FASTER', 3: 'FASTER STILL' },
+  shotgunner: { 2: 'WIDER SPREAD', 3: 'BOTH BARRELS' }, shieldbearer: { 2: 'TURNS FASTER' },
+  heavy: { 2: 'FIVE-ROUND BURST', 3: 'SIX ROUNDS, MORE OFTEN' }, bomber: { 2: 'BIGGER BLAST' },
+  sniper: { 2: 'FASTER ROUND' }, blinker: { 2: 'BLINKS FURTHER' },
+  frankenstein: { 2: 'HARDER ARMS', 3: 'RUSHES WHEN DISARMED' }, armored: { 2: 'CLOSES FASTER' },
+  rocketeer: { 2: 'TIGHTER TRACKING' }, kamikaze: { 2: 'BIGGER PACKS, BIGGER BLAST' },
+  drone: { 2: 'JINKS AND FIRES' },
+};
+// WEAPONS by Mk. `shatter`: the chance your round breaks one of theirs it
+// passes in the air. `stagger`: a kill knocks the men beside it off their aim.
+export const WEAPON_MK = {
+  pistol: { 2: { pierce: 2, shatter: 0.5 }, 3: { pierce: 3, shatter: 0.65, cd: 0.18 } },
+  shotgun: { 2: { pellets: 9, spread: 0.07, stagger: true }, 3: { pellets: 12, spread: 0.08, mag: 4, stagger: true, shatter: 0.4 } },
+  burst: { 2: { burst: 4, shatter: 0.4 }, 3: { burst: 5, pierce: 2, shatter: 0.55 } },
+  sniper: { 2: { pierce: 5, mag: 3, shatter: 0.7 }, 3: { cd: 0.7, pierce: 5, mag: 3, shatter: 0.85 } },
+  launcher: { 2: { blast: 8, stagger: true, shatter: 0.2 }, 3: { blast: 8, stagger: true, shatter: 0.45, mag: 3 } },
+  rocket: { 2: { stagger: true }, 3: { stagger: true, shatter: 0.45 } },
+};
+export const STAGGER_R = 3;   // m round a staggering kill
