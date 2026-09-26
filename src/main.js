@@ -2728,7 +2728,7 @@ function explodeGrenade(i) {
     const e = enemies[j];
     if (e.state === 'assemble') continue;   // not material yet
     if (Math.hypot(e.pos.x - at.x, e.pos.z - at.z) < (gr.r || BLAST_R) * 0.8) {
-      killEnemy(j, _v1.set(e.pos.x - at.x, 0.5, e.pos.z - at.z).normalize());
+      strike(j, _v1.set(e.pos.x - at.x, 0.5, e.pos.z - at.z).normalize(), at);
     }
   }
 }
@@ -2795,7 +2795,7 @@ function updateSeekers(sdt) {
       for (const o of enemies.filter((o) => o.state !== 'assemble'
         && Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < KAMI.r)) {
         const j = enemies.indexOf(o);
-        if (j >= 0) killEnemy(j, _v1.set(o.pos.x - at.x, 0.4, o.pos.z - at.z).normalize());
+        if (j >= 0) strike(j, _v1.set(o.pos.x - at.x, 0.4, o.pos.z - at.z).normalize(), at);
       }
       if (player.alive && player.iframes <= 0
           && Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < KAMI.r) hitPlayer(false, 'own seeker');
@@ -2854,7 +2854,7 @@ function explodeMissile(i) {
     const e = enemies[j];
     if (e.state === 'assemble') continue;   // not material yet
     if (Math.hypot(e.pos.x - at.x, e.pos.z - at.z) < MISSILE_BLAST * 0.8) {
-      killEnemy(j, _v1.set(e.pos.x - at.x, 0.5, e.pos.z - at.z).normalize());
+      strike(j, _v1.set(e.pos.x - at.x, 0.5, e.pos.z - at.z).normalize(), at);
     }
   }
 }
@@ -4452,6 +4452,25 @@ function removeEnemyShards(e) {
   e.shards = null;
 }
 
+// A BOSS TAKES HIS HITS ONE AT A TIME, whatever lands them (playtest log #7:
+// a knife stab took the Keeper from two hits left to none, and his time stop
+// never happened). Rounds already went through keeperHurt/droneHurt; the
+// knife and every blast called killEnemy straight. `strike` is their way in:
+// a boss with hits to spare is hurt (once per hurt window), anyone else dies.
+function bossSoaks(e, at) {
+  if (!e.boss || !(e.hp > 1)) return false;
+  if (e.type === 'drone') { if (worldT >= (e.hurtUntil || 0)) droneHurt(e, at); return true; }
+  if (e.boss === 'keeper' || e.boss === 'finale') {
+    if (worldT >= (e.hurtUntil || 0)) { if (e.boss === 'finale') finaleHurt(e, at); else keeperHurt(e, at); }
+    return true;
+  }
+  return false;
+}
+function strike(j, impulseDir, at) {
+  if (bossSoaks(enemies[j], at || enemies[j].pos)) return false;
+  killEnemy(j, impulseDir);
+  return true;
+}
 function killEnemy(i, impulseDir) {
   const e = enemies[i];
   // Kill the glow on the same frame. In the reference an enemy shot mid-aim
@@ -6225,7 +6244,7 @@ function kamiBurst(e, fused) {
   if (self >= 0 && fused) killEnemy(self, _v1.set(0, 1, 0));
   for (const o of victims) {
     const j = enemies.indexOf(o);
-    if (j >= 0) killEnemy(j, _v1.set(o.pos.x - at.x, 0.4, o.pos.z - at.z).normalize());
+    if (j >= 0) strike(j, _v1.set(o.pos.x - at.x, 0.4, o.pos.z - at.z).normalize(), at);
   }
   if (fused && player.alive && player.iframes <= 0
       && Math.hypot(player.pos.x - at.x, player.pos.z - at.z) < R) {
@@ -6490,7 +6509,14 @@ function keeperRewardTick(B, dt) {
   for (const [it, gen] of R.pieces) {
     if (!it.on || it.gen !== gen) continue;
     const u = (R.t - hang - it.delay) / (stream * 0.55);
-    if (u <= 0) continue;
+    if (u <= 0) {
+      // HANGING: each shard turns slowly and bobs where it is — the stop is
+      // held breath, not a paused frame
+      it.rx += dt * 0.9; it.ry += dt * 0.7;
+      it.py = it.fy + Math.sin(R.t * 2.2 + it.idx) * 0.04;
+      writeShard(debrisPool, it);
+      continue;
+    }
     if (u >= 1) { it.on = false; debrisPool.mesh.setMatrixAt(it.idx, HIDDEN); continue; }
     const e = u * u * u;   // slow off the mark, fast into you
     it.px = it.fx + (tx - it.fx) * e;
@@ -6535,9 +6561,64 @@ function keeperRewardTick(B, dt) {
     runlog.ev('keeper-reward');
     slowBank = SLOWMO.base;
     updateSlowMeter();
-    tutorRevealButton();
-    showBanner('SLOW MOTION', 2400);
-    vibrate([15, 30, 15, 30, 40]);
+    // THE WORLD STAYS STOPPED through the upgrade beat, which ends by carrying
+    // you through the door into the lesson (upgradeStart)
+    keeperStopUntil = Infinity;
+    upgradeStart('SLOW MOTION');
+  }
+}
+// THE UPGRADE BEAT (playtest 2026-09-26: the button arrived, you walked a
+// hallway, and THEN the lesson took it away to teach it). The last of his
+// shards reaching you is a white flash; out of it comes NEW UPGRADE / SLOW
+// MOTION on a dark screen; the screen goes black and you are carried through
+// the door, onto floor 2, and up to the lesson's barrier with its man
+// standing up — or, once the lesson is behind this save, just through the
+// door with the button in hand. Real time throughout, held while paused.
+const UPGRADE = { flash: 0.14, title: 1.9, black: 0.45, settle: 0.2 };
+let upgradeSeq = null;
+function upgradeStart(power) {
+  const u = document.getElementById('upgrade');
+  if (u) { u.querySelector('b').textContent = power; u.className = 'flash'; }
+  upgradeSeq = { t0: performance.now(), last: performance.now(), stage: 0 };
+  sfx.shatter();
+  vibrate([40, 30, 60, 30, 120]);
+  runlog.ev('upgrade', { power });
+}
+function upgradeTick() {
+  const S = upgradeSeq;
+  if (!S) return;
+  const now = performance.now();
+  // paused (or anything else that is not play): the beat waits
+  if (game.state !== 'play' && game.state !== 'intro') S.t0 += now - S.last;
+  S.last = now;
+  if (game.state !== 'play' && game.state !== 'intro') return;
+  const t = (now - S.t0) / 1000;
+  const u = document.getElementById('upgrade');
+  const U = UPGRADE;
+  if (S.stage === 0 && t >= U.flash) { if (u) u.className = 'on'; S.stage = 1; }
+  if (S.stage === 1 && t >= U.flash + U.title) { if (u) u.className = 'on black'; S.stage = 2; }
+  if (S.stage === 2 && t >= U.flash + U.title + U.black) { upgradeCross(); S.stage = 3; }
+  if (S.stage === 3 && t >= U.flash + U.title + U.black + U.settle) {
+    if (u) u.className = '';
+    upgradeSeq = null;
+  }
+}
+// Through the Keeper's door and on: the same two calls a walk makes, so the
+// floor, the leg beyond and the lesson all start exactly as they do on foot.
+function upgradeCross() {
+  keeperStopUntil = 0;
+  if (!hall) return;
+  const L = hall.legs[hall.cur];
+  if (!L.door.open) openHallDoor();
+  player.pos.set(L.door.x, 0, L.door.z + 2.5);
+  player.vel.set(0, 0, 0);
+  player.yaw = Math.PI; player.pitch = 0;
+  crossHallDoor();
+  if (tutorStep !== null && tutorBar) {
+    // at the barrier: STAND HERE is already done, and his man stands up
+    player.pos.set(tutorBar.m.position.x, 0, tutorBar.z - 1.6);
+  } else {
+    tutorRevealButton();   // no lesson: the button is simply yours
   }
 }
 function keeperTick(L, dt) {
@@ -6755,7 +6836,7 @@ function knifeStrike(spec) {
   }
   if (best >= 0) {
     const e = enemies[best];
-    killEnemy(best, _v1.set(e.pos.x - player.pos.x, 0.4, e.pos.z - player.pos.z).normalize());
+    strike(best, _v1.set(e.pos.x - player.pos.x, 0.4, e.pos.z - player.pos.z).normalize(), e.pos);
   }
 }
 
@@ -6787,7 +6868,7 @@ function detonateShell(i) {
     const e = enemies[j];
     if (e.state === 'assemble') continue;
     if (Math.hypot(e.pos.x - at.x, e.pos.z - at.z) < sh.blast) {
-      killEnemy(j, _v1.set(e.pos.x - at.x, 0.5, e.pos.z - at.z).normalize());
+      strike(j, _v1.set(e.pos.x - at.x, 0.5, e.pos.z - at.z).normalize(), at);
     }
   }
   if (sh.shot) { if (enemies.length < n0) sh.shot.hit = true; shotRoundDone(sh.shot); }
@@ -9928,6 +10009,13 @@ function startPlaytest(kind) {
   const bossDoor = { keeper: 9, frankenstein: 16, drone: 23, spawner: 30, finale: 39 }[kind];
   pendingResumeDoor = bossDoor || 1;
   playtestJump = kind;
+  // A SKIP IS A RUN THAT GOT HERE. Everyone a player meets before this door
+  // was carded on the way (a shotgunner on door 6, not in the Keeper's room);
+  // the boss's own type is not, because his room is where it debuts.
+  if (bossDoor) {
+    for (const [t, d] of Object.entries(TYPE_INTRO)) if (d < bossDoor && t !== 'gunner') carded.add(t);
+    saveProgress();
+  }
   runlog.ev('playtest', { start: kind });
   startRunFromMenu();
 }
@@ -13981,7 +14069,7 @@ function advanceFromOverlay() {
 
 // ---------------------------------------------------------------------------
 // HALLWAY mode: door-to-door corridor legs. Each leg is a wave — clear it
-// and the red door slides into the floor; crossing it is a checkpoint, and
+// and the door slides into the floor; crossing it is a checkpoint, and
 // the door seals shut behind you. Corridors turn and branch, but every
 // route leads to the next door.
 const HALL_FINALE = LEG.finaleWave;   // the one final group staged at the door
@@ -14890,8 +14978,9 @@ function initHall(from = 1) {
   } else if (game.mode === 'stop') {
     showBanner('TIME MOVES WHEN YOU DO', 3000);
   } else {
-    showBanner('REACH THE RED DOOR', 2600);
-    setTimeout(showTimeTip, 2600);
+    // (It used to say REACH THE RED DOOR. The doors have not been red for a
+    // long time, and the arrow and the HUD already say where to go.)
+    showTimeTip();
   }
   if (!tutorShaping) sfx.newWave();   // the onboarding opens in silence
 }
@@ -16938,7 +17027,10 @@ function closeSeal(L) {
   }
   sfx.airlock();
   vibrate([20, 40, 20]);
-  showBanner(L.boss ? 'THE KEEPER' : 'NO WAY BACK', 1700);
+  // A BOSS ROOM SAYS NOTHING HERE: his debut card is the introduction, and a
+  // name flashed first and then a card naming his type told it twice (and it
+  // said THE KEEPER in every boss's room)
+  if (!L.boss) showBanner('NO WAY BACK', 1700);
 }
 
 // ---------------------------------------------------------------------------
@@ -17604,6 +17696,7 @@ function frame(now) {
   if (tutorStep !== null) tutorPlaceWorldCue();
   if (game.mode === 'duel') duelPlaceMeetPins();
   placeNameTag();
+  upgradeTick();   // a boss's power arriving: the flash, the title, the carry
   updateSight();   // the no-misses streak, shown through walls if sight is yours
 
   renderFrame(dt);
@@ -17939,6 +18032,8 @@ window.__ts = {
   seekers: () => seekers.length, seekerRefill, droneMarking, revives: () => revives.length,
   tierLine, wspec: () => ({ ...wspec(), mk: player.mk || 1 }), mkHere,
   nextRings: () => nextRings.filter((m) => m.visible).length, wouldPushOut,
+  upgrade: () => { const u = document.getElementById('upgrade');
+    return { stage: upgradeSeq ? upgradeSeq.stage : -1, cls: u ? u.className : '', text: u ? u.innerText.replace(/\s+/g, ' ').trim() : '' }; },
   nameTag: () => { const t = document.getElementById('nametag'); return t && t.classList.contains('on') ? t.textContent : null; },
   // one enemy round from (x, z) at the player, for a harness that needs a
   // round in the air without waiting on the room's shot clock

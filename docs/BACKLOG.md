@@ -15,7 +15,11 @@ stands up); the Mk II/III tier ladder with stronger drops; SEND LOG and the
 PLAYTEST menu. Owed:
 
 0. **Playtest 2026-09-26, answered:** the Keeper's punish window went
-   from 1.2 s to 1.75 s, everything else as first built (§10) and the debut card became a
+   from 1.2 s to 1.75 s, everything else as first built (§10). Second round
+   (logs #7/#8): REACH THE RED DOOR is gone (the doors are not red), no THE
+   KEEPER banner over his blinker card, a playtest skip counts the types met
+   before that door as carded, the knife and blasts take one hit off a boss,
+   and slow time arrives as a NEW UPGRADE beat that carries you to the lesson. and the debut card became a
    framed close-up with a plain panel (§11). Both want a second look on the
    phone.
 1. **Debut card copy:** the owner's first review pass is applied (seven cards

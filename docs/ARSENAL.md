@@ -782,9 +782,19 @@ part of the dish shot the window doesn't cover.
 `src/balance.js`, `test/blinker.mjs`) and the Keeper's room on door 9's last
 leg (`keeperTick()`, `KEEPER`, `test/keeper.mjs`): the seal, the pair on its
 3 s loop, his own fire clock, three hits and three phases, the phase-3 time
-stop, and the reward (his shards hang, stream into you, and the button
-arrives on door 9; door 10 is still slow time's first room and the school
-runs from there). The elevator beat follows him (§1). Calls made while building it:
+stop, and the reward. **The upgrade beat** (reworked after the 2026-09-26
+playtest, where the button arrived, you walked a hallway, and then the lesson
+took the button away to teach it): his shards hang, turning, then stream into
+you; the last of them is a white flash; out of it comes **NEW UPGRADE / SLOW
+MOTION** on a dark screen with the world still stopped; then black, and you
+are carried through his door onto door 10 (the elevator beat for floor 2
+plays under it, §1) and set down at the slow-time lesson's barrier, its man
+already standing up (`upgradeStart()`, `upgradeCross()`, `UPGRADE`; checked by
+`test/upgrade.mjs`). A save that has had the lesson is carried through the
+door with the button in hand. No banner names him as the seal shuts: his
+blinker card is the introduction. Every boss takes his hits one at a time
+whatever lands them: the knife and every blast go through `strike()` (a
+knife stab used to kill him outright, skipping his time stop). Calls made while building it:
 a wall cuts his blink short (down to 0.9 m) rather than cancelling it; the
 shotgunners stand in from the start rather than arriving in phase 2 (the room
 section below overrides the phase table); a shotgun shell takes at most one

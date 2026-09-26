@@ -314,6 +314,21 @@
             display:flex; align-items:center; justify-content:center;
             background:rgba(10,11,13,.82); transition:opacity .35s ease; }
   #elevator.on { opacity:1; }
+  /* THE UPGRADE BEAT (upgradeStart): a white flash as the last shard lands,
+     easing to a dark card with the power's name, then black for the carry,
+     then it lifts off the new room. Above the elevator, which plays under it. */
+  #upgrade { position:fixed; inset:0; z-index:13; pointer-events:none; opacity:0;
+            display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+            background:#0a0b0d; transition:opacity .6s ease, background-color .7s ease; }
+  #upgrade.flash { opacity:1; background:#fff; transition:none; }
+  #upgrade.on { opacity:1; background:rgba(10,11,13,.8); }
+  #upgrade.on.black { background:#0a0b0d; transition:background-color .4s ease; }
+  #upgrade small { font-size:13px; font-weight:900; letter-spacing:.42em; color:#ff2d1a;
+            opacity:0; transform:translateY(6px); transition:opacity .4s ease .15s, transform .4s ease .15s; }
+  #upgrade b { font-size:min(11vw,48px); font-weight:900; letter-spacing:.06em; color:#fff;
+            opacity:0; transform:scale(1.18); transition:opacity .45s ease .25s, transform .7s cubic-bezier(.2,.8,.2,1) .25s; }
+  #upgrade.on small, #upgrade.on b { opacity:1; transform:none; }
+  #upgrade.flash small, #upgrade.flash b { transition:none; }
   #elevator b { color:#eef0f3; font-size:22px; font-weight:900; letter-spacing:.4em; }
   #nametag { position:fixed; z-index:9; pointer-events:none; display:none; transform:translate(-50%, -100%);
             font-size:10px; font-weight:900; letter-spacing:.22em; color:#fff; padding:3px 7px;
@@ -1612,6 +1627,8 @@
 <div id="logtoast"></div>
 <!-- THE ELEVATOR between floors, and the name tag over a known type -->
 <div id="elevator"><b>FLOOR 2</b></div>
+<!-- A BOSS'S POWER ARRIVING: the flash, NEW UPGRADE, and the carry onward -->
+<div id="upgrade"><small>NEW UPGRADE</small><b>SLOW MOTION</b></div>
 <div id="nametag"></div>
 
 <div id="htp">
