@@ -19,7 +19,13 @@ PLAYTEST menu. Owed:
    (logs #7/#8): REACH THE RED DOOR is gone (the doors are not red), no THE
    KEEPER banner over his blinker card, a playtest skip counts the types met
    before that door as carded, the knife and blasts take one hit off a boss,
-   and slow time arrives as a NEW UPGRADE beat that carries you to the lesson. and the debut card became a
+   and slow time arrives as a NEW UPGRADE beat that carries you to the lesson. Third round
+   (2026-09-27, log #9): a door group released with the player already on
+   the approach could never be placed, so the door never opened ("enemies
+   left, none in sight") — it now stands anywhere ahead at 6 m, or is dropped
+   when the player is at the door (test/stall.mjs); the Keeper's FASTER / HE
+   STOPS THE WORLD banners are gone; the elevator alone names a new floor;
+   RESET CARDS & LESSONS also replays the slow-motion lesson. and the debut card became a
    framed close-up with a plain panel (§11). Both want a second look on the
    phone.
 1. **Debut card copy:** the owner's first review pass is applied (seven cards

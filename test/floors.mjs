@@ -47,7 +47,9 @@ if (!d10 || !/^F2\b/.test(d10.hud)) bad('the HUD does not name floor 2 on door 1
 if (!d10 || !d10.warm) bad('door 10 is not the warm-up door');
 if (d11 && d11.warm) bad('door 11 is still a warm-up door');
 const banners = await page.evaluate(() => window.__ts.banners());
-if (!banners.includes('FLOOR 2')) bad('no FLOOR 2 banner: ' + JSON.stringify(banners));
+// the elevator names the floor (leftovers.mjs watches it); a banner saying it
+// too put FLOOR 2 on the screen twice
+if (banners.includes('FLOOR 2')) bad('FLOOR 2 is said twice: a banner as well as the elevator');
 
 done('floors', errs);
 await browser.close();

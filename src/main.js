@@ -3981,6 +3981,30 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     if (!placed && fbOk && sightOK(fbX, fbZ, sightFloor)) {
       x = fbX; z = fbZ; placed = true;
     }
+    // THE DOOR GROUP, WITH THE PLAYER ALREADY ON THE APPROACH (playtest
+    // 2026-09-27: "it says there are still enemies left but I don't see any
+    // and the door is locked"). The group waits until the door is in sight,
+    // and when the last turn is INTO the approach that is the same moment the
+    // player walks onto the only ground it may stand on — so every candidate
+    // failed the first-sight floor, the refusal below sent it back to the
+    // queue, and the door (which waits on an empty queue) never opened.
+    // Reproduced by test/stall.mjs on door 10. So here the floor gives way to
+    // plain distance: anywhere ahead of them on the approach, a vault's
+    // spawn distance away. And if they are standing so close to the door
+    // that nothing is ahead at all, the group is outrun: it is dropped, and
+    // the door opens on a quieter leg rather than never.
+    if (!placed && finale && !corked && inHall() && playerStretch(L) >= finLast) {
+      for (let tries = 0; tries < 30 && !placed; tries++) {
+        const [cgx, cgz] = pool[Math.floor(Math.random() * pool.length)];
+        const px = cgx * C + (Math.random() - 0.5) * 1.6;
+        const pz = cgz * C + (Math.random() - 0.5) * 1.6;
+        if (pz < player.pos.z + PACING.aheadMin) continue;
+        if (Math.hypot(px - player.pos.x, pz - player.pos.z) < LEG.vaultSpawnMin) continue;
+        if (pointInObstacle(px, pz, bodyR)) continue;
+        x = px; z = pz; placed = true;
+      }
+      if (!placed) { spawnOutrun = true; return false; }
+    }
     if (!placed && sightFloor > 0) {
       // NOWHERE FAR ENOUGH, SO NOBODY. A tight winding corridor in the opening
       // doors simply has no spot that gives the player room to answer a round,
@@ -6430,7 +6454,9 @@ function keeperHurt(e, at) {
   vibrate([20, 30, 20]);
   if (phase === 3 && B) B.stopAt = worldT + 0.6;   // the first stop comes quickly
   runlog.ev('keeper-hit', { phase });
-  showBanner(phase === 3 ? 'HE STOPS THE WORLD' : 'FASTER', 1400);
+  // NO BANNER (playtest 2026-09-27: FASTER and HE STOPS THE WORLD "at a
+  // random time, twice" read as noise mid-fight). The hit says it — the red
+  // chest, the clank — and his time stop says itself when it comes.
 }
 // HIS TIME STOP IS HIS, NOT A FREEZE FOR YOU (PILLARS §1). The world halts for
 // KEEPER.stopReal real seconds; his volley is put in the air a few metres out
@@ -10031,7 +10057,15 @@ function startPlaytest(kind) {
   on('ptdrone', () => startPlaytest('drone'));
   on('ptspawner', () => startPlaytest('spawner'));
   on('ptfinale', () => startPlaytest('finale'));
-  on('ptcards', () => { carded.clear(); saveProgress(); toast('INTRO CARDS WILL SHOW AGAIN'); });
+  // ...AND THE SLOW-MOTION LESSON: a save that has had it gets the upgrade
+  // with no tutorial after it (playtest 2026-09-27), which is right for a
+  // player and useless for a playtest of the lesson
+  on('ptcards', () => {
+    carded.clear(); saveProgress();
+    slowTaught = false;
+    try { localStorage.removeItem('timeshard_slowtaught'); } catch { /* private */ }
+    toast('INTRO CARDS AND LESSONS WILL SHOW AGAIN');
+  });
   on('ptsight', () => { sightForced = sightForced === false ? null : false; refreshPlaytest(); });
   on('ptsend', () => sendLog());
   on('ptkey', () => {
@@ -13195,6 +13229,8 @@ function legOpenerDue() {
 // How many times the first-sight floor has turned a placement down. See the
 // refusal itself, in spawnEnemy, for why it is worth a counter.
 let sightRefusals = 0;
+// set by a placement that found the door group outrun (see spawnEnemy)
+let spawnOutrun = false;
 // ...and how many of those were the room's own, placed outside it anyway.
 let roomStrays = 0;
 let stallOwed = false;
@@ -15431,10 +15467,9 @@ function crossHallDoor() {
     // last floor's boss is behind you (docs/ARSENAL.md §1)
     const newFloor = doorDone && game.mode === 'hall'
       && floorOf(hall.doorsPassed + 1).first === hall.doorsPassed + 1;
-    if (newFloor) {
-      showBanner(`FLOOR ${floorOf(hall.doorsPassed + 1).floor}`, 2400);
-      elevator(floorOf(hall.doorsPassed + 1).floor);
-    }
+    // ...ONCE. The elevator's dark beat names the floor; a banner saying it
+    // too put FLOOR 2 on the screen twice (playtest 2026-09-27).
+    if (newFloor) elevator(floorOf(hall.doorsPassed + 1).floor);
     // THE NEW POWER GETS THE FRAME TO ITSELF. On the door it unlocks, the
     // headline is what just arrived rather than what the corridor is shaped
     // like — and the button makes the same entrance the onboarding used to
@@ -17453,8 +17488,19 @@ function frame(now) {
         // a round — see EARLY.firstSightM — and the man goes back on the queue
         // to be released from somewhere further along instead of being quietly
         // dropped, which would empty the leg.
+        spawnOutrun = false;
         const born = spawnEnemy(next, null, true) !== false;
-        if (!born) {
+        if (!born && spawnOutrun) {
+          // OUTRUN: the player is at the door with nowhere ahead to put him.
+          // He is spent, not queued — see the door-group note in spawnEnemy.
+          spawnOutrun = false;
+          const OL = inHall() && hall && hall.legs[hall.cur];
+          if (OL && OL.fill && OL.fill.length) {
+            const li = OL.fill.length - 1;
+            if (OL.fill[li] > 0) OL.fill[li]--;
+          }
+          runlog.ev('outrun', { type: next });
+        } else if (!born) {
           game.spawnQueue.unshift(next);
           game.spawnTimer = PACING.hallFullGap;
         }
