@@ -226,8 +226,11 @@ carry where it sits (loaded), and the HUD names it (PISTOL II). The door a tier
 arrives carries a small line under the door number. **The leftovers, built
 2026-09-29** (checked by `test/tierleft.mjs`): the **AP rifle** (`WEAPONS.ap`,
 the burst rifle's body with a pale band; its body hits crack an armored man's
-plate, not the finale Keeper's; the armored man drops it; Mk II 4-round and
-stagger, III 5-round, pierce 2, stagger, shatter 30%); **launcher III** lobs
+plate, not the finale Keeper's; the armored man drops it). **One round per
+drop** (owner's call: a three-round burst through plate was too much): a
+single-shot rifle with a magazine of one, and every further drop is one more
+round, so two armored men are two rounds; Mk II adds stagger, III pierce 2,
+stagger and shatter 30%; **launcher III** lobs
 two shells a pull; **rocket II** is guided (it bends toward the nearest man
 within 40 degrees and 30 m), **III** a guided pair. The enemy tiers past
 floor 5 (the tunnel goes on in nine-door floors after the finale): **bomber
@@ -235,10 +238,11 @@ III** lobs two grenades either side of you (door 42), **rocketeer III** a pair
 in a V (44), **laser** charge 2.0 s at Mk II (41) and 1.6 s at III (47),
 **spawner** hang 1.5 s at Mk II (43) and 1.2 s with a 12 m reach at III (49).
 
-**No look for a higher Mk on the body** (decided 2026-09-29: shoulder plates
-and a head band were built and taken out, "weird shoulder and head
-additions"). A tier is announced by the line under the door number and the
-name tag, and read from what he does.
+**The Mk on the chest** (decided 2026-09-29, after shoulder plates and a head
+band were built and taken out as "weird additions"): a Mk II wears **II**
+printed in white on his chest, a Mk III **III**, like a unit number
+(`chestMark()`, two boot materials; checked by `test/tiermark.mjs`). Mk I
+wears nothing. The drone and the spawner carry none.
 
 **Each Mk moves one axis, and his drop answers that axis.** The pairing is
 the whole design: the gunner fires in pairs, so his pistol breaks rounds in

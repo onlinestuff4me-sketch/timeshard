@@ -1,7 +1,8 @@
 import { boot, done } from './lib.mjs';
 // THE TIER LEFTOVERS (docs/ARSENAL.md §4).
 //   AP rifle: the armored man drops it; its body hits crack his plate, where
-//     the burst rifle's spark off; the HUD calls it AP RIFLE.
+//     the burst rifle's spark off; the HUD calls it AP RIFLE. Each drop is ONE
+//     round: two drops picked up, two rounds.
 //   Launcher III lobs two shells a pull; rocket II is guided.
 //   Bomber III lobs two grenades; rocketeer III fires a pair; the laser's
 //   charge is 2.0 s at Mk II and 1.6 s at III; the spawner's hang is 1.5 s at
@@ -80,6 +81,29 @@ const drop = await page.evaluate(async () => {
 console.log('drops:     ' + JSON.stringify(drop));
 if (!drop.includes('ap')) bad('sixteen armored men and not one AP rifle');
 if (drop.includes('burst')) bad('the armored man still drops the burst rifle');
+
+// ---- one round a drop ------------------------------------------------------
+const rounds = await page.evaluate(async () => {
+  const t = window.__ts;
+  const step = () => new Promise((r) => requestAnimationFrame(r));
+  window.__clear();
+  t.player.bag.length = 0;
+  for (const k of Object.keys(t.player.reserve)) delete t.player.reserve[k];   // the plate test's clips
+  t.player.bag.push({ type: 'pistol', mag: 5, mk: 1 });
+  t.setWeapon('pistol');
+  const take = async () => {
+    const at = { x: t.player.pos.x, z: t.player.pos.z + 0.2 };
+    t.spawnPickup(at, 'ap');
+    for (let i = 0; i < 30; i++) { await step(); t.player.iframes = 999; t.player.pos.x = at.x; t.player.pos.z = at.z; }
+  };
+  const count = () => { const b = t.slots().find((x) => x.type === 'ap'); return b ? b.mag + b.clips : 0; };
+  await take(); const one = count();
+  await take(); const two = count();
+  return { one, two, mag: t.wspec().mag };
+});
+console.log('ap rounds: ' + JSON.stringify(rounds));
+if (rounds.one !== 1) bad('one AP drop gave ' + rounds.one + ' rounds, not 1');
+if (rounds.two !== 2) bad('two AP drops gave ' + rounds.two + ' rounds, not 2');
 
 // ---- launcher III: two shells a pull; rocket II: guided --------------------
 const guns = await page.evaluate(async () => {

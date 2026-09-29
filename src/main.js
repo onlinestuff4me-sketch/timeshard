@@ -1635,6 +1635,8 @@ function bagTake(type, mk = 1) {
     mine.mk = mk;
     mine.mag = wspec(want, mk).mag;
     if (player.weapon === want) { player.mk = mk; player.mag = mine.mag; player.reloadT = 0; }
+    // the AP rifle's drop is a round as well as a Mk: it is never only an upgrade
+    if (want === 'ap') addClip('ap');
     recordMet([want]);
     showBanner(want.toUpperCase() + ROMAN[mk], 1500);
     runlog.ev('upgrade', { gun: want, mk });
@@ -3157,6 +3159,31 @@ function buildSpawnerMesh(size = 1) {
     shinL, shinR, kneeRest: 0, armLock: true, armRLock: true, armLRest: 0, armRRest: 0,
     egunBaseMat: MAT_BLACK, foreL: armL, foreR: armR };
 }
+// THE MK ON THE CHEST (owner's call 2026-09-29, after plates and a head band
+// were taken out): a Mk II or III wears its numeral printed on his chest, white
+// on his own colour, like a unit number. Two materials, made here at boot
+// (PILLARS §8); the plane is shared.
+function markMat(text) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#f4f5f7';
+  g.font = '900 62px system-ui, -apple-system, Helvetica, Arial, sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, 64, 35);
+  const tex = new THREE.CanvasTexture(c);
+  return new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+}
+const MK_MATS = { 2: markMat('II'), 3: markMat('III') };
+const MK_PLANE = new THREE.PlaneGeometry(0.36, 0.18);
+function chestMark(parts, mk) {
+  if (!(mk > 1) || !parts.collar || !MK_MATS[mk]) return;
+  const m = new THREE.Mesh(MK_PLANE, MK_MATS[mk]);
+  m.position.set(0, parts.markY, parts.markZ);
+  m.userData.noGhost = true;
+  m.userData.mkMark = mk;
+  parts.collar.add(m);
+}
 function buildEnemyMesh(type) {
   if (type === 'drone') return buildDroneMesh();
   if (type === 'spawner') return buildSpawnerMesh();
@@ -3536,6 +3563,7 @@ function buildEnemyMesh(type) {
   g.add(blob);
 
   return { g, legL, legR, armL, armR, egun, egunL, chest, foreL: AL.fore, foreR: AR.fore,
+    collar, markY: -th * 0.32, markZ: P.chest * 0.55,
     shinL: LG.shin, shinR: RG.shin, kneeRest: EP.knee,
     armLock, armRLock, armLRest, armRRest,
     egunBaseMat: type === 'laser' ? EM(0xff2d1a) : MAT_BLACK };
@@ -3701,8 +3729,9 @@ function specFor(type, mk) {
 const especOf = (e) => e.spec || ENEMY_TYPES[e.type];
 function spawnEnemy(type = 'gunner', at = null, paced = false) {
   const parts = buildEnemyMesh(type);
-  addGhosts(parts.g);
   const mk = mkHere(type);
+  chestMark(parts, mk);
+  addGhosts(parts.g);
   if (type === 'kamikaze') queueMicrotask(() => { const e = enemies.find((o) => o.g === parts.g); if (e) kamiJoinPack(e); });
   const spec = specFor(type, mk);
   parts.g.scale.set(...spec.scale);

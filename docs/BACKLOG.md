@@ -38,8 +38,8 @@ PLAYTEST menu. Owed:
 4. **The gauntlet** at the end of each floor, and the city window at the finale.
 5. **Tier leftovers: built 2026-09-29** (the AP rifle, launcher III, guided
    rockets, bomber/rocketeer III, laser and spawner tiers past floor 5). The
-   Mk on the body (shoulder plates, a head band) was tried and taken out:
-   no look for a higher Mk.
+   AP rifle is one round per drop. A higher Mk wears its numeral on his chest
+   (shoulder plates and a head band were tried and taken out).
 6. **Boss leftovers:** Frankenstein's twin-pistol drop; the spawner's hovering
    debris (the ring carries it for now).
 7. **The seeker's switcher slot: decided 2026-09-29**, it takes one of the

@@ -15,9 +15,11 @@ export const WEAPONS = {
   pistol: { cd: 0.22, pellets: 1, spread: 0, kick: 1, speed: 46, mag: 5, maxClips: 3, reload: 1.0 },
   shotgun: { cd: 0.55, pellets: 6, spread: 0.055, kick: 1.8, speed: 46, mag: 2, maxClips: 3, reload: 1.5 },
   burst: { cd: 0.5, pellets: 1, spread: 0.012, kick: 1.6, speed: 52, mag: 2, maxClips: 3, reload: 1.4, burst: 3, burstGap: 0.09 },
-  // THE AP RIFLE (docs/ARSENAL.md §4): the burst rifle, and a body hit
-  // cracks the armored man's plate — his own drop answers him
-  ap: { cd: 0.5, pellets: 1, spread: 0.012, kick: 1.6, speed: 58, mag: 2, maxClips: 3, reload: 1.4, burst: 3, burstGap: 0.09, ap: true },
+  // THE AP RIFLE (docs/ARSENAL.md §4): one round that cracks an armored man's
+  // plate. Each drop is ONE round (owner's call 2026-09-29: body hits through
+  // plate on a three-round burst was too much) — two armored men, two rounds.
+  // Single shot, a magazine of one, and every further drop is one more.
+  ap: { cd: 0.5, pellets: 1, spread: 0, kick: 2.2, speed: 70, mag: 1, maxClips: 9, reload: 0.7, ap: true },
   sniper: { cd: 0.9, pellets: 1, spread: 0, kick: 2.4, speed: 95, pierce: 3, mag: 2, maxClips: 3, reload: 1.75 },
   launcher: { cd: 0.9, pellets: 1, spread: 0, kick: 2.6, speed: 26, mag: 2, maxClips: 3, reload: 2.0, blast: 5.5 },
   rocket: { cd: 1.2, pellets: 1, spread: 0, kick: 3, speed: 34, mag: 2, maxClips: 3, reload: 2.35, blast: 8 },
@@ -2136,7 +2138,7 @@ export const WEAPON_MK = {
   pistol: { 2: { pierce: 2, shatter: 0.5 }, 3: { pierce: 3, shatter: 0.65, cd: 0.18 } },
   shotgun: { 2: { pellets: 9, spread: 0.07, stagger: true }, 3: { pellets: 12, spread: 0.08, mag: 4, stagger: true, shatter: 0.4 } },
   burst: { 2: { burst: 4, shatter: 0.4 }, 3: { burst: 5, pierce: 2, shatter: 0.55 } },
-  ap: { 2: { burst: 4, stagger: true }, 3: { burst: 5, pierce: 2, stagger: true, shatter: 0.3 } },
+  ap: { 2: { stagger: true }, 3: { pierce: 2, stagger: true, shatter: 0.3 } },
   sniper: { 2: { pierce: 5, mag: 3, shatter: 0.7 }, 3: { cd: 0.7, pierce: 5, mag: 3, shatter: 0.85 } },
   launcher: { 2: { blast: 8, stagger: true, shatter: 0.2 }, 3: { blast: 8, stagger: true, shatter: 0.45, lobs: 2 } },
   rocket: { 2: { stagger: true, guided: true }, 3: { stagger: true, shatter: 0.45, guided: true, lobs: 2 } },
