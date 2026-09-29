@@ -111,6 +111,19 @@ const ghosts = await page.evaluate(() => {
   return n;
 });
 if (!ghosts) bad('an enemy has no see-through twin to show');
+// ...and the twin is off on a man in plain view: sight shows what a wall
+// hides, never a man's far arm through his own chest or one man through another
+const plain = await page.evaluate(async () => {
+  const t = window.__ts;
+  t.setSight(true); t.aimSet(50);
+  for (let i = 0; i < 12; i++) await new Promise((r) => requestAnimationFrame(r));
+  let on = 0;
+  window.__man.g.traverse((m) => { if (m.isMesh && m.userData.noGhost && m.renderOrder === 5 && m.visible) on++; });
+  t.aimSet(0); t.setSight(null);
+  return on;
+});
+console.log('twins lit on a man in plain view: ' + plain);
+if (plain) bad(plain + ' see-through parts drawn over a man in plain view');
 // the playtest switch owns it from door 1 of a tunnel run
 const owned = await page.evaluate(() => window.__ts.aim().owned);
 console.log('owned at door 1 (playtest): ' + owned);

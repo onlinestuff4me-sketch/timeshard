@@ -2027,7 +2027,28 @@ function updateSight() {
   sightShown = k;
   GHOST_MAT.visible = k > 0;
   if (k > 0) GHOST_MAT.opacity = SIGHT.ghost[k - 1];
+  if (k > 0) ghostsOnlyBehindWalls();
   updateNextRings(k);
+}
+// SIGHT SHOWS WHAT A WALL HIDES, AND NOTHING ELSE (playtest 2026-09-29: "I
+// can see enemies through each other"). The silhouette draws over everything,
+// so on a man in plain view it laid his far arm across his chest and the man
+// behind him over the man in front. It is on only for a man you have no line
+// of sight to; checked every few frames per man, not every frame.
+const _vGa = new THREE.Vector3(), _vGb = new THREE.Vector3();
+function ghostsOnlyBehindWalls() {
+  _vGa.set(player.pos.x, EYE_HEIGHT, player.pos.z);
+  for (const e of enemies) {
+    if (!e.ghosts) {
+      e.ghosts = [];
+      e.g.traverse((n) => { if (n.material === GHOST_MAT) e.ghosts.push(n); });
+      e.ghostCheck = 0;
+    }
+    if (--e.ghostCheck > 0) continue;
+    e.ghostCheck = 6;
+    const behind = !hasLineOfSight(_vGa, _vGb.set(e.pos.x, 1.2 * (e.g.scale.y || 1), e.pos.z));
+    for (const gh of e.ghosts) gh.visible = behind;
+  }
 }
 
 function killBullet(i, sparkAt) {
@@ -4268,6 +4289,11 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     stageArm: 0,
     alive: true,
   });
+  // HE FORMS FACING YOU (playtest 2026-09-29: shieldbearers kept standing up
+  // side-on, and a shield's slow pivot then never caught up). Everybody
+  // assembles turned toward the player; the shield's slew only matters once
+  // you start circling him.
+  enemies[enemies.length - 1].g.rotation.y = Math.atan2(player.pos.x - x, player.pos.z - z);
   // snipers and lasers announce every entrance; everyone else gets a warning
   // flash the first time the run meets them — new waves, new threats
   const seen = game.seenTypes || (game.seenTypes = {});
@@ -13896,9 +13922,12 @@ function legHeadline(proto) {
   // the only true thing left to say about it.
   if (simple()) return `DOOR ${hall ? hall.doorsPassed + 1 : 1}`;
   const pick = (e) => e && LEG_HEADLINES[e.id];
+  // A CORRIDOR'S SHAPE IS NOT SAID (playtest 2026-09-29: "no cover, do not
+  // stop... didn't make much sense"). Only a condition or a measure — a
+  // mechanic you could not see for yourself — gets a headline; the form's line
+  // stays in the table because `legPromises` still reads it to fund the leg.
   const line = pick(proto && proto.condition)
-    || (proto && proto.measures || []).map(pick).find(Boolean)
-    || pick(proto && proto.form);
+    || (proto && proto.measures || []).map(pick).find(Boolean);
   // ...+ 1, LIKE THE HUD. `doorsPassed` is how many you have COMPLETED; the
   // door you are standing in is the next one. The top bar has always said
   // `doorsPassed + 1`, so a plain leg announced DOOR 3 in the middle of the
