@@ -93,13 +93,40 @@ m = await meetOne('gunner');
 console.log('gunner:        on=' + m.on);
 if (m.on) bad('the gunner got a card; his introduction is the onboarding');
 
+// ---- not until he is in view: a new type behind you waits for you to turn --
+const behind = await page.evaluate(async () => {
+  const t = window.__ts;
+  const step = async (n) => { for (let i = 0; i < n; i++) { await new Promise((r) => requestAnimationFrame(r)); t.player.iframes = 999; } };
+  for (const e of t.enemies) e.alive = false;
+  t.enemies.length = 0;
+  // he stands 9 m down the corridor (open floor); the player faces AWAY
+  const yaw = t.player.yaw;
+  t.spawnEnemy('shotgunner', { x: t.player.pos.x - Math.sin(yaw) * 9, z: t.player.pos.z - Math.cos(yaw) * 9 });
+  t.player.yaw = yaw + Math.PI;
+  const e = t.enemies[t.enemies.length - 1];
+  for (let f = 0; f < 300 && e.state === 'assemble'; f++) await step(1);
+  e.speed = 0; e.fireCd = 1e9;
+  await step(40);
+  const before = t.meet().on;
+  t.player.yaw = yaw;   // turn round to face him
+  let after = false;
+  for (let f = 0; f < 60 && !after; f++) { await step(1); after = t.meet().on; }
+  return { before, after, type: t.meet().type };
+});
+console.log('behind you:    ' + JSON.stringify(behind));
+if (behind.before) bad('the card came up for a new type standing behind the player');
+if (!behind.after || behind.type !== 'shotgunner') bad('turning to face him did not bring up his card');
+await page.waitForTimeout(500);
+await page.mouse.click(200, 400);
+await page.waitForTimeout(300);
+
 // ---- once per SAVE: a reload remembers ------------------------------------
 await page.reload();
 await start();
 m = await meetOne('rusher');
 console.log('after reload:  rusher on=' + m.on + '  carded=' + JSON.stringify(m.carded));
 if (m.on) bad('the rusher was carded again after a reload');
-if (!m.carded.includes('rusher') || !m.carded.includes('heavy')) bad('the save did not keep who it has met');
+if (!m.carded.includes('rusher') || !m.carded.includes('heavy') || !m.carded.includes('shotgunner')) bad('the save did not keep who it has met');
 
 done('meetcard', errs);
 await browser.close();

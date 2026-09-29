@@ -1356,6 +1356,26 @@ function meetMaybe(e) {
   document.body.classList.add('meeting');
   vibrate([14, 50, 14]);
 }
+// THE CARD WAITS UNTIL YOU CAN SEE HIM (playtest 2026-09-29: cards came up for
+// a man round a corner, with the edge arrow pointing at him). A new type is
+// pending from the moment he stands up until he is on screen, clear of the
+// edges, with nothing between his chest and your eye; then the world stops.
+const _vMw = new THREE.Vector3(), _vMe = new THREE.Vector3();
+function meetWatch() {
+  if (meetCard.on || game.state !== 'play') return;
+  _vMe.set(player.pos.x, EYE_HEIGHT, player.pos.z);
+  for (const e of enemies) {
+    if (!e.meetPending) continue;
+    if (!e.alive || carded.has(e.type)) { e.meetPending = false; continue; }
+    const cy = 1.1 * (e.g.scale.y || 1);
+    _vMw.set(e.pos.x, cy, e.pos.z).project(camera);
+    if (_vMw.z > 1 || Math.abs(_vMw.x) > 0.8 || Math.abs(_vMw.y) > 0.85) continue;
+    if (!hasLineOfSight(_vMe, _vMw.set(e.pos.x, cy, e.pos.z))) continue;
+    e.meetPending = false;
+    meetMaybe(e);
+    return;
+  }
+}
 function meetClose() {
   meetCard.on = false;
   meetCard.e = null;
@@ -5565,7 +5585,9 @@ function updateEnemy(e, sdt) {
         e.g.visible = true;
         e.state = 'advance';
         e.stateT = 0;
-        meetMaybe(e);   // a type this save has never met: stop, and name him
+        // a type this save has never met: stop and name him — but only once
+        // he is actually in view (meetWatch), not round a corner or behind you
+        if (!carded.has(e.type)) e.meetPending = true;
       }
       return;   // not hittable, not moving, not shooting yet
     }
@@ -17937,6 +17959,7 @@ function frame(now) {
   if (tutorStep !== null) tutorPlaceWorldCue();
   if (game.mode === 'duel') duelPlaceMeetPins();
   upgradeTick();   // a boss's power arriving: the flash, the title, the carry
+  meetWatch();     // a new type's card, once he is in view
   updateSight();   // the no-misses streak, shown through walls if sight is yours
 
   renderFrame(dt);
