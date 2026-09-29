@@ -235,12 +235,10 @@ III** lobs two grenades either side of you (door 42), **rocketeer III** a pair
 in a V (44), **laser** charge 2.0 s at Mk II (41) and 1.6 s at III (47),
 **spawner** hang 1.5 s at Mk II (43) and 1.2 s with a 12 m reach at III (49).
 
-**The Mk on the body** (built 2026-09-29, `tierMarks()`, checked by
-`test/tierlook.mjs`): Mk I wears nothing; **Mk II a plate on each shoulder**;
-**Mk III the plates and a pale band round the head at the eyes**. Shapes, not
-colours (red on red does not read), in boot materials only: black plates on
-the red bodies, white on the dark ones (armored, Frankenstein). The drone and
-the spawner carry no marks; their Mk shows in what they do.
+**No look for a higher Mk on the body** (decided 2026-09-29: shoulder plates
+and a head band were built and taken out, "weird shoulder and head
+additions"). A tier is announced by the line under the door number and the
+name tag, and read from what he does.
 
 **Each Mk moves one axis, and his drop answers that axis.** The pairing is
 the whole design: the gunner fires in pairs, so his pistol breaks rounds in

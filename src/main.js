@@ -3157,38 +3157,6 @@ function buildSpawnerMesh(size = 1) {
     shinL, shinR, kneeRest: 0, armLock: true, armRLock: true, armLRest: 0, armRRest: 0,
     egunBaseMat: MAT_BLACK, foreL: armL, foreR: armR };
 }
-// THE MK ON THE BODY (docs/ARSENAL.md §4; owner's call 2026-09-29). A higher
-// Mk has to read across a room, before he does anything: Mk II wears plates
-// on both shoulders, Mk III the plates and a white band round his head at the
-// eyes.
-// Shapes, not colours — the palette is the type's, and red on red would not
-// read — and only materials made at boot (PILLARS §8): black plates, or white
-// ones on a body that is already dark.
-const TIER_PLATE_GEO = new THREE.BoxGeometry(1, 1, 1);
-function tierMarks(parts, mk, type) {
-  if (!(mk > 1) || !parts.head || !parts.armL) return;
-  const dark = type === 'armored' || type === 'frankenstein';
-  const plateMat = dark ? MAT_WHITE : MAT_BLACK;
-  const w = (parts.armt || 0.1) * 2.1;
-  for (const arm of [parts.armL, parts.armR]) {
-    const p = new THREE.Mesh(TIER_PLATE_GEO, plateMat);
-    p.scale.set(w * 1.35, 0.09, w * 1.45);
-    p.position.set(0, 0.1, 0);
-    p.rotation.z = arm === parts.armL ? 0.28 : -0.28;
-    p.userData.tier = true;
-    arm.add(p);
-  }
-  if (mk > 2) {
-    // A BAND round the head at the eyes, not a crest on top: a crest is a
-    // thin edge from the front, which is where he is seen from
-    const hr = parts.headR || 0.2, hh = parts.headH || 0.26;
-    const c = new THREE.Mesh(TIER_PLATE_GEO, MAT_WHITE);
-    c.scale.set(hr * 1.1, hh * 0.2, hr * 1.24);
-    c.position.set(0, -hh * 0.42, -hr * 0.03);   // the head's origin is its crown
-    c.userData.tier = true;
-    parts.head.add(c);
-  }
-}
 function buildEnemyMesh(type) {
   if (type === 'drone') return buildDroneMesh();
   if (type === 'spawner') return buildSpawnerMesh();
@@ -3568,7 +3536,6 @@ function buildEnemyMesh(type) {
   g.add(blob);
 
   return { g, legL, legR, armL, armR, egun, egunL, chest, foreL: AL.fore, foreR: AR.fore,
-    head, headR: hr, headH: hh, shld: P.shld, armt: P.armt,
     shinL: LG.shin, shinR: RG.shin, kneeRest: EP.knee,
     armLock, armRLock, armLRest, armRRest,
     egunBaseMat: type === 'laser' ? EM(0xff2d1a) : MAT_BLACK };
@@ -3734,9 +3701,8 @@ function specFor(type, mk) {
 const especOf = (e) => e.spec || ENEMY_TYPES[e.type];
 function spawnEnemy(type = 'gunner', at = null, paced = false) {
   const parts = buildEnemyMesh(type);
-  const mk = mkHere(type);
-  tierMarks(parts, mk, type);   // before the ghosts, so sight shows them too
   addGhosts(parts.g);
+  const mk = mkHere(type);
   if (type === 'kamikaze') queueMicrotask(() => { const e = enemies.find((o) => o.g === parts.g); if (e) kamiJoinPack(e); });
   const spec = specFor(type, mk);
   parts.g.scale.set(...spec.scale);
