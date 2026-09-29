@@ -225,8 +225,14 @@ them, the first of each new Mk always drops, a higher Mk upgrades the gun you
 carry where it sits (loaded), and the HUD names it (PISTOL II). The door a tier
 arrives carries a small line under the door number. **Not built:** the AP
 rifle (the armored man still drops the burst rifle), bomber III's two lobs, the
-rocketeer's guided pair, the laser's charge tiers (past floor 5 anyway), and
-any look for a higher Mk on the body.
+rocketeer's guided pair, and the laser's charge tiers (past floor 5 anyway).
+
+**The Mk on the body** (built 2026-09-29, `tierMarks()`, checked by
+`test/tierlook.mjs`): Mk I wears nothing; **Mk II a plate on each shoulder**;
+**Mk III the plates and a pale band round the head at the eyes**. Shapes, not
+colours (red on red does not read), in boot materials only: black plates on
+the red bodies, white on the dark ones (armored, Frankenstein). The drone and
+the spawner carry no marks; their Mk shows in what they do.
 
 **Each Mk moves one axis, and his drop answers that axis.** The pairing is
 the whole design: the gunner fires in pairs, so his pistol breaks rounds in
