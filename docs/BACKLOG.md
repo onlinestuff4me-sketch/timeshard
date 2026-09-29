@@ -24,7 +24,15 @@ PLAYTEST menu. Owed:
    left, none in sight") — it now stands anywhere ahead at 6 m, or is dropped
    when the player is at the door (test/stall.mjs); the Keeper's FASTER / HE
    STOPS THE WORLD banners are gone; the elevator alone names a new floor;
-   RESET CARDS & LESSONS also replays the slow-motion lesson. and the debut card became a
+   RESET CARDS & LESSONS also replays the slow-motion lesson. Fourth round
+   (2026-09-29): sight only for men behind walls; a new type's card waits
+   until he is in view; every enemy forms facing you (shields); rooms get
+   more men (every man the room is owed waits on its floor, the door group is
+   capped at 4 with the rest in the room, the room fills at the room's
+   alive-cap, and a room you walk in on is served first); the exit arrow aims
+   at the nearest visible way on and is off in fights; corridor shapes are no
+   longer announced; room spawns keep 8 m from you; a man with a friend in his
+   line steps aside before he fires (test/lanes.mjs). and the debut card became a
    framed close-up with a plain panel (§11). Both want a second look on the
    phone.
 1. **Debut card copy: approved as is, 2026-09-29** (`docs/ARSENAL.md` §11;

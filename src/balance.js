@@ -427,9 +427,11 @@ export const OPENING = {
   // CORRIDOR either side (the `strays` counter in test/rooms.mjs) and refused
   // thirty candidates doing it. Five is what a room actually seats; the old
   // rule dealt it the second-biggest group, which measured about three.
-  roomMul: 1.5,        // x the group the room would have been dealt
+  // RAISED 2026-09-29 (playtest: rooms empty, fights crammed at the door)
+  roomMul: 2,          // x the group the room would have been dealt
   roomAdd: 1,          // ...plus this, so even a lone man becomes a pair
-  roomCap: 5,          // ...and never more than this: it is a room, not a mob
+  roomCap: 7,          // ...and never more than this: it is a room, not a mob
+  doorCap: 4,          // a leg with a room: the door group's men past this wait in the room
   // HOW MANY MAY STAND IN IT AT ONCE, x the door's ordinary ceiling. The
   // crowd cap is what a moment FEELS like — `maxAlive` is the dial that
   // decides whether a fight is a queue or a swarm — and a 16 m pillared hall

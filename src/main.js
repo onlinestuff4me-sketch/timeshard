@@ -3812,7 +3812,14 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     let ownIx = -1;
     if (L.fill && L.stretches) {
       const here = Math.max(0, Math.min(playerStretch(L), finLast));
-      for (let i = Math.min(here + 1, finLast); i <= finLast; i++) {
+      // THE ROOM YOU ARE STANDING IN IS SERVED FIRST. A room at a leg's first
+      // stretch (you walk in through the door into it) came last in the scan
+      // below, which prefers the stretches ahead — so it was served after the
+      // player had walked on, and its whole share forfeited: door 3, seven
+      // owed, none met. Its men stand at the far side of it (the room floor,
+      // at firing distance) waiting for you.
+      if (here === L.featureStretch && L.fill[here] > 0) ownIx = here;
+      for (let i = Math.min(here + 1, finLast); ownIx < 0 && i <= finLast; i++) {
         if (L.fill[i] > 0) { ownIx = i; break; }
       }
       if (ownIx < 0 && L.fill[here] > 0) ownIx = here;
@@ -3864,9 +3871,15 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     // room, the room's own share has not been spent, and the pool is the
     // room's cells rather than the corridor's.
     const fsIx = L.featureStretch;
+    // EVERY MAN THE ROOM IS PAYING FOR, not just the first (playtest
+    // 2026-09-29: "a lot of rooms empty ... most of my encounters in hallways
+    // or crammed at the doorway"). Only the first used to take the room's
+    // floor and wait there; the rest were placed on the spine and walked out
+    // to meet the player in the corridor. Now each one owed by the room stands
+    // among its pillars and holds until the player is inside.
     if (!finale && fsIx >= 0 && L.stretches && fsIx < L.stretches.length
-      && !L.featureSent && (ownIx >= 0 ? ownIx === fsIx
-        : (L.quota && L.quota[fsIx] > 0 && playerStretch(L) + LEG.lookahead >= fsIx))) {
+      && (ownIx >= 0 ? ownIx === fsIx
+        : (!L.featureSent && L.quota && L.quota[fsIx] > 0 && playerStretch(L) + LEG.lookahead >= fsIx))) {
       const st = L.stretches[fsIx];
       // THE ROOM'S WHOLE FLOOR, not just its spine. `stretches[].cells` is the
       // spine crossing the room; the pillars stand off the spine and getting
@@ -14172,6 +14185,12 @@ function inFeatureRoom() {
 
 // how many are ON the street — the aim-token cap keeps most of them
 // stalking rather than shooting, so density can run higher than pressure
+// is the leg's room still being filled, with its last release into it?
+function roomFilling() {
+  const L = hall && hall.legs[hall.cur];
+  return !!(L && L.fill && L.featureStretch >= 0 && L.lastOwn === L.featureStretch
+    && (L.fill[L.featureStretch] || 0) > 0);
+}
 function maxAlive() {
   // how many can be ON you at once — the dial that decides whether a fight
   // is a queue or a swarm, so it is the one that moves least
@@ -14203,7 +14222,11 @@ function maxAlive() {
     // whatever the 4 m corridor could take. The playtest asked for more men in
     // rooms and explicitly not in hallways; this is the half of that which is
     // about a MOMENT rather than a total. See OPENING.roomAlive.
-    return inFeatureRoom() ? Math.round(n * OPENING.roomAlive) : n;
+    // ...and WHILE THE ROOM IS BEING FILLED, not only once you are in it: its
+    // men form a stretch ahead of you so they are waiting when you come round
+    // the corner, and capped at the corridor's number the room half-filled
+    // and forfeited the rest as you walked past (playtest 2026-09-29).
+    return inFeatureRoom() || roomFilling() ? Math.round(n * OPENING.roomAlive) : n;
   }
   return Math.min(PACING.cityAliveBase + Math.floor(game.wave / 2), PACING.cityAliveCap);
 }
@@ -15094,6 +15117,14 @@ function hallWave(n) {
       // pair at the door and an empty room on the way to it.
       if (fs >= 0 && !leg.quota[fs] && leg.quota[k - 1] > 1) {
         leg.quota[k - 1]--; leg.quota[fs] = 1;
+      }
+      // ...AND A LEG WITH A ROOM DOES NOT CRAM ITS DOOR. Past OPENING.doorCap
+      // the door group's extra men wait in the room instead (up to roomCap):
+      // the fight with cover to use is the one worth having more of.
+      if (fs >= 0 && k > 1 && leg.quota[k - 1] > OPENING.doorCap) {
+        const room = Math.max(0, OPENING.roomCap - leg.quota[fs]);
+        const move = Math.min(room, leg.quota[k - 1] - OPENING.doorCap);
+        leg.quota[k - 1] -= move; leg.quota[fs] += move;
       }
       // ...AND THE REST ASCEND DOWN THE CORRIDOR. Smallest first, evenly
       // spaced across the stretches the player walks THROUGH, starting at the
