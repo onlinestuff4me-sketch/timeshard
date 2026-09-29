@@ -223,9 +223,17 @@ more pellets + stagger; burst II/III; sniper II/III; launcher II/III blast 8 +
 stagger; rocket II/III stagger), drops carry the Mk of the man who dropped
 them, the first of each new Mk always drops, a higher Mk upgrades the gun you
 carry where it sits (loaded), and the HUD names it (PISTOL II). The door a tier
-arrives carries a small line under the door number. **Not built:** the AP
-rifle (the armored man still drops the burst rifle), bomber III's two lobs, the
-rocketeer's guided pair, and the laser's charge tiers (past floor 5 anyway).
+arrives carries a small line under the door number. **The leftovers, built
+2026-09-29** (checked by `test/tierleft.mjs`): the **AP rifle** (`WEAPONS.ap`,
+the burst rifle's body with a pale band; its body hits crack an armored man's
+plate, not the finale Keeper's; the armored man drops it; Mk II 4-round and
+stagger, III 5-round, pierce 2, stagger, shatter 30%); **launcher III** lobs
+two shells a pull; **rocket II** is guided (it bends toward the nearest man
+within 40 degrees and 30 m), **III** a guided pair. The enemy tiers past
+floor 5 (the tunnel goes on in nine-door floors after the finale): **bomber
+III** lobs two grenades either side of you (door 42), **rocketeer III** a pair
+in a V (44), **laser** charge 2.0 s at Mk II (41) and 1.6 s at III (47),
+**spawner** hang 1.5 s at Mk II (43) and 1.2 s with a 12 m reach at III (49).
 
 **The Mk on the body** (built 2026-09-29, `tierMarks()`, checked by
 `test/tierlook.mjs`): Mk I wears nothing; **Mk II a plate on each shoulder**;

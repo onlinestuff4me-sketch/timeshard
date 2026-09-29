@@ -1089,6 +1089,16 @@ const burstVM = new THREE.Group();
   burstVM.add(body, vent, mag, grip);
 }
 burstVM.visible = false;
+// THE AP RIFLE is the burst rifle's body with a pale band round the barrel:
+// the same gun, told apart at a glance by the one thing that differs
+const apMark = new THREE.Mesh(new THREE.BoxGeometry(0.078, 0.093, 0.05), MAT_WHITE);
+apMark.position.set(0, 0.015, -0.27);
+apMark.visible = false;
+burstVM.add(apMark);
+// what a weapon is called on the HUD, where its id is not its name
+const WNAME = { ap: 'AP RIFLE' };
+const wname = (w) => WNAME[w] || w.toUpperCase();
+const UP_Y = new THREE.Vector3(0, 1, 0);
 
 // LAUNCHER: fat stubby tube with a drum — reads nothing like the shotgun
 const launcherVM = new THREE.Group();
@@ -1286,7 +1296,8 @@ function setWeapon(type, clips, mk = 1) {
   pistolVM.visible = type === 'pistol';
   shotgunVM.visible = type === 'shotgun';
   sniperVM.visible = type === 'sniper';
-  burstVM.visible = type === 'burst';
+  burstVM.visible = type === 'burst' || type === 'ap';
+  apMark.visible = type === 'ap';
   launcherVM.visible = type === 'launcher';
   rocketVM.visible = type === 'rocket';
   seekerVM.visible = type === 'seeker';
@@ -1534,7 +1545,8 @@ function equipFromBag(b) {
   pistolVM.visible = b.type === 'pistol';
   shotgunVM.visible = b.type === 'shotgun';
   sniperVM.visible = b.type === 'sniper';
-  burstVM.visible = b.type === 'burst';
+  burstVM.visible = b.type === 'burst' || b.type === 'ap';
+  apMark.visible = b.type === 'ap';
   launcherVM.visible = b.type === 'launcher';
   rocketVM.visible = b.type === 'rocket';
   seekerVM.visible = b.type === 'seeker';
@@ -1563,7 +1575,7 @@ function bagRunDry() {
   }
   if (!next) { giveKnife(); return; }
   equipFromBag(next);
-  showBanner(next.type.toUpperCase(), 1200);
+  showBanner(wname(next.type), 1200);
   if (player.mag <= 0) startReload();
 }
 // One clip onto that weapon's own shelf of the bag, capped at what it holds.
@@ -2681,11 +2693,13 @@ const grenadeGeo = new THREE.SphereGeometry(0.14, 10, 10);
 const grenadeRingGeo = new THREE.RingGeometry(0.6, 0.78, 24);
 const BLAST_R = 2.3;
 
-function spawnGrenade(e) {
+function spawnGrenade(e, side = 0) {
   const origin = new THREE.Vector3(e.pos.x, 1.4, e.pos.z);
+  // `side`: metres across the line from him to you (Mk III's second lob)
+  const lx = player.pos.x - e.pos.x, lz = player.pos.z - e.pos.z, ll = Math.hypot(lx, lz) || 1;
   const target = new THREE.Vector3(
-    player.pos.x + (Math.random() - 0.5) * 0.8, 0.12,
-    player.pos.z + (Math.random() - 0.5) * 0.8
+    player.pos.x + (Math.random() - 0.5) * 0.8 + (lz / ll) * side, 0.12,
+    player.pos.z + (Math.random() - 0.5) * 0.8 - (lx / ll) * side
   );
   const T = 1.15;   // world-seconds of hang time — plenty to see it coming
   const vel = new THREE.Vector3(
@@ -2819,9 +2833,11 @@ const MISSILE_SPEED = 7.5;
 const MISSILE_TURN = 1.7;      // rad/s of steering authority (world time)
 const MISSILE_BLAST = 1.6;
 
-function spawnMissile(e) {
+function spawnMissile(e, ang = 0) {
   const pos = new THREE.Vector3(e.pos.x, 1.5, e.pos.z);
+  // `ang`: radians off the line to you (Mk III's pair leaves in a V)
   const dir = new THREE.Vector3(player.pos.x - e.pos.x, 0, player.pos.z - e.pos.z).normalize();
+  if (ang) dir.applyAxisAngle(UP_Y, ang);
   const mesh = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.34), MAT_BLACK);
   const glow = new THREE.Mesh(
@@ -2932,6 +2948,11 @@ function spawnPickup(pos, type = 'shotgun', mk = 1) {
     const stock = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.3), MAT_BLACK);
     stock.position.set(0, -0.03, 0.45);
     spin.add(barrelL, barrelR, stock);
+    if (type === 'ap') {   // the AP rifle's pale band, as on the gun in your hand
+      const band = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.08), MAT_WHITE);
+      band.position.z = -0.15;
+      spin.add(band);
+    }
   }
   spin.position.y = 0.85;
   spin.rotation.z = 0.25;
@@ -4673,11 +4694,15 @@ function enemyFire(e, toPlayer) {
     return;
   }
   if (e.type === 'bomber') {   // bombers lob instead of shooting
-    spawnGrenade(e);
+    // ...and Mk III lobs two, landing either side of you: the ring you step
+    // out of is the other one's
+    if (spec.lobs > 1) { spawnGrenade(e, -1.9); spawnGrenade(e, 1.9); }
+    else spawnGrenade(e);
     return;
   }
   if (e.type === 'rocketeer') {   // rocketeers launch a homing missile
-    spawnMissile(e);
+    if (spec.pair) { spawnMissile(e, -0.3); spawnMissile(e, 0.3); }   // Mk III: a pair
+    else spawnMissile(e);
     return;
   }
   // Rounds leave the muzzle, pointing where the muzzle points. The
@@ -6078,7 +6103,7 @@ function spawnerHolding(e) {
   if (e.type === 'spawner' || (e.boss && e.boss !== 'finale') || e.noRevive) return null;
   for (const s of enemies) {
     if (s.type !== 'spawner' || s === e || s.state === 'assemble' || s.hanging) continue;
-    const r = s.boss === 'spawner' || s.finaleSpawner ? Infinity : SPAWNER.r;
+    const r = s.boss === 'spawner' || s.finaleSpawner ? Infinity : (especOf(s).spawnR || SPAWNER.r);
     if (Math.hypot(s.pos.x - e.pos.x, s.pos.z - e.pos.z) < r) return s;
   }
   return null;
@@ -6090,7 +6115,7 @@ function queueRevive(e, by) {
   ring.scale.setScalar(0.2);
   scene.add(ring);
   const hang = e.boss === 'finale' ? FINALE.keeperHang
-    : by.boss === 'spawner' || by.finaleSpawner ? SPAWNER.bossHang : SPAWNER.hang;
+    : by.boss === 'spawner' || by.finaleSpawner ? SPAWNER.bossHang : (especOf(by).hang || SPAWNER.hang);
   revives.push({ type: e.type, x: e.pos.x, z: e.pos.z, t0: worldT, at: worldT + hang, by, ring,
     finale: e.boss === 'finale',
     add: !!(hall && hall.legs[hall.cur].boss && hall.legs[hall.cur].boss.adds.includes(e)) });
@@ -6596,7 +6621,7 @@ function keeperRewardTick(B, dt) {
       R.streamed = true;
       keeperStopUntil = 0;
       spawnPickup(R.at, R.weapon);
-      showBanner(R.weapon.toUpperCase(), 2000);
+      showBanner(wname(R.weapon), 2000);
       vibrate([15, 30, 40]);
       return;
     }
@@ -6818,6 +6843,15 @@ function playerFire(aimAt = null) {
     rnd.shot = shot;
     rnd.shatter = spec.shatter || 0;   // breaks their rounds in the air
     rnd.stagger = !!spec.stagger;      // knocks the men beside a kill off their aim
+    rnd.ap = !!spec.ap;                // cracks an armored man's plate
+    // THE LAUNCHER III / ROCKET III PAIR: a second shell off the same pull,
+    // a few degrees out, so two lobs land either side of where you aimed
+    if (spec.blast && spec.lobs > 1) {
+      rnd.vel.copy(d).applyAxisAngle(UP_Y, -0.09).multiplyScalar(spec.speed);
+      spawnPlayerShell(origin, d.clone().applyAxisAngle(UP_Y, 0.09), spec);
+      const r2 = shells[shells.length - 1];
+      r2.shot = newShot(1); r2.shatter = rnd.shatter; r2.stagger = rnd.stagger;
+    }
     lanes.push(d);
   }
   blinkersReact(origin, lanes);   // he moves on the trigger, not the round
@@ -6855,6 +6889,8 @@ function playerFire(aimAt = null) {
         spawnBullet(muzzle.getWorldPosition(new THREE.Vector3()), d2.normalize(), true, spec.speed, spec.pierce || 0);
         bullets[bullets.length - 1].shot = newShot(1);   // each round of a burst is its own
         bullets[bullets.length - 1].shatter = spec.shatter || 0;
+        bullets[bullets.length - 1].stagger = !!spec.stagger;
+        bullets[bullets.length - 1].ap = !!spec.ap;
         gunKick = spec.kick * 0.7;
         sfx.shot(player.weapon);
       }, k * spec.burstGap * 1000);
@@ -6913,6 +6949,7 @@ function spawnPlayerShell(origin, dir, spec) {
   shells.push({
     mesh, pos: origin.clone(), prev: origin.clone(),
     vel: dir.clone().multiplyScalar(spec.speed), blast: spec.blast, life: 4, stagger: !!spec.stagger,
+    guided: !!spec.guided,
   });
 }
 function detonateShell(i) {
@@ -6945,7 +6982,27 @@ function updateShells(sdt) {
   for (let i = shells.length - 1; i >= 0; i--) {
     const sh = shells[i];
     sh.prev.copy(sh.pos);
-    sh.vel.y -= 3.2 * sdt;
+    // THE ROCKET II/III IS GUIDED: it bends toward the nearest man in front of
+    // it (within 40 degrees and 30 m), level, at a rate a runner can still beat
+    if (sh.guided) {
+      let best = null, bd = 30;
+      const sp = Math.hypot(sh.vel.x, sh.vel.z) || 1;
+      for (const e of enemies) {
+        if (e.state === 'assemble' || !e.alive) continue;
+        const dx = e.pos.x - sh.pos.x, dz = e.pos.z - sh.pos.z, dd = Math.hypot(dx, dz);
+        if (dd > bd || dd < 0.1) continue;
+        if ((dx * sh.vel.x + dz * sh.vel.z) / (dd * sp) < 0.77) continue;
+        best = e; bd = dd;
+      }
+      if (best) {
+        const want = Math.atan2(best.pos.x - sh.pos.x, best.pos.z - sh.pos.z);
+        const have = Math.atan2(sh.vel.x, sh.vel.z);
+        let da = Math.atan2(Math.sin(want - have), Math.cos(want - have));
+        da = Math.max(-2.2 * sdt, Math.min(2.2 * sdt, da));
+        const a = have + da;
+        sh.vel.x = Math.sin(a) * sp; sh.vel.z = Math.cos(a) * sp;
+      }
+    } else sh.vel.y -= 3.2 * sdt;
     sh.pos.addScaledVector(sh.vel, sdt);
     sh.mesh.position.copy(sh.pos);
     sh.life -= sdt;
@@ -7153,7 +7210,10 @@ function updateBullets(sdt) {
             }
           }
         }
-        if (bodyshot && (e.type === 'armored' || e.boss === 'finale')) {
+        // ...except against the AP rifle, whose rounds crack his plate (his own
+        // drop is the answer to him: docs/ARSENAL.md §4). Not the finale's
+        // Keeper: his head is the fight.
+        if (bodyshot && ((e.type === 'armored' && !b.ap) || e.boss === 'finale')) {
           // armor shrugs it off — only headshots take these down (the
           // finale's Keeper is armored too: docs/ARSENAL.md §14)
           spawnSparks(b.pos, 0xf4f5f7);
@@ -13060,7 +13120,7 @@ function showMenu() {
 
 function updateAmmoHud() {
   const spec = wspec();
-  const name = player.weapon.toUpperCase() + ROMAN[player.mk || 1];
+  const name = wname(player.weapon) + ROMAN[player.mk || 1];
   if (switcherOn()) { el.ammo.innerHTML = switcherHud(spec, name); return; }
   if (player.weapon === 'knife') {
     el.ammo.textContent = 'KNIFE · NO AMMO';
@@ -18114,6 +18174,8 @@ window.__ts = {
   seekers: () => seekers.length, seekerRefill, droneMarking, revives: () => revives.length,
   tierLine, wspec: () => ({ ...wspec(), mk: player.mk || 1 }), mkHere,
   forceMk: (n) => { mkForce = n || null; },
+  counts: () => ({ grenades: grenades.length, missiles: missiles.length, shells: shells.length }),
+  shellAt: () => shells.length ? { x: shells[0].pos.x, z: shells[0].pos.z } : null,
   nextRings: () => nextRings.filter((m) => m.visible).length, wouldPushOut,
   upgrade: () => { const u = document.getElementById('upgrade');
     return { stage: upgradeSeq ? upgradeSeq.stage : -1, cls: u ? u.className : '', text: u ? u.innerText.replace(/\s+/g, ' ').trim() : '' }; },

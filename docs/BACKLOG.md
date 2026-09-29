@@ -37,9 +37,9 @@ PLAYTEST menu. Owed:
 3. **No HUD count for the no-misses streak.** The design says the silhouettes
    are the indicator; whether a number is also wanted is the owner's call.
 4. **The gauntlet** at the end of each floor, and the city window at the finale.
-5. **Tier leftovers:** the AP rifle, bomber III's two lobs, the rocketeer's
-   guided pair, laser tiers, the spawner's Mk II/III, and a look for a
-   higher-Mk enemy (today only his line under the door number says so).
+5. **Tier leftovers: built 2026-09-29** (the AP rifle, launcher III, guided
+   rockets, bomber/rocketeer III, laser and spawner tiers past floor 5, and
+   the Mk on the body: shoulder plates, then a head band).
 6. **Boss leftovers:** Frankenstein's twin-pistol drop; the spawner's hovering
    debris (the ring carries it for now).
 7. **The seeker's switcher slot** is its own (it refills from kamikaze packs);

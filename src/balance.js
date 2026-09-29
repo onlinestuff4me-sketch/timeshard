@@ -15,6 +15,9 @@ export const WEAPONS = {
   pistol: { cd: 0.22, pellets: 1, spread: 0, kick: 1, speed: 46, mag: 5, maxClips: 3, reload: 1.0 },
   shotgun: { cd: 0.55, pellets: 6, spread: 0.055, kick: 1.8, speed: 46, mag: 2, maxClips: 3, reload: 1.5 },
   burst: { cd: 0.5, pellets: 1, spread: 0.012, kick: 1.6, speed: 52, mag: 2, maxClips: 3, reload: 1.4, burst: 3, burstGap: 0.09 },
+  // THE AP RIFLE (docs/ARSENAL.md §4): the burst rifle, and a body hit
+  // cracks the armored man's plate — his own drop answers him
+  ap: { cd: 0.5, pellets: 1, spread: 0.012, kick: 1.6, speed: 58, mag: 2, maxClips: 3, reload: 1.4, burst: 3, burstGap: 0.09, ap: true },
   sniper: { cd: 0.9, pellets: 1, spread: 0, kick: 2.4, speed: 95, pierce: 3, mag: 2, maxClips: 3, reload: 1.75 },
   launcher: { cd: 0.9, pellets: 1, spread: 0, kick: 2.6, speed: 26, mag: 2, maxClips: 3, reload: 2.0, blast: 5.5 },
   rocket: { cd: 1.2, pellets: 1, spread: 0, kick: 3, speed: 34, mag: 2, maxClips: 3, reload: 2.35, blast: 8 },
@@ -108,7 +111,7 @@ export const TYPE_SHARE = {   // veteran shooter fill: floor(total/share), cappe
 // The weapon each enemy was carrying — what they leave on the floor.
 export const TYPE_DROP = {
   shotgunner: 'shotgun', sniper: 'sniper', heavy: 'burst',
-  bomber: 'launcher', rocketeer: 'rocket', armored: 'burst',
+  bomber: 'launcher', rocketeer: 'rocket', armored: 'ap',
 };
 
 // Drops and collection. There is no magnet: a drop stays where it fell, so
@@ -2087,8 +2090,10 @@ export const FINALE = {
 // ---------------------------------------------------------------------------
 export const TIER_AT = {
   shotgunner: [12, 26], rusher: [16, 30], shieldbearer: [19], gunner: [21, 33],
-  heavy: [23, 38], bomber: [25], sniper: [27], blinker: [28], frankenstein: [29, 39],
-  armored: [34], rocketeer: [35], kamikaze: [36], drone: [37],
+  heavy: [23, 38], bomber: [25, 42], sniper: [27], blinker: [28], frankenstein: [29, 39],
+  armored: [34], rocketeer: [35, 44], kamikaze: [36], drone: [37],
+  // past floor 5 (the tunnel goes on in nine-door floors after the finale)
+  laser: [41, 47], spawner: [43, 49],
 };
 export function mkFor(type, door) {
   const t = TIER_AT[type] || [];
@@ -2102,23 +2107,27 @@ export const ENEMY_MK = {
   shotgunner: { 2: { pellets: 7, spread: 0.12, engage: [10, 4] }, 3: { pellets: 10, spread: 0.12, engage: [10, 4] } },
   shieldbearer: { 2: { slewMul: 1.6 } },
   heavy: { 2: { burst: 5 }, 3: { burst: 6, cd: [1.4, 0.8] } },
-  bomber: { 2: { splash: 3.0, cd: [1.9, 1.0] } },
+  bomber: { 2: { splash: 3.0, cd: [1.9, 1.0] }, 3: { splash: 3.0, cd: [1.9, 1.0], lobs: 2 } },
   sniper: { 2: { mul: 3.6 } },
   blinker: { 2: { blinkDist: 1.7 } },
   frankenstein: { 2: {}, 3: { rush: true } },
   armored: { 2: { speed: 2.1, aimTime: 0.45 } },
-  rocketeer: { 2: { turn: 2.6, cd: [2.7, 1.2] } },
+  rocketeer: { 2: { turn: 2.6, cd: [2.7, 1.2] }, 3: { turn: 2.6, cd: [2.7, 1.2], pair: true } },
   kamikaze: { 2: { kamiR: 4.5, pack: 6, gap: 0.3, speed: 3.0 } },
   drone: { 2: { jink: true, fires: true } },
+  // the laser's charge is its aim time; the spawner's Mk is its hang (and reach)
+  laser: { 2: { aimTime: 2.0 }, 3: { aimTime: 1.6 } },
+  spawner: { 2: { hang: 1.5 }, 3: { hang: 1.2, spawnR: 12 } },
 };
 // the line under the door number the door a tier arrives (decided: secondary)
 export const TIER_LINE = {
   gunner: { 2: 'FIRES IN PAIRS', 3: 'FASTER ROUNDS' }, rusher: { 2: 'FASTER', 3: 'FASTER STILL' },
   shotgunner: { 2: 'WIDER SPREAD', 3: 'BOTH BARRELS' }, shieldbearer: { 2: 'TURNS FASTER' },
-  heavy: { 2: 'FIVE-ROUND BURST', 3: 'SIX ROUNDS, MORE OFTEN' }, bomber: { 2: 'BIGGER BLAST' },
+  heavy: { 2: 'FIVE-ROUND BURST', 3: 'SIX ROUNDS, MORE OFTEN' }, bomber: { 2: 'BIGGER BLAST', 3: 'TWO GRENADES' },
   sniper: { 2: 'FASTER ROUND' }, blinker: { 2: 'BLINKS FURTHER' },
   frankenstein: { 2: 'HARDER ARMS', 3: 'RUSHES WHEN DISARMED' }, armored: { 2: 'CLOSES FASTER' },
-  rocketeer: { 2: 'TIGHTER TRACKING' }, kamikaze: { 2: 'BIGGER PACKS, BIGGER BLAST' },
+  rocketeer: { 2: 'TIGHTER TRACKING', 3: 'TWO ROCKETS' }, laser: { 2: 'FASTER CHARGE', 3: 'FASTER STILL' },
+  spawner: { 2: 'FASTER REVIVES', 3: 'FASTER STILL, WIDER' }, kamikaze: { 2: 'BIGGER PACKS, BIGGER BLAST' },
   drone: { 2: 'JINKS AND FIRES' },
 };
 // WEAPONS by Mk. `shatter`: the chance your round breaks one of theirs it
@@ -2127,8 +2136,9 @@ export const WEAPON_MK = {
   pistol: { 2: { pierce: 2, shatter: 0.5 }, 3: { pierce: 3, shatter: 0.65, cd: 0.18 } },
   shotgun: { 2: { pellets: 9, spread: 0.07, stagger: true }, 3: { pellets: 12, spread: 0.08, mag: 4, stagger: true, shatter: 0.4 } },
   burst: { 2: { burst: 4, shatter: 0.4 }, 3: { burst: 5, pierce: 2, shatter: 0.55 } },
+  ap: { 2: { burst: 4, stagger: true }, 3: { burst: 5, pierce: 2, stagger: true, shatter: 0.3 } },
   sniper: { 2: { pierce: 5, mag: 3, shatter: 0.7 }, 3: { cd: 0.7, pierce: 5, mag: 3, shatter: 0.85 } },
-  launcher: { 2: { blast: 8, stagger: true, shatter: 0.2 }, 3: { blast: 8, stagger: true, shatter: 0.45, mag: 3 } },
-  rocket: { 2: { stagger: true }, 3: { stagger: true, shatter: 0.45 } },
+  launcher: { 2: { blast: 8, stagger: true, shatter: 0.2 }, 3: { blast: 8, stagger: true, shatter: 0.45, lobs: 2 } },
+  rocket: { 2: { stagger: true, guided: true }, 3: { stagger: true, shatter: 0.45, guided: true, lobs: 2 } },
 };
 export const STAGGER_R = 3;   // m round a staggering kill
