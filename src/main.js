@@ -4736,7 +4736,7 @@ function earlyRoundInFlight() {
 // through another man does not fire through him: he steps aside until it is
 // clear (LANE.maxWait at most — a jammed room must not go silent), and a man
 // walking in keeps out of any lane somebody is aiming down.
-const LANE = { r: 0.6, near: 0.8, far: 0.6, maxWait: 1.2, step: 2.4, keepOut: 1.1, push: 1.3 };
+const LANE = { r: 0.7, near: 0.8, far: 0.6, maxWait: 1.2, step: 2.4, keepOut: 1.1, push: 1.3 };
 // who stands in the line from `e` to the player, or null
 function laneBlocker(e) {
   const lx = player.pos.x - e.pos.x, lz = player.pos.z - e.pos.z;
@@ -5832,6 +5832,14 @@ function updateEnemy(e, sdt) {
           if (!pointInObstacle(nx, nz, 0.35)) { e.pos.x = nx; e.pos.z = nz; e.laneSide = s0; }
           else e.laneSide = -s0;   // a wall that way: the other side next frame
           e.gait = LANE.step;
+          // ...AND THE MAN IN THE WAY MAKES ROOM: in a 3.4 m corridor the
+          // shooter alone cannot step far enough to clear someone halfway to
+          // you, so the blocker steps the other way (unless he is aiming
+          // himself, or is a boss who keeps his ground)
+          if (!blk.boss && blk.state !== 'aim' && blk.state !== 'burst' && blk.state !== 'assemble') {
+            const bx = blk.pos.x - px * s0 * LANE.step * sdt, bz = blk.pos.z - pz * s0 * LANE.step * sdt;
+            if (!pointInObstacle(bx, bz, 0.35)) { blk.pos.x = bx; blk.pos.z = bz; blk.gait = LANE.step; }
+          }
           break;
         }
       }
