@@ -138,6 +138,19 @@ console.log('met ' + met + ' of the ' + dealt + ' bodies the table deals these d
   + Math.round((met / dealt) * 100) + '%)');
 
 // ---- pass 2: how often is the player shot at? -----------------------------
+// FROM A FRESH RUN. warpDoor moves the door NUMBER, not the leg underfoot, so
+// this pass walks whatever leg pass 1 ended in — which used to be door 9's
+// first, an ordinary corridor, and since the gauntlet (docs/ARSENAL.md §1) is
+// the gauntlet's chamber: three men at arm's length in a 6 s walk, measured
+// four times and called doors 1, 3, 5 and 8. A reload puts it back on an
+// ordinary first leg.
+await page.reload();
+await page.waitForFunction(() => !!window.__ts, null, { timeout: 20000 });
+await page.waitForTimeout(1600);
+await page.tap('.go');
+await page.waitForFunction(() => document.getElementById('overlay').classList.contains('hidden'),
+  null, { timeout: 20000 });
+await page.waitForTimeout(2600);
 const rows = await page.evaluate(async (doors) => {
   const t = window.__ts, C = 4, out = [];
   for (const door of doors) {
