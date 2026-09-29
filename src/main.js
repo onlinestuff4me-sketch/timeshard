@@ -13598,10 +13598,32 @@ function wayPointAt(pts, at, ahead) {
 // Line of sight is deliberately not consulted anywhere in here. The corridor
 // goes where it goes whether or not you can see round the bend yet, and
 // saying so early is the entire job.
+// THE NEAREST WAY ON (playtest 2026-09-29: "they should point to the nearest
+// egress that leads to the exit; sometimes they point at odd angles then
+// correct themselves"). The averaged lookahead below leans into a bend before
+// you can see it, and from inside a room that reads as pointing at a wall. So
+// first: walk the path ahead a metre at a time and aim at the FURTHEST point
+// you can actually see, stopping at the first one hidden from you — the
+// doorway or corner the route leaves by. Only if nothing ahead is visible
+// (a hairpin) does the averaged lookahead answer.
+const _vWa = new THREE.Vector3(), _vWb = new THREE.Vector3();
+function wayEgress(pts, at) {
+  _vWa.set(player.pos.x, EYE_HEIGHT, player.pos.z);
+  let best = null;
+  for (let m = 1.5; m <= 26; m += 1) {
+    const p = wayPointAt(pts, at, m);
+    if (!hasLineOfSight(_vWa, _vWb.set(p.x, 1.0, p.z))) break;
+    best = p;
+  }
+  if (!best || Math.hypot(best.x - player.pos.x, best.z - player.pos.z) < 2.5) return null;
+  return Math.atan2(-(best.x - player.pos.x), -(best.z - player.pos.z));
+}
 function wayBearing() {
   const pts = wayPath();
   if (!pts) return null;
   const at = wayProject(pts);
+  const eg = wayEgress(pts, at);
+  if (eg !== null) return eg;
   let vx = 0, vz = 0, any = false;
   for (let k = 1; k <= EARLY.wayLookN; k++) {
     const p = wayPointAt(pts, at, EARLY.wayLookM * k / EARLY.wayLookN);
@@ -13649,6 +13671,17 @@ function wayFacingAway() {
   return wayBack;
 }
 
+// anybody alive and inside the frame (projected; walls are not asked — a man
+// round the corner on screen is still a fight going on)
+const _vOs = new THREE.Vector3();
+function enemiesOnScreen() {
+  for (const e of enemies) {
+    if (!e.alive || e.state === 'assemble') continue;
+    _vOs.set(e.pos.x, 1.1, e.pos.z).project(camera);
+    if (_vOs.z < 1 && Math.abs(_vOs.x) < 1 && Math.abs(_vOs.y) < 1) return true;
+  }
+  return false;
+}
 function wayArrowShows() {
   if (!inHall() || !hall) return false;
   // IT IS FINISHED BEFORE THE DOOR IS, whoever asked for it. The path ends AT
@@ -13670,6 +13703,16 @@ function wayArrowShows() {
   // to look down the straight — so keying the hand-off to the step took the
   // mark away while there was still nothing on screen to replace it.
   if (tutorStep !== null) return !!tutorMay('way') && !tutorSignSeen;
+  // NEVER IN A FIGHT (playtest 2026-09-29): not in a gauntlet or a boss's room
+  // until it is over, not while anybody is on screen, and not while an enemy
+  // mark is up — the red at the edge is about somebody who can shoot you.
+  {
+    const L = hall.legs[hall.cur];
+    if (L && L.gauntlet && !L.gauntlet.done) return false;
+    if (L && L.boss && !(L.boss.reward && L.boss.reward.given)) return false;
+    if (enemies.some((e) => e.edgeArrow)) return false;
+    if (enemiesOnScreen()) return false;
+  }
   // ...AND WHENEVER THEY HAVE TURNED THEIR BACK ON THE WAY OUT, cleared leg
   // or not. Everything below this line is about a corridor with nothing left
   // in it, which is one of the two times "which way now" is a real question.
@@ -13682,7 +13725,7 @@ function wayArrowShows() {
   // worse than either one alone: the marks are about somebody who can shoot
   // you, and they win. So this is the mark you get when the screen is
   // otherwise quiet and you are simply lost.
-  if (wayFacingAway() && !enemies.some((e) => e.edgeArrow)) return true;
+  if (wayFacingAway()) return true;
   // ...and past the onboarding it is the empty-leg mark: only on a leg with
   // nobody left in it, which is the one place "which way now" is a real
   // question — a corridor with no sound, no fight, and two directions that

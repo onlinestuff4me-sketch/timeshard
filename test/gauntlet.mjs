@@ -44,7 +44,10 @@ const out = await page.evaluate(async () => {
     const types = men.map((e) => e.type);
     // the near corners stand ~8 m past the seal; everyone else 24 m and more
     const flank = men.some((e) => e.pos.z - g0.sealZ < 12);
-    r.waves.push({ wave: G.wave + 1, n: men.length, types: types.join(' '),
+    // the exit arrow stays off in a fight — even turned away from the way out
+    const yaw0 = t.player.yaw; t.player.yaw = yaw0 + Math.PI; await window.__step(20);
+    const way = t.way().on; t.player.yaw = yaw0; await window.__step(2);
+    r.waves.push({ wave: G.wave + 1, n: men.length, types: types.join(' '), way,
       hud: t.hudText(), door: t.gauntlet().door, flank });
     for (let i = t.enemies.length - 1; i >= 0; i--) t.killAt(i);
     await window.__step(5);
@@ -70,6 +73,7 @@ else {
     if (w.n !== want[i]) bad(`wave ${i + 1} has ${w.n} men, not ${want[i]}`);
     if (!new RegExp(`WAVE ${i + 1}/3`).test(w.hud)) bad(`the HUD does not say WAVE ${i + 1}/3: ${w.hud}`);
     if (w.door) bad(`the door opened during wave ${i + 1}`);
+    if (w.way) bad(`the exit arrow showed during wave ${i + 1}`);
   });
   // the floor's newest type (door 9: the shieldbearer) once per wave, twice in
   // the last; the rest a mix of the others
