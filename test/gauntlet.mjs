@@ -43,12 +43,16 @@ const out = await page.evaluate(async () => {
     for (const e of men) { e.speed = 0; e.fireCd = 1e9; }
     const types = men.map((e) => e.type);
     // the near corners stand ~8 m past the seal; everyone else 24 m and more
-    const flank = men.some((e) => e.pos.z - g0.sealZ < 12);
+    const flank = men.some((e) => e.pos.z - g0.sealZ < 12 && Math.abs(e.pos.x - g0.sealX) > 4);
     // the exit arrow stays off in a fight — even turned away from the way out
     const yaw0 = t.player.yaw; t.player.yaw = yaw0 + Math.PI; await window.__step(20);
     const way = t.way().on; t.player.yaw = yaw0; await window.__step(2);
     r.waves.push({ wave: G.wave + 1, n: men.length, types: types.join(' '), way,
       hud: t.hudText(), door: t.gauntlet().door, flank });
+    // before wave 2, stand ON one of its near-corner spots: nobody may form
+    // closer than 8 m (they take the nearest fair spot instead)
+    if (w === 0) { t.player.pos.set(g0.sealX - 8, 0, g0.sealZ + 8.4); }
+    if (w === 1) r.nearest = +Math.min(...men.map((e) => Math.hypot(e.pos.x - t.player.pos.x, e.pos.z - t.player.pos.z))).toFixed(1);
     for (let i = t.enemies.length - 1; i >= 0; i--) t.killAt(i);
     await window.__step(5);
   }
@@ -64,6 +68,8 @@ const out = await page.evaluate(async () => {
 console.log('leg:       ' + JSON.stringify(out.leg));
 console.log('before:    ' + JSON.stringify(out.before));
 for (const w of out.waves) console.log('wave ' + w.wave + ':    ' + JSON.stringify(w));
+console.log('nearest wave-2 man to a player standing on his spot: ' + out.nearest + ' m');
+if (!(out.nearest >= 7.9)) bad('a gauntlet man formed ' + out.nearest + ' m from the player');
 console.log('end:       ' + JSON.stringify(out.end) + '  next: ' + JSON.stringify(out.next));
 if (!out.leg.armed) bad('door 9 leg 1 is not a gauntlet');
 else {

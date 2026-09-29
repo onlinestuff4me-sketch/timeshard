@@ -6453,8 +6453,9 @@ function gauntletWave(L, i) {
   const spots = [KEEPER_SPOT, ...ADD_SPOTS];   // (ADD_SPOTS is declared below this)
   if (i >= GAUNTLET.flankFrom) spots.splice(1, 0, ...GAUNTLET_FLANKS);
   G.men = [];
+  const taken = new Set();
   for (let k = 0; k < types.length; k++) {
-    spawnEnemy(types[k], keeperAt(L, spots[k % spots.length]));
+    spawnEnemy(types[k], fairAt(L, spots[k % spots.length], spots, taken));
     G.men.push(enemies[enemies.length - 1]);
   }
   G.wave = i;
@@ -6502,6 +6503,28 @@ function keeperArm(L) {
   return [];
 }
 const keeperAt = (L, [dx, dz]) => ({ x: (L.spine[0][0] + dx) * HALL.cell, z: (L.spine[0][1] + dz) * HALL.cell });
+// A ROOM'S SPOT, BUT NEVER ON TOP OF YOU (playtest 2026-09-29): a man stands
+// up at firing distance or not at all. A spot nearer than FAIR_SPAWN_M to the
+// player gives way to the nearest one that is not (and `taken` keeps two men
+// off the same spot); the enemy marks then point at anyone forming off screen.
+const FAIR_SPAWN_M = 8;
+function fairAt(L, spot, spots, taken) {
+  const ok = (p) => Math.hypot(p.x - player.pos.x, p.z - player.pos.z) >= FAIR_SPAWN_M;
+  const want = keeperAt(L, spot);
+  const key = (sp) => sp[0] + ',' + sp[1];
+  if (ok(want) && !(taken && taken.has(key(spot)))) { if (taken) taken.add(key(spot)); return want; }
+  let best = null, bestD = Infinity, bestSp = null;
+  for (const sp of spots) {
+    if (taken && taken.has(key(sp))) continue;
+    const p = keeperAt(L, sp);
+    if (!ok(p)) continue;
+    const d = Math.hypot(p.x - want.x, p.z - want.z);
+    if (d < bestD) { bestD = d; best = p; bestSp = sp; }
+  }
+  if (!best) return want;   // nowhere fair: the room is smaller than the rule
+  if (taken) taken.add(key(bestSp));
+  return best;
+}
 // EACH BOSS'S ADDS CARRY HIS ANSWER (docs/ARSENAL.md §12): the Keeper's pair
 // of shotgunners (the cone's re-aim), Frankenstein's pair of bombers (the
 // launcher takes both arms in one aim)
@@ -6515,9 +6538,10 @@ function keeperSpawnAdds(L) {
   const B = L.boss;
   const types = BOSS_ADDS[B.kind] || BOSS_ADDS.keeper;
   B.adds = [];
+  const takenAdd = new Set();
   for (let i = 0; i < types.length; i++) {
     const type = types[i];
-    spawnEnemy(type, keeperAt(L, ADD_SPOTS[i]));
+    spawnEnemy(type, fairAt(L, ADD_SPOTS[i], ADD_SPOTS, takenAdd));
     const a = enemies[enemies.length - 1];
     a.drops = TYPE_DROP[type];   // each one leaves the answer behind
     B.adds.push(a);
