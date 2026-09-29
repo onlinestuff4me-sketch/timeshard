@@ -71,6 +71,11 @@ const SEED = () => {
     localStorage.setItem('ts_s0_doors', '14'); localStorage.setItem('ts_s0_rdoor', '14');
     localStorage.setItem('ts_s0_at', String(now - 3e5));
     localStorage.setItem('ts_s0_born', String(now - 9e6));
+    // EVERY TYPE ALREADY MET: a debut card stops the world (timeScale 0) and
+    // holds the music muffled until a tap, so the "back to full speed" sample
+    // was taken with the world still stopped and the duck read as nothing.
+    // docs/TESTING.md: the card-blocks-walkers trap.
+    localStorage.setItem('ts_s0_carded', JSON.stringify(['rusher', 'shotgunner', 'shieldbearer', 'heavy', 'sniper', 'bomber', 'armored', 'rocketeer', 'laser', 'blinker', 'frankenstein', 'kamikaze', 'drone', 'spawner']));
     localStorage.setItem('ts_saves', JSON.stringify([{ i: 0, name: '', num: 1, mode: 'hall' }]));
   } catch { /* private mode */ }
 };
@@ -227,6 +232,17 @@ if (stride < 2.3 || stride > 3.6) bad('the stride is ' + stride.toFixed(2) + ' m
 // analyser hears the whole destination, so a boot under a bed that peaks at
 // -20dB is simply invisible in the sum, and comparing them in one pass
 // measured the music twice and called it a footstep.
+// ...WITH NOBODY SHOOTING. The run is live (every type is met, so no card
+// holds the world), and an enemy's round landing inside the 420 ms window read
+// as a footstep 6 dB over the bed. The room is emptied first.
+await page.evaluate(() => {
+  const t = window.__ts;
+  t.game.spawnQueue.length = 0;
+  for (const e of t.enemies) e.g.visible = false;
+  t.enemies.length = 0;
+  for (let i = t.bullets.length - 1; i >= 0; i--) if (!t.bullets[i].fromPlayer) t.bullets.splice(i, 1);
+});
+await page.waitForTimeout(600);
 const bedAlone = await listen(2500);
 await page.evaluate(() => window.__ts.sfx.setMusicVol(0));
 await page.waitForTimeout(1000);
