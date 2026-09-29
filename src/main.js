@@ -4050,6 +4050,13 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
     // spawn distance away. And if they are standing so close to the door
     // that nothing is ahead at all, the group is outrun: it is dropped, and
     // the door opens on a quieter leg rather than never.
+    // A SHIELD owed to the approach cannot stand on it at all (see `corked`),
+    // and he is at the head of the queue — refused, he held everyone behind
+    // him too (test/stall.mjs, door 8). With the player on the approach he is
+    // outrun the same way.
+    if (!placed && finale && corked && inHall() && playerStretch(L) >= finLast) {
+      spawnOutrun = true; return false;
+    }
     if (!placed && finale && !corked && inHall() && playerStretch(L) >= finLast) {
       for (let tries = 0; tries < 30 && !placed; tries++) {
         const [cgx, cgz] = pool[Math.floor(Math.random() * pool.length)];
