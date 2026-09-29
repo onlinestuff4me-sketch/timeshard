@@ -2012,6 +2012,14 @@ export const BOSS_OF_FLOOR = ['keeper', 'frankenstein', 'drone', 'spawner', 'fin
 // back — fewer men up at once and a longer gap between rounds — so the weapons
 // the last floor handed over get one door to be enjoyed.
 export const WARMUP = { alive: 0.75, gap: 1.3 };
+// THE GAUNTLET (docs/ARSENAL.md §1, built 2026-09-29): the floor's exam, on
+// the leg before its boss. The chamber seals behind you and stands up
+// `waves.length` waves of that floor's cast at their current Mk, one after
+// another, `gap` world-seconds after the last man of the one before; every
+// wave carries the floor's newest type, the last one two of him. Later waves
+// also stand men on the near flanks (`flankFrom`), so it comes from both ends.
+export const GAUNTLET = { waves: [3, 4, 5], gap: 0.9, flankFrom: 1 };
+
 export function floorOf(door) {
   let first = 1;
   for (let i = 0; i < FLOORS.length; i++) {

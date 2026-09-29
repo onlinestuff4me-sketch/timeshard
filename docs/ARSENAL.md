@@ -47,7 +47,17 @@ debut of its own; and each floor's last leg is its boss's room once that boss
 is built (`bossLeg()`). Checked by `test/floors.mjs`. The elevator is a beat
 (`elevator()`): crossing onto a floor's first door darkens the screen for
 1.3 s and names the floor, while the run carries on under it; checked by
-`test/leftovers.mjs`. Not built: the gauntlet, and a real ride.
+`test/leftovers.mjs` (the owner kept the dark beat over a real ride,
+2026-09-29). **The gauntlet** (built 2026-09-29, `gauntletTick()`, `GAUNTLET`
+in `src/balance.js`, checked by `test/gauntlet.mjs`): the leg before each
+floor's boss (on door 9, which has two legs, it is the first) is the boss
+chamber with nobody at the far end. The seal shutting stands up wave 1, and
+each next wave comes 0.9 s after the last man of the one before: **3, 4 and 5
+men** of the floor's cast at their current Mk, the floor's newest type once
+per wave and twice in the last, the rest a shuffled mix of the others; from
+wave 2 two of them stand in the near corners, so it comes from both ends. The
+HUD reads WAVE 1/3; the door opens after the third. PLAYTEST has SKIP TO THE
+GAUNTLET (floor 1's).
 
 **Decided: each floor has its own cast, and every floor ends in a boss who
 introduces the next floor's hardest type.** The boss is the big version, met

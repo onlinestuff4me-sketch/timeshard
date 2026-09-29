@@ -30,16 +30,12 @@ await page.evaluate(() => {
 });
 
 // ---- through door 9's corridor legs to his seal ----------------------------
+// (the leg before his is floor 1's gauntlet — gauntlet.mjs plays it)
 for (let i = 0; i < 6 && !(await page.evaluate(() => window.__ts.keeper())); i++) {
   await page.evaluate(async () => {
     const t = window.__ts;
-    for (let f = 0; f < 60; f++) {
-      t.game.spawnQueue.length = 0; for (const e of t.enemies) e.g.visible = false; t.enemies.length = 0;
-      await window.__step(3);
-      const h = t.hall(); if (h.legs[h.cur].door.open) break;
-    }
-    const h = t.hall(), d = h.legs[h.cur].door;
-    t.player.pos.set(d.x, 0, d.z + 1.2);
+    t.game.spawnQueue.length = 0; for (const e of t.enemies) e.g.visible = false; t.enemies.length = 0;
+    t.crossDoor();
     await window.__step(20);
   });
 }

@@ -34,7 +34,8 @@ PLAYTEST menu. Owed:
    `src/balance.js` for a public release; the drone boss gives sight properly.
 3. **No HUD count for the no-misses streak: decided 2026-09-29.** The
    see-through-walls outlines are the indicator; no number.
-4. **The gauntlet** at the end of each floor, and the city window at the finale.
+4. **The gauntlet: built 2026-09-29** (the leg before each boss; `docs/ARSENAL.md` §1).
+   Still owed: the city window at the finale.
 5. **Tier leftovers: built 2026-09-29** (the AP rifle, launcher III, guided
    rockets, bomber/rocketeer III, laser and spawner tiers past floor 5). The
    AP rifle is one round per drop. A higher Mk wears its numeral on his chest
@@ -43,9 +44,7 @@ PLAYTEST menu. Owed:
    debris (the ring carries it for now).
 7. **The seeker's switcher slot: decided 2026-09-29**, it takes one of the
    three (spent, it waits in its slot for a kamikaze pack's refill).
-8. **The elevator is a beat, not a ride:** the screen darkens and names the
-   floor for 1.3 s while the run carries on under it. A real ride (a car, the
-   floor numbers ticking) is still open.
+8. **The elevator stays a beat, not a ride** (owner's call 2026-09-29).
 9. **Pre-existing red on this machine:** `music` (bullet time does not duck the
    music, -0.3 dB) fails on the commit before the branch's work too; `duelup`
    failed on the base in an earlier run. Neither is caused by the branch;

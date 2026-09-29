@@ -16,7 +16,7 @@ import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, 
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
   doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT, PLAYTEST,
-  FLOORS, floorOf, WARMUP, BOSS_TYPES, KAMI, FRANK, DRONE, SPAWNER, FINALE,
+  FLOORS, floorOf, WARMUP, GAUNTLET, BOSS_TYPES, KAMI, FRANK, DRONE, SPAWNER, FINALE,
   TIER_AT, mkFor, ENEMY_MK, TIER_LINE, WEAPON_MK, STAGGER_R } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
 // The corridor generator lives in its own module so the level tool at /tool
@@ -6355,6 +6355,83 @@ function bossLeg(door, legIx) {
   return BOSSES_BUILT.has(f.boss) ? f.boss : null;
 }
 function keeperProto(proto) { return bossProto(proto, 'keeper'); }
+// THE GAUNTLET'S LEG: the one before a built boss's, when his door has one
+function gauntletLeg(door, legIx) {
+  if (game.mode !== 'hall' || tutorStep !== null || tutorShaping) return false;
+  const f = floorOf(door);
+  const n = doorLegs(door);
+  return !!(f.boss && door === f.last && n >= 2 && legIx === n - 2 && BOSSES_BUILT.has(f.boss));
+}
+// the same sealed chamber as a boss's, with nobody at the far end
+function gauntletProto(proto) {
+  proto.plan = KEEPER_PLAN;
+  proto.condition = null;
+  proto.measures = [];
+  proto.enemyDebut = null;
+  proto.gauntlet = true;
+  return proto;
+}
+function gauntletArm(L) {
+  L.gauntlet = { wave: -1, men: [], nextAt: null, done: false };
+  L.quota = L.stretches.map(() => 0);
+  L.fill = L.quota.slice();
+  L.released = 0; L.markK = undefined; L.budget = 0; L.doorMark = undefined;
+  L.featureSent = true;
+  return [];
+}
+// THE FLOOR'S CAST: every door type met by this door, less the ones a boss
+// debuts until his floor is behind you, newest last
+function gauntletCast(door) {
+  const f = floorOf(door);
+  return Object.keys(TYPE_INTRO)
+    .filter((t) => TYPE_INTRO[t] <= door && t !== 'spawner' && t !== 'drone'
+      && (!BOSS_TYPES.includes(t) || TYPE_INTRO[t] < f.first))
+    .sort((a, b) => TYPE_INTRO[a] - TYPE_INTRO[b]);
+}
+const GAUNTLET_FLANKS = [[-2, 5.6], [2, 5.6]];   // the near corners, either side of you
+function gauntletWave(L, i) {
+  const G = L.gauntlet, door = hall.doorsPassed + 1;
+  const cast = gauntletCast(door);
+  const newest = cast[cast.length - 1] || 'gunner';
+  const n = GAUNTLET.waves[i];
+  const types = [newest];
+  if (i === GAUNTLET.waves.length - 1 && n > 2) types.push(newest);
+  // A MIX, not a draw: the rest cycle through the floor's other types in a
+  // shuffled order, so a wave is a kill-order question (§3) rather than
+  // three of whatever the dice liked
+  const rest = cast.filter((t) => t !== newest);
+  for (let k = rest.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [rest[k], rest[j]] = [rest[j], rest[k]]; }
+  for (let k = 0; types.length < n; k++) types.push(rest.length ? rest[k % rest.length] : newest);
+  const spots = [KEEPER_SPOT, ...ADD_SPOTS];   // (ADD_SPOTS is declared below this)
+  if (i >= GAUNTLET.flankFrom) spots.splice(1, 0, ...GAUNTLET_FLANKS);
+  G.men = [];
+  for (let k = 0; k < types.length; k++) {
+    spawnEnemy(types[k], keeperAt(L, spots[k % spots.length]));
+    G.men.push(enemies[enemies.length - 1]);
+  }
+  G.wave = i;
+  runlog.ev('gauntlet-wave', { wave: i + 1, types: types.join(' ') });
+}
+// "WAVE 2/3 · " on the HUD while a gauntlet runs
+function gauntletTag(sep) {
+  const L = hall && hall.legs[hall.cur], G = L && L.gauntlet;
+  return G && !G.done && G.wave >= 0 ? `WAVE ${G.wave + 1}/${GAUNTLET.waves.length}${sep}` : '';
+}
+function gauntletTick(L) {
+  const G = L.gauntlet;
+  if (!G || G.done) return;
+  if (G.wave < 0) {
+    if (L.seal && L.seal.shut && game.state === 'play') {
+      showBanner('GAUNTLET', 1400);
+      gauntletWave(L, 0);
+    }
+    return;
+  }
+  if (G.men.some((e) => enemies.includes(e)) || revives.length) return;
+  if (G.wave >= GAUNTLET.waves.length - 1) { G.done = true; runlog.ev('gauntlet-done'); return; }
+  if (G.nextAt === null) G.nextAt = worldT + GAUNTLET.gap;
+  else if (worldT >= G.nextAt) { G.nextAt = null; gauntletWave(L, G.wave + 1); }
+}
 // EVERY BOSS ROOM IS THE KEEPER'S ROOM (docs/ARSENAL.md §12): the same sealed
 // chamber, the same adds on a loop, a different man at the far end.
 function bossProto(proto, kind) {
@@ -10113,7 +10190,7 @@ function startPlaytest(kind) {
   game.mode = 'hall';
   setTutorArmed(false);
   // a boss: the last door of his floor (docs/ARSENAL.md §1)
-  const bossDoor = { keeper: 9, frankenstein: 16, drone: 23, spawner: 30, finale: 39 }[kind];
+  const bossDoor = { gauntlet: 9, keeper: 9, frankenstein: 16, drone: 23, spawner: 30, finale: 39 }[kind];
   pendingResumeDoor = bossDoor || 1;
   playtestJump = kind;
   // A SKIP IS A RUN THAT GOT HERE. Everyone a player meets before this door
@@ -10133,6 +10210,7 @@ function startPlaytest(kind) {
   on('keysave', saveKey);
   on('keyclose', closeKeyCard);
   on('ptfloor', () => startPlaytest('floor'));
+  on('ptgaunt', () => startPlaytest('gauntlet'));
   on('ptkeeper', () => startPlaytest('keeper'));
   on('ptfrank', () => startPlaytest('frankenstein'));
   on('ptdrone', () => startPlaytest('drone'));
@@ -14774,6 +14852,7 @@ function hallAllowance() {
 function hallWave(n) {
   const bossL = inHall() && hall && hall.legs[hall.cur];
   if (bossL && bossL.proto && bossL.proto.boss) return keeperArm(bossL);
+  if (bossL && bossL.proto && bossL.proto.gauntlet) return gauntletArm(bossL);
   let hallWant = null;
   // A LEG HOLDS ITS SHARE OF THE DOOR, and nothing else. The old rule sized a
   // leg from its own geometry — every stretch worth a few bodies — which is
@@ -15057,11 +15136,14 @@ function initHall(from = 1) {
     checkpoint: { x: 0, z: 0 },
     legInDoor: 0, legsThisDoor: doorLegs(door), mem: newRunMemory(unlocks) };
   // PLAYTEST: SKIP TO THE KEEPER starts on his leg, not on the corridor before it
-  if (playtestJump && playtestJump !== 'floor' && door === floorOf(door).last) hall.legInDoor = hall.legsThisDoor - 1;
+  if (playtestJump && playtestJump !== 'floor' && door === floorOf(door).last) {
+    hall.legInDoor = hall.legsThisDoor - (playtestJump === 'gauntlet' ? 2 : 1);
+  }
   playtestJump = null;
   const proto0 = forced(composeProtocol(door, lifetimeDoors, hall.mem));
   const bk0 = bossLeg(door, hall.legInDoor);
   if (bk0) bossProto(proto0, bk0);
+  else if (gauntletLeg(door, hall.legInDoor)) gauntletProto(proto0);
   hall.legs.push(buildHallLeg(0, 0, proto0));
   recordMetProto(hall.legs[0].proto);   // leg 1 counts too; only 2+ used to
   applyLegVisibility(true);             // leg 1 starts in its own weather
@@ -15442,6 +15524,7 @@ function openHallDoor() {
     const nextLeg = hall.legInDoor + 1 >= hall.legsThisDoor ? 0 : hall.legInDoor + 1;
     const bk = bossLeg(nextDoor, nextLeg);
     if (bk) bossProto(proto, bk);   // the floor's boss
+    else if (gauntletLeg(nextDoor, nextLeg)) gauntletProto(proto);   // ...and his exam
     hall.legs.push(buildHallLeg(L.endGx, L.endGz + 1, proto));
   }
   rebuildHallObstacles();
@@ -17080,8 +17163,10 @@ function updateHall(dt) {
   const legFight = tutorStep === null
     || !!(tutorLegsOf()[tutorLegIx] && (tutorLegsOf()[tutorLegIx].enemies || []).length);
   if (L.boss) keeperTick(L, dt);
+  if (L.gauntlet) gauntletTick(L);
   if (game.state === 'play' && !L.door.open && legFight && revives.length === 0
-      && !(L.boss && !(L.boss.reward && L.boss.reward.given)) &&
+      && !(L.boss && !(L.boss.reward && L.boss.reward.given))
+      && !(L.gauntlet && !L.gauntlet.done) &&
       game.spawnQueue.length === 0 && enemies.length === 0 &&
       performance.now() >= killFlashUntil) {
     openHallDoor();
@@ -17146,7 +17231,7 @@ function closeSeal(L) {
   // A BOSS ROOM SAYS NOTHING HERE: his debut card is the introduction, and a
   // name flashed first and then a card naming his type told it twice (and it
   // said THE KEEPER in every boss's room)
-  if (!L.boss) showBanner('NO WAY BACK', 1700);
+  if (!L.boss && !L.gauntlet) showBanner('NO WAY BACK', 1700);
 }
 
 // ---------------------------------------------------------------------------
@@ -17773,7 +17858,7 @@ function frame(now) {
     : inHall() && hall
       ? (hall.legs[hall.cur].door.open
           ? `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}OPEN \u2014 GO` + hudPowers(SEP)
-          : `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`
+          : `${floorTag()}DOOR ${hall.doorsPassed + 1}${SEP}${gauntletTag(SEP)}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`
             + (droneMarking() ? `${SEP}MARKED` : '') + hudPowers(SEP))
       : game.state === 'play' && left > 0
         ? `WAVE ${game.wave}${SEP}${left} ${left === 1 ? 'ENEMY' : 'ENEMIES'} LEFT`
@@ -18161,6 +18246,7 @@ window.__ts = {
   counts: () => ({ grenades: grenades.length, missiles: missiles.length, shells: shells.length }),
   shellAt: () => shells.length ? { x: shells[0].pos.x, z: shells[0].pos.z } : null,
   nextRings: () => nextRings.filter((m) => m.visible).length, wouldPushOut,
+  gauntlet: () => { const L = hall && hall.legs[hall.cur]; return L && L.gauntlet ? { ...L.gauntlet, men: L.gauntlet.men.length, alive: L.gauntlet.men.filter((e) => enemies.includes(e)).length, seal: !!(L.seal && L.seal.shut), sealX: L.seal && L.seal.x, sealZ: L.seal && L.seal.z, door: L.door.open } : null; },
   upgrade: () => { const u = document.getElementById('upgrade');
     return { stage: upgradeSeq ? upgradeSeq.stage : -1, cls: u ? u.className : '', text: u ? u.innerText.replace(/\s+/g, ' ').trim() : '' }; },
   // one enemy round from (x, z) at the player, for a harness that needs a

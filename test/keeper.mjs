@@ -37,22 +37,17 @@ const clearRoom = () => page.evaluate(() => {
   t.enemies.length = 0;
 });
 
-// ---- door 9, leg 1 is an ordinary corridor; walk through it --------------
+// ---- door 9: the Keeper's room is the last leg, not the first ------------
 let where = await page.evaluate(() => ({ door: window.__ts.hall().doorsPassed + 1,
   leg: window.__ts.hall().legInDoor, legs: window.__ts.hall().legsThisDoor, k: window.__ts.keeper() }));
 console.log('start:         ' + JSON.stringify(where));
 if (where.door !== 9) bad('the run did not start on door 9');
 if (where.k) bad('the Keeper\'s room is the LAST leg of door 9, not the first');
+// (door 9's first leg is floor 1's gauntlet — gauntlet.mjs plays it — so it
+// is crossed here rather than walked)
 for (let leg = where.leg; leg < where.legs - 1; leg++) {
-  for (let i = 0; i < 60; i++) {
-    await clearRoom();
-    await frames(3);
-    if (await page.evaluate(() => { const h = window.__ts.hall(); return h.legs[h.cur].door.open; })) break;
-  }
-  await page.evaluate(() => {
-    const t = window.__ts, h = t.hall(), d = h.legs[h.cur].door;
-    t.player.pos.set(d.x, 0, d.z + 1.2);
-  });
+  await clearRoom();
+  await page.evaluate(() => window.__ts.crossDoor());
   await frames(20);
 }
 let k = await page.evaluate(() => window.__ts.keeper());
