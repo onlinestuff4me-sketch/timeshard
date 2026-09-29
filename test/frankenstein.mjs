@@ -152,13 +152,14 @@ const hunt = await page.evaluate(async () => {
   // off to the side: the seeker has to turn to find him
   t.spawnEnemy('gunner', { x: t.player.pos.x - Math.sin(yaw) * 10 + 2.5, z: t.player.pos.z - Math.cos(yaw) * 10 });
   const g = t.enemies[t.enemies.length - 1];
-  const t0 = performance.now();
-  while (g.state === 'assemble' && performance.now() - t0 < 6000) { await new Promise((r) => requestAnimationFrame(r)); t.player.iframes = 999; }
+  // capped in frames, not wall time: dt is capped at 0.05 s, so a loaded
+  // machine slows the world and a wall-clock cap gives up early
+  for (let f = 0; f < 400 && g.state === 'assemble'; f++) { await new Promise((r) => requestAnimationFrame(r)); t.player.iframes = 999; }
   g.speed = 0; g.fireCd = 1e9;
   t.player.fireCd = 0; t.player.swapT = 0;
   t.fireAt(t.player.pos.x - Math.sin(yaw) * 10, 1.2, t.player.pos.z - Math.cos(yaw) * 10);
-  const t1 = performance.now();
-  while ((t.seekers() || t.enemies.includes(g)) && performance.now() - t1 < 6000) {
+  for (let f = 0; f < 600 && (t.seekers() || t.enemies.includes(g)); f++) {
+    g.fireCd = 1e9;
     await new Promise((r) => requestAnimationFrame(r)); t.player.iframes = 999;
   }
   const after = { killed: !t.enemies.includes(g), mag: t.player.mag };
