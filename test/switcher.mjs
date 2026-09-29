@@ -151,5 +151,44 @@ console.log('pills:                    ' + pills.join(' | '));
 if (pills.length !== 3) bad('there should be three slot pills, not ' + pills.length);
 if (pills.filter((c) => c.includes('on')).length !== 1) bad('exactly one pill should mark the gun in hand');
 
+// ---- THE SEEKER TAKES A GUN SLOT (owner's call 2026-09-29) -----------------
+// It counts against the three and has a pill; spent, it stays in its slot for
+// a kamikaze pack to refill; and a new gun pushes it out like any other find.
+const sk = await page.evaluate(async () => {
+  const t = window.__ts;
+  const step = () => new Promise((r) => requestAnimationFrame(r));
+  for (let i = t.pickups.length - 1; i >= 0; i--) t.pickups.length = i;
+  t.player.bag.length = 0;
+  t.player.bag.push({ type: 'pistol', mag: 5, mk: 1 }, { type: 'shotgun', mag: 2, mk: 1 });
+  t.setWeapon('pistol');
+  const take = async (type) => {
+    const at = { x: t.player.pos.x, z: t.player.pos.z + 0.2 };
+    t.spawnPickup(at, type);
+    for (let i = 0; i < 30; i++) { await step(); t.player.iframes = 999; t.player.pos.x = at.x; t.player.pos.z = at.z; }
+  };
+  await take('seeker');
+  const withSeeker = t.slots().map((b) => b.type);
+  const pills = document.querySelectorAll('#ammo .pill:not(.empty)').length;
+  // spent: fire it
+  if (t.player.weapon !== 'seeker') { const b = t.player.bag.find((x) => x.type === 'seeker'); b.mag = 0; }
+  else { t.player.mag = 0; }
+  await step();
+  const spentKept = t.slots().some((b) => b.type === 'seeker');
+  t.seekerRefill();
+  const refilled = (t.slots().find((b) => b.type === 'seeker') || {}).mag;
+  // three full: pistol, shotgun, seeker — a sniper pushes the oldest find out
+  t.setWeapon('pistol');
+  const order = t.slots().map((b) => b.type);
+  await take('sniper');
+  return { withSeeker, pills, spentKept, refilled, order, after: t.slots().map((b) => b.type) };
+});
+console.log('seeker slot:              ' + JSON.stringify(sk));
+if (sk.withSeeker.length !== 3 || !sk.withSeeker.includes('seeker')) bad('the seeker is not one of the three slots: ' + sk.withSeeker.join());
+if (sk.pills !== 3) bad('the seeker has no pill: ' + sk.pills + ' filled');
+if (!sk.spentKept) bad('a spent seeker left its slot');
+if (sk.refilled !== 1) bad('a refill did not load the seeker in its slot');
+if (sk.after.length !== 3) bad('the bag is over three after a fourth gun: ' + sk.after.join());
+if (!sk.after.includes('sniper') || !sk.after.includes('pistol')) bad('the fourth gun did not go in, or the pistol left: ' + sk.after.join());
+
 done('switcher', errs);
 await browser.close();

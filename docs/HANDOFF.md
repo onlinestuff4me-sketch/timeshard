@@ -78,7 +78,8 @@ What is still owed is item 00 of `docs/BACKLOG.md`.
   respawned you behind it, in a dead end. This affects every sealed leg.
 - **Debut cards are plain words**, not the building's riddles: what makes him
   different, and a tip only where it is not obvious. The owner's first review
-  pass (on an approve-or-edit page) is applied; the copy can still move.
+  pass (on an approve-or-edit page) is applied, and the copy was approved as
+  is on 2026-09-29.
 - **Sight is on from door 1 for playtesting** (`SIGHT.playtest`); the drone
   boss on door 23 gives it properly. Turn it off for a public release.
 - **Streak counting:** one trigger pull is one shot however many pellets; plate,

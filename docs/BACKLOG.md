@@ -28,22 +28,21 @@ PLAYTEST menu. Owed:
    RESET CARDS & LESSONS also replays the slow-motion lesson. and the debut card became a
    framed close-up with a plain panel (§11). Both want a second look on the
    phone.
-1. **Debut card copy:** the owner's first review pass is applied (seven cards
-   edited, `docs/ARSENAL.md` §11). No card was explicitly approved, so the
-   copy can still move; the review page is https://claude.ai/artifact/QGjhzcWe2tPfuCLybTCWEu
+1. **Debut card copy: approved as is, 2026-09-29** (`docs/ARSENAL.md` §11;
+   the review page was https://claude.ai/artifact/QGjhzcWe2tPfuCLybTCWEu).
 2. **Playtest switches:** `SIGHT.playtest` (sight owned from door 1) and
    `PLAYTEST.on` (the PLAYTEST menu) are on. Turn both off in
    `src/balance.js` for a public release; the drone boss gives sight properly.
-3. **No HUD count for the no-misses streak.** The design says the silhouettes
-   are the indicator; whether a number is also wanted is the owner's call.
+3. **No HUD count for the no-misses streak: decided 2026-09-29.** The
+   see-through-walls outlines are the indicator; no number.
 4. **The gauntlet** at the end of each floor, and the city window at the finale.
 5. **Tier leftovers: built 2026-09-29** (the AP rifle, launcher III, guided
    rockets, bomber/rocketeer III, laser and spawner tiers past floor 5, and
    the Mk on the body: shoulder plates, then a head band).
 6. **Boss leftovers:** Frankenstein's twin-pistol drop; the spawner's hovering
    debris (the ring carries it for now).
-7. **The seeker's switcher slot** is its own (it refills from kamikaze packs);
-   whether it should take one of the three is open.
+7. **The seeker's switcher slot: decided 2026-09-29**, it takes one of the
+   three (spent, it waits in its slot for a kamikaze pack's refill).
 8. **The elevator is a beat, not a ride:** the screen darkens and names the
    floor for 1.3 s while the run carries on under it. A real ride (a car, the
    floor numbers ticking) is still open.

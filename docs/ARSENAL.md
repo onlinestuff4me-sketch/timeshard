@@ -1006,6 +1006,8 @@ makes him different in one short line, and how to beat him outright:
 | drone | While it flies, the others aim better. | – |
 | spawner | Brings shattered enemies back. | Break the dish while they are down. |
 
+**The copy above is approved as is (owner, 2026-09-29).**
+
 The blurbs in `protocols.js` keep the building's voice; the cards do not.
 
 **Status: the owner's edits from two review passes (2026-09-25 and -26) are
@@ -1089,8 +1091,8 @@ blast shatters anyone; landing on the Keeper without killing him is a hit;
 a round that flies off into the distance and expires is a miss; the streak
 is the run's (a new run starts at 0, a retry keeps it). At 50, while a wave
 is still to come, three faint red rings mark the door approach where it will
-stand up (`updateNextRings()`, checked by `test/leftovers.mjs`). Not built:
-any HUD count (the owner's call).
+stand up (`updateNextRings()`, checked by `test/leftovers.mjs`). **No HUD
+count** (decided 2026-09-29): the outlines are the indicator.
 After the drone boss, a run of hits without a miss lets you see through walls:
 
 | hits in a row | what you see |
@@ -1205,8 +1207,11 @@ the switcher, each guard is taken with the best gun you carry:
 `switcherOn()` through `bagTake()` in `src/main.js`, numbers in `SWITCHER` in
 `src/balance.js`, checked by `test/switcher.mjs`. With the bag full, the pill
 a gun on the floor within 7 m would push out dims before you walk over it
-(`wouldPushOut()`, checked by `test/leftovers.mjs`). The seeker keeps its own
-slot and refills from kamikaze packs (§ seeker).
+(`wouldPushOut()`, checked by `test/leftovers.mjs`). **The seeker takes a gun
+slot** (owner's call, 2026-09-29): it is one of the three, with a pill; spent,
+it stays in its slot for a kamikaze pack to refill (a spent gun of any other
+kind leaves the bag); and a new gun pushes it out like any other find once it
+is the oldest. Checked by `test/switcher.mjs`.
 
 **Decided: you keep the guns you find and swipe between them.** Today a pickup
 is the one gun you hold, plus clips. With a switcher, *take his gun* stops
@@ -1244,8 +1249,9 @@ of the fight.
   the gun in hand, and hollow means an empty slot. At three filled, the next
   pickup will push one out, so the pill it will replace, the oldest, should
   dim when a new gun is on the floor near you.
-- **The seeker is a slot too** (`SEEKER ×1`), and it doesn't count against the
-  cap or take a pill.
+- **The seeker is a slot too** (`SEEKER ×1`), and it counts against the cap
+  and takes a pill like any gun (decided 2026-09-29; the first draft had it
+  outside the three).
 - **What it does to the model:** nothing breaks. The ladder already prices a
   tier against the best gun on the floors; the switcher is what makes
   "the best gun on the floors" the gun in your hand.
