@@ -103,8 +103,16 @@ const sh = await page.evaluate(async () => {
     tries++;
     t.player.fireCd = 0; t.player.mag = 9; t.player.reloadT = 0; t.player.swapT = 0;
     t.fireAt(theirs.pos.x, theirs.pos.y, theirs.pos.z);
-    for (let f = 0; t.bullets.some((b) => b.fromPlayer) && t.bullets.includes(theirs) && f < 300; f++) await window.__step();
-    if (!t.bullets.includes(theirs)) broke++;
+    // BROKEN IN THE AIR, not merely gone: a round of theirs that our shot
+    // missed flies on into the (invulnerable) player and is removed there,
+    // which used to count as a break — 12 of 12 in a corridor long enough
+    // for it to arrive before our round expired
+    let lastD = 99;
+    for (let f = 0; t.bullets.some((b) => b.fromPlayer) && t.bullets.includes(theirs) && f < 300; f++) {
+      lastD = Math.hypot(theirs.pos.x - t.player.pos.x, theirs.pos.z - t.player.pos.z);
+      await window.__step();
+    }
+    if (!t.bullets.includes(theirs) && lastD > 2) broke++;
     await window.__step(30);
     window.__clear();
     for (let i = t.bullets.length - 1; i >= 0; i--) if (!t.bullets[i].fromPlayer) t.bullets.splice(i, 1);
