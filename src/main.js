@@ -4718,6 +4718,27 @@ function earlyRoundInFlight() {
   return false;
 }
 
+// CLEAR LANES (playtest 2026-09-29: "bullets from enemies passing right
+// through other enemies in front of them"). A man whose line to you runs
+// through another man does not fire through him: he steps aside until it is
+// clear (LANE.maxWait at most — a jammed room must not go silent), and a man
+// walking in keeps out of any lane somebody is aiming down.
+const LANE = { r: 0.6, near: 0.8, far: 0.6, maxWait: 1.2, step: 2.4, keepOut: 1.1, push: 1.3 };
+// who stands in the line from `e` to the player, or null
+function laneBlocker(e) {
+  const lx = player.pos.x - e.pos.x, lz = player.pos.z - e.pos.z;
+  const len = Math.hypot(lx, lz);
+  if (len < 1.5) return null;
+  const ux = lx / len, uz = lz / len;
+  for (const o of enemies) {
+    if (o === e || !o.alive || o.state === 'assemble' || o.type === 'drone') continue;
+    const ox = o.pos.x - e.pos.x, oz = o.pos.z - e.pos.z;
+    const along = ox * ux + oz * uz;
+    if (along < LANE.near || along > len - LANE.far) continue;
+    if (Math.abs(ox * uz - oz * ux) < LANE.r * (o.g.scale.x || 1)) return o;
+  }
+  return null;
+}
 function enemyFire(e, toPlayer) {
   const spec = especOf(e);
   if (e.type === 'laser') {   // the charge completes: begin the sweep
@@ -5636,6 +5657,22 @@ function updateEnemy(e, sdt) {
           const inv = 1 / Math.sqrt(d2);
           dir.x += dx * inv * 0.8; dir.z += dz * inv * 0.8;
         }
+        // ...AND OUT OF ANYBODY'S LANE: if he is aiming, do not walk into the
+        // line between him and the player — step off it sideways
+        if (o.state === 'aim' && o.alive) {
+          const lx = player.pos.x - o.pos.x, lz = player.pos.z - o.pos.z;
+          const len = Math.hypot(lx, lz);
+          if (len > 1.5) {
+            const ux = lx / len, uz = lz / len;
+            const ex = e.pos.x - o.pos.x, ez = e.pos.z - o.pos.z;
+            const along = ex * ux + ez * uz;
+            const perp = ex * uz - ez * ux;   // + is one side, - the other
+            if (along > 0.3 && along < len - 0.3 && Math.abs(perp) < LANE.keepOut) {
+              const sgn = perp >= 0 ? 1 : -1;
+              dir.x += uz * sgn * LANE.push; dir.z += -ux * sgn * LANE.push;
+            }
+          }
+        }
       }
       dir.normalize();
       // Smooth the heading. Flow fields snap between cells and repulsion
@@ -5769,6 +5806,22 @@ function updateEnemy(e, sdt) {
       if (!e.armRLock) e.armR.rotation.x = -t * (Math.PI / 2 - 0.06);
       if (spec.twin) e.armL.rotation.x = -t * (Math.PI / 2 - 0.06);
       setEgunFlash(e, e.stateT > aimT * 0.7 ? MAT_WHITEFLASH : MAT_BLACK);
+      if (e.stateT >= aimT && !e.boss && e.type !== 'laser' && e.type !== 'drone'
+          && (e.laneWait || 0) < LANE.maxWait) {
+        const blk = laneBlocker(e);
+        if (blk) {
+          // step to the side the blocker is NOT on, arm still up
+          e.laneWait = (e.laneWait || 0) + sdt;
+          const px = -toPlayer.z, pz = toPlayer.x;
+          const side = (blk.pos.x - e.pos.x) * px + (blk.pos.z - e.pos.z) * pz > 0 ? -1 : 1;
+          const s0 = e.laneSide || side;
+          const nx = e.pos.x + px * s0 * LANE.step * sdt, nz = e.pos.z + pz * s0 * LANE.step * sdt;
+          if (!pointInObstacle(nx, nz, 0.35)) { e.pos.x = nx; e.pos.z = nz; e.laneSide = s0; }
+          else e.laneSide = -s0;   // a wall that way: the other side next frame
+          e.gait = LANE.step;
+          break;
+        }
+      }
       if (e.stateT >= aimT) {
         // Someone else just pulled a trigger? Hold, arm still up, and take
         // your turn a beat later. Two shots on the same frame read as one
@@ -5827,6 +5880,7 @@ function updateEnemy(e, sdt) {
           e.holdFireT = held + sdt;
         } else {
           e.holdFireT = 0;
+          e.laneWait = 0; e.laneSide = 0;   // a round away: his next lane is a new one
           e.scriptShot = false;   // one turn, one round
           if (game.mode === 'duel') duelTookShot();
           enemyFire(e, toPlayer);
