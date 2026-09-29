@@ -45,12 +45,11 @@ PLAYTEST menu. Owed:
 7. **The seeker's switcher slot: decided 2026-09-29**, it takes one of the
    three (spent, it waits in its slot for a kamikaze pack's refill).
 8. **The elevator stays a beat, not a ride** (owner's call 2026-09-29).
-9. **Pre-existing red on this machine:** `music` (bullet time does not duck the
-   music, -0.3 dB) fails on the commit before the branch's work too; `duelup`
-   failed on the base in an earlier run. Neither is caused by the branch;
-   neither has been root-caused. (`fire` was listed here and was wrong: it was
-   the debut card stopping the world at door 4 with a walker that never taps.
-   `fire` and `rooms` now seed every type as met and pass.)
+9. **`music` is root-caused and green (2026-09-29):** its save had met no
+   types, so a debut card held the world stopped and the "full speed" sample
+   was still ducked; the duck measures 6 dB. `duelup` has not been re-checked.
+   (`fire` and `rooms` seed every type as met and pass; `fire`'s second pass
+   now reloads, since door 9's first leg became the gauntlet.)
 
 ## Game Center — ACHIEVEMENTS and LEADERBOARDS
 
