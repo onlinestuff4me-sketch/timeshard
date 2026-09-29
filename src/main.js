@@ -1096,7 +1096,9 @@ apMark.position.set(0, 0.015, -0.27);
 apMark.visible = false;
 burstVM.add(apMark);
 // what a weapon is called on the HUD, where its id is not its name
-const WNAME = { ap: 'AP RIFLE' };
+// ...said in full for the armor piercing rifle, because the name IS what it
+// does (owner's call, 2026-09-29)
+const WNAME = { ap: 'ARMOR PIERCING RIFLE' };
 const wname = (w) => WNAME[w] || w.toUpperCase();
 const UP_Y = new THREE.Vector3(0, 1, 0);
 
@@ -1432,28 +1434,6 @@ function meetSpot() {
   _spotHid.length = 0;
   renderer.autoClear = auto;
 }
-// THE NAME TAG over a type this save already knows, the first time a run meets
-// him — rides on him for a couple of seconds, then goes
-let nameTag = null;
-const _vTag = new THREE.Vector3();
-function placeNameTag() {
-  const tag = document.getElementById('nametag');
-  if (!tag) return;
-  const T = nameTag;
-  if (!T || performance.now() > T.until || !enemies.includes(T.e) || T.e.state === 'assemble' || meetCard.on) {
-    tag.classList.remove('on');
-    if (T && performance.now() > T.until) nameTag = null;
-    return;
-  }
-  const row = ELEMENTS.find((x) => x.id === T.e.type && x.kind === 'enemy');
-  tag.textContent = (row ? row.name : T.e.type.toUpperCase()) + (T.e.mk > 1 ? ROMAN[T.e.mk] : '');
-  _vTag.set(T.e.pos.x, 2.15 * T.e.g.scale.y, T.e.pos.z).project(camera);
-  if (_vTag.z > 1 || Math.abs(_vTag.x) > 1.1 || Math.abs(_vTag.y) > 1.1) { tag.classList.remove('on'); return; }
-  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
-  tag.style.left = ((_vTag.x * 0.5 + 0.5) * w) + 'px';
-  tag.style.top = ((-_vTag.y * 0.5 + 0.5) * h) + 'px';
-  tag.classList.add('on');
-}
 
 // ---------------------------------------------------------------------------
 // THE WEAPON SWITCHER (docs/ARSENAL.md §13; numbers in SWITCHER, balance.js).
@@ -1648,6 +1628,9 @@ function bagTake(type, mk = 1) {
   bagSync();
   const held = player.weapon;
   const had = !!bagFind(want);
+  // THE ARMOR PIERCING RIFLE SAYS WHAT IT IS on the way in: the name is the
+  // instruction (its rounds go through the plate the other guns spark off)
+  if (want === 'ap' && !had) showBanner(wname('ap'), 1800);
   if (had || want === 'pistol') addClip(want);
   if (!had && want === 'pistol' && !bagFind('pistol')) bagPut('pistol', 0);
   if (weaponRank(want) > weaponRank(held)) {
@@ -4295,10 +4278,10 @@ function spawnEnemy(type = 'gunner', at = null, paced = false) {
              && (simple() || carded.has(type))) {
     // ...the name flash is for a type this save already knows. A new one gets
     // the debut card when he stands up (meetMaybe), and a flash now would
-    // name him twice. IN THE TUNNEL it is a small name tag over him instead
-    // (docs/ARSENAL.md §11): a returning player is told who, not stopped.
-    if (game.mode === 'hall') nameTag = { e: enemies[enemies.length - 1], until: performance.now() + 2600 };
-    else warnFlash([type.toUpperCase() + '.']);   // silent card: the name is enough
+    // name him twice. IN THE TUNNEL a returning player is told nothing: the
+    // card taught him once, and a name tag over him was noise (owner's call,
+    // 2026-09-29).
+    if (game.mode !== 'hall') warnFlash([type.toUpperCase() + '.']);   // silent card: the name is enough
   }
   seen[type] = true;
   return true;   // ...and `false` from the early return that refuses a spot
@@ -17839,7 +17822,6 @@ function frame(now) {
   el.crosshair.classList.toggle('hot', player.fireCd > 0);
   if (tutorStep !== null) tutorPlaceWorldCue();
   if (game.mode === 'duel') duelPlaceMeetPins();
-  placeNameTag();
   upgradeTick();   // a boss's power arriving: the flash, the title, the carry
   updateSight();   // the no-misses streak, shown through walls if sight is yours
 
@@ -18181,7 +18163,6 @@ window.__ts = {
   nextRings: () => nextRings.filter((m) => m.visible).length, wouldPushOut,
   upgrade: () => { const u = document.getElementById('upgrade');
     return { stage: upgradeSeq ? upgradeSeq.stage : -1, cls: u ? u.className : '', text: u ? u.innerText.replace(/\s+/g, ' ').trim() : '' }; },
-  nameTag: () => { const t = document.getElementById('nametag'); return t && t.classList.contains('on') ? t.textContent : null; },
   // one enemy round from (x, z) at the player, for a harness that needs a
   // round in the air without waiting on the room's shot clock
   enemyRound: (x, z) => {

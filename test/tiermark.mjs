@@ -18,7 +18,7 @@ await page.tap('.go');
 await page.waitForFunction(() => window.__ts.game.state === 'play', null, { timeout: 20000 });
 await page.waitForTimeout(1500);
 
-const lineUp = (type) => page.evaluate(async (type) => {
+const lineUp = (type, dist = 5.5) => page.evaluate(async ([type, dist]) => {
   const t = window.__ts;
   const step = () => new Promise((r) => requestAnimationFrame(r));
   t.game.spawnQueue.length = 0; for (const e of t.enemies) e.g.visible = false; t.enemies.length = 0;
@@ -27,7 +27,7 @@ const lineUp = (type) => page.evaluate(async (type) => {
   for (const mk of [1, 2, 3]) {
     t.forceMk(mk);
     const side = (mk - 2) * 1.3;
-    t.spawnEnemy(type, { x: t.player.pos.x + fx * 5.5 + rx * side, z: t.player.pos.z + fz * 5.5 + rz * side });
+    t.spawnEnemy(type, { x: t.player.pos.x + fx * dist + rx * side, z: t.player.pos.z + fz * dist + rz * side });
     men.push(t.enemies[t.enemies.length - 1]);
   }
   t.forceMk(null);
@@ -38,7 +38,7 @@ const lineUp = (type) => page.evaluate(async (type) => {
   }
   const marks = (e) => { let n = 0; e.g.traverse((o) => { if (o.userData && o.userData.mkMark) n = o.userData.mkMark; }); return n; };
   return men.map((e) => ({ mk: e.mk, marks: marks(e) }));
-}, type);
+}, [type, dist]);
 
 for (const type of ['gunner', 'armored']) {
   const r = await lineUp(type);
@@ -50,5 +50,8 @@ for (const type of ['gunner', 'armored']) {
     if (m.marks !== want[i]) bad(`${type} Mk ${i + 1} wears ${m.marks || 'no'} numeral, not ${want[i]}`);
   });
 }
+// ...and a close-up, for a person to judge the print itself
+await lineUp('gunner', 3.2);
+await page.screenshot({ path: 'test/out/tiermark-close.png' });
 done('tiermark', errs);
 await browser.close();

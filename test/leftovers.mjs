@@ -1,7 +1,6 @@
 import { boot, done } from './lib.mjs';
 // THE SMALL BEATS (docs/ARSENAL.md §1, §11, §12, §9):
-//  - a type this save already knows gets a small name tag over him in the
-//    tunnel, not a flash across the screen;
+//  - a type this save already knows gets no card and no name tag;
 //  - with the bag full, the pill a gun on the floor near you would push out
 //    dims before you walk over it;
 //  - sight at 50 shows faint rings where the next wave stands up, while one
@@ -30,7 +29,7 @@ await page.evaluate(() => {
   window.__clear = () => { for (const e of t.enemies) e.g.visible = false; t.enemies.length = 0; t.game.spawnQueue.length = 0; };
 });
 
-// ---- the name tag over a known rusher --------------------------------------
+// ---- a known rusher: no card, and no name tag (taken out 2026-09-29) --------
 const tag = await page.evaluate(async () => {
   const t = window.__ts;
   window.__clear();
@@ -38,22 +37,13 @@ const tag = await page.evaluate(async () => {
   const yaw = t.player.yaw;
   t.spawnEnemy('rusher', { x: t.player.pos.x - Math.sin(yaw) * 10, z: t.player.pos.z - Math.cos(yaw) * 10 });
   const e = t.enemies[t.enemies.length - 1];
-  e.speed = 0; e.fireCd = 1e9;
-  let seen = null, card = false;
-  const t0 = performance.now();
-  while (performance.now() - t0 < 6000 && !seen) {
-    await window.__step(); e.speed = 0;
-    seen = t.nameTag(); card = card || t.meet().on;
-  }
-  // and it goes on its own
-  const t1 = performance.now();
-  while (performance.now() - t1 < 5000 && t.nameTag()) await window.__step();
-  return { seen, card, gone: !t.nameTag() };
+  let card = false;
+  for (let f = 0; f < 240; f++) { e.speed = 0; e.fireCd = 1e9; await window.__step(); card = card || t.meet().on; }
+  return { card, tagEl: !!document.getElementById('nametag') };
 });
-console.log('name tag:  ' + JSON.stringify(tag));
-if (!tag.seen || !/RUSHER/i.test(tag.seen)) bad('no name tag over a known rusher: ' + tag.seen);
+console.log('known type: ' + JSON.stringify(tag));
 if (tag.card) bad('a known rusher got the debut card');
-if (!tag.gone) bad('the name tag never went');
+if (tag.tagEl) bad('the name tag element is still in the page');
 
 // ---- the pill a pickup would push out --------------------------------------
 const po = await page.evaluate(async () => {

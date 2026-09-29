@@ -224,7 +224,8 @@ stagger; rocket II/III stagger), drops carry the Mk of the man who dropped
 them, the first of each new Mk always drops, a higher Mk upgrades the gun you
 carry where it sits (loaded), and the HUD names it (PISTOL II). The door a tier
 arrives carries a small line under the door number. **The leftovers, built
-2026-09-29** (checked by `test/tierleft.mjs`): the **AP rifle** (`WEAPONS.ap`,
+2026-09-29** (checked by `test/tierleft.mjs`): the **armor piercing rifle** (`WEAPONS.ap`, named in full on the HUD and in
+a banner when you pick one up, because the name is what it does;
 the burst rifle's body with a pale band; its body hits crack an armored man's
 plate, not the finale Keeper's; the armored man drops it). **One round per
 drop** (owner's call: a three-round burst through plate was too much): a
@@ -937,10 +938,11 @@ They scale by **how many at once**:
 RETREAT keeps its own cards). Code: `meetMaybe()` in `src/main.js`, the copy
 as `meet`/`hint` on each enemy row in `src/protocols.js`, remembered per save
 (`carded`), checked by `test/meetcard.mjs`. The gunner has no card: the
-onboarding introduces him. On later runs a type this save knows gets a small
-name tag riding over him for 2.6 s the first time the run meets him
-(`placeNameTag()`; the city and rush keep the one-word flash); the tier-up
-line sits under the door number (§4). Checked by `test/leftovers.mjs`.
+onboarding introduces him. On later runs a type this save knows gets nothing
+in the tunnel (a name tag over him was built and taken out as noise, owner's
+call 2026-09-29; the city and rush keep the one-word flash); the tier-up line
+sits under the door number and a Mk wears its numeral on his chest (§4).
+Checked by `test/leftovers.mjs`.
 
 **Decided: every new enemy type is announced.** The machinery exists. NO
 RETREAT stops the world on a type's first appearance and shows a card
@@ -970,8 +972,9 @@ introduction):
    were aiming.
 
 **Once per save, not per run.** The full stop plays the first time you ever
-meet a type (UNLOCKS already records it). On later runs a small name tag over
-him is enough: a returning player should not be stopped fifteen times a run.
+meet a type (UNLOCKS already records it). On later runs nothing is said: a
+returning player should not be stopped fifteen times a run, and a name tag
+over him (tried) was noise.
 
 **Tier-ups are announced at the door, under the door number** (decided). The
 door number stays the headline; the tier-up is a smaller second line:

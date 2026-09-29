@@ -6,8 +6,7 @@ Design: `docs/ARSENAL.md`. Built on branch `claude/time-shatter-design-rf8z87`
 and **live on `main` since 2026-09-26** as the playtest build (`PLAYTEST.on`
 and `SIGHT.playtest` are both on; turn them off for a public release). Built there: all five floors (9/7/7/7/9) with the
 elevator between them; the weapon switcher (3 slots, the pill a pickup would
-push out dims); the tempo streak; debut cards, and a small name tag over a
-known type on later runs; the blinker, kamikaze, Frankenstein, drone and
+push out dims); the tempo streak; debut cards (once per save; nothing on later runs); the blinker, kamikaze, Frankenstein, drone and
 spawner; the four bosses (Keeper → slow time, Frankenstein → the seeker, the
 drone → sight, the spawner → a second life) and the finale Keeper on door 39;
 the no-misses streak with sight (at 50 it also rings where the next wave

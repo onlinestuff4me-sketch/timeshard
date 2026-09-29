@@ -1,7 +1,8 @@
 import { boot, done } from './lib.mjs';
 // THE TIER LEFTOVERS (docs/ARSENAL.md §4).
 //   AP rifle: the armored man drops it; its body hits crack his plate, where
-//     the burst rifle's spark off; the HUD calls it AP RIFLE. Each drop is ONE
+//     the burst rifle's spark off; the HUD calls it ARMOR PIERCING RIFLE, and
+//     picking one up says so. Each drop is ONE
 //     round: two drops picked up, two rounds.
 //   Launcher III lobs two shells a pull; rocket II is guided.
 //   Bomber III lobs two grenades; rocketeer III fires a pair; the laser's
@@ -63,7 +64,7 @@ const plate = await page.evaluate(async () => {
 console.log('plate:     ' + JSON.stringify(plate));
 if (plate.burst) bad('a burst-rifle body hit killed an armored man');
 if (!plate.ap) bad('an AP body hit did not crack the armored man');
-if (!/AP RIFLE/.test(plate.hud)) bad('the HUD does not say AP RIFLE: ' + plate.hud);
+if (!/ARMOR PIERCING RIFLE/.test(plate.hud)) bad('the HUD does not say ARMOR PIERCING RIFLE: ' + plate.hud);
 
 // ---- the armored man drops it ---------------------------------------------
 const drop = await page.evaluate(async () => {
@@ -98,10 +99,14 @@ const rounds = await page.evaluate(async () => {
   };
   const count = () => { const b = t.slots().find((x) => x.type === 'ap'); return b ? b.mag + b.clips : 0; };
   await take(); const one = count();
+  const banner = t.banners().includes('ARMOR PIERCING RIFLE');
   await take(); const two = count();
-  return { one, two, mag: t.wspec().mag };
+  t.setWeapon('ap', 1, 1);
+  return { one, two, mag: t.wspec().mag, banner };
 });
 console.log('ap rounds: ' + JSON.stringify(rounds));
+if (!rounds.banner) bad('picking up the rifle did not say ARMOR PIERCING RIFLE');
+await page.screenshot({ path: 'test/out/ap-hud.png' });
 if (rounds.one !== 1) bad('one AP drop gave ' + rounds.one + ' rounds, not 1');
 if (rounds.two !== 2) bad('two AP drops gave ' + rounds.two + ' rounds, not 2');
 

@@ -330,10 +330,6 @@
   #upgrade.on small, #upgrade.on b { opacity:1; transform:none; }
   #upgrade.flash small, #upgrade.flash b { transition:none; }
   #elevator b { color:#eef0f3; font-size:22px; font-weight:900; letter-spacing:.4em; }
-  #nametag { position:fixed; z-index:9; pointer-events:none; display:none; transform:translate(-50%, -100%);
-            font-size:10px; font-weight:900; letter-spacing:.22em; color:#fff; padding:3px 7px;
-            background:rgba(22,24,29,.62); border-radius:999px; white-space:nowrap; }
-  #nametag.on { display:block; }
   #ammo .pill.out { opacity:.18; transform:scale(.7); }
   /* THE TIER-UP LINE: secondary to the door number, under it */
   .tierline { display:block; font-size:.42em; letter-spacing:.18em; margin-top:.55em; opacity:.85; }
@@ -1625,11 +1621,10 @@
   <div id="ptclose" class="pbtn">CLOSE</div>
 </div></div>
 <div id="logtoast"></div>
-<!-- THE ELEVATOR between floors, and the name tag over a known type -->
+<!-- THE ELEVATOR between floors -->
 <div id="elevator"><b>FLOOR 2</b></div>
 <!-- A BOSS'S POWER ARRIVING: the flash, NEW UPGRADE, and the carry onward -->
 <div id="upgrade"><small>NEW UPGRADE</small><b>SLOW MOTION</b></div>
-<div id="nametag"></div>
 
 <div id="htp">
   <div class="htpcard">

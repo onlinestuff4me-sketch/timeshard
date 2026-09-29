@@ -156,7 +156,7 @@ export const ELEMENTS = [
     blurb: 'Six pellets on one authorisation. Distance is the price.' },
   { id: 'burst', name: 'BURST RIFLE', kind: 'weapon', tier: 2, minDoor: 11, unlockAt: 0, weight: 0, impl: true,
     blurb: 'Three rounds per pull. The building prefers certainty.' },
-  { id: 'ap', name: 'AP RIFLE', kind: 'weapon', tier: 2, minDoor: 18, unlockAt: 0, weight: 0, impl: true,
+  { id: 'ap', name: 'ARMOR PIERCING RIFLE', kind: 'weapon', tier: 2, minDoor: 18, unlockAt: 0, weight: 0, impl: true,
     blurb: 'Three rounds per pull, and plate is no longer an answer.' },
   { id: 'sniper', name: 'RAIL', kind: 'weapon', tier: 3, minDoor: 13, unlockAt: 0, weight: 0, impl: true,
     blurb: 'Rated to pass through three. It usually finds them.' },
