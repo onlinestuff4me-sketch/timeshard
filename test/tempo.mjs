@@ -35,19 +35,33 @@ for (const [k, want] of [[4, 1], [5, 0.75], [10, 0.5], [15, 0.25], [20, 0]]) {
   if (s.mul !== want) bad(`${k} kills should be x${want}, got x${s.mul}`);
 }
 
-// ---- said once per save, and the HUD says what it buys ---------------------
+// ---- each level is celebrated once a run, and the HUD says what it buys ----
 const told = await page.evaluate(() => {
   const t = window.__ts;
-  const n = t.banners().filter((b) => /^TEMPO/.test(b)).length;
+  const lv = () => t.banners().filter((b) => /TEMPO LEVEL/.test(b));
+  const n0 = lv().length;
   t.bagReset();
   if (!t.enemies.length) t.spawnEnemy('gunner', { x: 0, z: -30 });
-  for (let i = 0; i < 6; i++) { t.tempoTick(1); t.tempoKill(); }
-  return { banners: n, again: t.banners().filter((b) => /^TEMPO/.test(b)).length,
-    hud: document.getElementById('ammo').textContent };
+  for (let i = 0; i < 10; i++) { t.tempoTick(1); t.tempoKill(); }
+  const run1 = lv().slice(n0);
+  const hud = document.getElementById('ammo').textContent;
+  // broken and rebuilt to 5 in the SAME run: already celebrated
+  t.tempoTick(5);
+  for (let i = 0; i < 5; i++) { t.tempoTick(1); t.tempoKill(); }
+  const again = lv().length - n0 - run1.length;
+  return { run1, again, hud };
 });
 console.log('tempo told:  ' + JSON.stringify(told));
-if (told.banners !== 1) bad('the first streak of 5 should explain TEMPO once, banners: ' + told.banners);
-if (told.again !== 1) bad('TEMPO was explained a second time in the same save');
+// a picture of the banner for a person: out/tempo-level.png
+await page.waitForFunction(() => /TEMPO LEVEL/.test(document.getElementById('banner').innerHTML)
+  && document.getElementById('banner').classList.contains('show'), null, { timeout: 15000 }).catch(() => {});
+await page.waitForTimeout(700);
+await page.screenshot({ path: 'test/out/tempo-level.png' });
+if (told.run1.length !== 2 || !/TEMPO LEVEL 5/.test(told.run1[0]) || !/TEMPO LEVEL 10/.test(told.run1[1])) {
+  bad('reaching 5 and then 10 should celebrate TEMPO LEVEL 5 and TEMPO LEVEL 10: ' + JSON.stringify(told.run1));
+}
+if (told.run1[0] && !/QUICK KILLS · FASTER RELOADS/.test(told.run1[0])) bad('the level banner does not say what it buys: ' + told.run1[0]);
+if (told.again) bad('a level was celebrated twice in one run');
 if (!/TEMPO \d+ · FASTER RELOAD/.test(told.hud)) bad('the HUD does not say what tempo buys: ' + told.hud);
 
 // ---- any break is zero ---------------------------------------------------

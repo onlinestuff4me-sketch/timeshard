@@ -1492,17 +1492,19 @@ function tempoKill() {
   tempo.n = tempo.clock - tempo.last <= TEMPO.window ? tempo.n + 1 : 1;
   if (tempo.n % 5 === 0) runlog.ev('tempo', { n: tempo.n });
   tempo.last = tempo.clock;
-  // SAID ONCE PER SAVE (owner's call 2026-09-30: "what is Tempo?"): the
-  // first time a streak starts paying, a banner names it and what it buys
-  if (tempo.n === TEMPO.tiers[0][0] && !tempoTaught) {
-    tempoTaught = true;
-    try { localStorage.setItem('ts_tempo_taught', '1'); } catch { /* private */ }
-    showBanner('TEMPO<br><small>QUICK KILLS · FASTER RELOADS</small>', 2200);
+  // A LEVEL REACHED IS CELEBRATED (owner's calls 2026-09-30: "what is
+  // Tempo?", then "more celebratory"): each tier the first time a run reaches
+  // it — TEMPO LEVEL 5, and what it buys underneath
+  const tier = TEMPO.tiers.findIndex(([k]) => k === tempo.n);
+  if (tier >= 0 && !tempoLevels.has(tempo.n)) {
+    tempoLevels.add(tempo.n);
+    const buys = TEMPO.tiers[tier][1] === 0 ? 'INSTANT RELOADS' : 'FASTER RELOADS';
+    showBanner(`<span class="tlevel">TEMPO LEVEL ${tempo.n}</span><small>QUICK KILLS · ${buys}</small>`, 2200);
+    vibrate([12, 30, 20]);
   }
   updateAmmoHud();
 }
-let tempoTaught = false;
-try { tempoTaught = localStorage.getItem('ts_tempo_taught') === '1'; } catch { /* private */ }
+const tempoLevels = new Set();   // the tiers this run has celebrated (see tempoReset)
 // THE BAG ON TOP OF THE SHELVES. Clips live on `player.reserve`, one shelf
 // per weapon (see `player`); the switcher's bag adds only what the shelves do
 // not know: WHICH guns you are carrying, in the order you found them, and the
@@ -1526,7 +1528,7 @@ function bagPut(type, mag, mk = 1) {
     delete player.reserve[gone.type];
   }
 }
-function bagReset() { player.bag = []; tempoReset(); resetLoadout(); }
+function bagReset() { player.bag = []; tempoReset(); tempoLevels.clear(); resetLoadout(); }
 const bagLoaded = (b) => b.mag > 0 || (player.reserve[b.type] || 0) > 0;
 // EVERY GUN THAT CAN FIRE, in bag order. An empty gun is not in the rotation:
 // a swipe must never land on something that cannot shoot.

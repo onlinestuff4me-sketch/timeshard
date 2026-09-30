@@ -707,6 +707,13 @@
      here the name is the news, so it gets the big type and the label leads in
      to it. Sized down from the banner's 58px because the longest mode name is
      thirteen characters and the banner does not wrap. */
+  /* A TEMPO LEVEL REACHED: it lands like an achievement, red, with a pop */
+  #banner .tlevel { display:inline-block; color:#ff2d1a; font-size:min(9.5vw,46px);
+                  letter-spacing:.06em; line-height:1.05; animation:tpop .5s cubic-bezier(.2,1.6,.4,1) both;
+                  text-shadow:0 2px 14px rgba(255,45,26,.35); }
+  #banner .tlevel + small { color:#16181d; animation:tpopsub .4s ease .25s both; }
+  @keyframes tpop { 0% { transform:scale(.4); opacity:0; } 100% { transform:scale(1); opacity:1; } }
+  @keyframes tpopsub { 0% { transform:translateY(6px); opacity:0; } 100% { transform:none; opacity:1; } }
   #banner .mnew { font-size:min(8.4vw,38px); letter-spacing:.06em; line-height:1.1; }
   #banner .mnew .lede { display:block; margin-bottom:9px; color:#ff2d1a;
                   font-size:min(3.4vw,15px); letter-spacing:.34em; }

@@ -1142,9 +1142,10 @@ After the drone boss, a run of hits without a miss lets you see through walls:
 **The tempo streak shortens reloads and weapon swaps** (decided, **built**:
 `tempoTick()`/`tempoKill()` in `src/main.js`, numbers in `TEMPO` in
 `src/balance.js`, checked by `test/tempo.mjs`; the count shows beside the gun
-pills from 5), in tiers of five. It counts kills, each within ~3 world-seconds of the last: **Explained once per save** (owner's call 2026-09-30, after "what is
-Tempo?"): the first streak of 5 brings up TEMPO · QUICK KILLS · FASTER RELOADS,
-and the HUD reads TEMPO 8 · FASTER RELOAD (INSTANT RELOAD at the top tier).
+pills from 5), in tiers of five. It counts kills, each within ~3 world-seconds of the last: **Each level is celebrated** (owner's calls 2026-09-30): the first time a
+run reaches 5, 10, 15 and 20, a red TEMPO LEVEL 5 pops in with QUICK KILLS ·
+FASTER RELOADS under it (INSTANT RELOADS at 20); the HUD reads TEMPO 8 ·
+FASTER RELOAD.
 
 | kills in tempo | reload and swap time | pistol reload (1.0 s) | launcher reload (2.0 s) |
 |---|---|---|---|
