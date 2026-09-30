@@ -13618,20 +13618,33 @@ function wayPath() {
 // a stretch they walked a minute ago — or one they have not reached — and
 // send the needle somewhere else entirely for a few frames. Progress along a
 // route is monotonic; the search that finds it should be too.
+// ...BUT NOT WITHIN A WINDOW (playtest 2026-09-30: the needle pointed back the
+// way you came, then corrected itself). The search used to look only six
+// segments ahead of the last answer, so a player who got further than that
+// without it noticing — across a room, down a branch lane that rejoins the
+// spine further on — left the index behind them, and "the path ahead" was
+// behind their back until it caught up. Now it searches to the end of the
+// path; a segment more than six ahead must also be in line of sight, which is
+// what keeps a parallel stretch on the far side of a wall from being taken
+// for the one underfoot.
 let wayPathIx = 0;
+const _vWp = new THREE.Vector3(), _vWq = new THREE.Vector3();
 function wayProject(pts) {
   let bi = wayPathIx, bt = 0, bd = Infinity;
   const lo = Math.max(0, wayPathIx - 1);
-  const hi = Math.min(pts.length - 2, wayPathIx + 6);
+  const hi = pts.length - 2;
+  _vWp.set(player.pos.x, EYE_HEIGHT, player.pos.z);
   for (let i = lo; i <= hi; i++) {
     const dx = pts[i + 1].x - pts[i].x, dz = pts[i + 1].z - pts[i].z;
     const len2 = dx * dx + dz * dz;
     let t = len2 > 1e-9
       ? ((player.pos.x - pts[i].x) * dx + (player.pos.z - pts[i].z) * dz) / len2 : 0;
     t = Math.max(0, Math.min(1, t));
-    const d = Math.hypot(player.pos.x - (pts[i].x + dx * t),
-      player.pos.z - (pts[i].z + dz * t));
-    if (d < bd) { bd = d; bi = i; bt = t; }
+    const qx = pts[i].x + dx * t, qz = pts[i].z + dz * t;
+    const d = Math.hypot(player.pos.x - qx, player.pos.z - qz);
+    if (d >= bd) continue;
+    if (i > wayPathIx + 6 && !hasLineOfSight(_vWp, _vWq.set(qx, 1.0, qz))) continue;
+    bd = d; bi = i; bt = t;
   }
   wayPathIx = bi;
   return { i: bi, t: bt };
@@ -13706,6 +13719,7 @@ function wayPointAt(pts, at, ahead) {
 // doorway or corner the route leaves by. Only if nothing ahead is visible
 // (a hairpin) does the averaged lookahead answer.
 const _vWa = new THREE.Vector3(), _vWb = new THREE.Vector3();
+let wayAimPt = null;   // the point the needle is aiming at, when it is the egress (harness)
 function wayEgress(pts, at) {
   _vWa.set(player.pos.x, EYE_HEIGHT, player.pos.z);
   let best = null;
@@ -13715,12 +13729,14 @@ function wayEgress(pts, at) {
     best = p;
   }
   if (!best || Math.hypot(best.x - player.pos.x, best.z - player.pos.z) < 2.5) return null;
+  wayAimPt = best;
   return Math.atan2(-(best.x - player.pos.x), -(best.z - player.pos.z));
 }
 function wayBearing() {
   const pts = wayPath();
   if (!pts) return null;
   const at = wayProject(pts);
+  wayAimPt = null;
   const eg = wayEgress(pts, at);
   if (eg !== null) return eg;
   let vx = 0, vz = 0, any = false;
@@ -13892,6 +13908,7 @@ function updateWayArrow(playing, dt) {
   a.firstElementChild.style.transform = `rotateX(58deg) rotateZ(${-screen}rad)`;
 }
 
+const EDGE_MERGE = 0.26;   // rad (~15 deg): enemy marks this close are one mark
 function updateEdgeArrows(playing) {
   const dirs = [];
   // Half the horizontal field of view, asked of the camera rather than
@@ -13930,6 +13947,25 @@ function updateEdgeArrows(playing) {
       if (e.edgeArrow) dirs.push(dYaw);
       if (dirs.length >= 6) break;
     }
+  }
+  // ONE MARK PER DIRECTION, not per man (playtest 2026-09-30: four chevrons
+  // stacked on one another for four men behind the same wall). Bearings within
+  // EDGE_MERGE of each other become one mark at their middle.
+  if (dirs.length > 1) {
+    dirs.sort((a, b) => a - b);
+    const merged = [];
+    let sum = dirs[0], n = 1, first = dirs[0];
+    for (let i = 1; i < dirs.length; i++) {
+      if (dirs[i] - first <= EDGE_MERGE) { sum += dirs[i]; n++; }
+      else { merged.push(sum / n); sum = dirs[i]; n = 1; first = dirs[i]; }
+    }
+    merged.push(sum / n);
+    // the seam at +/-180 degrees: a man just left of straight behind and one
+    // just right of it are one direction too
+    if (merged.length > 1 && merged[0] + Math.PI * 2 - merged[merged.length - 1] <= EDGE_MERGE) {
+      merged[0] = (merged[0] + Math.PI * 2 + merged.pop()) / 2;
+    }
+    dirs.length = 0; dirs.push(...merged);
   }
   while (edgeArrows.length < dirs.length) {
     const d = document.createElement('div');
@@ -13984,6 +14020,10 @@ function killWord() {
   // Being in the array is being alive: killEnemy splices the dead man out
   // before this runs, so anyone left is somebody still standing.
   if (!enemies.length) return;
+  // ...AND NEVER ON TOP OF A BANNER (playtest 2026-09-30: TIME landed across
+  // WALK OVER IT TO TAKE IT). Checked before the announcer is asked, so the
+  // word is not spent: it goes on the next kill with the screen free.
+  if (performance.now() < messageBusyUntil) return;
   const word = sfx.say();
   if (!word) return;
   const { svg } = buildWordSVG(word, word.length > 5 ? 44 : 58);   // fits SHATTER
@@ -14112,9 +14152,12 @@ function showBanner(html, dur = 1600) {
 function pumpMessages() {
   if (!messageQueue.length) return;
   const now = performance.now();
-  if (now < messageBusyUntil) {
+  // ...and a banner waits for a kill word still on screen (they share the
+  // middle of it)
+  const busy = Math.max(messageBusyUntil, killFlashUntil);
+  if (now < busy) {
     clearTimeout(pumpMessages._t);
-    pumpMessages._t = setTimeout(pumpMessages, messageBusyUntil - now + 30);
+    pumpMessages._t = setTimeout(pumpMessages, busy - now + 30);
     return;
   }
   const m = messageQueue.shift();
@@ -18335,6 +18378,7 @@ window.__ts = {
       // the game never saw and then fail the game for it. Pure read.
       bearing: (() => { const b = wayBearing(); return b === null ? null : +b.toFixed(4); })(),
       look: EARLY.wayLookM,
+      aim: wayAimPt ? { x: +wayAimPt.x.toFixed(2), z: +wayAimPt.z.toFixed(2) } : null,
       // the bearing in the WORLD, and the one actually drawn on the glass
       world: wayWorld === null ? null : +wayWorld.toFixed(4),
       yaw: wayWorld === null ? null : +(wayWorld - player.yaw).toFixed(4),
