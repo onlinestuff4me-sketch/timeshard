@@ -15402,10 +15402,40 @@ function hallWave(n) {
       //
       // The last group is already spoken for — it guards the door — so the
       // leftovers are the leg's OPENING, and an opening belongs at the start.
+      // ...SPACED BY DISTANCE, AND ENOUGH OF THEM TO FILL THE LEG (playtest
+      // log #10: door 3 walked end to end with nobody in it until the exit).
+      // A leg is owed one encounter every LEG.encounterEveryM of its length,
+      // the room counting as one; a leg dealt fewer groups than that gets
+      // small extra ones (LEG.encounterAdd men, at most LEG.encounterAddMax),
+      // and each group stands at its even share of the leg's length rather
+      // than at an even share of its stretch COUNT, which bunched them where
+      // the stretches were short.
+      if (!inSchool() && slots.length) {
+        let cellsN = 0;
+        for (let i = 0; i < bodyN; i++) cellsN += leg.stretches[i].cells.length;
+        const need = Math.floor(cellsN * HALL.cell / LEG.encounterEveryM) - (fs >= 0 ? 1 : 0);
+        for (let add = 0; groups.length < need && add < LEG.encounterAddMax; add++) {
+          groups.unshift(LEG.encounterAdd);
+        }
+      }
+      const mid = [];   // each stretch's middle, in spine cells from the start
+      for (let i = 0, c = 0; i < bodyN; i++) {
+        const len = leg.stretches[i].cells.length;
+        mid.push(c + len / 2); c += len;
+      }
+      const span = bodyN ? mid[bodyN - 1] + leg.stretches[bodyN - 1].cells.length / 2 : 0;
+      const used = new Set();
       for (let j = 0; j < groups.length; j++) {
         if (!slots.length) { leg.quota[Math.max(0, bodyN - 1)] += groups[j]; continue; }
-        const at = groups.length === 1 ? slots[0]
-          : slots[Math.round(j * (slots.length - 1) / (groups.length - 1))];
+        const want = (j + 1) / (groups.length + 1) * span;
+        let at = -1, best = Infinity;
+        for (const i of slots) {
+          // a free stretch not beside the room, if there is one
+          const cost = Math.abs(mid[i] - want) + (used.has(i) ? 1e4 : 0)
+            + (fs >= 0 && Math.abs(i - fs) === 1 ? 6 : 0);
+          if (cost < best) { best = cost; at = i; }
+        }
+        used.add(at);
         leg.quota[at] += groups[j];
       }
       // ...AND SOMETHING IS ALWAYS WITHIN THE RELEASE WINDOW ON ARRIVAL.
@@ -17654,7 +17684,9 @@ function updateHall(dt) {
   // last corner is behind you and the straight run to the door is ahead.
   if (!L.doorSeen && game.state === 'play' && L.approach && L.approach.length) {
     const [agx, agz] = L.approach[Math.max(0, L.approach.length - 2)];
-    if (hasLineOfSight(_v1.set(player.pos.x, EYE_HEIGHT, player.pos.z),
+    // ...and near it (LEG.doorGroupM), so the door's fight is AT the door
+    if (Math.hypot(agx * HALL.cell - player.pos.x, agz * HALL.cell - player.pos.z) <= LEG.doorGroupM
+      && hasLineOfSight(_v1.set(player.pos.x, EYE_HEIGHT, player.pos.z),
       _v2.set(agx * HALL.cell, 1.4, agz * HALL.cell))) L.doorSeen = true;
   }
   if (L.door.open && player.pos.z > L.door.z + 0.5) crossHallDoor();
@@ -18098,7 +18130,14 @@ function frame(now) {
     // player another four seconds of nothing.
     const owed = game.state === 'play' && game.spawnQueue.length > 0
       && enemies.length < maxAlive() && room <= 0 && stallRelease();
-    if (game.state === 'play' && game.spawnQueue.length > 0 &&
+    // ONE FIGHT AT A TIME (LEG.oneAtATime, playtest log #10): while anybody
+    // is up, only the group he came with may keep arriving — the next one
+    // waits for the corridor to clear, so a door is a string of encounters
+    // with a walk between, not one long brawl at the front of it.
+    const HL = game.mode === 'hall' && LEG.oneAtATime && hall && hall.legs[hall.cur];
+    const between = !!(HL && HL.fill && enemies.length > 0
+      && !(HL.lastOwn >= 0 && HL.fill[HL.lastOwn] > 0));
+    if (game.state === 'play' && game.spawnQueue.length > 0 && !between &&
         enemies.length < maxAlive() && (room > 0 || owed)) {
       game.spawnTimer -= sdt;
       // hold entrances while a card is on screen: one thing to read at a time

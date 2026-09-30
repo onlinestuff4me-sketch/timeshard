@@ -945,6 +945,27 @@ export const LEG = {
   // The approach is still excluded until the door is actually in frame (see
   // `legBudget`), so this cannot stack a wave in front of the slab.
   lookahead: 2,
+  // A DOOR IS SEVERAL FIGHTS, SPREAD THROUGH IT (playtest log #10: door 3
+  // walked end to end with nobody in it, then three gunners at the exit).
+  // Stretches used to be whole straight runs — four or five to a 100 m leg —
+  // and a leg's groups could only stand in those, so they bunched into the
+  // first third and left fifty metres of nothing. No stretch is longer than
+  // `stretchMax` cells now (16 m), so the groups space out down the leg with
+  // a short walk between each.
+  stretchMax: 4,
+  // ...ONE FIGHT AT A TIME: a new group is not released while the last one
+  // still has a man standing (the room and the door are groups too).
+  oneAtATime: true,
+  // ...AND ENOUGH OF THEM: one encounter every `encounterEveryM` metres of a
+  // leg (the room is one). A leg dealt fewer groups gets extra ones of
+  // `encounterAdd` men, at most `encounterAddMax` a leg.
+  encounterEveryM: 30,
+  encounterAdd: 2,
+  encounterAddMax: 3,
+  // ...AND THE DOOR'S GROUP WAITS UNTIL YOU ARE NEAR THE DOOR, not only until
+  // it is in frame — a straight approach shows the slab from sixty metres,
+  // and the fight there left a long walk to the door after it.
+  doorGroupM: 34,
   // ...AND "AM I AT THE DOOR" IS A DIFFERENT QUESTION, with its own reach.
   //
   // `finale` — whether a release is the group that guards the door — was asked

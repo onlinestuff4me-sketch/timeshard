@@ -234,7 +234,7 @@ export function genHallLeg(sgx, sgz, proto, grid, straightCells = 7) {
   // at its end, where the final enemies stage so you watch it open as they
   // shatter. approach[0] is where the run begins; the last is at the slab.
   const approach = spine.slice(spine.length - APPROACH);
-  const stretches = splitStretches(spine, APPROACH, breaks);
+  const stretches = splitStretches(spine, APPROACH, breaks, LEG.stretchMax);
   // ...resolved to the stretch that CONTAINS it. The vault's break makes the
   // room a stretch of its own so this is exact; a widened chamber sits inside
   // whichever stretch it was cut into, which is the right answer anyway —
@@ -255,14 +255,18 @@ export function genHallLeg(sgx, sgz, proto, grid, straightCells = 7) {
     doorways, pillars, covers, featureStretch, endGx: gx, endGz: gz };
 }
 
-export function splitStretches(spine, approachLen, breaks) {
+// `maxLen`: no stretch longer than this many spine cells (LEG.stretchMax), so a
+// long straight run is several places a group can stand, not one
+export function splitStretches(spine, approachLen, breaks, maxLen = Infinity) {
   const body = spine.slice(0, Math.max(1, spine.length - approachLen));
   const out = [];
   let cur = [], wasLateral = false;
   for (let i = 0; i < body.length; i++) {
     const lateral = i > 0 && body[i][1] === body[i - 1][1];
     const forced = breaks && breaks.has(i);
-    if ((forced || (!lateral && wasLateral)) && cur.length) { out.push(cur); cur = []; }
+    if ((forced || (!lateral && wasLateral) || (!lateral && cur.length >= maxLen)) && cur.length) {
+      out.push(cur); cur = [];
+    }
     cur.push(body[i]);
     wasLateral = lateral;
   }
