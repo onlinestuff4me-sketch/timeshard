@@ -15472,48 +15472,57 @@ function hallWave(n) {
       //
       // The last group is already spoken for — it guards the door — so the
       // leftovers are the leg's OPENING, and an opening belongs at the start.
-      // ...SPACED BY DISTANCE, AND ENOUGH OF THEM TO FILL THE LEG (playtest
-      // log #10: door 3 walked end to end with nobody in it until the exit).
-      // A leg is owed one encounter every LEG.encounterEveryM of its length,
-      // the room counting as one; a leg dealt fewer groups than that gets
-      // small extra ones (LEG.encounterAdd men, at most LEG.encounterAddMax),
-      // and each group stands at its even share of the leg's length rather
-      // than at an even share of its stretch COUNT, which bunched them where
-      // the stretches were short.
-      if (slots.length) {
-        let cellsN = 0;
-        for (let i = 0; i < bodyN; i++) cellsN += leg.stretches[i].cells.length;
-        // the whole leg, approach included, less the room's fight and the
-        // door's (which are encounters too)
-        const legM = (cellsN + leg.stretches[bodyN].cells.length) * HALL.cell;
-        const need = Math.floor(legM / LEG.encounterEveryM) - 1 - (fs >= 0 ? 1 : 0);
-        for (let add = 0; groups.length < need && add < LEG.encounterAddMax; add++) {
-          groups.unshift(Math.max(LEG.encounterAdd, vol));   // a school's extra is a volley
-        }
-      }
+      // ...INTO THE GAPS, AND ENOUGH OF THEM TO CLOSE THEM (playtest log
+      // #10: door 3 walked end to end with nobody in it until the exit). The
+      // leg's fixed fights are where you walk in, the room, and the door's
+      // group (LEG.doorGroupM short of the slab). Each group goes into the
+      // free stretch nearest the middle of the widest gap left between them,
+      // biggest group first; while a gap is still wider than
+      // LEG.encounterEveryM, a small extra group goes into it (LEG.encounterAdd
+      // men — a volley in the slow-time school — at most LEG.encounterAddMax).
       const mid = [];   // each stretch's middle, in spine cells from the start
       for (let i = 0, c = 0; i < bodyN; i++) {
         const len = leg.stretches[i].cells.length;
         mid.push(c + len / 2); c += len;
       }
-      // ...spaced out to where the DOOR's fight happens (LEG.doorGroupM short
-      // of the slab), which is the last encounter of the leg
       const bodyEnd = bodyN ? mid[bodyN - 1] + leg.stretches[bodyN - 1].cells.length / 2 : 0;
-      const span = Math.max(bodyEnd * 0.6, bodyEnd + leg.stretches[bodyN].cells.length
+      const doorAt = Math.max(bodyEnd * 0.6, bodyEnd + leg.stretches[bodyN].cells.length
         - LEG.doorGroupM / HALL.cell);
+      const marks = [0, doorAt];   // spine cells where a fight happens
+      if (fs >= 0) marks.push(mid[fs]);
       const used = new Set();
-      for (let j = 0; j < groups.length; j++) {
-        if (!slots.length) { leg.quota[Math.max(0, bodyN - 1)] += groups[j]; continue; }
-        const want = (j + 1) / (groups.length + 1) * span;
-        let at = -1, best = Infinity;
-        for (const i of slots) {
-          // a free stretch not beside the room, if there is one
-          const cost = Math.abs(mid[i] - want) + (used.has(i) ? 1e4 : 0)
-            + (fs >= 0 && Math.abs(i - fs) === 1 ? 6 : 0);
-          if (cost < best) { best = cost; at = i; }
+      const place = (g) => {
+        marks.sort((a, b) => a - b);
+        // the widest gap that still has a free stretch in it
+        let bestAt = -1, bestW = -1;
+        for (let m = 0; m + 1 < marks.length; m++) {
+          const a = marks[m], b = marks[m + 1], w = b - a;
+          if (w <= bestW) continue;
+          let at = -1, bd = Infinity;
+          for (const i of slots) {
+            if (used.has(i) || mid[i] <= a || mid[i] >= b) continue;
+            const d = Math.abs(mid[i] - (a + b) / 2);
+            if (d < bd) { bd = d; at = i; }
+          }
+          if (at >= 0) { bestAt = at; bestW = w; }
         }
-        used.add(at);
-        leg.quota[at] += groups[j];
+        if (bestAt < 0) return false;
+        used.add(bestAt); marks.push(mid[bestAt]);
+        leg.quota[bestAt] += g;
+        return true;
+      };
+      groups.sort((a, b) => b - a);
+      for (const g of groups) {
+        if (!slots.length || !place(g)) leg.quota[slots.length ? slots[0] : Math.max(0, bodyN - 1)] += g;
+      }
+      const widest = () => {
+        marks.sort((a, b) => a - b);
+        let w = 0;
+        for (let m = 0; m + 1 < marks.length; m++) w = Math.max(w, marks[m + 1] - marks[m]);
+        return w * HALL.cell;
+      };
+      for (let add = 0; add < LEG.encounterAddMax && widest() > LEG.encounterEveryM; add++) {
+        if (!place(Math.max(LEG.encounterAdd, vol))) break;   // a school's extra is a volley
       }
       // ...AND SOMETHING IS ALWAYS WITHIN THE RELEASE WINDOW ON ARRIVAL.
       //
