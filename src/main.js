@@ -15483,7 +15483,10 @@ function hallWave(n) {
       if (slots.length) {
         let cellsN = 0;
         for (let i = 0; i < bodyN; i++) cellsN += leg.stretches[i].cells.length;
-        const need = Math.floor(cellsN * HALL.cell / LEG.encounterEveryM) - (fs >= 0 ? 1 : 0);
+        // the whole leg, approach included, less the room's fight and the
+        // door's (which are encounters too)
+        const legM = (cellsN + leg.stretches[bodyN].cells.length) * HALL.cell;
+        const need = Math.floor(legM / LEG.encounterEveryM) - 1 - (fs >= 0 ? 1 : 0);
         for (let add = 0; groups.length < need && add < LEG.encounterAddMax; add++) {
           groups.unshift(Math.max(LEG.encounterAdd, vol));   // a school's extra is a volley
         }
@@ -15493,7 +15496,11 @@ function hallWave(n) {
         const len = leg.stretches[i].cells.length;
         mid.push(c + len / 2); c += len;
       }
-      const span = bodyN ? mid[bodyN - 1] + leg.stretches[bodyN - 1].cells.length / 2 : 0;
+      // ...spaced out to where the DOOR's fight happens (LEG.doorGroupM short
+      // of the slab), which is the last encounter of the leg
+      const bodyEnd = bodyN ? mid[bodyN - 1] + leg.stretches[bodyN - 1].cells.length / 2 : 0;
+      const span = Math.max(bodyEnd * 0.6, bodyEnd + leg.stretches[bodyN].cells.length
+        - LEG.doorGroupM / HALL.cell);
       const used = new Set();
       for (let j = 0; j < groups.length; j++) {
         if (!slots.length) { leg.quota[Math.max(0, bodyN - 1)] += groups[j]; continue; }
