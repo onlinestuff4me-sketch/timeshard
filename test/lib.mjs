@@ -30,7 +30,7 @@ function findChrome() {
 }
 export const CHROME = findChrome();
 
-export async function boot({ seed = null } = {}) {
+export async function boot({ seed = null, seedArg } = {}) {
   const errs = [];
   const browser = await chromium.launch({
     args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'],
@@ -42,7 +42,7 @@ export async function boot({ seed = null } = {}) {
   });
   // A probe that seeds localStorage must seed it in addInitScript — a page
   // that has already booted has read its saves.
-  if (seed) await ctx.addInitScript(seed);
+  if (seed) await ctx.addInitScript(seed, seedArg);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errs.push('pageerror: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
