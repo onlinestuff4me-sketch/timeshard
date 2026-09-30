@@ -97,12 +97,19 @@ else {
   if (!/ kill /.test(p.body.body) || !/ miss /.test(p.body.body)) bad('the events are not in the report');
 }
 if (!/LOG SENT/.test(await toast())) bad('no LOG SENT toast');
+// ...and the button itself says so, and a second tap sends nothing
+const btn = await page.evaluate(() => document.getElementById('plog').textContent);
+if (!/LOG SENT ✓/.test(btn)) bad('the button does not say LOG SENT: ' + btn);
+const n1 = await page.evaluate(() => window.__posts.length);
+await page.tap('#plog');
+await page.waitForTimeout(400);
+if (await page.evaluate(() => window.__posts.length) !== n1) bad('a second tap on LOG SENT sent it again');
 if (await page.evaluate(() => window.__ts.runlogPending())) bad('the outbox was not emptied');
 if (!(await shown('pausemenu'))) bad('the pause menu did not stay up');
 
 // ---- offline: saved, and sent with the next one ---------------------------
 await page.evaluate(() => { window.__offline = true; });
-await page.waitForTimeout(3100);   // past the one-report-per-tap guard
+await page.waitForTimeout(4300);   // past the one-report-per-tap guard
 await page.tap('#plog');
 await page.waitForTimeout(600);
 st = await page.evaluate(() => ({ waiting: window.__ts.runlogPending(), posts: window.__posts.length }));
@@ -117,7 +124,7 @@ await page.waitForTimeout(300);
 await page.evaluate(() => { window.__ts.player.iframes = 0; window.__ts.die(false); });
 await page.waitForFunction(() => getComputedStyle(document.getElementById('logbtn')).display !== 'none',
   null, { timeout: 8000 }).catch(() => {});
-await page.waitForTimeout(3200);   // past the panic-tap lockout and the send guard
+await page.waitForTimeout(4300);   // past the panic-tap lockout and the send guard
 await page.tap('#logbtn');
 await page.waitForFunction(() => window.__posts.length >= 3, null, { timeout: 5000 }).catch(() => {});
 st = await page.evaluate(() => ({ posts: window.__posts.length, waiting: window.__ts.runlogPending(),

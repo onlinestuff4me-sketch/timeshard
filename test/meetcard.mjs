@@ -39,9 +39,16 @@ const meetOne = (type) => page.evaluate(async (type) => {
     t.player.iframes = 999;
     if (t.meet().on) break;
   }
-  const w0 = t.worldClock().now;
-  for (let i = 0; i < 40; i++) await new Promise((r) => requestAnimationFrame(r));
-  return { ...t.meet(), worldMoved: +(t.worldClock().now - w0).toFixed(4) };
+  const w0 = t.worldClock().now, on0 = performance.now();
+  // THE HOLD: half a second in, the world is stopped on the ordinary view
+  while (performance.now() - on0 < 500) await new Promise((r) => requestAnimationFrame(r));
+  const hold = { stage: t.meet().stage, shot: t.meet().shot,
+    panel: document.getElementById('meetcard').classList.contains('on') };
+  // ...then the shot closes on him and the panel comes up
+  while (performance.now() - on0 < 5000 && !(t.meet().shot > 0.97
+    && performance.now() > t.meet().shownAt)) await new Promise((r) => requestAnimationFrame(r));
+  return { ...t.meet(), hold, took: Math.round(performance.now() - on0),
+    worldMoved: +(t.worldClock().now - w0).toFixed(4) };
 }, type);
 
 await start();
@@ -59,16 +66,29 @@ if (!m.ndc || Math.abs(m.ndc.x) > 0.1 || m.ndc.y < 0.15 || m.ndc.y > 0.45) bad('
 if (m.dim < 0.6) bad('the room was not dimmed: ' + m.dim);
 await page.screenshot({ path: 'test/out/meetcard.png' });
 if (m.worldMoved > 0.002) bad('the world kept moving under the card: ' + m.worldMoved + ' s');
+if (m.hold.stage !== 'hold' || m.hold.shot > 0.01 || m.hold.panel) bad('no hold on the ordinary view before the card: ' + JSON.stringify(m.hold));
+if (m.took < 1500) bad('the card was up in ' + m.took + ' ms; the hold and the slower zoom should take longer');
 
 // ---- a touch takes it down, and fires nothing ------------------------------
 const mag0 = await page.evaluate(() => window.__ts.player.mag);
 await page.waitForTimeout(500);
 await page.mouse.click(200, 400);
 await page.waitForTimeout(300);
-const after = await page.evaluate(() => ({ on: window.__ts.meet().on, mag: window.__ts.player.mag }));
+// ...and, let go, the rusher primes at once: he coils, then comes at a run
+const after = await page.evaluate(async () => {
+  const t = window.__ts;
+  const e = t.enemies.find((x) => x.type === 'rusher');
+  const seen = [];
+  for (let f = 0; f < 90 && e; f++) {
+    await new Promise((r) => requestAnimationFrame(r)); t.player.iframes = 999;
+    if (seen[seen.length - 1] !== e.state) seen.push(e.state);
+  }
+  return { on: t.meet().on, mag: t.player.mag, states: seen, primed: !!(e && e.primed) };
+});
 console.log('after a tap:   ' + JSON.stringify(after));
 if (after.on) bad('a tap did not take the card down');
 if (after.mag !== mag0) bad('the tap that dismissed the card also fired');
+if (!after.states.includes('prime') || !after.states.includes('advance')) bad('the rusher did not prime after his card: ' + after.states.join(' > '));
 await page.waitForFunction(() => window.__ts.meet().shot === 0, null, { timeout: 5000 }).catch(() => {});
 const back = await page.evaluate(() => ({ shot: window.__ts.meet().shot, fov: window.__ts.meet().fov,
   hidden: document.body.classList.contains('meeting') }));

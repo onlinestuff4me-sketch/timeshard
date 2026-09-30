@@ -385,10 +385,12 @@
             border:2px solid rgba(22,24,29,.25); background:#fff; color:#16181d;
             user-select:text; -webkit-user-select:text; }
   #logtoast { position:fixed; left:50%; top:calc(env(safe-area-inset-top, 0px) + 54px);
-            transform:translateX(-50%); z-index:30; display:none; padding:9px 16px;
+            transform:translateX(-50%); z-index:60; display:none; padding:9px 16px;
             border-radius:999px; background:#16181d; color:#eef0f3; font-size:12px;
             font-weight:800; letter-spacing:.14em; white-space:nowrap; pointer-events:none; }
   #logtoast.on { display:block; }
+  .logbusy { opacity:.6; }
+  .logsent { color:#fff !important; background:#1d8f4e !important; border-color:#1d8f4e !important; }
   #logbtn { display:none; margin-top:12px; padding:10px 26px; border:2px solid rgba(22,24,29,.35);
             border-radius:999px; font-size:11px; font-weight:900; letter-spacing:.24em; color:#16181d; }
   #ptlink { margin-top:10px; font-size:11px; font-weight:900; letter-spacing:.24em; color:#d42a1b;
@@ -597,7 +599,7 @@
               padding:18px 20px 14px; pointer-events:none; text-align:center;
               background:rgba(12,13,16,.88); border-top:3px solid #ff2d1a; border-radius:14px;
               opacity:0; transform:translateY(14px);
-              transition:opacity .3s ease .45s, transform .3s ease .45s; }   /* after the shot has settled on him */
+              transition:opacity .4s ease .5s, transform .4s ease .5s; }   /* after the shot has settled on him (MEET_PANEL_MS) */
   #meetcard.on { opacity:1; transform:none; }
   #meetcard .who { display:block; font-weight:900; color:#fff;
               font-size:min(8.4vw,34px); letter-spacing:.06em; line-height:1.05; }

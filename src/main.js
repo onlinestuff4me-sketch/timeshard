@@ -1343,8 +1343,18 @@ const weaponRank = (w) => WEAPON_ORDER.indexOf(w);
 // not stopped fifteen times a run. Not in the simplified modes, which have
 // their own cards (duelMeetCard), and never during the onboarding.
 // ---------------------------------------------------------------------------
-const meetCard = { on: false, at: 0, e: null };
+const meetCard = { on: false, at: 0, e: null, stage: '', holdUntil: 0, shownAt: 0 };
 const MEET_MIN_MS = 450;   // a touch already on its way does not dismiss it
+// THE CARD TAKES ITS TIME (playtest log #11/12: "freeze so the player can't
+// do anything, and take a little bit longer to freeze on the gameplay scene
+// where the enemy is visible before transitioning (also slightly slower) into
+// the card view"). The world stops on the ordinary view of him for HOLD_MS,
+// with every control dead; only then does the camera close on him (slower,
+// MEET_CAM.in), and the panel follows once the shot has settled.
+const MEET_HOLD_MS = 1100;
+const MEET_PANEL_MS = 900;   // from the zoom starting to the panel being up (index.html)
+// ...and a rusher, let go, primes at once (see the 'prime' state)
+const MEET_PRIME = { coil: 0.55, hold: 0.35, rush: 1.5 };
 function meetMaybe(e) {
   // 'intro' too: a door's opening seconds are when its first men stand up,
   // and a debut missed there was carded later, on whoever stood up next
@@ -1358,6 +1368,9 @@ function meetMaybe(e) {
   dropAllPointers();
   meetCard.on = true;
   meetCard.at = performance.now();
+  meetCard.stage = 'hold';
+  meetCard.holdUntil = meetCard.at + MEET_HOLD_MS;
+  meetCard.shownAt = Infinity;
   runlog.ev('card', { type: e.type });
   meetCard.e = e;
   const c = el.meetcard;
@@ -1368,10 +1381,16 @@ function meetMaybe(e) {
     h.textContent = row.hint || '';
     h.style.display = row.hint ? '' : 'none';
     c.classList.toggle('longname', row.name.length > 10);
-    c.classList.add('on');
   }
-  document.body.classList.add('meeting');
+  // the panel and the dimmed shot wait for the hold (meetStage)
   vibrate([14, 50, 14]);
+}
+function meetStage() {
+  if (!meetCard.on || meetCard.stage !== 'hold' || performance.now() < meetCard.holdUntil) return;
+  meetCard.stage = 'zoom';
+  meetCard.shownAt = performance.now() + MEET_PANEL_MS;
+  if (el.meetcard) el.meetcard.classList.add('on');
+  document.body.classList.add('meeting');
 }
 // THE CARD WAITS UNTIL YOU CAN SEE HIM (playtest 2026-09-29: cards came up for
 // a man round a corner, with the edge arrow pointing at him). A new type is
@@ -1394,7 +1413,13 @@ function meetWatch() {
   }
 }
 function meetClose() {
+  const e = meetCard.e;
+  if (e && e.alive && e.type === 'rusher' && enemies.includes(e)
+    && (e.state === 'advance' || e.state === 'assemble')) {
+    e.state = 'prime'; e.stateT = -0.25;
+  }
   meetCard.on = false;
+  meetCard.stage = '';
   meetCard.e = null;
   if (el.meetcard) el.meetcard.classList.remove('on');
   document.body.classList.remove('meeting');
@@ -1404,11 +1429,12 @@ function meetClose() {
 // fills about 42% of the frame's height, set in its upper half so the panel
 // below never covers him. Eased in over a beat, and back out when the card
 // goes: your aim is where you left it.
-const MEET_CAM = { fill: 0.42, y: 0.3, minFov: 12, in: 5, out: 8 };
+const MEET_CAM = { fill: 0.42, y: 0.3, minFov: 12, in: 2.6, out: 8 };
 const meetCam = { k: 0, yaw: 0, pitch: 0, fov: FOV_NORMAL };
 function meetFrame(rdt) {
+  meetStage();
   const e = meetCard.e;
-  const want = meetCard.on && e && e.alive ? 1 : 0;
+  const want = meetCard.on && meetCard.stage !== 'hold' && e && e.alive ? 1 : 0;
   meetCam.k += (want - meetCam.k) * Math.min(1, rdt * (want ? MEET_CAM.in : MEET_CAM.out));
   if (!want && meetCam.k < 0.002) meetCam.k = 0;
   if (want) {
@@ -5823,7 +5849,7 @@ function updateEnemy(e, sdt) {
         if (e.pack && kamiPacks[e.pack]) kamiPacks[e.pack].armed = true;
         break;
       }
-      moveSpeed = e.speed;
+      moveSpeed = e.speed * (e.primed ? MEET_PRIME.rush : 1);   // primed: he comes at a run
       e.strafeT -= sdt;
       if (e.strafeT <= 0) { e.strafe *= -1; e.strafeT = 1 + Math.random() * 2; }
       // in the tunnel, walk the corridor graph; elsewhere press straight in
@@ -6138,7 +6164,22 @@ function updateEnemy(e, sdt) {
       }
       break;
     }
+    case 'prime': {
+      // PRIMED BY HIS CARD (playtest log #11/12): the moment the debut card
+      // lets go, he plants and coils where he stands — the same tell as his
+      // lunge, so the thing the card named is the first thing he does — and
+      // then comes at a run to use it. stateT starts below zero: a beat for
+      // the camera to settle back before he moves.
+      e.g.rotation.y = wantYaw;
+      const t = Math.max(0, Math.min(e.stateT / MEET_PRIME.coil, 1));
+      e.armR.rotation.x = t * 1.5;
+      if (e.stateT >= MEET_PRIME.coil + MEET_PRIME.hold) {
+        e.state = 'advance'; e.stateT = 0; e.primed = true;
+      }
+      break;
+    }
     case 'windup': {
+      e.primed = false;
       // the rusher's tell: he plants, coils, and the claw reaches back.
       // In slow motion it reads like a sentence; at full speed it's a beat.
       const t = Math.min(e.stateT / 0.55, 1);
@@ -8080,7 +8121,8 @@ function onPointerDown(ev) {
   // never registered, so it cannot fire, steer or look on its way out. A card
   // that has only just landed ignores the touch that was already coming.
   if (meetCard.on) {
-    if (performance.now() - meetCard.at > MEET_MIN_MS) meetClose();
+    // dead through the hold and the zoom; the panel takes a touch once it is up
+    if (performance.now() - meetCard.shownAt > MEET_MIN_MS) meetClose();
     return;
   }
   // THE WEAPON NAME IS A SWIPE ZONE (docs/ARSENAL.md §13). A touch that STARTS
@@ -10466,6 +10508,22 @@ function sayResult(r) {
   else toast('LOG SAVED · IT WILL SEND WHEN ONLINE', 3500);
 }
 let sendingUntil = 0;
+// THE BUTTON SAYS HOW IT WENT (playtest logs #11 and #12, the same run sent
+// twice: the toast at the top of the screen was not a clear enough answer).
+// Every SEND LOG button reads SENDING… while it goes and LOG SENT ✓ after,
+// and taps on it do nothing until it has gone back to SEND LOG.
+const LOG_BTNS = ['logbtn', 'plog', 'ptsend'];
+const logBtnText = {};
+function logButtons(text, cls) {
+  for (const id of LOG_BTNS) {
+    const b = document.getElementById(id);
+    if (!b) continue;
+    if (!(id in logBtnText)) logBtnText[id] = b.textContent;
+    b.textContent = text || logBtnText[id];
+    b.classList.toggle('logbusy', cls === 'busy');
+    b.classList.toggle('logsent', cls === 'sent');
+  }
+}
 async function sendLog() {
   if (performance.now() < sendingUntil) return;   // one report per tap, not per bounce
   sendingUntil = performance.now() + 3000;
@@ -10474,8 +10532,19 @@ async function sendLog() {
     openKeyCard();
     return;
   }
+  await sendShown(() => runlog.send());
+}
+// sending, as the buttons and the toast show it; `go` does the posting
+async function sendShown(go) {
+  sendingUntil = Infinity;
+  logButtons('SENDING…', 'busy');
   toast('SENDING LOG…', 10000);
-  sayResult(await runlog.send());
+  const r = await go();
+  sayResult(r);
+  logButtons(r.sent ? (r.number ? `LOG SENT ✓ #${r.number}` : 'LOG SENT ✓') : 'LOG SAVED', r.sent ? 'sent' : '');
+  sendingUntil = performance.now() + 4000;
+  setTimeout(() => logButtons(null, ''), 4000);
+  return r;
 }
 function openKeyCard() {
   cardOpenedAt = performance.now();
@@ -10488,10 +10557,8 @@ async function saveKey() {
   if (!k) { toast('PASTE THE KEY FIRST'); return; }
   runlog.setKey(k);
   closeKeyCard();
-  toast('SENDING LOG…', 10000);
-  const r = await runlog.flush();
+  const r = await sendShown(() => runlog.flush());
   if (r.error === 'bad key') runlog.setKey(null);   // do not keep a key that does not work
-  sayResult(r);
   refreshPlaytest();
 }
 
@@ -13650,7 +13717,7 @@ function stallHappening() {
   for (const e of enemies) {
     if (!e.alive) continue;
     if (e.state === 'assemble' || e.state === 'aim' || e.state === 'burst'
-      || e.state === 'windup') return true;
+      || e.state === 'windup' || e.state === 'prime') return true;
     const was = stallSaw.get(e);
     const now = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
     stallSaw.set(e, now);
@@ -18768,7 +18835,7 @@ window.__ts = {
     return b;
   },
   keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
-  meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],
+  meet: () => ({ on: meetCard.on, stage: meetCard.stage, shownAt: meetCard.shownAt, type: meetCard.e && meetCard.e.type, carded: [...carded],
     who: el.meetcard && el.meetcard.querySelector('.who').textContent,
     what: el.meetcard && el.meetcard.querySelector('.what').textContent,
     hint: el.meetcard && el.meetcard.querySelector('.hint').textContent,
