@@ -60,7 +60,7 @@ await page.screenshot({ path: 'test/out/tempo-level.png' });
 if (told.run1.length !== 2 || !/TEMPO LEVEL 5/.test(told.run1[0]) || !/TEMPO LEVEL 10/.test(told.run1[1])) {
   bad('reaching 5 and then 10 should celebrate TEMPO LEVEL 5 and TEMPO LEVEL 10: ' + JSON.stringify(told.run1));
 }
-if (told.run1[0] && !/QUICK KILLS · FASTER RELOADS/.test(told.run1[0])) bad('the level banner does not say what it buys: ' + told.run1[0]);
+if (told.run1[0] && !/QUICK KILLS = FASTER RELOADS/.test(told.run1[0])) bad('the level banner does not say what it buys: ' + told.run1[0]);
 if (told.again) bad('a level was celebrated twice in one run');
 if (!/TEMPO \d+ · FASTER RELOAD/.test(told.hud)) bad('the HUD does not say what tempo buys: ' + told.hud);
 

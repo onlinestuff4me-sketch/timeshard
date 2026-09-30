@@ -1499,7 +1499,7 @@ function tempoKill() {
   if (tier >= 0 && !tempoLevels.has(tempo.n)) {
     tempoLevels.add(tempo.n);
     const buys = TEMPO.tiers[tier][1] === 0 ? 'INSTANT RELOADS' : 'FASTER RELOADS';
-    showBanner(`<span class="tlevel">TEMPO LEVEL ${tempo.n}</span><small>QUICK KILLS · ${buys}</small>`, 2200);
+    showBanner(`<span class="tlevel">TEMPO LEVEL ${tempo.n}</span><small>QUICK KILLS = ${buys}</small>`, 2200);
     vibrate([12, 30, 20]);
   }
   updateAmmoHud();
@@ -13922,6 +13922,7 @@ function updateWayArrow(playing, dt) {
 }
 
 const EDGE_MERGE = 0.26;   // rad (~15 deg): enemy marks this close are one mark
+const EDGE_BOTTOM = 2.35;  // rad (~135 deg): marks further round than this sit here (clear of the gun)
 function updateEdgeArrows(playing) {
   const dirs = [];
   // Half the horizontal field of view, asked of the camera rather than
@@ -13994,7 +13995,12 @@ function updateEdgeArrows(playing) {
     if (i < dirs.length) {
       // positive dYaw = enemy to the LEFT (yaw increases counter-clockwise),
       // so mirror: left-enemy arrow sits on the left edge pointing left
-      const th = -dirs[i];
+      // NOT ON THE GUN (playtest 2026-09-30: a red mark sitting on the pistol's
+      // barrel). A man straight behind you put his mark at the bottom of the
+      // ring, which is where the viewmodel is; the bottom sector is kept
+      // clear and a man behind you is marked in the lower corner on his side.
+      let th = -dirs[i];
+      if (Math.abs(th) > EDGE_BOTTOM) th = (th < 0 || (th === Math.PI) ? -1 : 1) * EDGE_BOTTOM;
       a.style.display = 'block';
       a.style.left = `${cx + Math.sin(th) * R}px`;
       a.style.top = `${cy - Math.cos(th) * R}px`;
