@@ -959,7 +959,7 @@ export const LEG = {
   // ...AND ENOUGH OF THEM: one encounter every `encounterEveryM` metres of a
   // leg (the room is one). A leg dealt fewer groups gets extra ones of
   // `encounterAdd` men, at most `encounterAddMax` a leg.
-  encounterEveryM: 30,
+  encounterEveryM: 26,
   encounterAdd: 2,
   encounterAddMax: 3,
   // ...and the release window looks this many stretches past yours while

@@ -15475,7 +15475,7 @@ function hallWave(n) {
       // ...INTO THE GAPS, AND ENOUGH OF THEM TO CLOSE THEM (playtest log
       // #10: door 3 walked end to end with nobody in it until the exit). The
       // leg's fixed fights are where you walk in, the room, and the door's
-      // group (LEG.doorGroupM short of the slab). Each group goes into the
+      // group (the start of the approach). Each group goes into the
       // free stretch nearest the middle of the widest gap left between them,
       // biggest group first; while a gap is still wider than
       // LEG.encounterEveryM, a small extra group goes into it (LEG.encounterAdd
@@ -15486,8 +15486,9 @@ function hallWave(n) {
         mid.push(c + len / 2); c += len;
       }
       const bodyEnd = bodyN ? mid[bodyN - 1] + leg.stretches[bodyN - 1].cells.length / 2 : 0;
-      const doorAt = Math.max(bodyEnd * 0.6, bodyEnd + leg.stretches[bodyN].cells.length
-        - LEG.doorGroupM / HALL.cell);
+      // (the door's group stands up once the approach is in sight, which in a
+      // corridor with corners is about where it starts)
+      const doorAt = bodyEnd;
       const marks = [0, doorAt];   // spine cells where a fight happens
       if (fs >= 0) marks.push(mid[fs]);
       const used = new Set();
