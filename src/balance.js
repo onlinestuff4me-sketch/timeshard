@@ -56,6 +56,20 @@ export const TEMPO = {
   tiers: [[5, 0.75], [10, 0.5], [15, 0.25], [20, 0]],
 };
 
+// THE PROGRESS PANEL'S OTHER TWO ROWS (owner's call 2026-09-30: "a persistent
+// place to show your progress thru upgrades"). Both are a run's, like tempo.
+//
+// STREAK is the no-misses streak SIGHT already counts (one counter, not two):
+// each of SIGHT.tiers it has reached multiplies what a kill pours back into
+// the slow-time bank. [below tier 1, tier 1, tier 2, tier 3].
+export const STREAK = { slowMul: [1, 1.25, 1.5, 2] };
+// PARRY — a perfect dodge: an enemy round passes within `near` metres of you
+// without hitting, and you shatter the man who fired it within `window` world
+// seconds. Each one flashes PERFECT and pours `refill` seconds into the bank;
+// at each of `levels` parries in a run the bank's ceiling grows by the
+// matching `capAdd` seconds (TIME.cap is the ceiling before any).
+export const PARRY = { near: 1.0, window: 2.0, refill: 1.5, levels: [3, 6, 10], capAdd: [2, 4, 6] };
+
 // ONE DEBUT PER WAVE — the wave (or tunnel door) each type first appears on.
 //
 // ONE NEW THING PER DOOR, AND EVERY DOOR GETS ONE. Playtest: "the ramp for

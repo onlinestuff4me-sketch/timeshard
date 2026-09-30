@@ -15,7 +15,7 @@ import * as THREE from '../lib/three.module.min.js';
 import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, TIME, LEG, SHATTER,
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
-  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, BLINKER, KEEPER, SIGHT, PLAYTEST,
+  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, STREAK, PARRY, BLINKER, KEEPER, SIGHT, PLAYTEST,
   FLOORS, floorOf, WARMUP, GAUNTLET, BOSS_TYPES, KAMI, FRANK, DRONE, SPAWNER, FINALE,
   TIER_AT, mkFor, ENEMY_MK, TIER_LINE, WEAPON_MK, STAGGER_R } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
@@ -802,9 +802,26 @@ const SHIMMER_INTERVAL = 5;      // seconds of rest after a sweep finishes
 const SHIMMER_DUR = 1.2;         // seconds for the light band to cross
 
 const LFONT = {
-  widths: { S: 80, H: 80, A: 80, R: 80, D: 80, T: 80, I: 36, M: 96, E: 72 },
+  widths: { S: 80, H: 80, A: 80, R: 80, D: 80, T: 80, I: 36, M: 96, E: 72, P: 80, F: 72, C: 80 },
   gap: 16,
   letters: {
+    // P, F and C: for PERFECT (a parry)
+    P: [
+      [[0,0],[24,0],[24,100],[10,100],[0,90]],
+      [[0,0],[58,0],[80,18],[80,24],[0,24]],
+      [[56,10],[80,18],[80,44],[56,52]],
+      [[0,38],[70,38],[62,60],[0,60]],
+    ],
+    F: [
+      [[0,10],[10,0],[24,0],[24,100],[0,100]],
+      [[0,0],[72,0],[72,24],[0,24]],
+      [[0,38],[60,38],[60,60],[0,60]],
+    ],
+    C: [
+      [[10,0],[80,0],[80,24],[0,24],[0,10]],
+      [[0,10],[24,10],[24,90],[0,90]],
+      [[0,76],[80,76],[80,90],[70,100],[0,100]],
+    ],
     S: [
       [[10,0],[80,0],[80,24],[0,24],[0,10]],
       [[0,10],[24,10],[24,62],[0,62]],
@@ -1499,12 +1516,165 @@ function tempoKill() {
   if (tier >= 0 && !tempoLevels.has(tempo.n)) {
     tempoLevels.add(tempo.n);
     const buys = TEMPO.tiers[tier][1] === 0 ? 'INSTANT RELOADS' : 'FASTER RELOADS';
-    showBanner(`<span class="tlevel">TEMPO LEVEL ${tempo.n}</span><small>QUICK KILLS = ${buys}</small>`, 2200);
+    // ...by LEVEL (1-4), the number the progress panel shows, and it flies
+    // up into that panel's TEMPO row when it goes (see flyToRow)
+    showBanner(`<span class="tlevel">TEMPO LEVEL ${tier + 1}</span><small>QUICK KILLS = ${buys}</small>`, 2200, 'tempo');
     vibrate([12, 30, 20]);
   }
   updateAmmoHud();
 }
 const tempoLevels = new Set();   // the tiers this run has celebrated (see tempoReset)
+
+// ---------------------------------------------------------------------------
+// THE PROGRESS PANEL (owner's call 2026-09-30: "a persistent place to show
+// your progress thru upgrades", kept off the bottom of the screen and apart
+// from the weapon switcher). Top left, under the door count and the slow-time
+// meter: one row per streak the run is building —
+//   TEMPO   quick kills        -> faster reloads           (TEMPO)
+//   STREAK  kills without miss -> more slow time per kill  (STREAK, SIGHT.tiers)
+//   PARRY   near miss, then shatter the shooter -> a bigger bank (PARRY)
+// Each row: its name, the count, one pip per level, a thin bar to the next
+// level, and what the level buys. A level reached the first time in a run is
+// a banner in the middle of the screen, and when it goes the title flies up
+// into its row (flyToRow) so the player sees where it lives.
+// ---------------------------------------------------------------------------
+const streakLevels = new Set();   // (cleared by aimReset)
+const parry = { n: 0 };
+const parryLevels = new Set();
+function parryReset() { parry.n = 0; parryLevels.clear(); }
+function slowPanelOn() {
+  return game.mode === 'hall' && timeMode === 'toggle' && tutorStep === null && timeUnlocked();
+}
+function streakOn() { return game.mode === 'hall' && tutorStep === null && (slowPanelOn() || sightOwned()); }
+function streakSlowMul() { return game.mode === 'hall' ? STREAK.slowMul[sightTier()] : 1; }
+function parryLevel() { let k = 0; for (const at of PARRY.levels) if (parry.n >= at) k++; return k; }
+function slowCap() {
+  const k = game.mode === 'hall' ? parryLevel() : 0;
+  return SLOWMO.cap + (k ? PARRY.capAdd[k - 1] : 0);
+}
+function streakCheck() {
+  const k = SIGHT.tiers.indexOf(aimStreak.n);
+  if (k < 0 || streakLevels.has(k) || !streakOn() || game.state !== 'play') return;
+  streakLevels.add(k);
+  const buys = slowPanelOn() ? `SLOW TIME ×${STREAK.slowMul[k + 1]}` : 'SHARPER SIGHT';
+  showBanner(`<span class="tlevel">STREAK LEVEL ${k + 1}</span><small>NO MISSES = ${buys}</small>`, 2200, 'streak');
+  vibrate([12, 30, 20]);
+}
+// A PARRY LANDS: the man whose round just grazed you is shattered in time
+function parryLand(e) {
+  e.parryAt = undefined;
+  if (!slowPanelOn() || game.state !== 'play') return;
+  parry.n++;
+  runlog.ev('parry', { n: parry.n, type: e.boss || e.type });
+  const k = parryLevel();
+  if (k && !parryLevels.has(k)) {
+    parryLevels.add(k);
+    showBanner(`<span class="tlevel">PARRY LEVEL ${k}</span><small>PERFECT DODGES = BIGGER SLOW-TIME BANK</small>`, 2200, 'parry');
+  }
+  slowBank = Math.min(slowCap(), slowBank + PARRY.refill);
+  updateSlowMeter();
+  // PERFECT, on the kill word's channel (it outranks the word)
+  const { svg } = buildWordSVG('PERFECT', 44);
+  el.flash.innerHTML = '<span class="kwskew"><span class="kwflash">' + svg + '</span></span>';
+  killFlashUntil = performance.now() + KILLFLASH_MS;
+  clearTimeout(killWord._t);
+  killWord._t = setTimeout(() => { el.flash.innerHTML = ''; }, KILLFLASH_MS + 50);
+  vibrate([10, 20, 10, 20, 30]);
+  progPulse('parry');
+}
+// [level, levels, count, fraction to next level, what it buys / how to earn]
+function progState(k) {
+  const ladder = (n, at) => {
+    let lv = 0; for (const a of at) if (n >= a) lv++;
+    const lo = lv ? at[lv - 1] : 0, hi = at[lv];
+    return { lv, of: at.length, frac: hi === undefined ? 1 : (n - lo) / (hi - lo) };
+  };
+  if (k === 'tempo') {
+    const L = ladder(tempo.n, TEMPO.tiers.map(([a]) => a));
+    return { ...L, n: tempo.n, says: !L.lv ? 'QUICK KILLS' : tempoMul() === 0 ? 'INSTANT RELOAD' : 'FASTER RELOAD' };
+  }
+  if (k === 'streak') {
+    const L = ladder(aimStreak.n, SIGHT.tiers);
+    return { ...L, n: aimStreak.n,
+      says: !L.lv ? 'NO MISSES' : slowPanelOn() ? `SLOW ×${STREAK.slowMul[L.lv]}` : 'SIGHT' };
+  }
+  const L = ladder(parry.n, PARRY.levels);
+  return { ...L, n: parry.n, says: !L.lv ? 'NEAR MISS, THEN SHATTER HIM' : `BANK +${PARRY.capAdd[L.lv - 1]}s` };
+}
+const PROG_ROWS = [['tempo', 'TEMPO'], ['streak', 'STREAK'], ['parry', 'PARRY']];
+const progRows = {};
+function progBuild() {
+  const host = document.getElementById('prog');
+  if (!host || host.childElementCount) return;
+  for (const [k, name] of PROG_ROWS) {
+    const row = document.createElement('div');
+    row.className = 'prow';
+    row.dataset.k = k;
+    row.innerHTML = `<b>${name}</b><u></u><span class="lvl"></span><span class="bar"><s></s></span><em></em>`;
+    row.hidden = true;
+    host.appendChild(row);
+    progRows[k] = { el: row, key: '' };
+  }
+}
+function progShown(k) {
+  if (game.mode !== 'hall' || game.state === 'menu' || tutorStep !== null) return false;
+  if (k === 'tempo') return switcherOn();
+  if (k === 'streak') return streakOn();
+  return slowPanelOn();
+}
+function progHud() {
+  progBuild();
+  for (const [k] of PROG_ROWS) {
+    const r = progRows[k];
+    if (!r) continue;
+    const on = progShown(k);
+    if (r.el.hidden === on) r.el.hidden = !on;
+    if (!on) continue;
+    const st = progState(k);
+    const key = `${st.lv}|${st.of}|${st.n}|${st.frac.toFixed(3)}|${st.says}`;
+    if (key === r.key) continue;
+    r.key = key;
+    r.el.querySelector('u').textContent = st.n;
+    r.el.querySelector('.lvl').innerHTML = '<i class="on"></i>'.repeat(st.lv) + '<i></i>'.repeat(st.of - st.lv);
+    r.el.querySelector('.bar s').style.width = (st.frac * 100).toFixed(1) + '%';
+    r.el.querySelector('em').textContent = st.says;
+    r.el.classList.toggle('lit', st.lv > 0);
+  }
+}
+function progPulse(k) {
+  const r = progRows[k];
+  if (!r || r.el.hidden) return;
+  r.el.classList.remove('pulse');
+  void r.el.offsetWidth;   // restart the animation
+  r.el.classList.add('pulse');
+}
+// THE MILESTONE GOES HOME. The banner's big title is copied where it stands
+// and shrinks up into its row, which then flashes — so the row is plainly
+// where that level now lives. No row on screen: the banner just fades.
+let flights = 0;   // for a harness
+function flyToRow(k) {
+  const r = progRows[k];
+  const src = el.banner.querySelector('.tlevel');
+  if (!r || r.el.hidden || !src) return;
+  const a = src.getBoundingClientRect(), b = r.el.getBoundingClientRect();
+  if (!a.width || !b.width) return;
+  const ghost = document.createElement('div');
+  ghost.className = 'pfly';
+  ghost.textContent = src.textContent;
+  ghost.style.left = a.left + 'px';
+  ghost.style.top = a.top + 'px';
+  ghost.style.fontSize = getComputedStyle(src).fontSize;
+  document.body.appendChild(ghost);
+  src.style.visibility = 'hidden';
+  const s = Math.max(0.12, b.height / a.height);
+  flights++;
+  const done = () => { ghost.remove(); progPulse(k); };
+  if (!ghost.animate) { done(); return; }
+  ghost.animate([
+    { transform: 'none', opacity: 1 },
+    { transform: `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${s})`, opacity: 0.4 },
+  ], { duration: 700, easing: 'cubic-bezier(.55,0,.25,1)' }).onfinish = done;
+}
 // THE BAG ON TOP OF THE SHELVES. Clips live on `player.reserve`, one shelf
 // per weapon (see `player`); the switcher's bag adds only what the shelves do
 // not know: WHICH guns you are carrying, in the order you found them, and the
@@ -1979,7 +2149,7 @@ function shotRoundDone(shot) {
   if (--shot.left > 0) return;
   if (shot.hit) aimHit(); else aimMiss();
 }
-function aimHit() { aimStreak.n++; aimStreak.hits++; runlog.ev('hit', { n: aimStreak.n }); }
+function aimHit() { aimStreak.n++; aimStreak.hits++; runlog.ev('hit', { n: aimStreak.n }); streakCheck(); }
 // EACH TIER FORGIVES ONE MISS. The first drops you to its floor and spends it;
 // the second drops you to the floor below, whose forgiveness is fresh.
 //   43 -miss-> 30 -2 hits-> 32 -miss-> 10 -2-> 12 -miss-> 10 -4-> 14 -miss-> 0
@@ -1993,7 +2163,7 @@ function aimMiss() {
   aimStreak.n = sightFloor(f - 1);
   aimStreak.spent = -1;
 }
-function aimReset() { aimStreak.n = 0; aimStreak.spent = -1; aimStreak.hits = 0; aimStreak.misses = 0; }
+function aimReset() { aimStreak.n = 0; aimStreak.spent = -1; aimStreak.hits = 0; aimStreak.misses = 0; streakLevels.clear(); }
 // SIGHT IS A POWER: the drone boss gives it (hall.sightTaken). Before that the
 // streak still counts, and nothing shows — except while SIGHT.playtest is on,
 // which owns it from door 1 of every tunnel run so it can be played before the
@@ -4496,7 +4666,7 @@ function updateMark(sdt, slow) {
 
 function markDown() {
   markPips++;
-  slowBank = Math.min(SLOWMO.cap, slowBank + RUSH.markBonus);
+  slowBank = Math.min(slowCap(), slowBank + RUSH.markBonus);
   updateSlowMeter();
   rushMark = null;
   markPin.visible = false;
@@ -4626,8 +4796,8 @@ function killEnemy(i, impulseDir) {
     // of men standing together is that sweeping them refills what the sweep
     // cost. A lesson about what the power is FOR is not the place to also be
     // teaching what it costs.
-    slowBank = Math.min(SLOWMO.cap,
-      slowBank + SLOWMO.bonus * scarcity('timeGain', inHall() ? game.wave : 1)
+    slowBank = Math.min(slowCap(),
+      slowBank + SLOWMO.bonus * streakSlowMul() * scarcity('timeGain', inHall() ? game.wave : 1)
         * condTax(legCondition(), 'timeGain') * (inSchool() ? SCHOOL.bonusMul : 1));
   }
   if (game.state !== 'menu') vibrate(15);   // every kill lands in the thumb
@@ -4702,6 +4872,8 @@ function killEnemy(i, impulseDir) {
     game.spawnTimer = Math.min(game.spawnTimer, PACING.killPullMin + Math.random() * PACING.killPullRange);
   }
   killWord();
+  // ...and the man whose round just missed you by a hair: a PARRY
+  if (e.parryAt !== undefined && worldT - e.parryAt <= PARRY.window) parryLand(e);
   sfx.shatter();
   vibrate(30);
   // LAST, not first. A cue is a caption on something that has happened; run it
@@ -4826,6 +4998,7 @@ function enemyFire(e, toPlayer) {
       const o = origin.clone().addScaledVector(side, 0.32 * sgn);
       spawnBullet(o, _v5.set(player.pos.x - o.x, EYE_HEIGHT - 0.25 - o.y, player.pos.z - o.z).normalize(), false, spec.mul || 1);
       bullets[bullets.length - 1].by = e.boss || e.type;
+      bullets[bullets.length - 1].src = e;   // who fired it (a parry is his)
     }
     muzzleFlash(origin.x, origin.y, origin.z, 0.85);
     sfx.enemyShot();
@@ -4841,6 +5014,7 @@ function enemyFire(e, toPlayer) {
     }
     spawnBullet(origin, d, false, (spec.mul || 1));
     bullets[bullets.length - 1].by = e.type;   // for the run log's cause of death
+    bullets[bullets.length - 1].src = e;   // who fired it (a parry is his)
   }
   // THE ROUNDS THE CARD IS ABOUT. `duelNoteMeet` runs above, before a single
   // pellet exists, so the ring cannot be aimed there — this is where the
@@ -7461,12 +7635,23 @@ function updateBullets(sdt) {
         killBullet(i, null);
         continue;
       }
-    } else if (player.alive && player.iframes <= 0 && performance.now() >= keeperStopUntil) {
+    } else if (player.alive) {
       _v2.set(player.pos.x, 0.2, player.pos.z);
       _v3.set(player.pos.x, EYE_HEIGHT + 0.1, player.pos.z);
-      if (segSegDistSq(b.prev, b.pos, _v2, _v3) < PLAYER_RADIUS * PLAYER_RADIUS) {
+      const d2 = segSegDistSq(b.prev, b.pos, _v2, _v3);
+      if (d2 < PLAYER_RADIUS * PLAYER_RADIUS && player.iframes <= 0
+        && performance.now() >= keeperStopUntil) {
         killBullet(i, b.pos);
         hitPlayer(false, b.by || 'round');
+        continue;
+      }
+      // A NEAR MISS (PARRY): it came within PARRY.near of you and went on
+      // by. Decided once it is past you, so a round about to land is not one.
+      if (d2 < PARRY.near * PARRY.near) b.graze = true;
+      if (b.graze && !b.grazed
+        && (player.pos.x - b.pos.x) * b.vel.x + (player.pos.z - b.pos.z) * b.vel.z < 0) {
+        b.grazed = true;
+        if (b.src && enemies.includes(b.src)) b.src.parryAt = worldT;
       }
     }
   }
@@ -11091,7 +11276,7 @@ function updateModeUI() {
   el.gtime.style.display = (timeMode === 'toggle' && !simple()) ? '' : 'none';
 }
 function updateSlowMeter() {
-  const juice = Math.max(0, Math.min(1, slowBank / SLOWMO.cap));
+  const juice = Math.max(0, Math.min(1, slowBank / slowCap()));
   el.slowfill.style.width = juice * 100 + '%';
   el.timebtn.classList.toggle('empty', slowBank <= 0);
   // HOW MUCH IS LEFT, ON THE THING YOU PRESS. A bar at the top of the screen
@@ -13396,8 +13581,9 @@ function switcherHud(spec, name) {
     line = `${name} · <b class="mag">${pips}</b>${spare}`;
   }
   const can = bagRotation().length > 1;
-  const l = can ? '<b class="sw" data-dir="-1">◀</b>' : '';
-  const r = can ? '<b class="sw" data-dir="1">▶</b>' : '';
+  // ROUND BUTTONS either side of the name, so they read as things to press
+  const l = can ? '<b class="sw" data-dir="-1"><i>◀</i></b>' : '';
+  const r = can ? '<b class="sw" data-dir="1"><i>▶</i></b>' : '';
   let pills = '';
   const out = wouldPushOut();
   for (let i = 0; i < SWITCHER.slots; i++) {
@@ -13406,11 +13592,8 @@ function switcherHud(spec, name) {
       + (i === out ? ' out' : '');
     pills += `<i class="${cls}"></i>`;
   }
-  // the tempo count rides beside the pills once it is worth something
-  // ...and the HUD says what it is buying right now: FASTER RELOAD, or
-  // INSTANT RELOAD at the top tier
-  const t = tempo.n >= TEMPO.tiers[0][0] ? `<span class="tempo${tempoMul() === 0 ? ' max' : ''}">TEMPO ${tempo.n} · ${tempoMul() === 0 ? 'INSTANT' : 'FASTER'} RELOAD</span>` : '';
-  return `<span class="swapzone">${l}<span class="line">${line}</span>${r}</span><span class="pills">${pills}${t}</span>`;
+  // (tempo lives in the progress panel now, top left: see progHud)
+  return `<span class="swapzone">${l}<span class="line">${line}</span>${r}</span><span class="pills">${pills}</span>`;
 }
 
 let lastWarnAt = -10;
@@ -14159,13 +14342,13 @@ function legHeadline(proto) {
 }
 
 const bannerLog = [];   // what was announced, for a harness
-function showBanner(html, dur = 1600) {
+function showBanner(html, dur = 1600, to = null) {
   // The onboarding owns the screen. "THE DOOR IS OPEN" landing on top of
   // "DRAG TO MOVE" is two instructions at once, and the one the player needs
   // is the smaller of the two.
   if (tutorStep !== null) return;
   bannerLog.push(String(html)); if (bannerLog.length > 30) bannerLog.shift();
-  messageQueue.push({ html, dur });
+  messageQueue.push({ html, dur, to });
   pumpMessages();
 }
 function pumpMessages() {
@@ -14184,7 +14367,10 @@ function pumpMessages() {
   el.banner.classList.add('show');
   messageBusyUntil = now + m.dur + 500;   // the gap between cards
   clearTimeout(showBanner._t);
-  showBanner._t = setTimeout(() => el.banner.classList.remove('show'), m.dur);
+  showBanner._t = setTimeout(() => {
+    if (m.to) flyToRow(m.to);   // a milestone goes home to its row
+    el.banner.classList.remove('show');
+  }, m.dur);
   if (messageQueue.length) {
     clearTimeout(pumpMessages._t);
     pumpMessages._t = setTimeout(pumpMessages, m.dur + 520);
@@ -15395,6 +15581,7 @@ function initHall(from = 1) {
   clearHall();         // ...including its corridor, which nothing used to remove
   keeperStopUntil = 0; // ...and a Keeper's hold on the world, if a run quit inside one
   aimReset();          // the no-misses streak is a run's, not a save's
+  parryReset();        // ...and so are the parries
   game.wave = door;
   game.state = 'intro';
   game.stateT = 0;
@@ -17777,6 +17964,7 @@ function frame(now) {
   updateStall(sdt, playing);
   updateEdgeArrows(playing);
   updateWayArrow(playing, dt);
+  progHud();
   if (tutorStep !== null) {
     updateTutorial(dt,
       Math.hypot(player.pos.x - tutorPrevX, player.pos.z - tutorPrevZ),
@@ -18245,8 +18433,8 @@ window.__ts = {
   game, player, enemies, bullets, pickups, ripples, camera, input, obstacles, crowd,
   sprint: () => sprintTo,
   audio: () => sfx.debug(), sfx,
-  slow: () => ({ bank: +slowBank.toFixed(2), cap: SLOWMO.cap, base: SLOWMO.base,
-    frac: +(slowBank / SLOWMO.cap).toFixed(3), locked: timeLocked, mode: timeMode }),
+  slow: () => ({ bank: +slowBank.toFixed(2), cap: slowCap(), base: SLOWMO.base,
+    frac: +(slowBank / slowCap()).toFixed(3), locked: timeLocked, mode: timeMode }),
   setSlow: (v) => { slowBank = v; updateSlowMeter(); },
   // The time button is press-and-hold, so a probe cannot reach bullet time
   // with a tap. This is the same latch the button drives, gate and all.
@@ -18493,6 +18681,10 @@ window.__ts = {
   setWeapon, spawnEnemy, spawnPickup,
   swapWeapon, bagReset, startReload, playerFire, switcherOn,
   tempo: () => ({ ...tempo, mul: tempoMul() }), tempoKill, tempoTick,
+  prog: () => Object.fromEntries(PROG_ROWS.map(([k]) => [k, { shown: !!progRows[k] && !progRows[k].el.hidden,
+    ...progState(k), text: progRows[k] ? progRows[k].el.textContent : '' }])),
+  parry: () => ({ n: parry.n, level: parryLevel(), cap: slowCap(), mul: streakSlowMul() }),
+  flights: () => flights, worldT: () => worldT,
   keeper: () => {
     const L = hall && hall.legs[hall.cur];
     const B = L && L.boss;
@@ -18526,10 +18718,15 @@ window.__ts = {
     return { stage: upgradeSeq ? upgradeSeq.stage : -1, cls: u ? u.className : '', text: u ? u.innerText.replace(/\s+/g, ' ').trim() : '' }; },
   // one enemy round from (x, z) at the player, for a harness that needs a
   // round in the air without waiting on the room's shot clock
-  enemyRound: (x, z) => {
+  // (src: the enemy it is his; off: metres wide of you, sideways, for a parry)
+  enemyRound: (x, z, src, off = 0) => {
     const o = new THREE.Vector3(x, 1.35, z);
-    spawnBullet(o, new THREE.Vector3(player.pos.x - x, EYE_HEIGHT - 0.25 - 1.35, player.pos.z - z).normalize(), false, 1);
-    return bullets[bullets.length - 1];
+    const dx = player.pos.x - x, dz = player.pos.z - z, d = Math.hypot(dx, dz) || 1;
+    const tx = player.pos.x + (-dz / d) * off, tz = player.pos.z + (dx / d) * off;
+    spawnBullet(o, new THREE.Vector3(tx - x, EYE_HEIGHT - 0.25 - 1.35, tz - z).normalize(), false, 1);
+    const b = bullets[bullets.length - 1];
+    if (src) { b.src = src; b.by = src.type; }
+    return b;
   },
   keeperEnemy: () => { const L = hall && hall.legs[hall.cur]; return L && L.boss && L.boss.keeper; },
   meet: () => ({ on: meetCard.on, type: meetCard.e && meetCard.e.type, carded: [...carded],

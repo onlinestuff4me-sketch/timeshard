@@ -44,7 +44,7 @@ const told = await page.evaluate(() => {
   if (!t.enemies.length) t.spawnEnemy('gunner', { x: 0, z: -30 });
   for (let i = 0; i < 10; i++) { t.tempoTick(1); t.tempoKill(); }
   const run1 = lv().slice(n0);
-  const hud = document.getElementById('ammo').textContent;
+  const hud = t.prog().tempo;
   // broken and rebuilt to 5 in the SAME run: already celebrated
   t.tempoTick(5);
   for (let i = 0; i < 5; i++) { t.tempoTick(1); t.tempoKill(); }
@@ -57,12 +57,13 @@ await page.waitForFunction(() => /TEMPO LEVEL/.test(document.getElementById('ban
   && document.getElementById('banner').classList.contains('show'), null, { timeout: 15000 }).catch(() => {});
 await page.waitForTimeout(700);
 await page.screenshot({ path: 'test/out/tempo-level.png' });
-if (told.run1.length !== 2 || !/TEMPO LEVEL 5/.test(told.run1[0]) || !/TEMPO LEVEL 10/.test(told.run1[1])) {
-  bad('reaching 5 and then 10 should celebrate TEMPO LEVEL 5 and TEMPO LEVEL 10: ' + JSON.stringify(told.run1));
+// (by LEVEL since the progress panel, 2026-09-30: 5 kills is level 1)
+if (told.run1.length !== 2 || !/TEMPO LEVEL 1</.test(told.run1[0]) || !/TEMPO LEVEL 2</.test(told.run1[1])) {
+  bad('reaching 5 and then 10 should celebrate TEMPO LEVEL 1 and TEMPO LEVEL 2: ' + JSON.stringify(told.run1));
 }
 if (told.run1[0] && !/QUICK KILLS = FASTER RELOADS/.test(told.run1[0])) bad('the level banner does not say what it buys: ' + told.run1[0]);
 if (told.again) bad('a level was celebrated twice in one run');
-if (!/TEMPO \d+ · FASTER RELOAD/.test(told.hud)) bad('the HUD does not say what tempo buys: ' + told.hud);
+if (told.hud.lv !== 2 || told.hud.says !== 'FASTER RELOAD') bad('the progress panel does not say what tempo buys: ' + JSON.stringify(told.hud));
 
 // ---- any break is zero ---------------------------------------------------
 const broke = await page.evaluate(() => {

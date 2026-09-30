@@ -1137,15 +1137,17 @@ After the drone boss, a run of hits without a miss lets you see through walls:
 - **It's a long-horizon streak.** It runs across rooms and doors for the whole
   run, which is what makes it passive and global, as you described: you
   maintain it through careful shooting everywhere.
-- **Before the drone boss the streak doesn't show.** Nothing yet reads it.
+- **Before the drone boss the streak shows only as the progress panel's
+  STREAK row** (once slow time is yours), where it multiplies the slow time
+  each kill buys (2026-09-30; below).
 
 **The tempo streak shortens reloads and weapon swaps** (decided, **built**:
 `tempoTick()`/`tempoKill()` in `src/main.js`, numbers in `TEMPO` in
-`src/balance.js`, checked by `test/tempo.mjs`; the count shows beside the gun
-pills from 5), in tiers of five. It counts kills, each within ~3 world-seconds of the last: **Each level is celebrated** (owner's calls 2026-09-30): the first time a
-run reaches 5, 10, 15 and 20, a red TEMPO LEVEL 5 pops in with QUICK KILLS =
-FASTER RELOADS under it (INSTANT RELOADS at 20); the HUD reads TEMPO 8 ·
-FASTER RELOAD.
+`src/balance.js`, checked by `test/tempo.mjs`; its row is in the progress
+panel, below), in tiers of five. It counts kills, each within ~3 world-seconds
+of the last. **Each level is celebrated** (owner's calls 2026-09-30): the first
+time a run reaches 5, 10, 15 and 20, a red TEMPO LEVEL 1 (to 4) pops in with
+QUICK KILLS = FASTER RELOADS under it (INSTANT RELOADS at 20).
 
 | kills in tempo | reload and swap time | pistol reload (1.0 s) | launcher reload (2.0 s) |
 |---|---|---|---|
@@ -1162,11 +1164,29 @@ FASTER RELOAD.
   instead of fighting pace.
 - **It's on the world clock.** Freezing stretches the window, and the bank
   pays for it.
-- **Three streaks on screen is too many to read.** Headshots feed the refund,
-  no-misses feeds sight, and tempo feeds reloads. Each should show only while
-  it's live, small, next to the thing it feeds: the tempo tier by the weapon
-  name and its pills, the no-misses tier by the sight shimmer, and the
-  headshot count by the slow-time meter.
+- ~~Each streak shows next to the thing it feeds.~~ **Superseded** (owner's
+  call 2026-09-30: the bottom was cramped, and progress "needs to scale and be
+  separate from the weapon switching"): **the progress panel**, below.
+
+**The progress panel** (decided and **built** 2026-09-30: `progHud()` and
+`flyToRow()` in `src/main.js`, `STREAK` and `PARRY` in `src/balance.js`,
+checked by `test/progress.mjs`). Top left, under the door line and the
+slow-time meter, one row per streak: its name, the count, a pip per level, a
+thin bar to the next level, and what the level buys (or, at level 0, how to
+earn it). A row shows only where its streak does anything: tempo with the
+switcher, streak and parry with slow time (streak with sight, too).
+
+| row | counts | levels at | each level buys |
+|---|---|---|---|
+| TEMPO | kills within 3 s of each other | 5 / 10 / 15 / 20 | faster reloads, then instant |
+| STREAK | kills without a miss (the no-misses streak sight reads; one counter) | 10 / 30 / 50 | slow time per kill ×1.25 / ×1.5 / ×2 |
+| PARRY | a round passes within 1 m of you, and you shatter its shooter within 2 world-seconds | 3 / 6 / 10 in a run | each parry: PERFECT and +1.5 s of slow time; the bank's ceiling +2 / +4 / +6 s |
+
+- **A level reached the first time in a run is a banner**, and when it goes its
+  red title flies up into its row, which flashes: the player sees where that
+  level now lives.
+- **A parry is decided once the round is past you**, so one about to land is
+  not one. Late (over 2 s) or wide (over 1 m) is not a parry.
 
 **A second life** (the spawner; a power). Once per run, when you're
 shattered, you hang where you fell and **reassemble**, the spawner's own
@@ -1221,7 +1241,9 @@ the switcher, each guard is taken with the best gun you carry:
 
 ## 13. The weapon switcher
 
-**Built** (tunnel, city and rush; the simplified modes keep one gun). Code:
+**Built** (tunnel, city and rush; the simplified modes keep one gun). The gun's
+name sits dead centre at the bottom between two round ◀ ▶ buttons, with the
+slot dots centred under it (2026-09-30). Code:
 `switcherOn()` through `bagTake()` in `src/main.js`, numbers in `SWITCHER` in
 `src/balance.js`, checked by `test/switcher.mjs`. With the bag full, the pill
 a gun on the floor within 7 m would push out dims before you walk over it

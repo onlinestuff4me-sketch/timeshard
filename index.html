@@ -254,17 +254,55 @@
   /* THE WEAPON SWITCHER (docs/ARSENAL.md §13). The HUD takes no touches; the
      gun name opts back in, and only the name — the strip either side of it is
      still the move and look halves of the screen. Padded so a thumb finds it. */
-  #ammo .swapzone { display:inline-flex; align-items:center; gap:.7em; padding:10px 16px 4px;
+  #ammo .swapzone { display:inline-flex; align-items:center; gap:14px; padding:6px 10px 2px;
                     pointer-events:auto; touch-action:none; }
-  #ammo .sw { font-size:.9em; opacity:.55; padding:0 .2em; }
+  /* ROUND BUTTONS (owner's call 2026-09-30: the ◀ ▶ did not read as
+     pressable). A ringed disc either side of the name, the name dead centre
+     between them, the slot dots centred beneath. */
+  #ammo .sw { display:inline-flex; align-items:center; justify-content:center;
+              width:34px; height:34px; border-radius:50%; flex:none;
+              box-shadow:inset 0 0 0 1.6px currentColor; background:rgba(238,240,243,.5);
+              font-size:11px; letter-spacing:0; }
+  #ammo .sw i { font-style:normal; display:block; transform:translateX(-1px); }
+  #ammo .sw[data-dir="1"] i { transform:translateX(1px); }
+  #ammo .sw:active { background:rgba(22,24,29,.14); }
   #ammo .pills { display:flex; justify-content:center; gap:7px; margin-top:3px; }
   #ammo .pill { width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.7;
                 filter:drop-shadow(0 0 3px rgba(238,240,243,.9)); }
   #ammo .pill.on { opacity:1; box-shadow:0 0 0 1.5px rgba(238,240,243,.95), 0 0 0 2.6px currentColor; }
   #ammo .pill.empty { background:none; box-shadow:inset 0 0 0 1.2px currentColor; opacity:.45; }
   #ammo .pill.dry { opacity:.25; }
-  #ammo .tempo { margin-left:10px; font-size:9px; letter-spacing:.2em; opacity:.65; align-self:center; }
-  #ammo .tempo.max { opacity:1; color:#ff2d1a; }
+  /* THE PROGRESS PANEL (see progHud): top left, under the door count and the
+     slow-time meter, out of both thumbs' way. Small, and it lights red as a
+     row earns a level. */
+  #prog { position:absolute; left:14px; top:calc(env(safe-area-inset-top, 0px) + 56px);
+          display:flex; flex-direction:column; gap:5px; pointer-events:none;
+          font-size:9px; font-weight:800; letter-spacing:.16em; color:#16181d;
+          text-shadow:0 1px 8px rgba(238,240,243,.9), 0 0 2px rgba(238,240,243,.75);
+          transition:color .45s ease; }
+  body.slowmo #prog { color:#eef0f3; text-shadow:none; }
+  body.meeting #prog { opacity:0; }
+  #prog .prow { display:flex; align-items:center; gap:6px; height:13px; padding:0 4px; margin-left:-4px;
+                border-radius:3px; opacity:.72; }
+  #prog .prow[hidden] { display:none; }
+  #prog .prow.lit { opacity:1; }
+  #prog .prow b { width:47px; font-weight:900; }
+  #prog .prow u { text-decoration:none; width:16px; text-align:right; font-variant-numeric:tabular-nums; }
+  #prog .lvl { display:inline-flex; gap:2px; }
+  #prog .lvl i { width:5px; height:5px; border-radius:1px; box-shadow:inset 0 0 0 1px currentColor; opacity:.6; }
+  #prog .lvl i.on { background:#ff2d1a; box-shadow:none; opacity:1; }
+  #prog .bar { width:38px; height:3px; border-radius:2px; background:rgba(22,24,29,.16); overflow:hidden; }
+  body.slowmo #prog .bar { background:rgba(238,240,243,.25); }
+  #prog .bar s { display:block; height:100%; width:0; background:currentColor; transition:width .25s ease; }
+  #prog .prow.lit .bar s { background:#ff2d1a; }
+  #prog em { font-style:normal; font-size:8px; letter-spacing:.14em; opacity:.8; white-space:nowrap; }
+  #prog .prow.lit em { color:#ff2d1a; opacity:1; }
+  #prog .prow.pulse { animation:ppulse .9s ease; }
+  @keyframes ppulse { 0% { background:rgba(255,45,26,.55); transform:scale(1.18); transform-origin:left center; }
+                      100% { background:rgba(255,45,26,0); transform:none; } }
+  /* the milestone title on its way from the banner into its row (flyToRow) */
+  .pfly { position:fixed; z-index:9; pointer-events:none; transform-origin:left top; white-space:nowrap;
+          color:#ff2d1a; font-weight:900; letter-spacing:.06em; line-height:1.05; }
   /* A CARTRIDGE, not a bar-chart block: a case with a nose on it. Drawn in
      `currentColor` so it flips light with the rest of the HUD in bullet time,
      and sized in `em` so it rides the readout's own font size. */
@@ -697,7 +735,10 @@
   /* ---- banners (wave intro / clear) ---- */
   /* cards sit ABOVE the crosshair, never across it: the sub-line's baseline
      stops short of screen centre so aiming is never read through text */
+  /* never wider than the screen (the TEMPO LEVEL title ran off both sides of
+     a phone): padded in from the edges, and lines wrap */
   #banner { position:absolute; left:0; right:0; bottom:56%; text-align:center; pointer-events:none;
+            box-sizing:border-box; padding:0 16px;
             font-weight:900; color:#16181d; font-size:min(12vw,58px); letter-spacing:.1em;
             opacity:0; transition:opacity .3s; }
   #banner.show { opacity:1; }
@@ -708,10 +749,11 @@
      to it. Sized down from the banner's 58px because the longest mode name is
      thirteen characters and the banner does not wrap. */
   /* A TEMPO LEVEL REACHED: it lands like an achievement, red, with a pop */
-  #banner .tlevel { display:inline-block; color:#ff2d1a; font-size:min(9.5vw,46px);
+  #banner .tlevel { display:inline-block; color:#ff2d1a; font-size:min(7.6vw,40px); white-space:nowrap;
                   letter-spacing:.06em; line-height:1.05; animation:tpop .5s cubic-bezier(.2,1.6,.4,1) both;
                   text-shadow:0 2px 14px rgba(255,45,26,.35); }
-  #banner .tlevel + small { color:#16181d; animation:tpopsub .4s ease .25s both; }
+  #banner .tlevel + small { color:#16181d; animation:tpopsub .4s ease .25s both;
+                            font-size:min(3.2vw,14px); letter-spacing:.18em; }
   @keyframes tpop { 0% { transform:scale(.4); opacity:0; } 100% { transform:scale(1); opacity:1; } }
   @keyframes tpopsub { 0% { transform:translateY(6px); opacity:0; } 100% { transform:none; opacity:1; } }
   #banner .mnew { font-size:min(8.4vw,38px); letter-spacing:.06em; line-height:1.1; }
@@ -1522,6 +1564,7 @@
   <div id="topbar">
     <div id="score">WAVE 1&nbsp;&nbsp;·&nbsp;&nbsp;0</div>
   </div>
+  <div id="prog"></div>
   <div id="flash"></div>
   <div id="warn"></div>
   <div id="banner"></div>
