@@ -15310,7 +15310,11 @@ function hallAllowance() {
   // the door is on screen it is just more corridor. Measured before this: in
   // 0 of 10 legs did the last man arrive after the door came into view, and
   // the door comes into view about 30 m out.
-  const doorNow = !!L.doorSeen;
+  const doorNow = !!L.doorSeen
+    // ...or, one fight at a time, once you are in the last stretch before the
+    // approach: the door's group is the next encounter, and it would
+    // otherwise leave that stretch and the approach an empty walk
+    || (game.mode === 'hall' && LEG.oneAtATime && L.quota && k >= L.quota.length - 2);
   if (L.markK === undefined || k > L.markK || doorNow !== !!L.doorMark) {
     // Only what is genuinely BEHIND you is forfeited. The old window reached
     // one stretch past where you were standing, and that stretch may be the
