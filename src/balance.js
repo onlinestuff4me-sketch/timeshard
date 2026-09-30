@@ -962,6 +962,9 @@ export const LEG = {
   encounterEveryM: 30,
   encounterAdd: 2,
   encounterAddMax: 3,
+  // ...and the release window looks this many stretches past yours while
+  // oneAtATime holds (LEG.lookahead otherwise)
+  encounterLook: 1,
   // ...AND THE DOOR'S GROUP WAITS UNTIL YOU ARE NEAR THE DOOR, not only until
   // it is in frame — a straight approach shows the slab from sixty metres,
   // and the fight there left a long walk to the door after it.

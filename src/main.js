@@ -15357,7 +15357,10 @@ function hallAllowance() {
     // door came into view, with the gate that exists to prevent it switched on.
     let win = 0;
     const last = L.quota.length - 1;
-    for (let i = k; i <= Math.min(k + LEG.lookahead, last); i++) {
+    // one fight at a time looks one stretch ahead, so the next group stands
+    // up as you reach it rather than two stretches early (LEG.encounterLook)
+    const look = game.mode === 'hall' && LEG.oneAtATime ? LEG.encounterLook : LEG.lookahead;
+    for (let i = k; i <= Math.min(k + look, last); i++) {
       if (i === last && !doorNow) continue;   // the approach is not open yet
       win += L.fill ? L.fill[i] : L.quota[i];
     }
@@ -15477,12 +15480,12 @@ function hallWave(n) {
       // and each group stands at its even share of the leg's length rather
       // than at an even share of its stretch COUNT, which bunched them where
       // the stretches were short.
-      if (!inSchool() && slots.length) {
+      if (slots.length) {
         let cellsN = 0;
         for (let i = 0; i < bodyN; i++) cellsN += leg.stretches[i].cells.length;
         const need = Math.floor(cellsN * HALL.cell / LEG.encounterEveryM) - (fs >= 0 ? 1 : 0);
         for (let add = 0; groups.length < need && add < LEG.encounterAddMax; add++) {
-          groups.unshift(LEG.encounterAdd);
+          groups.unshift(Math.max(LEG.encounterAdd, vol));   // a school's extra is a volley
         }
       }
       const mid = [];   // each stretch's middle, in spine cells from the start
