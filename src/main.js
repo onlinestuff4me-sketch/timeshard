@@ -1492,8 +1492,17 @@ function tempoKill() {
   tempo.n = tempo.clock - tempo.last <= TEMPO.window ? tempo.n + 1 : 1;
   if (tempo.n % 5 === 0) runlog.ev('tempo', { n: tempo.n });
   tempo.last = tempo.clock;
+  // SAID ONCE PER SAVE (owner's call 2026-09-30: "what is Tempo?"): the
+  // first time a streak starts paying, a banner names it and what it buys
+  if (tempo.n === TEMPO.tiers[0][0] && !tempoTaught) {
+    tempoTaught = true;
+    try { localStorage.setItem('ts_tempo_taught', '1'); } catch { /* private */ }
+    showBanner('TEMPO<br><small>QUICK KILLS · FASTER RELOADS</small>', 2200);
+  }
   updateAmmoHud();
 }
+let tempoTaught = false;
+try { tempoTaught = localStorage.getItem('ts_tempo_taught') === '1'; } catch { /* private */ }
 // THE BAG ON TOP OF THE SHELVES. Clips live on `player.reserve`, one shelf
 // per weapon (see `player`); the switcher's bag adds only what the shelves do
 // not know: WHICH guns you are carrying, in the order you found them, and the
@@ -13396,7 +13405,9 @@ function switcherHud(spec, name) {
     pills += `<i class="${cls}"></i>`;
   }
   // the tempo count rides beside the pills once it is worth something
-  const t = tempo.n >= TEMPO.tiers[0][0] ? `<span class="tempo${tempoMul() === 0 ? ' max' : ''}">TEMPO ${tempo.n}</span>` : '';
+  // ...and the HUD says what it is buying right now: FASTER RELOAD, or
+  // INSTANT RELOAD at the top tier
+  const t = tempo.n >= TEMPO.tiers[0][0] ? `<span class="tempo${tempoMul() === 0 ? ' max' : ''}">TEMPO ${tempo.n} · ${tempoMul() === 0 ? 'INSTANT' : 'FASTER'} RELOAD</span>` : '';
   return `<span class="swapzone">${l}<span class="line">${line}</span>${r}</span><span class="pills">${pills}${t}</span>`;
 }
 

@@ -35,6 +35,21 @@ for (const [k, want] of [[4, 1], [5, 0.75], [10, 0.5], [15, 0.25], [20, 0]]) {
   if (s.mul !== want) bad(`${k} kills should be x${want}, got x${s.mul}`);
 }
 
+// ---- said once per save, and the HUD says what it buys ---------------------
+const told = await page.evaluate(() => {
+  const t = window.__ts;
+  const n = t.banners().filter((b) => /^TEMPO/.test(b)).length;
+  t.bagReset();
+  if (!t.enemies.length) t.spawnEnemy('gunner', { x: 0, z: -30 });
+  for (let i = 0; i < 6; i++) { t.tempoTick(1); t.tempoKill(); }
+  return { banners: n, again: t.banners().filter((b) => /^TEMPO/.test(b)).length,
+    hud: document.getElementById('ammo').textContent };
+});
+console.log('tempo told:  ' + JSON.stringify(told));
+if (told.banners !== 1) bad('the first streak of 5 should explain TEMPO once, banners: ' + told.banners);
+if (told.again !== 1) bad('TEMPO was explained a second time in the same save');
+if (!/TEMPO \d+ · FASTER RELOAD/.test(told.hud)) bad('the HUD does not say what tempo buys: ' + told.hud);
+
 // ---- any break is zero ---------------------------------------------------
 const broke = await page.evaluate(() => {
   const t = window.__ts;
