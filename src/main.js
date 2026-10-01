@@ -15328,7 +15328,15 @@ function hallAllowance() {
     // share and the body go together. A leg the player outruns is a quieter
     // leg, and that is the honest price of walking past a fight.
     if (L.fill) {
-      for (let i = 0; i < k && i < L.fill.length - 1; i++) L.fill[i] = 0;
+      // ...EXCEPT ONE FIGHT AT A TIME (LEG.oneAtATime), where a group you
+      // walked past before it could stand up is carried to the stretch you
+      // are in: it is the next fight, not a lost one (playtest log #10).
+      // There is only ever one group out, so this cannot stack two of them.
+      const carry = game.mode === 'hall' && LEG.oneAtATime && k < L.fill.length - 1;
+      for (let i = 0; i < k && i < L.fill.length - 1; i++) {
+        if (carry && L.fill[i] > 0) L.fill[k] += L.fill[i];
+        L.fill[i] = 0;
+      }
       // THE QUEUE IS EXACTLY AS LONG AS THE PLAN STILL OWES. Stated as the
       // invariant rather than as bookkeeping, because the bookkeeping got it
       // wrong twice in two different ways: a body left in the queue that no
