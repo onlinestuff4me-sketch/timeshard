@@ -961,7 +961,7 @@ export const LEG = {
   // `encounterAdd` men, at most `encounterAddMax` a leg.
   encounterEveryM: 26,
   encounterAdd: 2,
-  encounterAddMax: 3,
+  encounterAddMax: 4,
   // ...and the release window looks this many stretches past yours while
   // oneAtATime holds (LEG.lookahead otherwise)
   encounterLook: 1,
