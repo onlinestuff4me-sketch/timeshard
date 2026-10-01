@@ -51,6 +51,11 @@ const seen = await page.evaluate(async () => {
     t.player.iframes = 999;
     t.game.spawnQueue.length = 0;
     for (let i = t.enemies.length - 1; i >= 0; i--) t.killAt(i);
+    // door 9 is floor 1's last door: its gauntlet and the Keeper's room are
+    // played by gauntlet.mjs and upgrade.mjs, and their doors are opened
+    // here (crossDoor opens the slab; the crossing itself is the real one)
+    const L0 = t.hall().legs[t.hall().cur];
+    if (L0.gauntlet || L0.boss) { t.crossDoor(); await new Promise((r) => setTimeout(r, 700)); continue; }
     for (let w = 0; w < 60; w++) {
       await new Promise((r) => setTimeout(r, 100));
       t.player.iframes = 999;
