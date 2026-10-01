@@ -15310,11 +15310,7 @@ function hallAllowance() {
   // the door is on screen it is just more corridor. Measured before this: in
   // 0 of 10 legs did the last man arrive after the door came into view, and
   // the door comes into view about 30 m out.
-  const doorNow = !!L.doorSeen
-    // ...or, one fight at a time, once you are in the last stretch before the
-    // approach: the door's group is the next encounter, and it would
-    // otherwise leave that stretch and the approach an empty walk
-    || (game.mode === 'hall' && LEG.oneAtATime && L.quota && k >= L.quota.length - 2);
+  const doorNow = !!L.doorSeen;
   if (L.markK === undefined || k > L.markK || doorNow !== !!L.doorMark) {
     // Only what is genuinely BEHIND you is forfeited. The old window reached
     // one stretch past where you were standing, and that stretch may be the
@@ -15479,7 +15475,7 @@ function hallWave(n) {
       // ...INTO THE GAPS, AND ENOUGH OF THEM TO CLOSE THEM (playtest log
       // #10: door 3 walked end to end with nobody in it until the exit). The
       // leg's fixed fights are where you walk in, the room, and the door's
-      // group (the last stretch before the approach). Each group goes into the
+      // group (at the slab). Each group goes into the
       // free stretch nearest the middle of the widest gap left between them,
       // biggest group first; while a gap is still wider than
       // LEG.encounterEveryM, a small extra group goes into it (LEG.encounterAdd
@@ -15490,9 +15486,10 @@ function hallWave(n) {
         mid.push(c + len / 2); c += len;
       }
       const bodyEnd = bodyN ? mid[bodyN - 1] + leg.stretches[bodyN - 1].cells.length / 2 : 0;
-      // (the door's group stands up as you walk into the last stretch before
-      // the approach — see hallAllowance — so that is where its fight is)
-      const doorAt = bodyN > 1 ? bodyEnd - leg.stretches[bodyN - 1].cells.length : bodyEnd;
+      // (the door's group stands up once the approach is in sight and close,
+      // which is late in the leg — measured at 75-90% of the walk — so its
+      // mark is the slab, and the stretches before it are a gap to fill)
+      const doorAt = bodyEnd + leg.stretches[bodyN].cells.length;
       const marks = [0, doorAt];   // spine cells where a fight happens
       if (fs >= 0) marks.push(mid[fs]);
       const used = new Set();
