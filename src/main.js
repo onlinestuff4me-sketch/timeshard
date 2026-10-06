@@ -14168,9 +14168,34 @@ function updateWayArrow(playing, dt) {
   let screen = wayWorld - player.yaw;          // undamped: the head is not eased
   while (screen > Math.PI) screen -= Math.PI * 2;
   while (screen < -Math.PI) screen += Math.PI * 2;
-  a.firstElementChild.style.transform = `rotateX(58deg) rotateZ(${-screen}rad)`;
+  a.querySelector('polygon').setAttribute('points', wayNeedle(-screen));
 }
 
+// AN ARROWHEAD POINTING `th` radians clockwise from straight up, as SVG
+// points about (0,0). NOT AN EQUILATERAL TRIANGLE (playtest 2026-10-06: "the
+// arrow is pointing the wrong direction"): the mark used to be a ▲, and a
+// triangle with three equal corners turned by thirty degrees has one of its
+// OTHER corners pointing sideways — measured off the recording, every mark was
+// placed and turned correctly and read as pointing somewhere else. A long,
+// notched dart has one tip. Turned here rather than by CSS, too.
+function edgeTri(th) {
+  const c = Math.cos(th), sn = Math.sin(th);
+  return [[0, -13], [8, 9], [0, 4], [-8, 9]]
+    .map(([x, y]) => `${(x * c - y * sn).toFixed(2)},${(x * sn + y * c).toFixed(2)}`).join(' ');
+}
+// THE NEEDLE, laid on the floor: turned `th` clockwise (0 = straight ahead),
+// then tipped back 58 degrees under a 300 px perspective — what
+// `rotateX(58deg) rotateZ()` used to do in CSS, done in JS for the same reason
+const NEEDLE = [[0, -48], [21, -14], [7, -14], [7, 40], [-7, 40], [-7, -14], [-21, -14]];
+function wayNeedle(th) {
+  const c = Math.cos(th), sn = Math.sin(th);
+  const ct = Math.cos(58 * Math.PI / 180), st = Math.sin(58 * Math.PI / 180);
+  return NEEDLE.map(([x, y]) => {
+    const rx = x * c - y * sn, ry = x * sn + y * c;
+    const f = 300 / (300 - ry * st);   // the far end (negative y) recedes
+    return `${(rx * f).toFixed(2)},${(ry * ct * f).toFixed(2)}`;
+  }).join(' ');
+}
 const EDGE_MERGE = 0.26;   // rad (~15 deg): enemy marks this close are one mark
 const EDGE_BOTTOM = 2.35;  // rad (~135 deg): marks further round than this sit here (clear of the gun)
 function updateEdgeArrows(playing) {
@@ -14234,7 +14259,7 @@ function updateEdgeArrows(playing) {
   while (edgeArrows.length < dirs.length) {
     const d = document.createElement('div');
     d.className = 'edgearrow';
-    d.textContent = '▲';
+    d.innerHTML = '<svg width="30" height="30" viewBox="-15 -15 30 30"><polygon/></svg>';
     document.getElementById('hud').appendChild(d);
     edgeArrows.push(d);
   }
@@ -14252,9 +14277,9 @@ function updateEdgeArrows(playing) {
       let th = -dirs[i];
       if (Math.abs(th) > EDGE_BOTTOM) th = (th < 0 || (th === Math.PI) ? -1 : 1) * EDGE_BOTTOM;
       a.style.display = 'block';
-      a.style.left = `${cx + Math.sin(th) * R}px`;
-      a.style.top = `${cy - Math.cos(th) * R}px`;
-      a.style.transform = `translate(-50%,-50%) rotate(${th}rad)`;
+      a.style.left = `${cx + Math.sin(th) * R - 15}px`;
+      a.style.top = `${cy - Math.cos(th) * R - 15}px`;
+      a.firstChild.firstChild.setAttribute('points', edgeTri(th));
     } else {
       a.style.display = 'none';
     }

@@ -112,8 +112,14 @@
   /* edge arrows: enemies in that direction, off-screen. A statement about ONE
      MAN — which is why they latch per body and why there can be six of them.
      They are a LATER lesson: see #wayarrow, and EARLY.wayDoors. */
-  .edgearrow { position:absolute; display:none; font-size:26px; font-weight:900; color:#ff2d1a;
-               text-shadow:0 0 6px rgba(255,45,26,.35); pointer-events:none; }
+  /* A DART, NOT A ▲ (playtest 2026-10-06: the marks read as pointing the
+     wrong way — an equilateral triangle turned 30 degrees has another corner
+     pointing sideways). An SVG arrowhead whose corners are computed in JS
+     (edgeTri), so its one tip is unmistakable. */
+  .edgearrow { position:absolute; display:none; width:30px; height:30px; pointer-events:none;
+               filter:drop-shadow(0 0 4px rgba(255,45,26,.45)); }
+  .edgearrow svg, #wayarrow svg { display:block; overflow:visible; }
+  .edgearrow polygon, #wayarrow polygon { fill:#ff2d1a; stroke:#ff2d1a; stroke-width:2; stroke-linejoin:round; }
 
   /* WHICH WAY TO GO — one mark, and a different job from the marks above.
      A playtest walking the training hallway saw a small red arrow appear and
@@ -171,7 +177,13 @@
   body.armed #wayarrow { bottom:auto; top:42%; }
   #wayarrow.on { opacity:1; visibility:visible;
               transition:opacity .4s ease, visibility 0s linear 0s; }
-  #wayarrow i { position:absolute; inset:0; display:block; will-change:transform; }
+  /* the needle is an SVG too, its floor tilt and bearing computed in JS
+     (wayNeedle) for the same reason as the edge marks */
+  #wayarrow svg { position:absolute; inset:0; filter:drop-shadow(0 2px 12px rgba(238,240,243,.9))
+                     drop-shadow(0 0 2px rgba(238,240,243,.75)); }
+  body.slowmo #wayarrow svg { filter:drop-shadow(0 2px 12px rgba(12,13,16,.92))
+                     drop-shadow(0 0 2px rgba(12,13,16,.8)); }
+  #wayarrow i { display:none; }
   /* head and shaft, drawn as one needle in the game's red, wearing the HUD's
      own halo so it survives a light floor the way the readout does */
   #wayarrow i::before, #wayarrow i::after { content:''; position:absolute; left:50%;
@@ -1571,7 +1583,7 @@
   <div id="warn"></div>
   <div id="banner"></div>
   <div id="tutor"><div id="tutorline"></div><div id="tutorhand"></div><div id="tutorhand2"></div><div id="tutorarrow"></div><div id="tutorup"></div><div id="ts-top" class="tslot top"></div><div id="ts-mid" class="tslot mid"></div><div id="ts-dodge" class="tslot dodge"></div><div id="ts-left" class="tslot left"></div><div id="ts-right" class="tslot right"></div><div id="ts-atbtn" class="tslot atbtn"></div><div id="ts-world" class="tslot world"></div><div id="tutorpin"></div></div>
-  <div id="wayarrow"><i></i></div>
+  <div id="wayarrow"><svg width="104" height="104" viewBox="-52 -52 104 104"><polygon/></svg></div>
   <div id="ammo">PISTOL · ∞</div>
   <div id="reloadbar"><div id="reloadfill"></div></div>
   <div id="pausebtn">❚❚</div>
