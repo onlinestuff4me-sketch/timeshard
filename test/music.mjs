@@ -184,6 +184,14 @@ for (const c of cuts) {
   if (c.wait < 0 || c.wait > c.pair + 0.2) bad('a section change waited ' + c.wait + 's');
 }
 // ---- 4. bullet time muffles it, rather than merely turning it down --------
+// in an EMPTY room: gunfire in the mix is not the music being turned down
+await page.evaluate(() => {
+  const t = window.__ts;
+  t.game.spawnQueue.length = 0;
+  for (const e of t.enemies) e.g.visible = false;
+  t.enemies.length = 0;
+  for (let i = t.bullets.length - 1; i >= 0; i--) if (!t.bullets[i].fromPlayer) t.bullets[i].life = 0;
+});
 await page.evaluate(() => { window.__ts.setSlow(99); window.__ts.setTimeLocked(true); });
 await page.waitForTimeout(2500);
 const mf = await page.evaluate(() => window.__ts.audio());
