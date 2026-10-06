@@ -68,6 +68,14 @@ export const STREAK = { slowMul: [1, 1.25, 1.5, 2] };
 // seconds. Each one flashes PERFECT and pours `refill` seconds into the bank;
 // at each of `levels` parries in a run the bank's ceiling grows by the
 // matching `capAdd` seconds (TIME.cap is the ceiling before any).
+// ARMS FOR THE UNARMED (playtest 2026-10-06: out of ammo, the knife the only
+// weapon, and nothing left standing but rushers — who cannot be knifed in
+// practice, since they lunge from outside its reach). When the player has no
+// gun with a round in it, no gun lies on the floor, and everyone up is
+// unarmed, `n` gunners stand up `minM`-`maxM` m away where the player can see
+// them, each carrying a pistol to take off him with the knife. At most once
+// every `every` world seconds, and never while one of them is still up.
+export const ARMS_RELIEF = { n: 2, minM: 9, maxM: 18, every: 10 };
 export const PARRY = { near: 1.0, window: 2.0, refill: 1.5, levels: [3, 6, 10], capAdd: [2, 4, 6] };
 
 // ONE DEBUT PER WAVE — the wave (or tunnel door) each type first appears on.

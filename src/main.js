@@ -15,7 +15,7 @@ import * as THREE from '../lib/three.module.min.js';
 import { WEAPONS, TYPE_INTRO, TYPE_SHARE, TYPE_DROP, DROPS, RAMP, COMP, PACING, TIME, LEG, SHATTER,
   VIS, GRIND, EARLY, SIMPLE, OPENING, SPEED, SCHOOL, ramp, scarcity, condTax,
   speedAt, volleyAt, unlockDoor as speedUnlockDoor,
-  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, STREAK, PARRY, BLINKER, KEEPER, SIGHT, PLAYTEST,
+  doorEncounters, powerUnlockDoor, SWITCHER, TEMPO, STREAK, PARRY, ARMS_RELIEF, BLINKER, KEEPER, SIGHT, PLAYTEST,
   FLOORS, floorOf, WARMUP, GAUNTLET, BOSS_TYPES, KAMI, FRANK, DRONE, SPAWNER, FINALE,
   TIER_AT, mkFor, ENEMY_MK, TIER_LINE, WEAPON_MK, STAGGER_R } from './balance.js';
 import { composeProtocol, newRunMemory, enemyRoster, ELEMENTS } from './protocols.js';
@@ -1902,6 +1902,47 @@ function dropToKnife() {
   startReload();
   showBanner(next.toUpperCase(), 1200);
   vibrate(20);
+}
+
+// ARMS FOR THE UNARMED (ARMS_RELIEF in balance.js): nothing to shoot with,
+// nothing to pick up, and nobody up who carries a gun — two men who do.
+let reliefAt = -1e9;
+function armsRelief() {
+  if (game.mode !== 'hall' || !hall || game.state !== 'play' || tutorStep !== null || !player.alive) return;
+  if (!enemies.length || player.weapon !== 'knife' || bestSpare()) return;
+  if (pickups.some((p) => p.type !== CLIP)) return;              // a gun to go and get
+  if (enemies.some((e) => !unarmed(e.type) || e.relief)) return;
+  if (worldT - reliefAt < ARMS_RELIEF.every) return;
+  const L = hall.legs[hall.cur];
+  if (!L || L.boss || !L.cells) return;
+  const C = HALL.cell;
+  _v1.set(player.pos.x, EYE_HEIGHT, player.pos.z);
+  // where you can see them first; a corridor with a short sightline may only
+  // have one such spot, and then the other comes from round the corner (the
+  // edge marks point at him)
+  const spots = [], hidden = [];
+  for (const [gx, gz] of L.cells) {
+    const x = gx * C, z = gz * C, d = Math.hypot(x - player.pos.x, z - player.pos.z);
+    if (d < ARMS_RELIEF.minM || d > ARMS_RELIEF.maxM || pointInObstacle(x, z, 0.6)) continue;
+    (hasLineOfSight(_v1, _v2.set(x, 1.4, z)) ? spots : hidden).push({ x, z });
+  }
+  if (!spots.length && !hidden.length) return;
+  while (spots.length < ARMS_RELIEF.n && hidden.length) {
+    spots.push(hidden.splice(Math.floor(Math.random() * hidden.length), 1)[0]);
+  }
+  reliefAt = worldT;
+  const taken = [];
+  for (let k = 0; k < ARMS_RELIEF.n && spots.length; k++) {
+    // apart from each other, so one slash does not answer both
+    const ok = spots.filter((s) => taken.every((t) => Math.hypot(s.x - t.x, s.z - t.z) >= 4));
+    const pick = (ok.length ? ok : spots)[Math.floor(Math.random() * (ok.length || spots.length))];
+    taken.push(pick);
+    spots.splice(spots.indexOf(pick), 1);
+    spawnEnemy('gunner', pick);
+    const e = enemies[enemies.length - 1];
+    if (e) { e.relief = true; e.drops = 'pistol'; }
+  }
+  runlog.ev('relief', { n: taken.length });
 }
 
 // Out of everything: the knife. Lethal, silent, and it demands you close
@@ -18375,6 +18416,7 @@ function frame(now) {
     updateBullets(sdt);
     if (game.mode === 'rush') updateCrowd(sdt);
     if (inHall()) updateHall(dt);
+    armsRelief();
     drainUnlockBanners();   // held while a lesson owned the screen
     if (simple()) updateSimple(dt);
     updateMarks(sdt);
