@@ -109,6 +109,11 @@ await page.waitForTimeout(1600);
 if (await page.evaluate(() => !!window.__tap)) bad('an AudioContext was built with no user gesture');
 
 await page.tap('.go');          // CONTINUE: one tap, straight into the run
+// NOBODY KILLS THE LISTENER. This probe stands in a live door for half a
+// minute measuring sound, and since doors became a string of fights
+// (playtest log #10) somebody sometimes got him first — and a dead player
+// neither slows time nor walks, so sections 4 and 5 failed on a corpse.
+await page.evaluate(() => { setInterval(() => { if (window.__ts) window.__ts.player.iframes = 999; }, 30); });
 await page.waitForTimeout(4500);
 if (await page.evaluate(() => window.__ts.game.state) === 'menu') bad('CONTINUE did not start a run');
 
