@@ -118,7 +118,7 @@ the walker again from nothing.
 `errors:` line — `done()` does it — and must attach `page.on('pageerror')`,
 which `boot()` does.
 
-Conventions that cost real time to learn, from `docs/HANDOFF.md`:
+Conventions that cost real time to learn, from the old handoff (`docs/history/HANDOFF-2026-09.md`; see also `docs/TESTING.md`):
 
 * Chromium, **402×874**, `hasTouch` + `isMobile`, `deviceScaleFactor: 1`.
   dsf 2 costs eight times the frame rate and silently breaks any pixel
