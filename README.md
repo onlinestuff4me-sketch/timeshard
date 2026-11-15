@@ -26,7 +26,9 @@ https://claude.ai/code/artifact/b764bbb1-3a09-4146-be55-b02bcb7318b9
 (source of truth: `docs/BALANCE.md`; adjust at `/tool` → RAMP)
 
 A first-person time-manipulation arcade shooter built for **portrait-mode mobile**,
-where **time only moves when you let go of the screen**.
+where **slow time is a budget you spend**. The world runs at full speed until
+you slow it, and every second slowed comes out of a bank that kills refill
+(see [`docs/PILLARS.md`](docs/PILLARS.md) §1).
 
 White world. Red enemies. One hit and you shatter — them, or you.
 
@@ -36,7 +38,7 @@ Everything runs off holds, drags, and taps — one thumb works, two thumbs sing:
 
 | Gesture | Effect |
 |---|---|
-| **Hold** (any finger) | Bullet time: ~5% speed standing still, creeping up to ~30% while you move — dodging costs the world a few frames |
+| **Time button** (bottom right) | Bullet time: ~5% speed standing still, creeping up to ~30% while you move, paid for from the slow-time bank. (The CLASSIC control setting slows time while any finger is held instead.) |
 | **Left-half drag** | Floating virtual stick: smooth, velocity-eased movement to weave between hanging bullets |
 | **Right-half drag** | Look/aim — the camera is yours; a soft assist only settles your crosshair onto targets you're already pointing at, and red edge arrows point toward off-screen threats |
 | **Tap** | Fire at the crosshair — tap repeatedly to work through a whole squad in one freeze |
@@ -84,11 +86,11 @@ key, so the source keeps that word while nothing a player sees does.)
 - **First-run onboarding**: wave 1 opens with a zone guide (move left / look right / tap to fire) and enemies hold their fire until it clears
 - **TIME SHATTER rules**: one hit kills you; one hit shatters them; endless escalating waves with enemy bullets creeping faster each wave
 - **Rotating arenas**: the cover layout changes every 3 waves (scattered cover → pillar court → corridors)
-- Synthesized sound effects (WebAudio, no assets), haptic feedback, kill-word flashes, best-wave tracking (localStorage)
+- Recorded music and sound effects (`assets/music/`, `assets/sfx/`, played through WebAudio), haptic feedback, kill-word flashes, best-wave tracking (localStorage)
 
 ## Play it
 
-**On your phone:** https://onlinestuff4me-sketch.github.io/timeshard/
+**On your phone:** https://timeshatter.app
 (deployed automatically from `main` by GitHub Pages)
 
 ## Run it locally
@@ -107,5 +109,10 @@ For real haptics/audio on a phone, serve over HTTPS or localhost port-forwarding
 ## Structure
 
 - `index.html` — HUD, overlays, menus (pure DOM/CSS on top of the canvas)
-- `src/main.js` — the whole game: rendering, input, physics, AI, waves, audio
+- `src/main.js` — the frame loop: rendering, input, physics, AI, the tunnel, HUD, audio
+- `src/balance.js` — every tunable; `src/protocols.js` — enemy/element registry and card copy;
+  `src/genleg.js` — the corridor generator; `src/tutorial.js`, `src/modes.js`,
+  `src/runlog.js` (SEND LOG), `src/characters.js`, `src/native.js`
+- `assets/` — recorded music and sound effects, mode preview clips, social images
+- `test/` — the Playwright probes (`bash test/runall.sh`; see `test/README.md`)
 - `lib/three.module.min.js` — vendored Three.js r170
