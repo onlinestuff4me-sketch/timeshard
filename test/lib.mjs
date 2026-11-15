@@ -1,4 +1,4 @@
-// Shared boot for menu probes. Conventions from docs/HANDOFF.md:
+// Shared boot for menu probes. Conventions from docs/history/HANDOFF-2026-09.md and docs/TESTING.md:
 // Chromium at 402x874, hasTouch + isMobile, dsf 1, always watch pageerror.
 import { chromium } from 'playwright';
 import { existsSync, readdirSync, mkdirSync } from 'node:fs';
